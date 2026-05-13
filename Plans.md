@@ -10,27 +10,25 @@
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 0.1 | Supabase 프로젝트 생성 / DB URL 발급 | `.env.example` 에 DATABASE_URL 자리. 사람이 GitHub Secrets 등록 | - | cc:TODO |
-| 0.2 | Koyeb 프로젝트 생성 / 배포 토큰 발급 | GH Secrets 에 KOYEB_TOKEN 등록 | - | cc:TODO |
-| 0.3 | Upstash Redis 인스턴스 생성 | `.env.example` 에 UPSTASH_REDIS_REST_URL/TOKEN 자리 | - | cc:TODO |
-| 0.4 | FastAPI 골격 (uvicorn 부팅 가능) | `uvicorn app.main:app` 실행 시 `/health` 200 | - | cc:TODO |
-| 0.5 | alembic 셋업 + 첫 빈 마이그레이션 | `alembic upgrade head` 가 빈 DB 에 성공 | 0.4 | cc:TODO |
-| 0.6 | pytest 셋업 (unit / integration marker 분리) | `pytest -m unit` 동작 | 0.4 | cc:TODO |
-| 0.7 | pydantic-settings 로 .env 로드 | `.env.example` 정리 + Settings 클래스 | 0.4 | cc:TODO |
-| 0.8 | docker-compose (선택, 로컬 dev DB) [tdd:skip:infra-only] | 로컬에서 Postgres 부팅 가능 | - | cc:TODO |
+| 0.1 | Supabase 프로젝트 (benchmark-v3 linked) | DATABASE_URL .env 채움. GH Secrets 미등록 | - | cc:WIP |
+| 0.2 | Koyeb 프로젝트 (benchmark-v3 app 생성) | KOYEB_TOKEN GH Secrets 미등록 | - | cc:WIP |
+| 0.3 | Upstash Redis (benchmark-v3-cache) | REST URL/TOKEN .env 미입력 | - | cc:WIP |
+| 0.4 | FastAPI 골격 (uvicorn 부팅 가능) | `uvicorn app.main:app` 실행 시 `/health` 200 | - | cc:완료 [92b0af8] |
+| 0.5 | alembic 셋업 + 첫 마이그레이션 | `alembic upgrade head` 적용 (13 테이블 prod 적용 완료) | 0.4 | cc:완료 [92b0af8] |
+| 0.6 | pytest 셋업 (unit / integration marker 분리) | `pytest -m unit` 동작 + 격리 schema conftest | 0.4 | cc:완료 [a57a188] |
+| 0.7 | pydantic-settings + Settings 클래스 | env 로드 동작 | 0.4 | cc:완료 [92b0af8] |
+| 0.8 | docker-compose (선택, 로컬 dev DB) | MVP 미포함 결정 (remote Supabase test schema 사용) | - | blocked (MVP 외) |
 
 ## Phase 1: DB 스키마
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 1.1 | `league` 테이블 (id, external_id, name, slug, country) | 마이그레이션 적용 + 모델 매핑 테스트 통과 | 0.5 | cc:TODO |
-| 1.2 | `team` 테이블 (id, external_id, name, league_id 다대다 또는 시즌별) | 모델 + 외래키 + 테스트 | 1.1 | cc:TODO |
-| 1.3 | `player` 테이블 (id, external_id, eng_name, team_id, age 등) | 모델 + 테스트 | 1.2 | cc:TODO |
-| 1.4 | `fixture` 테이블 (id, external_id, league_id, home_team_id, away_team_id, kickoff_at, status, score) | 모델 + 인덱스(외부 ID unique, kickoff_at) + 테스트 | 1.2 | cc:TODO |
-| 1.5 | `fixture_detail` 테이블 (fixture_id, events JSON, statistics JSON, lineups JSON) | 모델 + 테스트 | 1.4 | cc:TODO |
-| 1.6 | `league_translation` / `team_translation` / `player_translation` 매칭 테이블 (external_id, name_ko, short_name_ko, source, verified, updated_at) | 3 테이블 + 외부 ID unique + 테스트 | 1.1, 1.2, 1.3 | cc:TODO |
-| 1.7 | `user` / `role` 테이블 (id, email, password_hash, role: USER/STREAMER/ADMIN) | 모델 + Enum role + 테스트 | 0.5 | cc:TODO |
-| 1.8 | Supabase RLS 정책 결정 및 적용 | RLS on/off 결정 문서화. 적용 시 정책 SQL | 1.7 | cc:TODO |
+| 1.1 | `league` 테이블 + venue + team + player + fixture + fixture_detail + standings + team_season + *_translation + app_user (13 테이블, 단일 마이그레이션) | 단위 74/74 + 통합 28/28 통과. prod 적용 완료 | 0.5 | cc:완료 [92b0af8] |
+| 1.2~1.7 | (1.1 단일 마이그레이션에 포함) | - | 1.1 | cc:완료 [92b0af8] |
+| 1.8 | Supabase RLS 정책 결정 및 적용 | RLS on/off 결정 문서화. 적용 시 정책 SQL | 1.1 | cc:TODO |
+| 1.9 | `league.is_active` 컬럼 follow-up (동적 league 관리) | 별도 마이그레이션 0002 + 모델 갱신 + 테스트 | 1.1 | cc:완료 [9e7d157] |
+| 1.10 | `transfer` / `injury` / `news_article` 3 테이블 추가 (마이그레이션 0003) | 모델 + 마이그레이션 + 테스트 | 1.1 | cc:완료 [7115dad] |
+| 1.11 | `h2h_fixture` 테이블 추가 (마이그레이션 0004) | 모델 + 마이그레이션 + 테스트 | 1.1 | cc:완료 [7115dad] |
 
 ## Phase 2: 시드 데이터
 
@@ -69,9 +67,23 @@
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 5.1 | `name_ko IS NULL` 감지 쿼리 (3 매칭 테이블 통합) | 단위 테스트 | 1.6 | cc:TODO |
-| 5.2 | gpt-3.5-turbo few-shot 클라이언트 (시드 CSV 에서 예시 추출) | 단위 테스트 (mock) | 2.3 | cc:TODO |
-| 5.3 | 1분 폴링 스케줄 + 분산 락 + 빈 큐 조기 종료 | 단위 + 통합 테스트 | 4.2, 5.1, 5.2 | cc:TODO |
+| 5.1 | name_ko IS NULL 감지 + few-shot 프롬프트 + 1분 폴링 (단일 구현) | 단위 14/14 + 통합 7/7 PASS | 1.1, 2.3 | cc:완료 [256501c] |
+
+## Phase 5.5: 워커 - news-fetcher
+
+| Task | 내용 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 5.5.1 | RSS 파싱 (BBC / Guardian / Sky EPL feed) | 단위 테스트 | 1.10 | cc:TODO |
+| 5.5.2 | EPL 키워드 매칭 (DB 의 team.name + code) | 단위 테스트 | 1.10, 5.5.1 | cc:TODO |
+| 5.5.3 | 1시간 폴링 + INSERT ON CONFLICT DO NOTHING + tags JSONB | 통합 테스트 (mock RSS) | 5.5.2 | cc:TODO |
+
+## Phase 5.6: 워커 - news-translator
+
+| Task | 내용 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 5.6.1 | title_ko/summary_ko IS NULL 큐 조회 | 단위 테스트 | 1.10 | cc:TODO |
+| 5.6.2 | gpt-3.5-turbo 의역 클라이언트 (temp 0.3, JSON 강제) | 단위 테스트 | 5.6.1 | cc:TODO |
+| 5.6.3 | 1분 폴링 + 배치 50 + semaphore 5 | 통합 테스트 (mock OpenAI) | 5.6.2 | cc:TODO |
 
 ## Phase 6: (제거) live-poll 워커는 워커가 아니라 API endpoint 로 처리
 
@@ -85,14 +97,14 @@
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 7.1 | `docs/spec/agent-workflow.md` 작성 (상태 머신 + 게이트) | 본 세션에서 생성 | - | cc:WIP |
-| 7.2 | `.claude/agents/be-{test,dev,reviewer}.md` 3개 에이전트 명세 | 본 세션에서 생성 | 7.1 | cc:WIP |
-| 7.3 | `.claude/schemas/endpoint-flow.schema.json` (상태 파일 JSON Schema) | schema validation 통과 | 7.1 | cc:TODO |
-| 7.4 | `scripts/endpoint-flow.sh` (상태 전환 CLI) | 단위 테스트 통과 | 7.3 | cc:TODO |
+| 7.1 | `docs/spec/agent-workflow.md` 작성 (상태 머신 + 게이트) | 본 세션에서 생성 | - | cc:완료 [df6672e] |
+| 7.2 | `.claude/agents/be-{test,dev,reviewer}.md` 3개 에이전트 명세 | 본 세션에서 생성 + 팀 스폰 동작 확인 | 7.1 | cc:완료 [df6672e] |
+| 7.3 | `.claude/schemas/endpoint-flow.schema.json` (상태 파일 JSON Schema) | schema validation 통과 | 7.1 | cc:완료 [local] |
+| 7.4 | `scripts/endpoint-flow.sh` (상태 전환 CLI) | 단위 테스트 통과 | 7.3 | cc:완료 [local] |
 | 7.5 | GH Actions: `.github/workflows/be-ep-pr.yml` (be-ep-* PR 검증) | CI 잡 성공 | 7.4 | cc:TODO |
 | 7.6 | GH Actions: `.github/workflows/backend-pr.yml` (backend ← be-ep-* PR) | CI 잡 성공 | 7.5 | cc:TODO |
 | 7.7 | GH Actions: `.github/workflows/main-deploy.yml` (main push → 마이그레이션 → Koyeb) | dry-run 성공 | 7.6 | cc:TODO |
-| 7.8 | 테스트 schema 자동 생성/삭제 fixture (`tests/conftest.py`) | 통합 테스트가 격리 스키마에서 실행됨 | 0.6 | cc:TODO |
+| 7.8 | 테스트 schema 자동 생성/삭제 fixture (`tests/conftest.py`) | 통합 테스트가 격리 스키마에서 실행됨 (28/28 통과 검증) | 0.6 | cc:완료 [a57a188] |
 | 7.9 | reviewer agent invocation 자동화 (PR comment 또는 CI 잡) | PR 에 reviewer verdict 자동 게시 | 7.2, 7.5 | cc:TODO |
 
 ## Phase 8: API endpoint 구현 (프론트엔드 follow)
@@ -109,7 +121,7 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 9.1 | Vue 3 + Vite MPA 골격 (다중 entry) | `npm run dev` 가 다중 entry 부팅 | - | cc:TODO |
+| 9.1 | Vue 3 + Vite MPA 골격 (다중 entry: main, broadcast) | `npm run dev` 가 두 entry 부팅. broadcast 는 #00B140 배경 | - | cc:완료 [533766f] |
 | 9.2 | Tailwind + shadcn-vue 셋업 | shadcn-vue CLI 동작 + Button 컴포넌트 추가 | 9.1 | cc:TODO |
 | 9.3 | Pinia + Vue Router (페이지별 인스턴스) | entry 별 store 작동 | 9.1 | cc:TODO |
 | 9.4 | MSW 셋업 (`VITE_USE_MOCK` 토글) | 토글로 mock/실 API 분기 | 9.1 | cc:TODO |
@@ -125,11 +137,11 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 10.1 | `docs/features/README.md` (요구사항 템플릿) | 본 세션에서 생성 | - | cc:WIP |
-| 10.2 | `docs/spec/fe-workflow.md` (상태 머신 + 게이트) | 본 세션에서 생성 | - | cc:WIP |
-| 10.3 | `.claude/agents/fe-{planner,dev,reviewer}.md` 3개 명세 | 본 세션에서 생성 | 10.2 | cc:WIP |
-| 10.4 | `.claude/schemas/feature-flow.schema.json` (FE state JSON Schema) | schema validation 통과 | 10.2 | cc:TODO |
-| 10.5 | `scripts/feature-flow.sh` (상태 전환 CLI) | 단위 테스트 통과 | 10.4 | cc:TODO |
+| 10.1 | `docs/features/README.md` (요구사항 템플릿) | 본 세션에서 생성 | - | cc:완료 [df6672e] |
+| 10.2 | `docs/spec/fe-workflow.md` (상태 머신 + 게이트) | 본 세션에서 생성 | - | cc:완료 [df6672e] |
+| 10.3 | `.claude/agents/fe-{planner,dev,reviewer}.md` 3개 명세 | 본 세션에서 생성 + 팀 스폰 동작 확인 | 10.2 | cc:완료 [df6672e] |
+| 10.4 | `.claude/schemas/feature-flow.schema.json` (FE state JSON Schema) | schema validation 통과 | 10.2 | cc:완료 [local] |
+| 10.5 | `scripts/feature-flow.sh` (상태 전환 CLI) | 단위 테스트 통과 | 10.4 | cc:완료 [local] |
 | 10.6 | `frontend/endpoint-requests/` 양식 + 자동 추출 스크립트 (mock JSON + planner spec → request.json) | 시범 feature 에서 자동 추출 성공 | 10.5, 7.4 | cc:TODO |
 | 10.7 | GH Actions: `.github/workflows/fe-feat-pr.yml` (lint/type/vitest/Playwright L2/번들) | CI 잡 성공 | 9.1, 9.7 | cc:TODO |
 | 10.8 | GH Actions: `.github/workflows/fe-integration-pr.yml` (L1+L2+L3 on Vercel preview, prod BE) | CI 잡 성공 | 10.7, 9.8 | cc:TODO |

@@ -1,0 +1,57 @@
+{
+  "endpoint_id": "GET__api_v1_home_top_players",
+  "method": "GET",
+  "path": "/api/v1/home/top-players",
+  "from_feature": "main-home",
+  "fe_mockup_ref": "frontend/src/mocks/data/home/top_players.json",
+  "handler_ref": "frontend/src/mocks/handlers/home.ts",
+  "spec_excerpt": "우측 하단 50% — 리그별 선수 스탯. 지표 = goals/assists/yellow_cards/red_cards. 행 = rank · player.name_ko · 팀 배지 · 수치. 클릭 시 /players/{player_slug}. (spec §5.2)",
+  "auth": "public",
+  "request_query_params": [
+    { "name": "league_id", "type": "number", "optional": true, "default": "39", "description": "리그 external_id" },
+    { "name": "metric", "type": "'goals'|'assists'|'yellow_cards'|'red_cards'", "optional": true, "default": "goals", "description": "스탯 지표" }
+  ],
+  "response_shape": {
+    "league": {
+      "external_id": "number",
+      "slug": "string",
+      "name_ko": "string|null",
+      "name": "string"
+    },
+    "season": "number (예: 2025)",
+    "metric": "'goals'|'assists'|'yellow_cards'|'red_cards'",
+    "rows": [
+      {
+        "rank": "number",
+        "player": {
+          "external_id": "number",
+          "slug": "string",
+          "name_ko": "string|null",
+          "name": "string",
+          "photo_url": "string|null",
+          "team": {
+            "external_id": "number",
+            "slug": "string",
+            "name_ko": "string|null",
+            "name": "string",
+            "logo_url": "string|null"
+          },
+          "league": "(LeagueRef)"
+        },
+        "metric_value": "number"
+      }
+    ]
+  },
+  "response_example_path": "frontend/src/mocks/data/home/top_players.json",
+  "scenarios_used": ["normal", "empty", "error"],
+  "scenario_behavior": {
+    "empty": "200 { league: <ref|null>, season: <year>, metric, rows: [] }",
+    "error": "500",
+    "normal": "rank asc, 최대 ~30행"
+  },
+  "data_source": "player + 시즌 stats. metric 별 집계. 현재 시즌, 지정 리그.",
+  "notes_for_be": [
+    "metric 값은 정수. 없는 row 는 rows:[] 로 반환.",
+    "league 가 null 가능 (rows:[] 일 때) — FE 가 처리."
+  ]
+}

@@ -1,8 +1,16 @@
 {
   "endpoint_id": "phase-1-followup-l3",
   "reviewer": "be-reviewer",
-  "latest_stage": "SPEC_REVIEW",
+  "latest_stage": "REVIEW_PENDING",
   "stages": [
+    {
+      "stage": "REVIEW_PENDING",
+      "verdict": "APPROVE",
+      "critical": [],
+      "major": [],
+      "minor": [],
+      "recommendations": ["closeout: h2h_fixture table + functional pair index match db-schema.md §3.17. Unit 5/5 + integration 9/9 PASS (commit 17e4129). Merged via 7115dad."]
+    },
     {
       "stage": "SPEC_REVIEW",
       "reviewed_commit": "9cf6cb3",

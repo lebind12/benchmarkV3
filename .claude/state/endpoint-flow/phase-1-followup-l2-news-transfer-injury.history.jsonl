@@ -1,0 +1,4 @@
+{"ts":"2026-05-14T00:30:00+09:00","from":"SPEC_REVIEW","to":"SPEC_APPROVED","by":"be-reviewer","note":"verdict APPROVE; spec mirrors SSOT §3.14/§3.15/§3.16 exactly; 27 test cases cover all FK/UNIQUE/partial/GIN/downgrade scenarios; minor/recommendation only"}
+{"ts":"2026-05-14T01:45:00+09:00","from":"REVIEW_PENDING","to":"MERGE_GATE","by":"be-reviewer","note":"verdict APPROVE on impl 586e1a4; minor only; merge unblocks L3 phase-1-followup-l3 dependency"}
+{"ts":"2026-05-13T18:11:53.099Z","from":"MERGE_GATE","to":"PR_CREATED","by":"team-lead","note":"closeout: code already in main via 7115dad"}
+{"ts":"2026-05-13T18:11:53.135Z","from":"PR_CREATED","to":"MERGED","by":"team-lead","note":"merged via 7115dad"}

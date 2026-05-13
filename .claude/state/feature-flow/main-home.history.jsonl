@@ -1,0 +1,9 @@
+{"ts":"2026-05-13T18:10:38.450Z","from":"PLAN_APPROVED","to":"IMPL_IN_PROGRESS","by":"fe-dev","note":"start mock impl on fe-feat-main-home worktree"}
+{"ts":"2026-05-13T18:20:41.832Z","from":"IMPL_IN_PROGRESS","to":"IMPL_PUSHED","by":"fe-dev","note":"mock impl pushed: vue3 SPA, MSW, vitest 27/27, playwright 14/14"}
+{"ts":"2026-05-13T18:20:47.114Z","from":"IMPL_PUSHED","to":"PLAYWRIGHT_RUN","by":"fe-dev","note":"running L1 vitest + L2 playwright mock"}
+{"ts":"2026-05-13T18:20:52.202Z","from":"PLAYWRIGHT_RUN","to":"REVIEW_PENDING","by":"fe-dev","note":"L1 vitest 27/27 PASS, L2 playwright 14/14 PASS, build OK"}
+{"ts":"2026-05-13T18:23:05.186Z","from":"REVIEW_PENDING","to":"MERGE_GATE","by":"fe-reviewer","note":"APPROVE mock impl"}
+{"ts":"2026-05-13T18:26:23.182Z","from":"MERGE_GATE","to":"PR_CREATED","by":"team-lead","note":"mock 머지 commit e2833cf"}
+{"ts":"2026-05-13T18:26:23.217Z","from":"PR_CREATED","to":"MERGED","by":"team-lead","note":"merged via e2833cf"}
+{"ts":"2026-05-13T18:28:55.149Z","from":"MERGED","to":"BE_REQUEST_GENERATED","by":"fe-dev","note":"7 endpoint-requests generated, BE states initialized at FE_REQUESTED"}
+{"ts":"2026-05-13T18:29:00.668Z","from":"BE_REQUEST_GENERATED","to":"FE_DONE_AWAITING_BE","by":"fe-dev","note":"mock cycle complete; awaiting BE implementation"}

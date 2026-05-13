@@ -1,0 +1,55 @@
+{
+  "endpoint_id": "GET__api_v1_home_standings",
+  "method": "GET",
+  "path": "/api/v1/home/standings",
+  "from_feature": "main-home",
+  "fe_mockup_ref": "frontend/src/mocks/data/home/standings.json",
+  "handler_ref": "frontend/src/mocks/handlers/home.ts",
+  "spec_excerpt": "우측 상단 50% — 리그별 팀 순위. 드롭다운 = 5리그 (컵대회는 standings 없으면 빈). 행 = rank · team.short_name_ko · points · W-D-L. 클릭 시 /teams/{team_slug}. (spec §5.1)",
+  "auth": "public",
+  "request_query_params": [
+    { "name": "league_id", "type": "number", "optional": true, "default": "39", "description": "리그 external_id. 기본 EPL(39). 5리그(39|2|3|48|45) 중 하나" }
+  ],
+  "response_shape": {
+    "league": {
+      "external_id": "number",
+      "slug": "string",
+      "name_ko": "string|null",
+      "short_name_ko": "string|null",
+      "name": "string"
+    },
+    "season": "number (예: 2025)",
+    "rows": [
+      {
+        "rank": "number",
+        "team": {
+          "external_id": "number",
+          "slug": "string",
+          "name_ko": "string|null",
+          "short_name_ko": "string|null",
+          "name": "string",
+          "logo_url": "string|null"
+        },
+        "points": "number",
+        "played": "number",
+        "win": "number",
+        "draw": "number",
+        "loss": "number",
+        "goals_for": "number",
+        "goals_against": "number"
+      }
+    ]
+  },
+  "response_example_path": "frontend/src/mocks/data/home/standings.json",
+  "scenarios_used": ["normal", "empty", "error"],
+  "scenario_behavior": {
+    "empty": "200 { league: <ref>, season: <year>, rows: [] } — 컵대회(카라바오/FA) 또는 시즌 미시작",
+    "error": "500",
+    "normal": "rank asc 정렬"
+  },
+  "data_source": "standing 테이블 (daily-sync 적재). 현재 시즌(current season).",
+  "notes_for_be": [
+    "컵 대회(48, 45)는 standings 없을 수 있음 → rows:[] 반환 (FE 가 'standings 없음' 카피 표시).",
+    "league.short_name_ko 가 있어야 우측 패널 헤더에 사용. FE 가 영문 fallback."
+  ]
+}

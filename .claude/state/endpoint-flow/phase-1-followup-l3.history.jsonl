@@ -4,3 +4,6 @@
 {"ts":"2026-05-14T01:30:00+09:00","from":"IMPL_IN_PROGRESS","to":"IMPL_PUSHED","by":"be-dev","note":"commit ce11513 pushed; unit 5/5 + integration 9/9 PASS; prod DB at 0004_h2h_fixture"}
 {"ts":"2026-05-14T10:30:00+09:00","from":"IMPL_PUSHED","to":"TESTING","by":"be-test","note":"start TESTING — pytest against impl ce11513 via Supabase pooler"}
 {"ts":"2026-05-14T10:35:00+09:00","from":"TESTING","to":"REVIEW_PENDING","by":"be-test","note":"unit 5/5 PASS (0.26s), integration 9/9 PASS (57.64s). 함수 인덱스 + 순서 무관 쿼리 + reversibility 모두 green. handoff to be-reviewer."}
+{"ts":"2026-05-13T18:09:53.014Z","from":"REVIEW_PENDING","to":"MERGE_GATE","by":"be-reviewer","note":"APPROVE closeout"}
+{"ts":"2026-05-13T18:12:08.889Z","from":"MERGE_GATE","to":"PR_CREATED","by":"team-lead","note":"closeout: code already in main via 7115dad"}
+{"ts":"2026-05-13T18:12:08.923Z","from":"PR_CREATED","to":"MERGED","by":"team-lead","note":"merged via 7115dad"}

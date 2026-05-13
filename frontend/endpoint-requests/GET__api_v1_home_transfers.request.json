@@ -1,0 +1,50 @@
+{
+  "endpoint_id": "GET__api_v1_home_transfers",
+  "method": "GET",
+  "path": "/api/v1/home/transfers",
+  "from_feature": "main-home",
+  "fe_mockup_ref": "frontend/src/mocks/data/home/transfers.json",
+  "handler_ref": "frontend/src/mocks/handlers/home.ts",
+  "spec_excerpt": "큐브 3면(이적): 선수 사진 + name_ko + 'from team → to team' + 날짜(YYYY-MM-DD). 클릭 시 /stats 이적 섹션. 빈 상태: '최근 이적 정보가 없습니다'. (spec §3.3)",
+  "auth": "public",
+  "request_query_params": [],
+  "response_shape": {
+    "items": [
+      {
+        "id": "string",
+        "player": {
+          "external_id": "number",
+          "slug": "string",
+          "name_ko": "string|null",
+          "name": "string",
+          "photo_url": "string|null",
+          "team": "TeamRef",
+          "league": "LeagueRef"
+        },
+        "from_team": {
+          "external_id": "number",
+          "slug": "string",
+          "name_ko": "string|null",
+          "short_name_ko": "string|null",
+          "name": "string",
+          "logo_url": "string|null"
+        },
+        "to_team": "(same shape as from_team)",
+        "transfer_date": "YYYY-MM-DD",
+        "fee": "string|null (예: '€103m')"
+      }
+    ]
+  },
+  "response_example_path": "frontend/src/mocks/data/home/transfers.json",
+  "scenarios_used": ["normal", "empty", "error"],
+  "scenario_behavior": {
+    "empty": "200 { items: [] }",
+    "error": "500",
+    "normal": "최근 이적 최대 5건. transfer_date desc. 5리그 관련 (to_team 또는 from_team 이 5리그 소속이거나 player.league 가 5리그)"
+  },
+  "data_source": "transfer 테이블 (daily-sync 적재).",
+  "notes_for_be": [
+    "fee 는 원본 문자열 그대로(통화/단위 포함). 정규화는 MVP 외.",
+    "from_team / to_team 모두 외부팀(다른 리그)일 수 있음 — short_name_ko 가 있으면 함께 반환."
+  ]
+}

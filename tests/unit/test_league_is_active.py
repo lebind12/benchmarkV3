@@ -107,10 +107,14 @@ EXPECTED_TABLES = {
     "fixture_detail",
     "standings",
     "app_user",
+    "transfer",
+    "injury",
+    "news_article",
+    "h2h_fixture",
 }
 
 
 def test_lu06_table_count_unchanged(metadata):
     assert set(metadata.tables.keys()) == EXPECTED_TABLES, (
-        "L1 task 는 컬럼/인덱스 추가만. 테이블 추가/삭제 금지"
+        "테이블 집합이 baseline 과 다름. 의도된 변경이면 EXPECTED_TABLES 갱신"
     )

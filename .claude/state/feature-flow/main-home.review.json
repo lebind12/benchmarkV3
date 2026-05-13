@@ -1,0 +1,25 @@
+{
+  "feature_id": "main-home",
+  "reviewer": "fe-reviewer",
+  "latest_stage": "REVIEW_PENDING",
+  "stages": [
+    {
+      "stage": "REVIEW_PENDING",
+      "reviewed_commit": "20fbc43",
+      "verdict": "APPROVE",
+      "summary": "Mock impl matches devplan: directory structure (views/components/stores/router/layouts/lib/mocks/styles) intact; HomeView 3-panel 25/50/25 grid; CubeCarousel 4 faces with ROTATE_MS=10_000, mouseenter/focusin pause + mouseleave/focusout resume, dot tablist with ArrowLeft/Right key nav, aria-roledescription=carousel/slide, aria-hidden+inert on inactive faces, aria-selected on dots; league dynamic theme via [data-league] -> --theme-* tokens for 5 leagues (epl/ucl/uel/carabao/fa) per ui-standards §3.2 + league-palette §8; MSW serves all 7 endpoints with scenario branches. Vitest 27/27 PASS, Playwright L2 14/14 PASS, vue-tsc clean, vite build 779ms, HomeView bundle 19.83 KB (6.44 KB gzip) within budget. fe-dev deferred scenarios are non-blocking recommendations (perf/polling/timing edge cases).",
+      "critical": [],
+      "major": [],
+      "minor": [
+        "CubeCarousel auto-rotate timing assertion deferred (S03/S04/S05) — covered functionally by S34 attrs + manual",
+        "S08 external-link tab semantics deferred to integration",
+        "S38 computed-colour league override deferred (token system already validated)"
+      ],
+      "recommendations": [
+        "In follow-up L3/integration, add fake-timer vitest spec for ROTATE_MS=10_000 and pause/resume",
+        "Add S30–S33 perf/polling assertions when real API endpoints are wired",
+        "Consider prefers-reduced-motion media query to disable cube rotation animation"
+      ]
+    }
+  ]
+}

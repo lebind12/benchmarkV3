@@ -2,3 +2,8 @@
 {"ts":"2026-05-13T23:15:00+09:00","from":"SPEC_DRAFTING","to":"SPEC_REVIEW","by":"be-test","note":"spec + testplan + unit/integration test 4파일 작성 완료. Red 확인 (14 unit errors, ModuleNotFoundError: app.workers). be-reviewer 핸드오프"}
 {"ts":"2026-05-13T22:30:00+09:00","from":"SPEC_APPROVED","to":"IMPL_IN_PROGRESS","by":"be-dev","note":"W1 implementation start: queue/prompt/openai_client/runner/scheduler"}
 {"ts":"2026-05-13T22:55:00+09:00","from":"IMPL_IN_PROGRESS","to":"IMPL_PUSHED","by":"be-dev","note":"commit aee9e7a pushed; unit 14/14 + integration 7/7 PASS (123 total with regression)"}
+{"ts":"2026-05-13T18:09:12.976Z","from":"IMPL_PUSHED","to":"TESTING","by":"be-test","note":"closeout: tests on merged commit aee9e7a"}
+{"ts":"2026-05-13T18:09:30.887Z","from":"TESTING","to":"REVIEW_PENDING","by":"be-test","note":"closeout PASS for merged commit aee9e7a"}
+{"ts":"2026-05-13T18:11:33.797Z","from":"REVIEW_PENDING","to":"MERGE_GATE","by":"be-reviewer","note":"closeout APPROVE; W1 in prod via 256501c"}
+{"ts":"2026-05-13T18:11:53.010Z","from":"MERGE_GATE","to":"PR_CREATED","by":"team-lead","note":"closeout: code already in main via 256501c"}
+{"ts":"2026-05-13T18:11:53.047Z","from":"PR_CREATED","to":"MERGED","by":"team-lead","note":"merged via 256501c"}
