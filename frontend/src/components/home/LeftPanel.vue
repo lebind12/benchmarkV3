@@ -2,11 +2,11 @@
 import CubeCarousel from './CubeCarousel.vue'
 </script>
 <template>
-  <section class="left">
-    <div class="left__logo">
+  <section class="left" data-testid="left-panel">
+    <div class="left__logo" data-testid="left-logo">
       <span class="left__brand">⚽ 벤치마크</span>
     </div>
-    <div class="left__cube"><CubeCarousel /></div>
+    <div class="left__cube" data-testid="left-cube"><CubeCarousel /></div>
   </section>
 </template>
 <style scoped>

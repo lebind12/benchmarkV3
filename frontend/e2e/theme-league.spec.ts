@@ -86,6 +86,46 @@ test.describe('theme — 5 league variants × light/dark', () => {
   }
 })
 
+test.describe('theme — HomeView per-card / per-block data-league', () => {
+  test('StandingsBlock root 에 [data-league] 적용', async ({ page }) => {
+    await page.goto('/')
+    const block = page.getByTestId('standings-block')
+    await expect(block).toBeVisible()
+    const slug = await block.getAttribute('data-league')
+    expect(slug).toMatch(
+      /premier-league|champions-league|europa-league|carabao-cup|fa-cup/,
+    )
+  })
+
+  test('TopPlayersBlock root 에 [data-league] 적용', async ({ page }) => {
+    await page.goto('/')
+    const block = page.getByTestId('top-players-block')
+    await expect(block).toBeVisible()
+    const slug = await block.getAttribute('data-league')
+    expect(slug).toMatch(
+      /premier-league|champions-league|europa-league|carabao-cup|fa-cup/,
+    )
+  })
+
+  test('FixtureCard 가 fixture.league.slug 를 data-league 로 적용', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.waitForSelector('[data-testid^="fixture-card-"]', {
+      state: 'visible',
+    })
+    const cards = page.locator('[data-testid^="fixture-card-"]')
+    const count = await cards.count()
+    expect(count).toBeGreaterThan(0)
+    for (let i = 0; i < Math.min(count, 5); i++) {
+      const slug = await cards.nth(i).getAttribute('data-league')
+      expect(slug).toMatch(
+        /premier-league|champions-league|europa-league|carabao-cup|fa-cup/,
+      )
+    }
+  })
+})
+
 test.describe('theme — FixtureDetailView header reflects league', () => {
   test('EPL fixture root sets data-league=premier-league', async ({ page }) => {
     await page.goto('/fixtures/1000001')
