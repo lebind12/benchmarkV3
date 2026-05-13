@@ -141,7 +141,8 @@ const showCancelled = computed(() =>
   flex-direction: column;
   height: calc(100vh - 56px);
   overflow: hidden;
-  background: var(--background, #fff);
+  background: var(--color-bg);
+  color: var(--color-fg);
 }
 .fixture-detail__three {
   display: grid;

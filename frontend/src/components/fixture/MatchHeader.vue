@@ -131,10 +131,11 @@ const awayName = computed(
   padding: 0.75rem 1rem;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--theme-primary) 8%, transparent),
-    transparent
+    color-mix(in srgb, var(--theme-primary) 14%, transparent),
+    color-mix(in srgb, var(--theme-primary) 3%, transparent)
   );
-  border-left: 4px solid var(--theme-primary);
+  border-left: 6px solid var(--theme-primary);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-primary) 25%, transparent);
   box-sizing: border-box;
 }
 .match-header__top {

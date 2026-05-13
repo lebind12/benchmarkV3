@@ -73,8 +73,9 @@ function pick(id: ActiveTab) {
   left: 1rem;
   right: 1rem;
   bottom: 0;
-  height: 2px;
+  height: 3px;
   background: var(--theme-accent);
+  border-radius: 2px 2px 0 0;
 }
 .center-tabs__body {
   flex: 1;
