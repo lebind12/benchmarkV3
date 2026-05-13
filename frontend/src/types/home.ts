@@ -12,6 +12,7 @@ export interface LeagueRef {
   name_ko: string | null
   short_name_ko: string | null
   name: string
+  logo_url?: string | null
 }
 
 export interface TeamRef {

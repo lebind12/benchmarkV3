@@ -4,6 +4,7 @@ import { router } from './router'
 import App from './App.vue'
 import './styles/leagues.css'
 import './styles/global.css'
+import './styles/themes.css'
 
 async function bootstrap() {
   if (import.meta.env.VITE_USE_MOCK === 'true' || import.meta.env.DEV) {
