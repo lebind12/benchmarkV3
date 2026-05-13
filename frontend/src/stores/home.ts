@@ -19,6 +19,29 @@ function newSlice<T>(): AsyncSlice<T> {
   return { status: 'idle', value: null, error: null, fetchedAt: null }
 }
 
+export function todayKstYmd(): string {
+  const parts = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const y = parts.find((p) => p.type === 'year')?.value
+  const m = parts.find((p) => p.type === 'month')?.value
+  const d = parts.find((p) => p.type === 'day')?.value
+  return `${y}-${m}-${d}`
+}
+
+export function shiftKstYmd(ymd: string, deltaDays: number): string {
+  const [y, m, d] = ymd.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() + deltaDays)
+  const yy = dt.getUTCFullYear()
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(dt.getUTCDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
 export const useHomeStore = defineStore('home', {
   state: () => ({
     cube: {
@@ -31,7 +54,11 @@ export const useHomeStore = defineStore('home', {
     transfers: newSlice<Transfer[]>(),
     injuries: newSlice<Injury[]>(),
     fixtures: {
-      filter: { league_id: null as number | null, period: 'day' as Period },
+      filter: {
+        league_id: null as number | null,
+        period: 'day' as Period,
+        date: todayKstYmd(),
+      },
       data: newSlice<FixtureSummary[]>(),
     },
     standings: {
@@ -75,7 +102,13 @@ export const useHomeStore = defineStore('home', {
     fetchInjuries() { return this._runSlice(this.injuries, async () => (await homeApi.injuries()).items) },
     fetchFixtures() {
       return this._runSlice(this.fixtures.data, async () =>
-        (await homeApi.fixtures(this.fixtures.filter.period, this.fixtures.filter.league_id)).items,
+        (
+          await homeApi.fixtures(
+            this.fixtures.filter.period,
+            this.fixtures.filter.league_id,
+            this.fixtures.filter.date,
+          )
+        ).items,
       )
     },
     fetchStandings() {
@@ -96,6 +129,18 @@ export const useHomeStore = defineStore('home', {
       this.fixtures.filter.period = p
       this.fetchFixtures()
     },
+    setFixtureDate(ymd: string) {
+      this.fixtures.filter.date = ymd
+      this.fetchFixtures()
+    },
+    shiftFixtureDate(deltaDays: number) {
+      this.fixtures.filter.date = shiftKstYmd(this.fixtures.filter.date, deltaDays)
+      this.fetchFixtures()
+    },
+    resetFixtureDate() {
+      this.fixtures.filter.date = todayKstYmd()
+      this.fetchFixtures()
+    },
     setStandingsLeague(id: number) {
       this.standings.league_id = id
       this.fetchStandings()
@@ -109,7 +154,11 @@ export const useHomeStore = defineStore('home', {
       this.fetchTopPlayers()
     },
     resetFixtureFilters() {
-      this.fixtures.filter = { league_id: null, period: 'day' }
+      this.fixtures.filter = {
+        league_id: null,
+        period: 'day',
+        date: todayKstYmd(),
+      }
       this.fetchFixtures()
     },
 

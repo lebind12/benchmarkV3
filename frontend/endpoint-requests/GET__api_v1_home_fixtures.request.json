@@ -9,7 +9,8 @@
   "auth": "public",
   "request_query_params": [
     { "name": "league_id", "type": "number", "optional": true, "description": "external_id (39|2|3|48|45). 생략 = 전체" },
-    { "name": "period", "type": "'day'|'week'|'month'", "optional": true, "default": "day", "description": "KST 기준. day=오늘(0시~다음0시), week=이번주(월~일), month=이번달" }
+    { "name": "period", "type": "'day'|'week'|'month'", "optional": true, "default": "day", "description": "KST 기준. day=오늘(0시~다음0시), week=이번주(월~일), month=이번달" },
+    { "name": "date", "type": "string YYYY-MM-DD (KST)", "optional": true, "default": "오늘 KST", "description": "특정 날짜의 fixture 만 반환. 생략 시 period 기준. 함께 오면 date 우선 + period 는 보조 정렬." }
   ],
   "response_shape": {
     "items": [

@@ -63,9 +63,13 @@ export const homeHandlers = [
     const url = new URL(request.url)
     const leagueId = url.searchParams.get('league_id')
     const period = (url.searchParams.get('period') ?? 'day') as 'day' | 'week' | 'month'
+    const date = url.searchParams.get('date') // YYYY-MM-DD (KST)
 
     if (s === 'empty') {
-      return HttpResponse.json({ items: [], filters_applied: { period, league_id: leagueId ? Number(leagueId) : undefined } })
+      return HttpResponse.json({
+        items: [],
+        filters_applied: { period, league_id: leagueId ? Number(leagueId) : undefined, date: date ?? undefined },
+      })
     }
     if (s === 'error') {
       return HttpResponse.json({ error: 'mock' }, { status: 500 })
@@ -78,11 +82,32 @@ export const homeHandlers = [
     if (leagueId) {
       items = items.filter((it) => String(it.league.external_id) === leagueId)
     }
+    if (date) {
+      // KST date 매칭: kickoff_at(UTC ISO) 의 KST date 가 일치하는 것만
+      const matchKst = (iso: string): string => {
+        const parts = new Intl.DateTimeFormat('sv-SE', {
+          timeZone: 'Asia/Seoul',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).formatToParts(new Date(iso))
+        return [
+          parts.find((p) => p.type === 'year')?.value,
+          parts.find((p) => p.type === 'month')?.value,
+          parts.find((p) => p.type === 'day')?.value,
+        ].join('-')
+      }
+      items = items.filter((it) => matchKst(it.kickoff_at) === date)
+    }
     // strip internal _period
     const out = items.map(({ _period, ...rest }) => rest)
     return HttpResponse.json({
       items: out,
-      filters_applied: { period, league_id: leagueId ? Number(leagueId) : undefined },
+      filters_applied: {
+        period,
+        league_id: leagueId ? Number(leagueId) : undefined,
+        date: date ?? undefined,
+      },
     })
   }),
   http.get('/api/v1/home/standings', ({ request }) => {

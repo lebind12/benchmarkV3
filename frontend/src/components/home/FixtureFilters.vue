@@ -37,6 +37,35 @@ const periodToggles: { v: Period; label: string }[] = [
         {{ t.label }}
       </button>
     </div>
+    <div class="filters__row filters__row--date" aria-label="날짜 선택">
+      <button
+        type="button"
+        class="date-nav"
+        aria-label="전날"
+        data-testid="date-prev"
+        @click="home.shiftFixtureDate(-1)"
+      >◀</button>
+      <input
+        type="date"
+        class="date-input"
+        data-testid="date-input"
+        :value="home.fixtures.filter.date"
+        @change="(e) => home.setFixtureDate((e.target as HTMLInputElement).value)"
+      />
+      <button
+        type="button"
+        class="date-nav"
+        aria-label="다음날"
+        data-testid="date-next"
+        @click="home.shiftFixtureDate(1)"
+      >▶</button>
+      <button
+        type="button"
+        class="date-today"
+        data-testid="date-today"
+        @click="home.resetFixtureDate()"
+      >오늘</button>
+    </div>
     <div class="filters__row" role="tablist" aria-label="기간 필터">
       <button
         v-for="p in periodToggles"
@@ -80,5 +109,28 @@ const periodToggles: { v: Period; label: string }[] = [
 .toggle--active {
   background: var(--color-fg);
   color: var(--color-bg);
+}
+.filters__row--date {
+  align-items: center;
+  gap: 4px;
+}
+.date-nav,
+.date-today {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-fg);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.date-input {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-fg);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
 }
 </style>

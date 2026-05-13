@@ -23,13 +23,14 @@ export const homeApi = {
   transfers: () => getJson<{ items: Transfer[] }>('/api/v1/home/transfers'),
   injuries:  () => getJson<{ items: Injury[] }>('/api/v1/home/injuries'),
 
-  fixtures: (period: Period, leagueId: number | null) => {
+  fixtures: (period: Period, leagueId: number | null, date?: string) => {
     const u = new URL('/api/v1/home/fixtures', window.location.origin)
     u.searchParams.set('period', period)
     if (leagueId != null) u.searchParams.set('league_id', String(leagueId))
+    if (date) u.searchParams.set('date', date)
     return getJson<{
       items: FixtureSummary[]
-      filters_applied: { period: Period; league_id?: number }
+      filters_applied: { period: Period; league_id?: number; date?: string }
     }>(u.pathname + '?' + u.searchParams.toString())
   },
 

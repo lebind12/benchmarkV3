@@ -136,9 +136,15 @@ const rotation = computed(() => `rotateY(${-90 * home.cube.activeFace}deg)`)
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 12px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
+.face::-webkit-scrollbar { display: none; }
 .face-0 { transform: rotateY(0deg) translateZ(var(--face-z)); }
 .face-1 { transform: rotateY(90deg) translateZ(var(--face-z)); }
 .face-2 { transform: rotateY(180deg) translateZ(var(--face-z)); }
