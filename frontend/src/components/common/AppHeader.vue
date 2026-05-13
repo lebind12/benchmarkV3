@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { Button } from '@/components/ui/button'
 
 const auth = useAuthStore()
 
@@ -48,17 +49,24 @@ function toggleTheme() {
         >
           ☾
         </button>
-        <button
+        <Button
           v-if="!auth.isLoggedIn"
-          type="button"
+          variant="outline"
+          size="sm"
           class="hdr__login"
           data-testid="auth-login"
         >
           로그인
-        </button>
-        <button v-else type="button" class="hdr__login" data-testid="auth-profile">
+        </Button>
+        <Button
+          v-else
+          variant="outline"
+          size="sm"
+          class="hdr__login"
+          data-testid="auth-profile"
+        >
           프로필
-        </button>
+        </Button>
       </div>
     </div>
   </header>

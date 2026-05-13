@@ -122,7 +122,7 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | 9.1 | Vue 3 + Vite MPA 골격 (다중 entry: main, broadcast) | `npm run dev` 가 두 entry 부팅. broadcast 는 #00B140 배경 | - | cc:완료 [533766f] |
-| 9.2 | Tailwind + shadcn-vue 셋업 | shadcn-vue CLI 동작 + Button 컴포넌트 추가 | 9.1 | cc:TODO |
+| 9.2 | Tailwind + shadcn-vue 셋업 | shadcn-vue CLI 동작 + Button 컴포넌트 추가 | 9.1 | cc:완료 [pending] L125 |
 | 9.3 | Pinia + Vue Router (페이지별 인스턴스) | entry 별 store 작동 | 9.1 | cc:TODO |
 | 9.4 | MSW 셋업 (`VITE_USE_MOCK` 토글) | 토글로 mock/실 API 분기 | 9.1 | cc:TODO |
 | 9.5 | openapi-typescript + `npm run gen:api` | BE OpenAPI → TS 타입 생성 | 9.1 | cc:TODO |

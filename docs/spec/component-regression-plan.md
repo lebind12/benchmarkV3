@@ -26,6 +26,7 @@
 | 컴포넌트 | Size | Functionality | Theme |
 |---|---|---|---|
 | AppHeader | 🆕 56px height, app-container 내부 nav | 🆕 nav 클릭 → route 이동, theme 토글 persist | ✅ (theme-league.spec.ts) |
+| ui/Button (shadcn-vue) | — | ✅ (간접: AppHeader 로그인/프로필 버튼) — variants는 Phase 9.2 도입 검증용 | — (Phase 9 후속 task에서 token mapping 보강) |
 | EmptyState | — | ✅ (vitest) | — |
 | ErrorState | — | ✅ (vitest, FixtureCard) | — |
 | PanelScroll | — | ✅ (vitest) | — |
