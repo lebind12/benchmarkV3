@@ -15,7 +15,7 @@ onBeforeUnmount(() => {
 })
 </script>
 <template>
-  <div class="home" data-testid="home-view">
+  <div class="home app-container" data-testid="home-view">
     <LeftPanel />
     <CenterPanel />
     <RightPanel />

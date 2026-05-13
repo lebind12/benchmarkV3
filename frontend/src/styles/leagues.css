@@ -1,69 +1,77 @@
-/* league-palette.md §8 SSOT — colors only */
+/* league-palette.md §8 SSOT — 토큰 정의 (light + dark 변형) */
+
 :root {
+  /* base neutrals (light) */
   --foreground: #111;
   --muted: #6b7280;
   --muted-foreground: #6b7280;
   --accent: #e5e7eb;
 
-  /* EPL */
+  /* EPL — light */
   --league-epl-primary: #3d195b;
   --league-epl-secondary: #04f5ff;
   --league-epl-accent: #e90052;
   --league-epl-on-primary: #ffffff;
 
-  /* UCL */
+  /* UCL — light */
   --league-ucl-primary: #010056;
   --league-ucl-secondary: #0232ff;
   --league-ucl-accent: #9a00ff;
   --league-ucl-on-primary: #ffffff;
 
-  /* UEL */
+  /* UEL — light */
   --league-uel-primary: #ff6d00;
   --league-uel-secondary: #1a1a1a;
   --league-uel-accent: #ffcc00;
   --league-uel-on-primary: #ffffff;
 
-  /* Carabao */
+  /* Carabao — light */
   --league-carabao-primary: #d7282f;
   --league-carabao-secondary: #fcb813;
   --league-carabao-accent: #000000;
   --league-carabao-on-primary: #ffffff;
 
-  /* FA Cup */
+  /* FA Cup — light */
   --league-fa-primary: #011e41;
   --league-fa-secondary: #e22636;
   --league-fa-accent: #d4af37;
   --league-fa-on-primary: #ffffff;
 }
 
-/* Dynamic theme swap (ui-standards §3.2) */
-[data-league='premier-league'] {
-  --theme-primary: var(--league-epl-primary);
-  --theme-secondary: var(--league-epl-secondary);
-  --theme-accent: var(--league-epl-accent);
-  --theme-on-primary: var(--league-epl-on-primary);
-}
-[data-league='champions-league'] {
-  --theme-primary: var(--league-ucl-primary);
-  --theme-secondary: var(--league-ucl-secondary);
-  --theme-accent: var(--league-ucl-accent);
-  --theme-on-primary: var(--league-ucl-on-primary);
-}
-[data-league='europa-league'] {
-  --theme-primary: var(--league-uel-primary);
-  --theme-secondary: var(--league-uel-secondary);
-  --theme-accent: var(--league-uel-accent);
-  --theme-on-primary: var(--league-uel-on-primary);
-}
-[data-league='carabao-cup'] {
-  --theme-primary: var(--league-carabao-primary);
-  --theme-secondary: var(--league-carabao-secondary);
-  --theme-accent: var(--league-carabao-accent);
-  --theme-on-primary: var(--league-carabao-on-primary);
-}
-[data-league='fa-cup'] {
-  --theme-primary: var(--league-fa-primary);
-  --theme-secondary: var(--league-fa-secondary);
-  --theme-accent: var(--league-fa-accent);
-  --theme-on-primary: var(--league-fa-on-primary);
+/* league-palette.md §8 dark variants */
+html.dark {
+  --foreground: #e5e7eb;
+  --muted: #9ca3af;
+  --muted-foreground: #9ca3af;
+  --accent: #1f2937;
+
+  /* EPL — dark (primary 살짝 밝게, accent 살짝 밝게) */
+  --league-epl-primary: #6b3a8c;
+  --league-epl-secondary: #04f5ff;
+  --league-epl-accent: #ff3d7f;
+  --league-epl-on-primary: #ffffff;
+
+  /* UCL — dark */
+  --league-ucl-primary: #2a3dae;
+  --league-ucl-secondary: #4a6eff;
+  --league-ucl-accent: #b566ff;
+  --league-ucl-on-primary: #ffffff;
+
+  /* UEL — dark */
+  --league-uel-primary: #ff8c33;
+  --league-uel-secondary: #4a4a4a;
+  --league-uel-accent: #ffd633;
+  --league-uel-on-primary: #1a1a1a;
+
+  /* Carabao — dark (accent black → white for visibility on dark bg) */
+  --league-carabao-primary: #e8504f;
+  --league-carabao-secondary: #ffd24f;
+  --league-carabao-accent: #ffffff;
+  --league-carabao-on-primary: #ffffff;
+
+  /* FA Cup — dark */
+  --league-fa-primary: #2b4b7a;
+  --league-fa-secondary: #ff4856;
+  --league-fa-accent: #eec34a;
+  --league-fa-on-primary: #ffffff;
 }

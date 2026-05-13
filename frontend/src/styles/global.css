@@ -53,6 +53,30 @@ body {
   pointer-events: none;
 }
 
+/* ui-standards §2.1.1 — 좌우 패딩 / max-width 정책 SSOT
+ * Baseline 1280×720, 1920×1080 에서 좌우 넉넉히.
+ */
+.app-container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 16px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1440px) {
+  .app-container {
+    max-width: 1376px;
+    padding-inline: 32px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .app-container {
+    max-width: 1632px;
+    padding-inline: 48px;
+  }
+}
+
 button,
 a {
   color: inherit;

@@ -24,51 +24,55 @@ function toggleTheme() {
 </script>
 <template>
   <header class="hdr" role="banner">
-    <div class="hdr__logo">⚽ 벤치마크</div>
-    <nav class="hdr__nav" aria-label="주요 메뉴">
-      <router-link
-        v-for="t in tabs"
-        :key="t.path"
-        :to="t.path"
-        class="hdr__tab"
-        active-class="hdr__tab--active"
-        :data-testid="`nav-${t.label}`"
-      >
-        {{ t.label }}
-      </router-link>
-    </nav>
-    <div class="hdr__right">
-      <button
-        type="button"
-        class="hdr__icon"
-        aria-label="테마 토글"
-        data-testid="theme-toggle"
-        @click="toggleTheme"
-      >
-        ☾
-      </button>
-      <button
-        v-if="!auth.isLoggedIn"
-        type="button"
-        class="hdr__login"
-        data-testid="auth-login"
-      >
-        로그인
-      </button>
-      <button v-else type="button" class="hdr__login" data-testid="auth-profile">
-        프로필
-      </button>
+    <div class="hdr__inner app-container">
+      <div class="hdr__logo">⚽ 벤치마크</div>
+      <nav class="hdr__nav" aria-label="주요 메뉴">
+        <router-link
+          v-for="t in tabs"
+          :key="t.path"
+          :to="t.path"
+          class="hdr__tab"
+          active-class="hdr__tab--active"
+          :data-testid="`nav-${t.label}`"
+        >
+          {{ t.label }}
+        </router-link>
+      </nav>
+      <div class="hdr__right">
+        <button
+          type="button"
+          class="hdr__icon"
+          aria-label="테마 토글"
+          data-testid="theme-toggle"
+          @click="toggleTheme"
+        >
+          ☾
+        </button>
+        <button
+          v-if="!auth.isLoggedIn"
+          type="button"
+          class="hdr__login"
+          data-testid="auth-login"
+        >
+          로그인
+        </button>
+        <button v-else type="button" class="hdr__login" data-testid="auth-profile">
+          프로필
+        </button>
+      </div>
     </div>
   </header>
 </template>
 <style scoped>
 .hdr {
   height: var(--header-height);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg);
+}
+.hdr__inner {
+  height: 100%;
+  display: flex;
+  align-items: center;
   gap: 16px;
 }
 .hdr__logo { font-weight: 700; }

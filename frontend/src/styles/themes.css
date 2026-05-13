@@ -1,3 +1,7 @@
+/* ui-standards.md §3.2 — league dynamic theme swap (light + dark 공통 매핑)
+ * leagues.css 에서 light/dark 별로 토큰 hex 가 바뀌므로, 본 파일은 swap rule 만.
+ */
+
 /* Neutral fallback when no league mapping is present */
 :root {
   --theme-primary: var(--muted);

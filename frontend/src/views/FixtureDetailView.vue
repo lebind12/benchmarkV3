@@ -76,7 +76,7 @@ const showCancelled = computed(() =>
 
 <template>
   <section
-    class="fixture-detail-root"
+    class="fixture-detail-root app-container"
     data-testid="fixture-detail-root"
     :data-league="leagueSlug ?? undefined"
     :data-league-id="leagueExternalId ?? undefined"
