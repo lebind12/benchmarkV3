@@ -1,0 +1,37 @@
+{
+  "endpoint_id": "GET__api_v1_fixtures__id__h2h",
+  "method": "GET",
+  "path": "/api/v1/fixtures/{external_id}/h2h",
+  "from_feature": "fixture-detail",
+  "fe_mockup_ref": "frontend/src/mocks/data/fixture-detail/h2h.{external_id}.json",
+  "handler_ref": "frontend/src/lib/api/fixtureDetail.ts (getH2H)",
+  "spec_excerpt": "두 팀의 H2H 직전 5경기 리스트. kickoff_at desc, status_short=FT 만. 양 팀 슬롯 무관(home/away 가 뒤집힌 경기도 포함).",
+  "auth": "public",
+  "request_path_params": [{"name": "external_id", "type": "int"}],
+  "request_query_params": [{"name": "limit", "type": "int", "default": 5, "max": 10}],
+  "response_shape": {
+    "h2h": [
+      {
+        "external_id": "int",
+        "league": {"external_id":"int","slug":"string","name_ko":"string|null"},
+        "kickoff_at": "ISO8601 UTC",
+        "home": {"external_id":"int","slug":"string","name_ko":"string|null"},
+        "away": {"external_id":"int","slug":"string","name_ko":"string|null"},
+        "goals_home": "int",
+        "goals_away": "int"
+      }
+    ]
+  },
+  "scenarios_used": ["normal", "empty"],
+  "scenario_behavior": {
+    "normal": "200 with up to limit FT fixtures sorted desc (e.g., 1000001 → 5 EPL classics)",
+    "empty": "200 { h2h: [] } if 두 팀 간 직전 경기 없음"
+  },
+  "data_source": "h2h_fixture 테이블 (functional pair index 활용)",
+  "notes_for_be": [
+    "h2h_fixture 의 functional index (LEAST(home,away), GREATEST(home,away), kickoff_at DESC) 활용",
+    "현재 fixture 의 home/away 추출 → 두 팀 매칭",
+    "현재 fixture 자체는 제외",
+    "league.name_ko fallback 영문 처리는 FE"
+  ]
+}

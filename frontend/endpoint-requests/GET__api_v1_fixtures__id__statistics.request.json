@@ -1,0 +1,37 @@
+{
+  "endpoint_id": "GET__api_v1_fixtures__id__statistics",
+  "method": "GET",
+  "path": "/api/v1/fixtures/{external_id}/statistics",
+  "from_feature": "fixture-detail",
+  "fe_mockup_ref": "frontend/src/mocks/data/fixture-detail/statistics.{external_id}.json",
+  "handler_ref": "frontend/src/lib/api/fixtureDetail.ts (getStatistics)",
+  "spec_excerpt": "StatBarRow 컴포넌트. 양 팀 경기 통계 (점유율, 슛, 유효슛, 코너, 파울, 카드 등). 좌(home)/우(away) bar chart.",
+  "auth": "public",
+  "request_path_params": [{"name": "external_id", "type": "int"}],
+  "response_shape": {
+    "home": {
+      "possession_pct": "float|null",
+      "shots_total": "int",
+      "shots_on": "int",
+      "corners": "int",
+      "fouls": "int",
+      "yellow_cards": "int",
+      "red_cards": "int",
+      "offsides": "int",
+      "passes_total": "int|null",
+      "passes_accurate_pct": "float|null"
+    },
+    "away": "same shape"
+  },
+  "scenarios_used": ["normal", "empty"],
+  "scenario_behavior": {
+    "normal": "200 with full stats (e.g., 1000001 FT)",
+    "empty": "200 with all int=0, possession_pct/passes_*=null (NS)"
+  },
+  "data_source": "fixture_detail.statistics JSONB",
+  "notes_for_be": [
+    "API-Football 'statistics' 응답의 Ball Possession, Total Shots 등 KEY 정규화",
+    "possession_pct: '52%' 같은 문자열을 float 52.0 으로 변환",
+    "FT 가 아니면 통계 부족 가능 → 누락 항목 0 또는 null"
+  ]
+}

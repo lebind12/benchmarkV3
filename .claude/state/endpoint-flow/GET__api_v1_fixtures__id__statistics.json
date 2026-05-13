@@ -1,0 +1,37 @@
+{
+  "endpoint_id": "GET__api_v1_fixtures__id__statistics",
+  "tasklist_id": null,
+  "current_stage": "FE_REQUESTED",
+  "endpoint": {
+    "method": "GET",
+    "path": "/api/v1/fixtures/{id}/statistics",
+    "fe_mockup_ref": "frontend/endpoint-requests/GET__api_v1_fixtures__id__statistics.request.json"
+  },
+  "state": "FE_REQUESTED",
+  "owner": "be-test",
+  "iteration": {
+    "test_loop": 0,
+    "review_loop": 0
+  },
+  "artifacts": {
+    "spec_path": null,
+    "test_plan_path": null,
+    "test_code_path": null,
+    "integration_test_code_path": null,
+    "impl_branch": null,
+    "impl_commit": null,
+    "migrations": []
+  },
+  "evidence": {},
+  "gates": {
+    "spec_approved_by": null,
+    "test_passed_at": null,
+    "review_approved_by": null,
+    "merge_approved_by": null
+  },
+  "blockers": [],
+  "next_action": {
+    "agent": "be-test",
+    "command": "start endpoint workflow"
+  }
+}
