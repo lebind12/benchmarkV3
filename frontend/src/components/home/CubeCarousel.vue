@@ -11,12 +11,15 @@ const home = useHomeStore()
 const faceLabels = ['뉴스', '핫', '이적', '부상'] as const
 const stageRef = ref<HTMLElement | null>(null)
 const faceZ = ref(200)
+const PERSPECTIVE_PX = 1200
+// faceZ / PERSPECTIVE → 카메라 가까이 당겨진 비율. (1 − 이 비율) 로 scale 다운하면
+// perspective 확대 효과가 정확히 상쇄되어 face 가 1:1 로 렌더된다.
+const faceScale = computed(() => 1 - faceZ.value / PERSPECTIVE_PX)
 
 function recalcZ() {
   if (!stageRef.value) return
   const w = stageRef.value.clientWidth
   const h = stageRef.value.clientHeight
-  // perspective 1200 + faceZ ≤ 160 → 시각 scale ≤ 1.15 (콘텐츠가 stage 박스 침범 최소화)
   const smaller = Math.min(w, h)
   faceZ.value = Math.min(160, Math.max(80, Math.floor(smaller / 4)))
 }
@@ -63,7 +66,7 @@ const rotation = computed(() => `rotateY(${-90 * home.cube.activeFace}deg)`)
     <div
       ref="stageRef"
       class="cube-stage"
-      :style="{ '--face-z': faceZ + 'px' }"
+      :style="{ '--face-z': faceZ + 'px', '--face-scale': String(faceScale) }"
       aria-live="polite"
     >
       <div class="cube" :style="{ transform: rotation }" data-testid="cube">
@@ -151,10 +154,11 @@ const rotation = computed(() => `rotateY(${-90 * home.cube.activeFace}deg)`)
   gap: 6px;
 }
 .face::-webkit-scrollbar { display: none; }
-.face-0 { transform: rotateY(0deg) translateZ(var(--face-z)); }
-.face-1 { transform: rotateY(90deg) translateZ(var(--face-z)); }
-.face-2 { transform: rotateY(180deg) translateZ(var(--face-z)); }
-.face-3 { transform: rotateY(270deg) translateZ(var(--face-z)); }
+/* scale(face-scale) 로 perspective 확대 효과를 정확히 상쇄 → 시각 1:1 */
+.face-0 { transform: rotateY(0deg) translateZ(var(--face-z)) scale(var(--face-scale)); }
+.face-1 { transform: rotateY(90deg) translateZ(var(--face-z)) scale(var(--face-scale)); }
+.face-2 { transform: rotateY(180deg) translateZ(var(--face-z)) scale(var(--face-scale)); }
+.face-3 { transform: rotateY(270deg) translateZ(var(--face-z)) scale(var(--face-scale)); }
 
 .dots {
   display: flex;

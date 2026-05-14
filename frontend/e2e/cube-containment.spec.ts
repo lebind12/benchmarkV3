@@ -36,7 +36,33 @@ for (const v of VIEWPORTS) {
     })
     expect(data.leftCubeOverflow).toBe('hidden')
     // cube 의 우측 시각 경계가 left-cube container 의 우측 경계를 넘지 않아야 함
-    // (perspective 로 인한 +α 가 있더라도 clipping 되므로 ≤ 0)
     expect(data.cubeRight - data.leftCubeRight).toBeLessThanOrEqual(1)
+  })
+
+  test(`face 가 1:1 로 렌더 (perspective scale 보정) @ ${v.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: v.w, height: v.h })
+    await page.goto('/')
+    await page.waitForSelector('[data-testid="cube"]', { state: 'visible' })
+    const m = await page.evaluate(() => {
+      const cube = document.querySelector(
+        '[data-testid="cube"]',
+      ) as HTMLElement
+      const face = document.querySelector(
+        '[data-testid="cube-face-0"]',
+      ) as HTMLElement
+      const cubeBox = cube.getBoundingClientRect()
+      const faceBox = face.getBoundingClientRect()
+      return {
+        cubeW: Math.round(cubeBox.width),
+        cubeH: Math.round(cubeBox.height),
+        faceW: Math.round(faceBox.width),
+        faceH: Math.round(faceBox.height),
+      }
+    })
+    // scale 보정 후 face 의 시각 크기 = cube 크기 (±1px 반올림)
+    expect(Math.abs(m.faceW - m.cubeW)).toBeLessThanOrEqual(1)
+    expect(Math.abs(m.faceH - m.cubeH)).toBeLessThanOrEqual(1)
   })
 }
