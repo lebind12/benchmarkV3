@@ -10,7 +10,14 @@ import CubeCarousel from './CubeCarousel.vue'
   </section>
 </template>
 <style scoped>
-.left { display: flex; flex-direction: column; height: 100%; border-right: 1px solid var(--color-border); }
+.left {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-right: 1px solid var(--color-border);
+  overflow: hidden;
+  min-width: 0;
+}
 .left__logo {
   flex: 0 0 30%;
   display: flex;
@@ -21,5 +28,9 @@ import CubeCarousel from './CubeCarousel.vue'
   font-weight: 700;
 }
 .left__brand { letter-spacing: 0.5px; }
-.left__cube { flex: 1 1 70%; min-height: 0; }
+.left__cube {
+  flex: 1 1 70%;
+  min-height: 0;
+  overflow: hidden;
+}
 </style>

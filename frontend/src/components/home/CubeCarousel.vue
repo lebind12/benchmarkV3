@@ -15,7 +15,10 @@ const faceZ = ref(200)
 function recalcZ() {
   if (!stageRef.value) return
   const w = stageRef.value.clientWidth
-  faceZ.value = Math.max(120, Math.floor(w / 2))
+  const h = stageRef.value.clientHeight
+  // perspective 1200 + faceZ ≤ 160 → 시각 scale ≤ 1.15 (콘텐츠가 stage 박스 침범 최소화)
+  const smaller = Math.min(w, h)
+  faceZ.value = Math.min(160, Math.max(80, Math.floor(smaller / 4)))
 }
 
 let ro: ResizeObserver | null = null
@@ -114,12 +117,15 @@ const rotation = computed(() => `rotateY(${-90 * home.cube.activeFace}deg)`)
   flex-direction: column;
   padding: 8px;
   box-sizing: border-box;
+  overflow: hidden;
+  min-height: 0;
 }
 .cube-stage {
-  flex: 1;
-  perspective: 1000px;
+  flex: 1 1 0;
+  perspective: 1200px;
   position: relative;
   min-height: 0;
+  overflow: hidden;
 }
 .cube {
   position: relative;
