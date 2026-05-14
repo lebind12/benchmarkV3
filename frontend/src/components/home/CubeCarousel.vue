@@ -19,9 +19,10 @@ const faceScale = computed(() => 1 - faceZ.value / PERSPECTIVE_PX)
 function recalcZ() {
   if (!stageRef.value) return
   const w = stageRef.value.clientWidth
-  const h = stageRef.value.clientHeight
-  const smaller = Math.min(w, h)
-  faceZ.value = Math.min(160, Math.max(80, Math.floor(smaller / 4)))
+  // 4면이 큐브 모서리에서 정확히 만나려면 faceZ = w/2.
+  // 이보다 작으면 면 사이 갭(회전 시 "찢어지는" 느낌)이 생기고,
+  // 크면 면이 큐브 안쪽으로 겹쳐 들어간다.
+  faceZ.value = Math.floor(w / 2)
 }
 
 let ro: ResizeObserver | null = null

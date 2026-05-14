@@ -65,4 +65,22 @@ for (const v of VIEWPORTS) {
     expect(Math.abs(m.faceW - m.cubeW)).toBeLessThanOrEqual(1)
     expect(Math.abs(m.faceH - m.cubeH)).toBeLessThanOrEqual(1)
   })
+
+  test(`faceZ = cube_width/2 (큐브 모서리 일치) @ ${v.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: v.w, height: v.h })
+    await page.goto('/')
+    await page.waitForSelector('[data-testid="cube"]', { state: 'visible' })
+    const m = await page.evaluate(() => {
+      const stage = document.querySelector('.cube-stage') as HTMLElement
+      const cube = document.querySelector(
+        '[data-testid="cube"]',
+      ) as HTMLElement
+      const styleVal = getComputedStyle(stage).getPropertyValue('--face-z').trim()
+      const faceZ = parseFloat(styleVal)
+      const cubeW = cube.getBoundingClientRect().width
+      return { faceZ, cubeW }
+    })
+    // 큐브 4면이 모서리에서 만나려면 faceZ = cube_width/2. ±2px tolerance.
+    expect(Math.abs(m.faceZ - m.cubeW / 2)).toBeLessThanOrEqual(2)
+  })
 }
