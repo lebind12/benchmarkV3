@@ -4,7 +4,7 @@
 개별 feature spec (`docs/features/*.md`) 은 본 문서를 인용하고 위반하지 않는다.
 
 상위:
-- 도메인: `@CLAUDE.md`
+- 도메인: `@AGENTS.md`
 - FE 워크플로: `@docs/spec/fe-workflow.md`
 - 메인 페이지 spec: `@docs/features/main-home.md`
 
@@ -213,7 +213,8 @@ Tailwind 사용 시: 동등 효과를 `container` + breakpoint 응용으로 표�
 ## 8. 방송용 페이지 예외
 
 방송용 페이지 (`/broadcast/...`) 는 본 문서의 일반 기준에서 예외:
-- 배경: 크로마키 `#00B140` (CLAUDE.md §7)
+- 상세 방송 그래픽 리서치 / 디자인 방향은 `@docs/spec/broadcast-graphics-design-research.md` 를 따른다.
+- 배경: 크로마키 `#00B140` (AGENTS.md §7)
 - 1920×1080 송출 환경 가정 (1366×768 최소 동작 면제)
 - 콘텐츠 외 모든 UI 요소 (header / footer / 컨트롤) 없음 (송출 시 깨끗한 화면)
 - 폰트 크기 송출 환경 가독성 우선 (일반 페이지보다 큼)

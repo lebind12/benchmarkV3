@@ -1,0 +1,39 @@
+command: python -m pytest -m unit tests/unit/test_home_top_players.py --tb=short --disable-warnings --no-header
+exit_code: 1
+
+============================= test session starts ==============================
+collected 4 items
+
+tests/unit/test_home_top_players.py FFFF                                 [100%]
+
+=================================== FAILURES ===================================
+______________ test_htp_u01_defaults_are_public_and_call_service _______________
+tests/unit/test_home_top_players.py:72: in test_htp_u01_defaults_are_public_and_call_service
+    service = _patch_service(monkeypatch, _payload([_row()]))
+tests/unit/test_home_top_players.py:58: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+______________ test_htp_u02_query_overrides_are_passed_to_service ______________
+tests/unit/test_home_top_players.py:85: in test_htp_u02_query_overrides_are_passed_to_service
+    service = _patch_service(monkeypatch, _payload([_row(value=11)], metric="assists"))
+tests/unit/test_home_top_players.py:58: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+______________ test_htp_u03_empty_rows_and_null_league_are_valid _______________
+tests/unit/test_home_top_players.py:96: in test_htp_u03_empty_rows_and_null_league_are_valid
+    _patch_service(monkeypatch, _payload([], league=None))
+tests/unit/test_home_top_players.py:58: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+_________ test_htp_u04_invalid_metric_returns_422_without_service_call _________
+tests/unit/test_home_top_players.py:106: in test_htp_u04_invalid_metric_returns_422_without_service_call
+    service = _patch_service(monkeypatch, _payload([_row()]))
+tests/unit/test_home_top_players.py:58: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+=========================== short test summary info ============================
+FAILED tests/unit/test_home_top_players.py::test_htp_u01_defaults_are_public_and_call_service
+FAILED tests/unit/test_home_top_players.py::test_htp_u02_query_overrides_are_passed_to_service
+FAILED tests/unit/test_home_top_players.py::test_htp_u03_empty_rows_and_null_league_are_valid
+FAILED tests/unit/test_home_top_players.py::test_htp_u04_invalid_metric_returns_422_without_service_call
+======================== 4 failed, 5 warnings in 1.11s =========================

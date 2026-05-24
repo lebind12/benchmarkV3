@@ -12,7 +12,7 @@ created: 2026-05-14
 
 ## 0. 한 줄 요약
 
-`/fixtures/{external_id}` 매치 디테일. 56px 글로벌 헤더 아래 = (1) 매치 헤더 **25vh** + (2) 3패널 **75vh** (25/50/25). 좌 = events 타임라인 (홈/어웨이 2 컬럼, 아이콘 + hover tooltip), 중 = 서브탭 (포메이션 default / H2H / 경기 스탯 / 리그 랭킹), 우 = 홈 라인업 50% + 어웨이 라인업 50%. **DB 만** 사용 (CLAUDE.md §6 정책: 일반 페이지는 6h stale 허용, 라이브 폴링 X). 페이지 자체 스크롤 X / footer X / 패널 내부 hidden 스크롤만.
+`/fixtures/{external_id}` 매치 디테일. 56px 글로벌 헤더 아래 = (1) 매치 헤더 **25vh** + (2) 3패널 **75vh** (25/50/25). 좌 = events 타임라인 (홈/어웨이 2 컬럼, 아이콘 + hover tooltip), 중 = 서브탭 (포메이션 default / H2H / 경기 스탯 / 리그 랭킹), 우 = 홈 라인업 50% + 어웨이 라인업 50%. **DB 만** 사용 (AGENTS.md §6 정책: 일반 페이지는 6h stale 허용, 라이브 폴링 X). 페이지 자체 스크롤 X / footer X / 패널 내부 hidden 스크롤만.
 
 본 spec 은 메인 `docs/features/fixture-detail.md` 의 §1~§12 를 인용하며, 빈 상태 / 에러 / 데이터 shape / 인증 / 미정 항목을 구체화한다.
 
@@ -133,7 +133,7 @@ league.name_ko · 32라운드 · FT · Anfield · J. Pratt · 2026-05-13 19:00 K
 
 | status | 스코어 자리 | 골 이력 자리 |
 |---|---|---|
-| NS (예정) | `vs` | "kickoff 19:00 KST" 텍스트 (카운트다운 X — CLAUDE.md §6 라이브 표시 금지 일관성) |
+| NS (예정) | `vs` | "kickoff 19:00 KST" 텍스트 (카운트다운 X — AGENTS.md §6 라이브 표시 금지 일관성) |
 | 1H/HT/2H/ET/BT (라이브) | **DB 마지막 sync 값** (예: `1 - 0`). 라이브 갱신 안 함 (최대 6h stale). status 배지에 "FT 표시 아님" 텍스트는 X. 단순히 `1H` 등 status_short 표시 | 골 이력 = 마지막 sync 시점까지 |
 | FT/AET/PEN | 최종 스코어 (PEN 은 `5(3) - 5(2)` 같이 괄호로 승부차기) | 정규 시간 + ET + PEN 모든 골 표시 |
 | PST/CANC/SUSP | 스코어 자리 = "—" + status 배지 ("연기" / "취소" / "중단") | "경기가 진행되지 않았습니다" |
@@ -339,7 +339,7 @@ URL 쿼리로 활성 탭 보존 (`?tab=h2h` 등). 새로고침 시 그 탭 복�
 | 선발 11명 | 행: `{등번호} {position} {player.name_ko}` (영문 fallback). position = "GK/CB/CM/ST" 등 (API-Football `lineups[].startXI[].player.pos`) |
 | 벤치 | 기본 접힘. "벤치 ▼" 토글. 펼침 시 같은 형식 |
 | 카드 클릭 | `/players/{slug}` |
-| 평점 표시 | API-Football `lineups[].startXI[].statistics.rating` 가 있으면 우측 끝에 (예: `7.4`). 없으면 X. 라이브 매치는 종종 NULL |
+| 평점 표시 | `fixture_detail.players` 에 저장된 API-Football `/fixtures/players` 응답에서 rating/minutes 가 있으면 우측 끝에 표시 (예: `7.4`). 없으면 X. 라이브 매치는 종종 NULL |
 | 빈 (NS) | "라인업 미정 (kickoff 1시간 전 발표)" placeholder |
 | 패널 스크롤 | 11 + 벤치 = 약 20명. 50% × 75vh 에 다 안 들어가면 hidden 스크롤 |
 
@@ -384,7 +384,7 @@ events fetch 실패가 lineups 에 영향 X. 각 패널 자체 에러 박스.
 
 ### 8.4 polling 없음
 
-CLAUDE.md §6 일반 페이지 정책. 라이브 매치라도 자동 갱신 X. 사용자가 새로고침 해야 최신. "이 페이지는 6시간마다 갱신됩니다" 안내 텍스트 헤더 하단에 1회.
+AGENTS.md §6 일반 페이지 정책. 라이브 매치라도 자동 갱신 X. 사용자가 새로고침 해야 최신. "이 페이지는 6시간마다 갱신됩니다" 안내 텍스트 헤더 하단에 1회.
 
 ---
 
@@ -393,7 +393,7 @@ CLAUDE.md §6 일반 페이지 정책. 라이브 매치라도 자동 갱신 X. �
 | 항목 | 값 |
 |---|---|
 | 데이터 신선도 | 6h (DB only) |
-| 폴링 | **없음** (CLAUDE.md §6 + 메인 §11) |
+| 폴링 | **없음** (AGENTS.md §6 + 메인 §11) |
 | 페이지 스크롤 | **금지** |
 | footer | **없음** |
 | 패널 내부 스크롤 | hidden-scrollbar + fade-out gradient |
@@ -456,5 +456,5 @@ CLAUDE.md §6 일반 페이지 정책. 라이브 매치라도 자동 갱신 X. �
 | 포메이션 도형 좌표 | 룩업 테이블로 행렬 결정 (devplan 참조). 4-3-3 / 4-4-2 / 4-2-3-1 / 3-5-2 / 5-3-2 / 3-4-3 등 일반 포메이션 사전 정의 |
 | 골 이력 다득점 | 인라인 + 줄바꿈 + 폰트 clamp. 가로 스크롤 금지 |
 | 라이브 stale 6h | 의도된 정책 그대로. 메인 페이지처럼 헤더 하단 안내 1회 |
-| rating 표시 | API 응답에 있으면 표시, 없으면 생략 |
+| rating 표시 | `/fixtures/players` 응답이 DB 에 저장되어 있으면 표시, 없으면 생략 |
 | 404 처리 | 전역 404 페이지로 redirect (별 feature) |

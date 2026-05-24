@@ -1,0 +1,39 @@
+{
+  "feature": "fixture-detail",
+  "reviewer": "fe-reviewer",
+  "reviewed_commit": "763808d",
+  "branch": "fe-feat-fixture-detail",
+  "verdict": "APPROVE",
+  "summary": "Mock impl matches spec: 25vh MatchHeader + 75vh three-panel 25/50/25 grid, body overflow hidden, no footer rendered in feature scope. Dynamic league theming via [data-league] tokens with components referencing only --theme-* (verified by grep). NS/FT/cancelled/error/loading states handled in view; 404 redirect via router.replace to not-found; default formation tab with URL ?tab= sync (delete on default). Pinia store bootstraps match+events+lineups in parallel via Promise.all and lazily fetches h2h/stats/standings on tab activation. Mock layer uses import.meta.glob (eager) and falls back to 1000001 when per-id JSON absent; 1000099 → NotFoundError, 1000098 → ServerError. Vitest 27/27 PASS, Playwright 10/10 PASS (logs in /tmp). Production build succeeds; FixtureDetailView chunk = 38.71 kB JS / 10.50 kB CSS (matches reported).",
+  "critical": [],
+  "major": [],
+  "minor": [
+    {
+      "id": "M1",
+      "note": "fixtureDetail store uses get/set value proxy objects to pass refs to load() — works but slightly awkward. Could be cleaned to typed Ref<Slice<T>> param. Non-blocking."
+    },
+    {
+      "id": "M2",
+      "note": "Untracked .gitignore.tmp present in worktree (not committed). Should be cleaned before merge."
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "R1",
+      "note": "Deferred scenarios (F03/F05/F07/F25–F36/axe/contrast/screenshot regression) are acceptable post-MVP — none block mock-impl review. Suggest follow-up tasklist after BE integration for live data states (LIVE clock, score updates) and visual regression."
+    },
+    {
+      "id": "R2",
+      "note": "MERGE-TIME CONFLICT FLAG: branch was created before main-home merged to main (e2833cf). Expect conflicts on frontend/src/router/index.ts, vite.config.ts, package.json, vitest.config.ts when merging. HomeStub usage in this branch must be reconciled with real Home from main. Not a review blocker — orchestrator should merge main into this branch (or rebase) before MERGE_GATE final integration."
+    },
+    {
+      "id": "R3",
+      "note": "Consider tightening VITE_USE_MOCK contract (currently default 'true' unless explicitly 'false'). Document in feature spec for BE handoff."
+    }
+  ],
+  "evidence": {
+    "vitest_log": "/tmp/fixture-detail-vitest.log",
+    "playwright_log": "/tmp/fixture-detail-playwright.log",
+    "build": "vite build OK, FixtureDetailView 38.71 kB / 10.50 kB CSS"
+  }
+}

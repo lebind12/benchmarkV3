@@ -1,5 +1,5 @@
 # Harness v4 Configuration
-# Edit this file, then run `harness sync` to generate CC plugin files.
+# Codex workflow uses .codex/agents, .codex/schemas, and .codex/state.
 
 [project]
 name = "benchmark"
@@ -10,7 +10,7 @@ description = ""
 # default = "security-reviewer"
 
 [env]
-# CLAUDE_CODE_SUBPROCESS_ENV_SCRUB = "1"
+# HARNESS_STATE_ROOT = ".codex/state"
 
 [safety.permissions]
 deny = [
@@ -27,4 +27,3 @@ failIfUnavailable = false
 [safety.sandbox.filesystem]
 # denyRead = [".env", "secrets/**"]
 # allowRead = [".env.example"]
-

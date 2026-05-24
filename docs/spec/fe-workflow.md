@@ -5,7 +5,7 @@
 상위:
 - 메인 → FE 팀 요구사항: `@docs/features/README.md`
 - BE 워크플로: `@docs/spec/agent-workflow.md`
-- 도메인: `@CLAUDE.md`
+- 도메인: `@AGENTS.md`
 
 ## 1. 단위와 명칭
 
@@ -94,7 +94,7 @@ DONE
 
 ## 4. 상태 파일
 
-위치: `.claude/state/feature-flow/<feature_id>.json` (Mock + Integration 한 파일에 phase 로 구분)
+위치: `.codex/state/feature-flow/<feature_id>.json` (Mock + Integration 한 파일에 phase 로 구분)
 
 ```jsonc
 {
@@ -142,14 +142,14 @@ DONE
 }
 ```
 
-history: `.claude/state/feature-flow/<feature_id>.history.jsonl` (append-only)
+history: `.codex/state/feature-flow/<feature_id>.history.jsonl` (append-only)
 
 ## 5. 메인 → FE 팀 핸드오프
 
 1. 메인이 `docs/features/<id>.md` 작성 후 사용자 확정
 2. 메인이 사용자에게 "FE 팀 트리거" 확인
 3. 메인이 `scripts/feature-flow.sh init <feature_id>` 호출 → state 파일 생성, state=`TRIGGERED`
-4. 메인이 `Agent(subagent_type="fe-planner", ...)` 호출
+4. 메인이 Codex subagent role `fe-planner` 를 호출
 5. 이후 FE 팀 내부 자율 진행
 
 ## 6. FE → BE 핸드오프 (BE_REQUEST_GENERATED 단계)
@@ -254,3 +254,84 @@ feature-flow list
 ```
 
 본 CLI 의 구체 구현은 Plans.md Phase 10 의 task 로 추적.
+
+### 13.1 Harness TaskList 강제 규칙
+
+FE feature 전체를 첫 stage owner 에게 단일 task 로 assign 하지 않는다. `fe-planner` 는 plan stage 만 소유하고, feature 전체 mock 구현의 owner 가 아니다.
+
+금지:
+
+```json
+{
+  "subject": "FE1: main-home 페이지 mockup 구현",
+  "owner": "fe-planner",
+  "description": "fe-planner → fe-dev (Mock 라이프사이클)"
+}
+```
+
+허용되는 표현은 둘 중 하나다.
+
+1. Stage 별 task 분리:
+
+```text
+8.plan         main-home plan 작성       owner=fe-planner
+8.plan-review  main-home plan 리뷰       owner=fe-reviewer
+8.impl         main-home mock 구현       owner=fe-dev
+8.impl-review  main-home 구현 리뷰       owner=fe-reviewer
+8.merge        main-home mock merge      owner=team-lead
+```
+
+2. 단일 feature task + stage owner 갱신:
+
+```json
+{
+  "tasklist_id": "8",
+  "feature_id": "main-home",
+  "state": "IMPL_IN_PROGRESS",
+  "current_stage": "IMPL_IN_PROGRESS",
+  "owner": "fe-dev"
+}
+```
+
+TaskList owner 와 feature-flow owner 는 항상 같아야 한다. 다르면 하네스는 다음 assignment / completion 을 차단한다.
+
+### 13.2 `stage_completed` 와 `task_completed`
+
+중간 단계 완료는 `task_completed` 가 아니다. 각 stage 는 다음 명령으로만 전이한다.
+
+```bash
+scripts/feature-flow.sh transition <feature_id> <next_state> --by <agent> --note "..."
+```
+
+`TaskCompleted` hook 은 성공 final state 에서만 통과한다.
+
+TaskList 상 하네스 워크플로우 작업으로 보이는데 `feature-flow` state 가 `tasklist_id` 로 연결되어 있지 않은 경우도 차단한다. 이 규칙 때문에 planner/dev/reviewer 중간 단계가 state 없이 TaskList 완료로 빠져나갈 수 없다.
+
+| phase | 성공 final state | 의미 |
+|---|---|---|
+| Mock | `FE_DONE_AWAITING_BE` | mock 구현/리뷰/머지/endpoint-request 생성까지 완료 |
+| Integration | `DONE` | mock→real, L3/L4, 리뷰/머지까지 완료 |
+
+필수 차단 예:
+
+| 현재 state | sender | 잘못된 신호 | 결과 |
+|---|---|---|---|
+| `PLAN_REVIEW` | `fe-planner` | `task_completed` | 차단. reviewer approval 전 |
+| `PLAN_APPROVED` | `fe-planner` | `task_completed` | 차단. fe-dev 구현 전 |
+| `IMPL_PUSHED` | `fe-dev` | `task_completed` | 차단. L1/L2 + reviewer 전 |
+| `REVIEW_PENDING` | `fe-reviewer` | `task_completed` | 차단. merge + endpoint-request 전 |
+| `FE_DONE_AWAITING_BE` | `team-lead` | `task_completed` | 허용 |
+
+### 13.3 검증 명령
+
+```bash
+scripts/feature-flow.sh validate <feature_id>
+scripts/feature-flow.sh validate-all --strict-tasklist
+```
+
+`--strict-tasklist` 는 다음을 오류로 처리한다.
+
+- `tasklist_id` 누락
+- TaskList owner 와 workflow owner 불일치
+- TaskList 는 `completed` 인데 workflow state 가 final 이 아님
+- workflow 는 final 인데 TaskList status 가 `completed` 가 아님

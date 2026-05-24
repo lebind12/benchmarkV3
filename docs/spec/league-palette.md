@@ -4,7 +4,7 @@
 
 상위:
 - UI 기준: `@docs/spec/ui-standards.md`
-- 도메인: `@CLAUDE.md`
+- 도메인: `@AGENTS.md`
 
 ---
 

@@ -6,7 +6,7 @@
 
 상위:
 - BE 워크플로: `@docs/spec/agent-workflow.md` (endpoint 라이프사이클을 워커에 적용 가능 — 본 문서 §하단 참조)
-- 도메인 SSOT: `@CLAUDE.md` (§4 워커 정책)
+- 도메인 SSOT: `@AGENTS.md` (§4 워커 정책)
 - 작업 정본: `@Plans.md` (Phase 4 / 5 / 6 의 task 들)
 
 ## 파일 이름 규약
@@ -15,7 +15,7 @@
 <worker_id>.md
 ```
 
-`worker_id` 는 kebab-case. CLAUDE.md §4 에 정의된 3종:
+`worker_id` 는 kebab-case. AGENTS.md §4 에 정의된 3종:
 - `daily-sync.md`
 - `live-poll.md`
 - `translation-filler.md`
@@ -67,7 +67,7 @@ status: requirements-only
 - 락 획득 실패 시 행동: 즉시 종료 / 대기
 
 ## 8. 동시성 / 외부 API 제약
-- API-Football: semaphore 상한 6 (CLAUDE.md §4 운영 원칙)
+- API-Football: semaphore 상한 6 (AGENTS.md §4 운영 원칙)
 - 기타 외부 API 호출 시 동시 호출 제한
 - DB 트랜잭션 경계
 

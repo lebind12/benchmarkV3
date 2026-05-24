@@ -18,13 +18,19 @@ TEST_DATABASE_URL=
 # --- API-Football (Ultra plan) ---
 API_FOOTBALL_KEY=
 API_FOOTBALL_HOST=v3.football.api-sports.io
+API_FOOTBALL_CONCURRENCY=6
 
 # --- Upstash Redis (refresh token rotation / blacklist) ---
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 
-# --- OpenAI (translation-filler) ---
+# --- OpenAI (translation-filler / news-translator) ---
 OPENAI_API_KEY=
+
+# --- Frontend local dev ---
+# false/empty = call FastAPI through Vite proxy. true = use MSW mock handlers.
+VITE_USE_MOCK=false
+VITE_BACKEND_URL=http://127.0.0.1:8000
 ```
 
 ## Notes

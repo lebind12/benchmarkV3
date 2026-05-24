@@ -1,0 +1,3 @@
+{"ts":"2026-05-13T18:42:10.257Z","from":null,"to":"FE_REQUESTED","by":"team-lead","note":"init"}
+{"ts":"2026-05-14T05:35:32.235Z","from":"FE_REQUESTED","to":"SPEC_DRAFTING","by":"be-test","note":"start fixture-detail events endpoint spec/test drafting"}
+{"ts":"2026-05-24T11:04:05.703Z","from":"SPEC_DRAFTING","to":"SPEC_REVIEW","by":"be-test","note":"P0 status cleanup: spec/testplan/tests exist; move from stale drafting state to spec review"}

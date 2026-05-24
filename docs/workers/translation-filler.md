@@ -133,7 +133,7 @@ Step 7. 매칭 테이블 UPDATE
 
 ## 7. 분산 락
 
-- **사용 안 함** (CLAUDE.md §4 단일 인스턴스 전제)
+- **사용 안 함** (AGENTS.md §4 단일 인스턴스 전제)
 
 ## 8. 동시성 / 외부 API 제약
 
@@ -237,7 +237,7 @@ Step 7. 매칭 테이블 UPDATE
 
 - 스케줄 주기 변경 (1분)
 - 모델 변경 (gpt-3.5-turbo → 다른 모델)
-- 음역 정책 변경 (web_search 도입 등 — CLAUDE.md §11 의 향후 항목)
+- 음역 정책 변경 (web_search 도입 등 — AGENTS.md §11 의 향후 항목)
 - 새 entity_type 추가
 - DB 스키마 변경
 - league 도 처리 대상에 정식 포함할지 (현재 선택적)

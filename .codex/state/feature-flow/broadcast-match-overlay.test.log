@@ -1,0 +1,16 @@
+broadcast-match-overlay mock verification
+
+- npm run test:unit -- BroadcastApp: PASS (6 tests)
+- npm run test:unit -- MatchHeader BroadcastApp: PASS (12 tests)
+- npm run type-check: PASS
+- npm run test:e2e -- broadcast.spec.ts: PASS (2 tests, chromium-mock)
+- npm run build: PASS
+- Browser verification: PASS, /broadcast.html?fixture=260506&league=world-cup-2026 at 1920x1080
+
+review fix verification
+
+- Event popup timing changed to one-shot 8.4s animation: rise, stay visible for 7s, descend.
+- npm run test:unit -- MatchHeader BroadcastApp: PASS (12 tests)
+- npm run type-check: PASS
+- npm run test:e2e -- broadcast.spec.ts: PASS (2 tests, chromium-mock)
+- npm run build: PASS

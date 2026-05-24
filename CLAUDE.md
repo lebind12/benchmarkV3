@@ -22,16 +22,18 @@
 - **컵 대회 fixture**: 시즌 전체. 추첨 미정 라운드는 빈 슬롯으로 두고 6시간 sync 시 채움
 - **외부 ID upsert**: API-Football 의 `fixture_id`, `team_id`, `player_id`, `league_id` 를 unique key 로 upsert
 
-## 4. 워커 (2종)
+## 4. 워커 (4종)
 
-워커는 API-Football → DB 적재 전담. API endpoint 와 분리된 독립 기능.
+워커는 외부 데이터 → DB 적재 전담. API endpoint 와 분리된 독립 기능.
 
 | 워커 | 주기 | 책임 |
 |---|---|---|
-| `daily-sync` | KST 00/06/12/18 (4회/일) | 5개 리그의 fixtures, fixture 상세, league/team/player 메타 적재 |
-| `translation-filler` | 1분 간격 상시 (큐 비면 즉시 종료) | 번역 테이블에서 `name_ko IS NULL` row 탐지 → OpenAI 호출 → 채움 |
+| `daily-sync` | KST 00/06/12/18 (4회/일) | 활성 league (is_active=true) 의 fixtures / 상세 / team / player / standings / transfers / injuries 적재 |
+| `translation-filler` | 1분 간격 (큐 비면 종료) | 번역 테이블 (`*_translation`) 의 `name_ko IS NULL` row → OpenAI 음역 |
+| `news-fetcher` | 1시간 간격 | EPL 관련 외신 RSS 폴링 → `news_article` 적재 (제목 + 요약 + URL, EPL 팀 키워드 필터) |
+| `news-translator` | 1분 간격 (큐 비면 종료) | `news_article.title_ko IS NULL` row → OpenAI 번역 (의역) |
 
-방송용 페이지의 라이브 데이터는 **워커가 아니라 API endpoint + 캐시** 로 처리한다 (스트리머가 방송용 페이지를 활용할 때만 호출). 워커 영역과 분리.
+방송용 페이지의 라이브 데이터는 **워커가 아니라 API endpoint + 캐시** 로 처리 (스트리머가 활용할 때만). 워커 영역과 분리.
 
 운영 원칙:
 - **API-Football rate limit (Ultra plan)**: 450 req/min ≈ 7.5 RPS. 동시 호출 semaphore 상한 = **6** (안전 마진 포함)
@@ -86,11 +88,16 @@
 
 ## 6. 데이터 신선도 SLA
 
-| Endpoint 종류 | 신선도 보장 | 처리 방식 |
-|---|---|---|
-| 일반 사용자용 (일정, 결과, 통계, 팀/선수 메타) | 6시간 이내 | daily-sync 가 적재한 DB 조회 |
-| 방송용 페이지 라이브 데이터 | 실시간 | 스트리머 호출 시점에 API endpoint 가 API-Football 호출 (캐시 TTL 단기) |
-| 번역명 | best-effort | 누락 시 영문 fallback |
+| 페이지 종류 | 데이터 출처 | 신선도 | 클라이언트 polling | 라이브 표시 |
+|---|---|---|---|---|
+| **모든 일반 사용자 페이지** (홈 / 경기 / 매치 디테일 / 순위 / 팀 / 선수 / 스탯 / 뉴스 / ...) | **DB 만** | 6h | **불가** | 카운트다운 / 라이브 score 표시 X |
+| **방송용 페이지** (`/broadcast/...`, STREAMER role 만) | API endpoint + Upstash 캐시 | 실시간 | 허용 (10초) | 라이브 score / events 표시 |
+| 번역명 | best-effort | - | - | NULL 시 영문 fallback |
+
+원칙:
+- API-Football 직접 호출은 **방송용 페이지 + 워커 (daily-sync 등)** 만 허용
+- 일반 사용자 페이지가 라이브 매치를 보고 있어도 최대 6h stale 가능 (정책상 허용)
+- 라이브 정보가 절실히 필요한 사용자 = 방송용 페이지로 유도 (스트리머 전용)
 
 ## 7. 인증/권한
 

@@ -1,0 +1,9 @@
+{"ts":"2026-05-13T22:30:00+09:00","from":"FE_REQUESTED","to":"SPEC_DRAFTING","by":"be-test","note":"team-lead 가 L1 follow-up (league.is_active) task 부여. db-schema.md §3.1 갱신분 mirror"}
+{"ts":"2026-05-13T22:45:00+09:00","from":"SPEC_DRAFTING","to":"SPEC_REVIEW","by":"be-test","note":"spec + testplan + unit/integration test 4파일 작성 완료. Red 확인 (5 fail / 1 pass, 모델 is_active + 0002 마이그레이션 미작성). be-reviewer 핸드오프"}
+{"ts":"2026-05-13T22:30:00+09:00","from":"SPEC_APPROVED","to":"IMPL_IN_PROGRESS","by":"be-dev","note":"L1 implementation start: 0002 migration + League model is_active + partial index"}
+{"ts":"2026-05-13T22:45:00+09:00","from":"IMPL_IN_PROGRESS","to":"IMPL_PUSHED","by":"be-dev","note":"commit 491a89f pushed; unit 6/6 + integration 9/9 PASS; prod DB at 0002_league_is_active"}
+{"ts":"2026-05-13T18:09:08.954Z","from":"IMPL_PUSHED","to":"TESTING","by":"be-test","note":"closeout: tests on already-merged commit 491a89f"}
+{"ts":"2026-05-13T18:11:20.017Z","from":"TESTING","to":"REVIEW_PENDING","by":"be-test","note":"closeout PASS after LU-06 baseline updated to 17 tables"}
+{"ts":"2026-05-13T18:11:45.107Z","from":"REVIEW_PENDING","to":"MERGE_GATE","by":"be-reviewer","note":"closeout APPROVE; L1 in prod via 9e7d157"}
+{"ts":"2026-05-13T18:11:52.940Z","from":"MERGE_GATE","to":"PR_CREATED","by":"team-lead","note":"closeout: code already in main via 9e7d157"}
+{"ts":"2026-05-13T18:11:52.976Z","from":"PR_CREATED","to":"MERGED","by":"team-lead","note":"merged via 9e7d157"}

@@ -3,17 +3,17 @@
 본 문서는 데이터베이스 스키마의 정본 (SSOT) 이다. SQLAlchemy 모델과 alembic 마이그레이션은 항상 본 문서와 동기 상태를 유지한다.
 
 상위 결정:
-- 도메인 / 데이터 정책: `@CLAUDE.md`
+- 도메인 / 데이터 정책: `@AGENTS.md`
 - 워커 운영: `@docs/workers/`
 - 작업 정본: `@Plans.md`
 
 ---
 
-## 1. 전체 테이블 (13개)
+## 1. 전체 테이블 (17개)
 
 | # | 테이블 | 역할 |
 |---|---|---|
-| 1 | `league` | 5리그 메타 |
+| 1 | `league` | 5리그 메타 (+ `is_active`) |
 | 2 | `league_translation` | 리그 한글표기 (1:1) |
 | 3 | `venue` | 경기장 |
 | 4 | `team` | 팀 메타 |
@@ -21,11 +21,15 @@
 | 6 | `team_season` | 팀-리그-시즌 정션 (M:N) |
 | 7 | `player` | 선수 메타 (현 소속 denorm) |
 | 8 | `player_translation` | 선수 한글표기 (1:1) |
-| 9 | `player_season_stat` | 선수 시즌 스탯 (하이브리드: 핵심 컬럼 + raw JSONB) |
+| 9 | `player_season_stat` | 선수 시즌 스탯 (하이브리드) |
 | 10 | `fixture` | 경기 |
-| 11 | `fixture_detail` | events/statistics/lineups JSONB |
+| 11 | `fixture_detail` | events/statistics/lineups/players JSONB |
 | 12 | `standings` | 순위표 |
 | 13 | `app_user` | 사용자 (인증) |
+| 14 | `transfer` | 이적 (API-Football `/transfers`) |
+| 15 | `injury` | 부상자 / 결장 (API-Football `/injuries`) |
+| 16 | `news_article` | 외신 기사 메타 + 한글 번역 |
+| 17 | `h2h_fixture` | Head-to-head 과거 경기 (5리그 외도 보관) |
 
 ---
 
@@ -59,6 +63,14 @@ player
 fixture
   ├─ 1:0..1 ─ fixture_detail
   └─ N:1    ─ league, home_team, away_team, venue
+
+transfer
+  └─ N:1 ─ player, from_team(team), to_team(team)
+
+injury
+  └─ N:1 ─ player, team, league, fixture(optional)
+
+news_article  (독립적, tags JSONB 로 team/player external_id 참조)
 
 app_user  (독립)
 ```
@@ -308,6 +320,7 @@ CREATE TABLE fixture_detail (
     events       jsonb,                       -- /fixtures/events 응답
     statistics   jsonb,                       -- /fixtures/statistics 응답
     lineups      jsonb,                       -- /fixtures/lineups 응답
+    players      jsonb,                       -- /fixtures/players 응답 (출전 선수별 평점/분/카드/교체 등)
     fetched_at   timestamptz,                 -- 마지막 API fetch 시각
     updated_at   timestamptz NOT NULL DEFAULT now()
 );
@@ -370,6 +383,120 @@ CREATE TABLE app_user (
 CREATE INDEX app_user_role_idx ON app_user (role);
 ```
 
+### 3.14 `transfer`
+
+API-Football `/transfers` 응답 매핑. 한 선수당 여러 이적 row.
+
+```sql
+CREATE TABLE transfer (
+    id            bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    player_id     bigint      NOT NULL REFERENCES player(id) ON DELETE CASCADE,
+    transfer_date date        NOT NULL,                    -- API transfers[].date
+    type          text,                                     -- API transfers[].type ('Free', 'Loan', '€100M' 등)
+    from_team_id  bigint      REFERENCES team(id) ON DELETE SET NULL,
+    to_team_id    bigint      REFERENCES team(id) ON DELETE SET NULL,
+    raw_data      jsonb,                                    -- API 응답 전체 보관
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    updated_at    timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT transfer_uniq UNIQUE (player_id, transfer_date, from_team_id, to_team_id)
+);
+CREATE INDEX transfer_player_idx    ON transfer (player_id);
+CREATE INDEX transfer_date_idx      ON transfer (transfer_date DESC);
+CREATE INDEX transfer_to_team_idx   ON transfer (to_team_id);
+CREATE INDEX transfer_from_team_idx ON transfer (from_team_id);
+```
+
+### 3.15 `injury`
+
+API-Football `/injuries` 응답 매핑.
+
+```sql
+CREATE TABLE injury (
+    id           bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    player_id    bigint      NOT NULL REFERENCES player(id) ON DELETE CASCADE,
+    fixture_id   bigint      REFERENCES fixture(id) ON DELETE SET NULL,  -- 특정 경기 영향 시. nullable
+    team_id      bigint      NOT NULL REFERENCES team(id) ON DELETE CASCADE,
+    league_id    bigint      NOT NULL REFERENCES league(id) ON DELETE CASCADE,
+    season_year  integer     NOT NULL,
+    type         text,                                     -- API player.type ('Missing Fixture', 'Questionable' 등)
+    reason       text,                                     -- API player.reason ('Knee Injury' 등)
+    raw_data     jsonb,
+    reported_at  timestamptz,                              -- API 응답 timestamp (있다면)
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    updated_at   timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT injury_uniq UNIQUE (player_id, fixture_id, league_id, season_year)
+);
+CREATE INDEX injury_player_idx      ON injury (player_id);
+CREATE INDEX injury_team_season_idx ON injury (team_id, season_year);
+CREATE INDEX injury_fixture_idx     ON injury (fixture_id) WHERE fixture_id IS NOT NULL;
+```
+
+### 3.16 `news_article`
+
+외신 RSS → DB → 번역 파이프라인의 정본.
+
+```sql
+CREATE TABLE news_article (
+    id               bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source           text        NOT NULL,                  -- 'BBC Sport', 'Guardian', 'Sky Sports' 등
+    source_url       text        NOT NULL UNIQUE,            -- RSS 의 link (dedupe key)
+    original_title   text        NOT NULL,                   -- 영문 제목
+    original_summary text,                                   -- RSS description
+    published_at    timestamptz  NOT NULL,                   -- 원문 발행 시각
+    image_url       text,                                    -- RSS enclosure (있다면)
+    title_ko        text,                                    -- 번역 결과 (NULL = 대기)
+    summary_ko      text,                                    -- 번역 결과
+    translated_at   timestamptz,                             -- 번역 완료 시각
+    tags            jsonb,                                   -- {teams: [external_id, ...], players: [external_id, ...]} (매칭된 EPL entities)
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX news_article_published_idx  ON news_article (published_at DESC);
+CREATE INDEX news_article_pending_idx    ON news_article (created_at DESC) WHERE title_ko IS NULL;
+CREATE INDEX news_article_tags_gin       ON news_article USING gin (tags);
+```
+
+**참고**: news_article 은 entity 테이블과 FK 로 연결되지 않음. `tags` JSONB 에 매칭된 EPL team / player 의 `external_id` 만 보관 (운영 자유도 ↑, FK 강제 없음).
+
+### 3.17 `h2h_fixture`
+
+API-Football `/fixtures/headtohead` 응답의 historical 경기 보관. 5리그 화이트리스트 외도 포함.
+
+```sql
+CREATE TABLE h2h_fixture (
+    id                 bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    external_id        integer     NOT NULL UNIQUE,                  -- API fixture.id
+    home_team_id       bigint      NOT NULL REFERENCES team(id) ON DELETE CASCADE,
+    away_team_id       bigint      NOT NULL REFERENCES team(id) ON DELETE CASCADE,
+    league_external_id integer,                                       -- 5리그 외도 보관. FK 없음 (외부 대회)
+    league_name        text,                                           -- API league.name (예: 'Friendlies', 'Premier League')
+    season_year        integer,
+    kickoff_at         timestamptz NOT NULL,
+    status_short       text,
+    goals_home         smallint,
+    goals_away         smallint,
+    raw_data           jsonb,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- 두 팀 짝 조회용 (순서 무관)
+CREATE INDEX h2h_pair_idx ON h2h_fixture
+    (LEAST(home_team_id, away_team_id), GREATEST(home_team_id, away_team_id), kickoff_at DESC);
+```
+
+**참고**: home_team_id / away_team_id 는 team 테이블 FK. 즉 양 팀이 모두 DB 에 있어야 row 추가 가능. 한쪽이 외부 팀 (DB 미존재) 이면 적재 skip.
+
+쿼리 패턴 (특정 매치의 H2H):
+```sql
+SELECT * FROM h2h_fixture
+WHERE LEAST(home_team_id, away_team_id) = LEAST($1, $2)
+  AND GREATEST(home_team_id, away_team_id) = GREATEST($1, $2)
+ORDER BY kickoff_at DESC LIMIT 5;
+```
+
 ---
 
 ## 4. ON DELETE 정책 일람
@@ -408,7 +535,7 @@ CREATE INDEX app_user_role_idx ON app_user (role);
 - 별도 `season` 테이블 없음 (제거됨)
 - `league.current_season int` 가 "각 리그의 현재 시즌이 어느 year 인가" 단일 소스
 - `fixture / team_season / player_season_stat / standings` 에 `season_year int` 컬럼
-- CLAUDE.md §3 "최신 2시즌 보관" 정책은 워커 책임 (오래된 시즌 row 정기 삭제)
+- AGENTS.md §3 "최신 2시즌 보관" 정책은 워커 책임 (오래된 시즌 row 정기 삭제)
 
 ---
 
@@ -443,7 +570,7 @@ CREATE INDEX app_user_role_idx ON app_user (role);
 4. player (큐 대상 team 의 squad)
 5. team_season (위 (league, season, team) 관계)
 6. fixture (큐 대상)
-7. fixture_detail (위 fixture 의 events/statistics/lineups)
+7. fixture_detail (위 fixture 의 events/statistics/lineups/players)
 8. standings (5리그 × current_season)
 9. player_season_stat (위 player 의 시즌 스탯)
 10. league_translation / team_translation / player_translation: daily-sync 가 새 entity 발견 시 INSERT ON CONFLICT DO NOTHING (한글 NULL row 생성)

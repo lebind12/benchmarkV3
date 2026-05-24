@@ -1,0 +1,3 @@
+{"ts":"2026-05-13T18:28:41.004Z","from":null,"to":"FE_REQUESTED","by":"fe-dev","note":"FE handoff from main-home (feature MERGED e2833cf)"}
+{"ts":"2026-05-14T05:34:11.359Z","from":"FE_REQUESTED","to":"SPEC_DRAFTING","by":"be-test","note":"start main-home news spec/test drafting"}
+{"ts":"2026-05-14T05:44:35.390Z","from":"SPEC_DRAFTING","to":"SPEC_REVIEW","by":"be-test","note":"spec/testplan/tests ready; unit Red on missing app.services.home; integration skipped without TEST_DATABASE_URL"}

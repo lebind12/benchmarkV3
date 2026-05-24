@@ -1,0 +1,20 @@
+COMMAND
+pytest -q tests/unit/test_fixture_detail_h2h_endpoint.py --tb=short
+
+RESULT
+exit code 1 (expected TDD Red)
+
+OUTPUT
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_____________ test_h2h_u01_default_limit_returns_current_fe_shape ______________
+tests/unit/test_fixture_detail_h2h_endpoint.py:81: in test_h2h_u01_default_limit_returns_current_fe_shape
+    with client_with_service(service) as (client, _analytics):
+/opt/homebrew/anaconda3/lib/python3.11/contextlib.py:137: in __enter__
+    return next(self.gen)
+tests/unit/test_fixture_detail_h2h_endpoint.py:65: in client_with_service
+    from app.api.v1 import fixture_detail_analytics as analytics
+E   ModuleNotFoundError: No module named 'app.api.v1'
+
+All 4 H2H unit tests failed at the missing endpoint router package before implementation.
+This is the intended Red signal for the be-dev handoff.

@@ -1,0 +1,32 @@
+command: python -m pytest -m unit tests/unit/test_home_hot_players.py --tb=short --disable-warnings --no-header
+exit_code: 1
+
+============================= test session starts ==============================
+collected 3 items
+
+tests/unit/test_home_hot_players.py FFF                                  [100%]
+
+=================================== FAILURES ===================================
+_____________ test_hhp_u01_public_endpoint_returns_service_payload _____________
+tests/unit/test_home_hot_players.py:64: in test_hhp_u01_public_endpoint_returns_service_payload
+    service = _patch_service(monkeypatch, {"items": [_item()]})
+tests/unit/test_home_hot_players.py:50: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+________________ test_hhp_u02_score_matches_goals_plus_assists _________________
+tests/unit/test_home_hot_players.py:74: in test_hhp_u02_score_matches_goals_plus_assists
+    _patch_service(monkeypatch, {"items": [_item(goals=18, assists=9)]})
+tests/unit/test_home_hot_players.py:50: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+______________________ test_hhp_u03_empty_items_are_valid ______________________
+tests/unit/test_home_hot_players.py:84: in test_hhp_u03_empty_items_are_valid
+    _patch_service(monkeypatch, {"items": []})
+tests/unit/test_home_hot_players.py:50: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+=========================== short test summary info ============================
+FAILED tests/unit/test_home_hot_players.py::test_hhp_u01_public_endpoint_returns_service_payload
+FAILED tests/unit/test_home_hot_players.py::test_hhp_u02_score_matches_goals_plus_assists
+FAILED tests/unit/test_home_hot_players.py::test_hhp_u03_empty_items_are_valid
+======================== 3 failed, 4 warnings in 1.08s =========================

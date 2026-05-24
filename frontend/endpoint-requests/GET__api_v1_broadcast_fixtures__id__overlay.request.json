@@ -1,0 +1,183 @@
+{
+  "endpoint_id": "GET__api_v1_broadcast_fixtures__id__overlay",
+  "method": "GET",
+  "path": "/api/v1/broadcast/fixtures/{external_id}/overlay",
+  "from_feature": "broadcast-match-overlay",
+  "fe_mockup_ref": "frontend/src/BroadcastApp.vue",
+  "handler_ref": "future frontend broadcast integration fetcher",
+  "spec_excerpt": "Broadcast Match Overlay 목업의 단일 polling payload. 1920x1080 방송 화면에서 top scoreboard, left formation cards, right-bottom stats board, center-bottom event toast loop 를 10초 polling 으로 갱신한다. 일반 사용자 페이지와 달리 방송용 페이지는 API-Football 기반 live endpoint + Upstash cache 로 실시간 데이터를 제공한다.",
+  "auth": "STREAMER",
+  "request_path_params": [
+    {
+      "name": "external_id",
+      "type": "int",
+      "desc": "API-Football fixture external_id"
+    }
+  ],
+  "request_query_params": [
+    {
+      "name": "league_slug",
+      "type": "string",
+      "optional": true,
+      "description": "FE theme selection echo only. 지원 값: premier-league, champions-league, europa-league, carabao-cup, fa-cup, world-cup-2026"
+    }
+  ],
+  "response_shape": {
+    "fixture": {
+      "external_id": "int",
+      "league": {
+        "external_id": "int",
+        "slug": "string",
+        "name": "string",
+        "name_ko": "string|null",
+        "short_name_ko": "string|null",
+        "logo_url": "string|null",
+        "theme_slug": "premier-league|champions-league|europa-league|carabao-cup|fa-cup|world-cup-2026"
+      },
+      "status_short": "NS|1H|HT|2H|ET|PEN|FT|AET|PST|CANC|SUSP",
+      "status_long": "string",
+      "elapsed": "int|null",
+      "extra": "int|null",
+      "clock_label": "string",
+      "added_time_label": "string|null",
+      "home": {
+        "external_id": "int",
+        "slug": "string",
+        "name": "string",
+        "name_ko": "string|null",
+        "short_name_ko": "string|null",
+        "logo_url": "string|null",
+        "badge_url": "string|null",
+        "code": "string"
+      },
+      "away": {
+        "external_id": "int",
+        "slug": "string",
+        "name": "string",
+        "name_ko": "string|null",
+        "short_name_ko": "string|null",
+        "logo_url": "string|null",
+        "badge_url": "string|null",
+        "code": "string"
+      },
+      "goals_home": "int|null",
+      "goals_away": "int|null"
+    },
+    "lineups": [
+      {
+        "team_external_id": "int",
+        "team_side": "home|away",
+        "team_name": "string",
+        "team_name_ko": "string|null",
+        "team_code": "string",
+        "team_logo_url": "string|null",
+        "formation": "string|null",
+        "players": [
+          {
+            "player_external_id": "int|null",
+            "number": "int|null",
+            "name": "string",
+            "name_ko": "string|null",
+            "short_name_ko": "string|null",
+            "position": "string|null",
+            "grid": "string|null",
+            "rating": "number|null",
+            "goals": "int",
+            "yellow_cards": "int",
+            "red_cards": "int",
+            "substitution": "none|in|out"
+          }
+        ]
+      }
+    ],
+    "statistics": [
+      {
+        "type": "possession|shots_total|shots_on_goal|offsides|corner_kicks|passes_pct|yellow_cards|red_cards",
+        "label_ko": "string",
+        "home": "number|string|null",
+        "away": "number|string|null",
+        "home_display": "string",
+        "away_display": "string",
+        "home_pct": "number",
+        "away_pct": "number"
+      }
+    ],
+    "events": [
+      {
+        "event_id": "string",
+        "kind": "goal|substitution|yellow-card|red-card|var|stat|kickoff|halftime|fulltime",
+        "team_external_id": "int|null",
+        "team_side": "home|away|null",
+        "team_code": "string|null",
+        "team_logo_url": "string|null",
+        "minute": "int|null",
+        "extra": "int|null",
+        "clock_label": "string",
+        "title_ko": "string",
+        "detail_ko": "string",
+        "score_label": "string|null",
+        "player": {
+          "external_id": "int|null",
+          "name": "string|null",
+          "name_ko": "string|null",
+          "short_name_ko": "string|null"
+        },
+        "assist": {
+          "external_id": "int|null",
+          "name": "string|null",
+          "name_ko": "string|null",
+          "short_name_ko": "string|null"
+        },
+        "in_player": {
+          "external_id": "int|null",
+          "name": "string|null",
+          "name_ko": "string|null",
+          "short_name_ko": "string|null"
+        },
+        "out_player": {
+          "external_id": "int|null",
+          "name": "string|null",
+          "name_ko": "string|null",
+          "short_name_ko": "string|null"
+        },
+        "stat": {
+          "label_ko": "string|null",
+          "value_label": "string|null"
+        }
+      }
+    ],
+    "polling": {
+      "interval_seconds": 10,
+      "cache_hit": "boolean",
+      "cache_ttl_seconds": "int",
+      "generated_at": "ISO8601 UTC"
+    }
+  },
+  "response_example_path": "frontend/src/BroadcastApp.vue",
+  "scenarios_used": ["live_with_events", "live_no_lineups", "live_partial_stats", "not_live_db_fallback", "404_not_found", "401_unauthorized", "403_forbidden"],
+  "scenario_behavior": {
+    "live_with_events": "200. Upstash cache miss 시 API-Football fixture/events/lineups/statistics/players 최신값을 집계하고 events 최근 목록을 포함한다.",
+    "live_no_lineups": "200. lineups 는 빈 배열 또는 players 빈 배열, formation null 허용.",
+    "live_partial_stats": "200. API-Football 이 제공하지 않는 통계는 null/display '-' 허용.",
+    "not_live_db_fallback": "200. 라이브가 아닌 fixture 는 DB 기준 payload 를 반환하고 polling.interval_seconds 는 30 이상으로 완화 가능.",
+    "404_not_found": "404. fixture external_id 를 찾지 못함.",
+    "401_unauthorized": "JWT 없음/만료.",
+    "403_forbidden": "STREAMER role 없는 사용자는 403."
+  },
+  "api_football_sources": [
+    "GET /fixtures?id={external_id} 또는 /fixtures?ids={external_id}",
+    "GET /fixtures/events?fixture={external_id}",
+    "GET /fixtures/lineups?fixture={external_id}",
+    "GET /fixtures/statistics?fixture={external_id}",
+    "GET /fixtures/players?fixture={external_id}"
+  ],
+  "data_source": "방송용 라이브 정책: API endpoint + Upstash cache. Live fixture 는 API-Football 직접 조회 후 TTL 캐시, non-live fallback 은 DB fixture/fixture_detail 사용.",
+  "notes_for_be": [
+    "일반 사용자 페이지의 DB-only 6h SLA 와 분리한다.",
+    "API-Football Ultra plan 안전 마진을 위해 endpoint 내부 외부 호출은 캐시 우선이며, 동시 호출 제한(semaphore 6)을 준수한다.",
+    "권한은 STREAMER 이상. ADMIN 은 포함 가능.",
+    "FE 는 10초 polling 을 전제로 하며, event_id 신규/변경 시 이벤트 toast 루프에 반영한다.",
+    "선수 마커에는 평점, 등번호, 한글 축약명, 골 수, 경고/퇴장 수, 교체 in/out 상태가 필요하다.",
+    "UI chroma/safe-zone/theme 세부 색상은 FE 책임이며 BE 는 색상 정보를 내려주지 않는다."
+  ]
+}

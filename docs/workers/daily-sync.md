@@ -8,7 +8,7 @@ status: requirements-only
 
 ## 1. 목적
 
-API-Football 의 5리그 데이터를 6시간 주기로 Supabase DB 에 적재한다. 일반 사용자 화면이 제공하는 모든 비실시간 데이터(경기 일정/결과, 팀/선수 메타, 순위표 등) 의 정본을 만든다.
+API-Football 의 기본 5리그 데이터를 6시간 주기로 Supabase DB 에 적재한다. 운영 배치에서는 2026 월드컵(`league=1`, `season=2026`)도 함께 적재할 수 있다. 일반 사용자 화면이 제공하는 모든 비실시간 데이터(경기 일정/결과, 팀/선수 메타, 순위표 등) 의 정본을 만든다.
 
 ## 2. 스케줄
 
@@ -28,12 +28,27 @@ API-Football 의 5리그 데이터를 6시간 주기로 Supabase DB 에 적재�
   - `GET /fixtures/events?fixture={id}`
   - `GET /fixtures/statistics?fixture={id}`
   - `GET /fixtures/lineups?fixture={id}`
-  - `GET /players?team={id}&season={year}`
+  - `GET /fixtures/players?fixture={id}`
+  - `GET /players?league={id}&season={year}` (페이지네이션)
   - `GET /standings?league={id}&season={year}`
+  - `GET /transfers?team={id}` (추가)
+  - `GET /injuries?league={id}&season={year}` (추가)
+  - `GET /fixtures/headtohead?h2h={team1_id}-{team2_id}&last=5` (추가)
 
 ### 입력 파라미터
-- **활성 리그 동적 조회**: `SELECT * FROM league WHERE is_active = true`. ADMIN endpoint 로 추가/제외 가능 (초기 5리그 + 월드컵/유로 등 추후 추가 가능)
-- 시즌: 각 league 의 `current_season` 컬럼 + `current_season - 1`
+- **크롤링 target 동적 조회**: `SELECT * FROM league_sync_target WHERE is_active = true`. ADMIN 페이지/API 에서 리그+시즌 단위로 추가/제외한다.
+- fallback: target 이 비어있는 초기 환경에서는 기본 5리그 + 2026 월드컵 계획을 사용할 수 있다.
+- 초기 seed: 기존 활성 리그 기준으로 기본 5리그는 현재/직전 시즌, 월드컵은 2026 시즌 target 을 생성한다.
+
+### 수동 실행
+
+```bash
+scripts/run_daily_sync_all_leagues.sh
+```
+
+- 실행 계획: EPL(39), UCL(2), UEL(3), League Cup(48), FA Cup(45)은 기존 season auto-detect를 사용한다.
+- 2026 월드컵은 API-Football의 과거 월드컵 시즌과 섞이지 않도록 `season=2026`을 명시한다.
+- 계획만 확인: `scripts/run_daily_sync_all_leagues.sh --plan-only`
 
 ## 4. 처리 단계
 
@@ -48,11 +63,15 @@ Step 3. 5리그 × {current, previous} fixture 목록 sync (10 calls)
    ↓
 Step 4. 활성 fixture 큐(B) 산정 (DB 쿼리만, API 호출 없음)
    ↓
-Step 5. 활성 fixture 의 fixture_detail sync (events/statistics/lineups, 각 3 calls)
+Step 5. 활성 fixture 의 fixture_detail sync (events/statistics/lineups/players, 각 4 calls)
    ↓
-Step 6. 활성 팀의 선수 sync (team batch, /players?team=X&season=Y)
+Step 6. 리그/시즌 선수 sync (`/players?league=X&season=Y`, 페이지네이션)
    ↓
-Step 7. standings sync (5리그 × current_season, 5 calls)
+Step 7. standings sync (활성 리그 × current_season)
+   ↓
+Step 7a. transfers sync (활성 팀 × /transfers) — 신규 추가
+   ↓
+Step 7b. injuries sync (활성 리그 × current_season × /injuries) — 신규 추가
    ↓
 Step 8. team_season 정션 upsert (DB-only)
    ↓
@@ -60,6 +79,29 @@ Step 9. *_translation 신규 row 보장 (DB-only)
    ↓
 [사이클 종료]
 ```
+
+### Step 7a. transfers (신규)
+- 활성 팀 (Step 6 의 팀 큐) 각각 `GET /transfers?team={external_id}`
+- 응답의 player + transfers[] 배열 → transfer 테이블 upsert
+  - player 외부 ID 가 DB 에 없으면 skip (player 가 활성 팀 squad 아닌 경우 무시 OK)
+  - from_team / to_team 도 DB 에 있어야 (없으면 NULL)
+  - `UNIQUE (player_id, transfer_date, from_team_id, to_team_id)` 충돌 시 raw_data 갱신
+- 호출량: 활성 팀 수 × 1. 30~50 calls
+
+### Step 7b. injuries (신규)
+- 활성 리그 × current_season 각각 `GET /injuries?league={external_id}&season={current_season}`
+- 응답의 각 entry (player + fixture + reason + type) → injury 테이블 upsert
+  - player / team / league 가 DB 에 모두 있어야 함 (없으면 skip)
+  - `UNIQUE (player_id, fixture_id, league_id, season_year)` 충돌 시 type/reason 갱신
+- 호출량: 활성 리그 수 × 1. 5 calls
+
+### Step 7c. head-to-head (신규)
+- 다가오는 fixture (Step 4 활성 큐) 의 (home_team_id, away_team_id) 짝 각각:
+  - `GET /fixtures/headtohead?h2h={home_external_id}-{away_external_id}&last=5`
+  - 응답의 5 fixture → `h2h_fixture` 테이블 upsert
+  - 양 팀 모두 DB 에 있어야 함 (없으면 skip)
+- 호출량: 다가오는 활성 fixture 수 × 1. 30~50 calls
+- 최근 5경기 한정 (`last=5`) — 효율
 
 ### Step 별 상세
 
@@ -109,19 +151,20 @@ WHERE league_id IN (5리그 내부 id)
   - `GET /fixtures/events?fixture={external_id}`
   - `GET /fixtures/statistics?fixture={external_id}`
   - `GET /fixtures/lineups?fixture={external_id}`
-- 3 응답 묶어 fixture_detail upsert:
+  - `GET /fixtures/players?fixture={external_id}`
+- 4 응답 묶어 fixture_detail upsert:
   - `events` = events 응답 JSONB
   - `statistics` = statistics 응답 JSONB
   - `lineups` = lineups 응답 JSONB
+  - `players` = players 응답 JSONB (출전 선수별 rating/minutes/cards/substitution 등)
   - `fetched_at` = now()
 
-#### Step 6. 활성 팀의 선수
-- Step 4 의 활성 fixture 의 `home_team_id` / `away_team_id` 집합 (DISTINCT, NULL 제외)
-- 각 활성 팀 × current_season 으로 `GET /players?team={external_id}&season={current_season}` (페이지네이션 응답 처리)
+#### Step 6. 리그/시즌 선수
+- 각 활성 리그 × 시즌으로 `GET /players?league={external_id}&season={season_year}` (페이지네이션 응답 처리)
 - 응답의 각 entry 마다:
   - `player` 객체 → player 테이블 upsert (전체 덮어쓰기)
     - `height` / `weight` 문자열 → 정수 파싱 (`'188 cm'` → 188)
-    - `current_team_id` = 호출한 team 의 내부 id
+    - `current_team_id` = 현재 시즌일 때 응답 `statistics[].team.id` 로 매핑
   - `statistics[]` 배열 → player_season_stat upsert (각 entry 가 player × team × league × season 단위)
     - 핵심 컬럼 추출 (position, shirt_number, appearances, minutes, rating, goals, assists, yellow_cards, red_cards)
     - 전체 stats object → `raw_stats` JSONB
@@ -179,7 +222,7 @@ WHERE league_id IN (5리그 내부 id)
 
 ## 7. 분산 락
 
-- **사용 안 함** (CLAUDE.md §4 단일 인스턴스 전제)
+- **사용 안 함** (AGENTS.md §4 단일 인스턴스 전제)
 - APScheduler in-process 단일 스케줄러로 중복 실행 자연 차단
 - 다중 인스턴스 도입 시 Upstash `SET NX` 추가 필요 (post-MVP)
 
@@ -188,9 +231,14 @@ WHERE league_id IN (5리그 내부 id)
 | 항목 | 값 |
 |---|---|
 | API-Football rate limit | 450 req/min (Ultra plan) |
-| 동시 호출 semaphore | 6 |
-| 한 사이클 평균 호출 수 | 205~375 |
+| 동시 호출 semaphore | 6 (`API_FOOTBALL_CONCURRENCY`, 상한 6) |
+| 한 사이클 평균 호출 수 | 235~425 |
 | 한 사이클 예상 소요 시간 | 1~3분 (semaphore 6 + 평균 0.5s/call) |
+
+진행도 정책:
+- daily-sync 는 먼저 측정 단계에서 리그명, 시즌, fixtures 수, players 페이지 수, fixture detail 호출 수를 산정한다.
+- 측정 완료 후 전체 `total_units` 를 한 번에 고정하고, 이후 실행 단계에서 완료 요청 수를 증가시킨다.
+- 병렬 요청 대상: players 잔여 페이지, fixture detail 4종(events/statistics/lineups/players). DB upsert 는 세션 안정성을 위해 순차 처리한다.
 
 ## 9. 오류 처리
 
@@ -248,8 +296,8 @@ WHERE league_id IN (5리그 내부 id)
 | 항목 | 값 |
 |---|---|
 | 1 사이클 평균 시간 | 1~3분 |
-| 사이클 당 API 호출 | 205~375 |
-| 일일 API 호출 | 820~1,500 (Ultra 한도 75,000 의 1~2%) |
+| 사이클 당 API 호출 | 235~425 |
+| 일일 API 호출 | 940~1,700 (Ultra 한도 75,000 의 1~2%) |
 | 메모리 사용 | 활성 fixture 수 × 평균 50KB JSON ≈ 5~10MB 피크 |
 | CPU 사용 | 낮음 (I/O 바운드) |
 | DB 트랜잭션 수 | 사이클 당 수백 |

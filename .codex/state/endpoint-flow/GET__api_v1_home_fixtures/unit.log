@@ -1,0 +1,47 @@
+FEEEEEE                                                                  [100%]
+==================================== ERRORS ====================================
+_____________ ERROR at setup of test_hf_u02_public_default_request _____________
+tests/unit/test_home_fixtures.py:76: in client_and_service
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+___________ ERROR at setup of test_hf_u03_accepts_league_and_period ____________
+tests/unit/test_home_fixtures.py:76: in client_and_service
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+_____________ ERROR at setup of test_hf_u04_accepts_date_override ______________
+tests/unit/test_home_fixtures.py:76: in client_and_service
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+___________ ERROR at setup of test_hf_u05_invalid_period_returns_422 ___________
+tests/unit/test_home_fixtures.py:76: in client_and_service
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+_______ ERROR at setup of test_hf_u06_unsupported_league_id_returns_422 ________
+tests/unit/test_home_fixtures.py:76: in client_and_service
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+___________ ERROR at setup of test_hf_u07_response_shape_passthrough ___________
+tests/unit/test_home_fixtures.py:76: in client_and_service
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+=================================== FAILURES ===================================
+___________________ test_hf_u01_route_registered_on_main_app ___________________
+tests/unit/test_home_fixtures.py:89: in test_hf_u01_route_registered_on_main_app
+    assert "/api/v1/home/fixtures" in paths
+E   AssertionError: assert '/api/v1/home/fixtures' in {'/docs', '/docs/oauth2-redirect', '/health', '/openapi.json', '/redoc'}
+=============================== warnings summary ===============================
+../../../opt/homebrew/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1373
+  /opt/homebrew/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1373: PytestConfigWarning: Unknown config option: asyncio_mode
+
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_home_fixtures.py::test_hf_u01_route_registered_on_main_app
+ERROR tests/unit/test_home_fixtures.py::test_hf_u02_public_default_request - ...
+ERROR tests/unit/test_home_fixtures.py::test_hf_u03_accepts_league_and_period
+ERROR tests/unit/test_home_fixtures.py::test_hf_u04_accepts_date_override - M...
+ERROR tests/unit/test_home_fixtures.py::test_hf_u05_invalid_period_returns_422
+ERROR tests/unit/test_home_fixtures.py::test_hf_u06_unsupported_league_id_returns_422
+ERROR tests/unit/test_home_fixtures.py::test_hf_u07_response_shape_passthrough
+1 failed, 1 warning, 6 errors in 1.09s

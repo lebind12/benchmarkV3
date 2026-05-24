@@ -1,0 +1,32 @@
+command: python -m pytest -m unit tests/unit/test_home_news.py --tb=short --disable-warnings --no-header
+exit_code: 1
+
+============================= test session starts ==============================
+collected 3 items
+
+tests/unit/test_home_news.py FFF                                         [100%]
+
+=================================== FAILURES ===================================
+________________ test_hn_u01_public_endpoint_returns_news_shape ________________
+tests/unit/test_home_news.py:46: in test_hn_u01_public_endpoint_returns_news_shape
+    service = _patch_service(monkeypatch, {"items": [_item()]})
+tests/unit/test_home_news.py:32: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+_____________ test_hn_u02_title_ko_null_is_allowed_for_fe_fallback _____________
+tests/unit/test_home_news.py:57: in test_hn_u02_title_ko_null_is_allowed_for_fe_fallback
+    _patch_service(monkeypatch, {"items": [_item(title_ko=None)]})
+tests/unit/test_home_news.py:32: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+______________________ test_hn_u03_empty_items_are_valid _______________________
+tests/unit/test_home_news.py:67: in test_hn_u03_empty_items_are_valid
+    _patch_service(monkeypatch, {"items": []})
+tests/unit/test_home_news.py:32: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+=========================== short test summary info ============================
+FAILED tests/unit/test_home_news.py::test_hn_u01_public_endpoint_returns_news_shape
+FAILED tests/unit/test_home_news.py::test_hn_u02_title_ko_null_is_allowed_for_fe_fallback
+FAILED tests/unit/test_home_news.py::test_hn_u03_empty_items_are_valid
+======================== 3 failed, 4 warnings in 1.04s =========================

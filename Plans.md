@@ -1,6 +1,6 @@
 # benchmark Plans.md
 
-축구 정보 사이트 + 방송용 페이지. CLAUDE.md 가 도메인 SSOT, 이 파일은 작업 정본.
+축구 정보 사이트 + 방송용 페이지. AGENTS.md 가 도메인 SSOT, 이 파일은 작업 정본.
 
 작성일: 2026-05-13
 
@@ -34,10 +34,10 @@
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 2.1 | 리그 5개 한글표기 결정 (이 세션, 수동) | `seeds/league_translation.csv` 생성 | - | cc:TODO |
-| 2.2 | 팀 한글표기 결정 (이 세션, EPL 20 + UCL/UEL/카라바오/FA컵 본선 클럽) | `seeds/team_translation.csv` 생성 | 2.1 | cc:TODO |
-| 2.3 | `_Player__202605131748.csv` → `player_translation` import 스크립트 | `scripts/seed_player_translations.py` + import 결과 row count 검증 | 1.6 | cc:TODO |
-| 2.4 | league/team seed import 스크립트 | `scripts/seed_basic_translations.py` | 1.6, 2.1, 2.2 | cc:TODO |
+| 2.1 | 리그 5개 한글표기 결정 (이 세션, 수동) | `seeds/league_translation*.csv` 생성 + DB import 검증 | - | cc:WIP [local-seeds] |
+| 2.2 | 팀 한글표기 결정 (이 세션, EPL 20 + UCL/UEL/카라바오/FA컵 본선 클럽) | `seeds/team_translation_*.csv` 생성 + DB import 검증 | 2.1 | cc:WIP [local-seeds] |
+| 2.3 | `_Player__202605131748.csv` → `player_translation` import 스크립트 | import script + import 결과 row count 검증 | 1.6 | cc:WIP [local-seeds] |
+| 2.4 | league/team seed import 스크립트 | import script + dry-run/row count 검증 | 1.6, 2.1, 2.2 | cc:WIP [local-seeds] |
 | 2.5 | 시드 결과 무결성 점검 (중복/결측/외부 ID 유효성) | 점검 스크립트 통과 | 2.3, 2.4 | cc:TODO |
 
 ## Phase 3: 인증
@@ -54,14 +54,14 @@
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 4.1 | API-Football 클라이언트 (httpx + semaphore 6 + exp backoff retry) | 단위 테스트 (mock 응답) | 0.7 | cc:TODO |
-| 4.2 | Upstash 분산 락 (SET NX + TTL) | 단위 + 통합 테스트 (동시 호출 1개만 통과) | 0.3 | cc:TODO |
-| 4.3 | 리그 메타 upsert (5 리그) | 통합 테스트 (test schema) | 1.1, 4.1 | cc:TODO |
-| 4.4 | fixture 적재 (5 리그, 최신 2시즌) | 통합 테스트 | 1.4, 4.1 | cc:TODO |
-| 4.5 | fixture 상세 적재 | 통합 테스트 | 1.5, 4.4 | cc:TODO |
-| 4.6 | team / player 메타 upsert | 통합 테스트 | 1.2, 1.3, 4.4 | cc:TODO |
-| 4.7 | 컵 대회 빈 슬롯 채움 로직 (라운드 추첨 후) | 통합 테스트 | 4.4 | cc:TODO |
-| 4.8 | cron 스케줄러 (KST 00/06/12/18) | 스케줄 검증 단위 테스트 + 실행 진입점 | 4.3-4.7 | cc:TODO |
+| 4.1 | API-Football 클라이언트 (httpx + semaphore 6 + exp backoff retry) | 단위 테스트 (mock 응답) | 0.7 | cc:WIP [local-unit] |
+| 4.2 | Upstash 분산 락 (SET NX + TTL) | 단일 인스턴스 MVP 정책 재확인 후 필요 시 구현 | 0.3 | blocked (MVP 외 후보) |
+| 4.3 | 리그 메타 upsert (5 리그) | 통합 테스트 (test schema) | 1.1, 4.1 | cc:WIP [local-unit] |
+| 4.4 | fixture 적재 (5 리그, 최신 2시즌) | 통합 테스트 | 1.4, 4.1 | cc:WIP [local-unit] |
+| 4.5 | fixture 상세 적재 | 통합 테스트 | 1.5, 4.4 | cc:WIP [local-unit] |
+| 4.6 | team / player 메타 upsert | 통합 테스트 | 1.2, 1.3, 4.4 | cc:WIP [local-unit] |
+| 4.7 | 컵 대회 빈 슬롯 채움 로직 (라운드 추첨 후) | 통합 테스트 | 4.4 | cc:WIP [local-unit] |
+| 4.8 | cron 스케줄러 (KST 00/06/12/18) | 스케줄 검증 단위 테스트 + 실행 진입점 | 4.3-4.7 | cc:WIP [local-unit] |
 
 ## Phase 5: 워커 - translation-filler
 
@@ -73,17 +73,17 @@
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 5.5.1 | RSS 파싱 (BBC / Guardian / Sky EPL feed) | 단위 테스트 | 1.10 | cc:TODO |
-| 5.5.2 | EPL 키워드 매칭 (DB 의 team.name + code) | 단위 테스트 | 1.10, 5.5.1 | cc:TODO |
-| 5.5.3 | 1시간 폴링 + INSERT ON CONFLICT DO NOTHING + tags JSONB | 통합 테스트 (mock RSS) | 5.5.2 | cc:TODO |
+| 5.5.1 | RSS 파싱 | 단위 테스트 | 1.10 | cc:WIP [local-unit] |
+| 5.5.2 | EPL 키워드 매칭 (DB 의 team.name + code) | 단위 테스트 | 1.10, 5.5.1 | cc:WIP [local-unit] |
+| 5.5.3 | 1시간 폴링 + INSERT ON CONFLICT DO NOTHING + tags JSONB | 통합 테스트 (mock RSS) | 5.5.2 | cc:WIP [local-unit] |
 
 ## Phase 5.6: 워커 - news-translator
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 5.6.1 | title_ko/summary_ko IS NULL 큐 조회 | 단위 테스트 | 1.10 | cc:TODO |
-| 5.6.2 | gpt-3.5-turbo 의역 클라이언트 (temp 0.3, JSON 강제) | 단위 테스트 | 5.6.1 | cc:TODO |
-| 5.6.3 | 1분 폴링 + 배치 50 + semaphore 5 | 통합 테스트 (mock OpenAI) | 5.6.2 | cc:TODO |
+| 5.6.1 | title_ko/summary_ko IS NULL 큐 조회 | 단위 테스트 | 1.10 | cc:WIP [local-unit] |
+| 5.6.2 | gpt-3.5-turbo 의역 클라이언트 (temp 0.3, JSON 강제) | 단위 테스트 | 5.6.1 | cc:WIP [local-unit] |
+| 5.6.3 | 1분 폴링 + 배치 50 + semaphore 5 | 통합 테스트 (mock OpenAI) | 5.6.2 | cc:WIP [local-unit] |
 
 ## Phase 6: (제거) live-poll 워커는 워커가 아니라 API endpoint 로 처리
 
@@ -98,8 +98,8 @@
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | 7.1 | `docs/spec/agent-workflow.md` 작성 (상태 머신 + 게이트) | 본 세션에서 생성 | - | cc:완료 [df6672e] |
-| 7.2 | `.claude/agents/be-{test,dev,reviewer}.md` 3개 에이전트 명세 | 본 세션에서 생성 + 팀 스폰 동작 확인 | 7.1 | cc:완료 [df6672e] |
-| 7.3 | `.claude/schemas/endpoint-flow.schema.json` (상태 파일 JSON Schema) | schema validation 통과 | 7.1 | cc:완료 [local] |
+| 7.2 | `.codex/agents/be-{test,dev,reviewer}.toml` 3개 에이전트 명세 | 본 세션에서 생성 + 팀 스폰 동작 확인 | 7.1 | cc:완료 [df6672e] |
+| 7.3 | `.codex/schemas/endpoint-flow.schema.json` (상태 파일 JSON Schema) | schema validation 통과 | 7.1 | cc:완료 [local] |
 | 7.4 | `scripts/endpoint-flow.sh` (상태 전환 CLI) | 단위 테스트 통과 | 7.3 | cc:완료 [local] |
 | 7.5 | GH Actions: `.github/workflows/be-ep-pr.yml` (be-ep-* PR 검증) | CI 잡 성공 | 7.4 | cc:TODO |
 | 7.6 | GH Actions: `.github/workflows/backend-pr.yml` (backend ← be-ep-* PR) | CI 잡 성공 | 7.5 | cc:TODO |
@@ -113,9 +113,9 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 8.1 | FE endpoint 목록 수신 인터페이스 (mock + endpoint spec 파일 위치 약속) | 디렉토리 구조 + 양식 문서 | 7.1 | cc:TODO |
-| 8.2 | endpoint 별 라이프사이클 1건 (시범) | 1 endpoint 가 `MERGED` 까지 완주 | 7.1-7.9, 8.1 | cc:TODO |
-| 8.3 | 이후 endpoint 들은 8.2 시범을 패턴 삼아 진행 | FE 진행에 따라 채워짐 | 8.2 | cc:TODO |
+| 8.1 | FE endpoint 목록 수신 인터페이스 (mock + endpoint spec 파일 위치 약속) | 디렉토리 구조 + 양식 문서 | 7.1 | cc:완료 [local-p0-status] |
+| 8.2 | endpoint 별 라이프사이클 1건 (시범) | 1 endpoint 가 `MERGED` 까지 완주 | 7.1-7.9, 8.1 | cc:WIP |
+| 8.3 | 이후 endpoint 들은 8.2 시범을 패턴 삼아 진행 | FE 진행에 따라 채워짐 | 8.2 | cc:WIP |
 
 ## Phase 9: 프론트엔드 인프라
 
@@ -129,7 +129,7 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | 9.6 | zod 런타임 검증 헬퍼 (응답 schema 검증) | 단위 테스트 통과 | 9.5 | cc:TODO |
 | 9.7 | Playwright 셋업 (L1/L2/L3 분리 실행 가능) | `npm run test:e2e` / `test:e2e:integration` 동작 | 9.1, 9.4 | cc:TODO |
 | 9.8 | Vercel 배포 셋업 (vercel.json + env) | 첫 push 로 preview URL 생성 | 9.1 | cc:TODO |
-| 9.9 | 방송용 페이지 entry + 크로마키 (`#00B140`) 레이아웃 | 방송용 라우트가 녹색 배경으로 렌더 | 9.1, 9.3 | cc:TODO |
+| 9.9 | 방송용 페이지 entry + 크로마키 (`#00B140`) 레이아웃 | 방송용 라우트가 녹색 배경으로 렌더 | 9.1, 9.3 | cc:완료 [local-broadcast-match-overlay-mock-r2] |
 | 9.10 | 인증 흐름 (JWT 저장 / refresh / role 가드) — BE Phase 3 완료 후 통합 | 로그인 / 로그아웃 동작 | 3.5, 9.3 | cc:TODO |
 | 9.11 | i18n 미도입 결정 명시 + 한글 폰트 토큰화 | 결정 문서 + Tailwind theme 한글 폰트 | 9.2 | cc:TODO |
 
@@ -139,8 +139,8 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 |------|------|-----|---------|--------|
 | 10.1 | `docs/features/README.md` (요구사항 템플릿) | 본 세션에서 생성 | - | cc:완료 [df6672e] |
 | 10.2 | `docs/spec/fe-workflow.md` (상태 머신 + 게이트) | 본 세션에서 생성 | - | cc:완료 [df6672e] |
-| 10.3 | `.claude/agents/fe-{planner,dev,reviewer}.md` 3개 명세 | 본 세션에서 생성 + 팀 스폰 동작 확인 | 10.2 | cc:완료 [df6672e] |
-| 10.4 | `.claude/schemas/feature-flow.schema.json` (FE state JSON Schema) | schema validation 통과 | 10.2 | cc:완료 [local] |
+| 10.3 | `.codex/agents/fe-{planner,dev,reviewer}.toml` 3개 명세 | 본 세션에서 생성 + 팀 스폰 동작 확인 | 10.2 | cc:완료 [df6672e] |
+| 10.4 | `.codex/schemas/feature-flow.schema.json` (FE state JSON Schema) | schema validation 통과 | 10.2 | cc:완료 [local] |
 | 10.5 | `scripts/feature-flow.sh` (상태 전환 CLI) | 단위 테스트 통과 | 10.4 | cc:완료 [local] |
 | 10.6 | `frontend/endpoint-requests/` 양식 + 자동 추출 스크립트 (mock JSON + planner spec → request.json) | 시범 feature 에서 자동 추출 성공 | 10.5, 7.4 | cc:TODO |
 | 10.7 | GH Actions: `.github/workflows/fe-feat-pr.yml` (lint/type/vitest/Playwright L2/번들) | CI 잡 성공 | 9.1, 9.7 | cc:TODO |
@@ -159,6 +159,7 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | 11.3 | 시범 feature 1건 — Mock 라이프사이클 완주 | FE Mock 머지 + endpoint-request 자동 생성 | 9.1-9.11, 10.1-10.10, 11.2 | cc:TODO |
 | 11.4 | 시범 feature 1건 — Integration 라이프사이클 완주 (BE 의존 endpoint MERGED 후) | L3 통과, Integration 머지 | 11.3, 8.2 | cc:TODO |
 | 11.5 | 이후 feature 들은 11.3-11.4 패턴 반복 | 카탈로그 진척률 100% | 11.4 | cc:TODO |
+| 11.6 | 방송용 중계화면 포함 페이지 디자인 (`broadcast-match-program`) | 요구사항/spec/devplan 작성 후 사용자 레이아웃 방향 확정 | 9.9, broadcast-match-overlay mock | cc:WIP |
 
 ---
 

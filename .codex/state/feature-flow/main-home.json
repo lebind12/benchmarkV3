@@ -1,0 +1,67 @@
+{
+  "feature_id": "main-home",
+  "feature": {
+    "title": "메인 페이지 (홈) — 3패널 dashboard",
+    "requirements_doc": "docs/features/main-home.md"
+  },
+  "phase": "mock",
+  "state": "FE_DONE_AWAITING_BE",
+  "owner": "team-lead",
+  "iteration": {
+    "plan_review_loop": 0,
+    "playwright_loop": 0,
+    "review_loop": 0,
+    "integration_loop": 0
+  },
+  "endpoint_requests": [
+    "GET__api_v1_home_news",
+    "GET__api_v1_home_hot_players",
+    "GET__api_v1_home_transfers",
+    "GET__api_v1_home_injuries",
+    "GET__api_v1_home_fixtures",
+    "GET__api_v1_home_standings",
+    "GET__api_v1_home_top_players",
+    "frontend/endpoint-requests/GET__api_v1_home_news.request.json",
+    "frontend/endpoint-requests/GET__api_v1_home_hot_players.request.json",
+    "frontend/endpoint-requests/GET__api_v1_home_transfers.request.json",
+    "frontend/endpoint-requests/GET__api_v1_home_injuries.request.json",
+    "frontend/endpoint-requests/GET__api_v1_home_fixtures.request.json",
+    "frontend/endpoint-requests/GET__api_v1_home_standings.request.json",
+    "frontend/endpoint-requests/GET__api_v1_home_top_players.request.json"
+  ],
+  "be_dependency_state": {
+    "GET__api_v1_home_news": "SPEC_REVIEW",
+    "GET__api_v1_home_hot_players": "SPEC_REVIEW",
+    "GET__api_v1_home_transfers": "SPEC_REVIEW",
+    "GET__api_v1_home_injuries": "SPEC_REVIEW",
+    "GET__api_v1_home_fixtures": "SPEC_REVIEW",
+    "GET__api_v1_home_standings": "SPEC_REVIEW",
+    "GET__api_v1_home_top_players": "SPEC_REVIEW"
+  },
+  "artifacts": {
+    "spec_path": "docs/features/main-home.spec.md",
+    "devplan_path": "docs/features/main-home.devplan.md",
+    "testplan_path": "docs/features/main-home.testplan.md",
+    "branch": "fe-feat-main-home",
+    "commit": "e2833cf",
+    "playwright_e2e_paths": []
+  },
+  "evidence": {
+    "playwright_mock_log": "/tmp/main-home-playwright.log",
+    "test_verdict": "PASS",
+    "review_artifact": ".codex/state/feature-flow/main-home.review.json",
+    "be_dependency_refreshed_at": "2026-05-24"
+  },
+  "gates": {
+    "plan_approved_by": "team-lead (fe-reviewer 미응답 — lead 직접 검토. spec/devplan/testplan 품질 우수, ui-standards/league-palette 준수, S01~S16+ 시나리오, 빈/에러/league 동적 테마 반영. critical 0 major 0 minor 0 — APPROVE)",
+    "review_approved_by": "fe-reviewer",
+    "merge_approved_by": "team-lead"
+  },
+  "blockers": [],
+  "next_action": {
+    "agent": "team-lead",
+    "command": "mock lifecycle complete"
+  },
+  "tasklist_id": "16",
+  "current_stage": "FE_DONE_AWAITING_BE"
+}

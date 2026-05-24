@@ -1,0 +1,23 @@
+command: pytest -m unit tests/unit/test_fixture_detail_lineups_endpoint.py
+result: FAIL (expected Red before endpoint implementation)
+
+Collected 4 items.
+
+tests/unit/test_fixture_detail_lineups_endpoint.py FFFF
+
+Failure root cause:
+  ModuleNotFoundError: No module named 'app.api.fixture_detail'
+
+Representative failure:
+  tests/unit/test_fixture_detail_lineups_endpoint.py:97
+    client = _build_client(service)
+  tests/unit/test_fixture_detail_lineups_endpoint.py:13
+    from app.api.fixture_detail import get_fixture_detail_service, router
+  E   ModuleNotFoundError: No module named 'app.api.fixture_detail'
+
+Summary:
+  FAILED test_lineups_u01_returns_home_away_lineups
+  FAILED test_lineups_u02_existing_fixture_can_return_empty_lineups
+  FAILED test_lineups_u03_maps_none_to_404
+  FAILED test_lineups_u04_rejects_non_integer_external_id
+  4 failed, 1 warning

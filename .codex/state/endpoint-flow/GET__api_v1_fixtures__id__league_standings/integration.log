@@ -1,0 +1,17 @@
+COMMAND
+pytest -q tests/integration/test_fixture_detail_league_standings_endpoint.py --tb=short
+
+RESULT
+exit code 0
+
+OUTPUT
+ssss                                                                     [100%]
+=============================== warnings summary ===============================
+PytestConfigWarning: Unknown config option: asyncio_mode
+
+4 skipped, 1 warning in 0.61s
+
+NOTE
+Integration tests skipped because TEST_DATABASE_URL is not configured in this environment.
+The file uses tests/conftest.py::isolated_db and will run against a temporary schema when
+that environment variable is provided.

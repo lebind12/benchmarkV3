@@ -1,0 +1,20 @@
+COMMAND
+pytest -q tests/unit/test_fixture_detail_statistics_endpoint.py --tb=short
+
+RESULT
+exit code 1 (expected TDD Red)
+
+OUTPUT
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+________ test_statistics_u01_normal_payload_uses_current_fe_field_names ________
+tests/unit/test_fixture_detail_statistics_endpoint.py:105: in test_statistics_u01_normal_payload_uses_current_fe_field_names
+    with client_with_service(service) as (client, _analytics):
+/opt/homebrew/anaconda3/lib/python3.11/contextlib.py:137: in __enter__
+    return next(self.gen)
+tests/unit/test_fixture_detail_statistics_endpoint.py:89: in client_with_service
+    from app.api.v1 import fixture_detail_analytics as analytics
+E   ModuleNotFoundError: No module named 'app.api.v1'
+
+All 3 statistics unit tests failed at the missing endpoint router package before
+implementation. This is the intended Red signal for the be-dev handoff.

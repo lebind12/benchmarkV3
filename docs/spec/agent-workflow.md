@@ -80,7 +80,7 @@
 
 ## 3. 핸드오프: 상태 파일
 
-위치: `.claude/state/endpoint-flow/<endpoint_id>.json`
+위치: `.codex/state/endpoint-flow/<endpoint_id>.json`
 
 ```jsonc
 {
@@ -105,8 +105,8 @@
     "migrations": ["alembic/versions/20260513_add_fixtures.py"]
   },
   "evidence": {
-    "unit_test_log": ".claude/state/endpoint-flow/GET__api_v1_fixtures/unit.log",
-    "integration_test_log": ".claude/state/endpoint-flow/GET__api_v1_fixtures/integration.log",
+    "unit_test_log": ".codex/state/endpoint-flow/GET__api_v1_fixtures/unit.log",
+    "integration_test_log": ".codex/state/endpoint-flow/GET__api_v1_fixtures/integration.log",
     "test_verdict": "PASS",
     "coverage_pct": 92.4
   },
@@ -124,7 +124,7 @@
 }
 ```
 
-history (append-only): `.claude/state/endpoint-flow/<endpoint_id>.history.jsonl`
+history (append-only): `.codex/state/endpoint-flow/<endpoint_id>.history.jsonl`
 - 한 줄 = 한 전환: `{"ts":"...","from":"...","to":"...","by":"<agent>","note":"..."}`
 
 ## 4. 머지 게이트 (`MERGE_GATE` 통과 조건)
@@ -199,9 +199,75 @@ CLI 가 보장하는 것:
 - 잘못된 전환 거부 (`MERGED → SPEC_DRAFTING` 등)
 - history.jsonl 자동 기록
 - 재시도 카운트 자동 증가
+- 현재 `owner` 가 아닌 에이전트의 전환 거부 (`team-lead --force` 예외)
+- 필수 산출물 / gate 누락 시 전환 거부
+
+### 9.1 Harness TaskList 강제 규칙
+
+Endpoint / worker lifecycle 전체를 첫 담당자에게 단일 task 로 assign 하지 않는다. TaskList 의 `owner` 와 endpoint-flow 의 `owner` 는 항상 같은 stage owner 를 가리켜야 한다.
+
+금지:
+
+```json
+{
+  "subject": "translation-filler 워커 구현",
+  "owner": "be-test",
+  "status": "completed"
+}
+```
+
+위 상태가 endpoint-flow 에서 `IMPL_PUSHED` / `REVIEW_PENDING` / `MERGE_GATE` 이면 불일치다. `be-test` 의 spec/test 완료는 endpoint 전체 완료가 아니다.
+
+허용:
+
+```json
+{
+  "tasklist_id": "2",
+  "state": "REVIEW_PENDING",
+  "current_stage": "REVIEW_PENDING",
+  "owner": "be-reviewer"
+}
+```
+
+TaskList task 를 하나로 유지할 경우, stage 전환 때마다 `endpoint-flow` 의 `owner` 를 다음 담당자로 갱신하고 TaskList owner 도 같은 값으로 동기화한다. stage 별 task 로 쪼갤 경우에는 각 stage task 가 별도 `tasklist_id` 를 가진다.
+
+### 9.2 `stage_completed` 와 `task_completed`
+
+중간 단계 완료는 `task_completed` 가 아니다. 각 에이전트는 다음 명령으로 stage 전이를 기록한다.
+
+```bash
+scripts/endpoint-flow.sh transition <endpoint_id> <next_state> --by <agent> --note "..."
+```
+
+`TaskCompleted` hook 은 workflow state 가 성공 final state 인 `MERGED` 일 때만 통과한다. final state 전에는 `scripts/harness-task-completed-guard.sh` 가 차단해야 한다.
+
+TaskList 상 하네스 워크플로우 작업으로 보이는데 `endpoint-flow` state 가 `tasklist_id` 로 연결되어 있지 않은 경우도 차단한다. 즉 "state 를 못 찾았으니 통과"가 아니라 "하네스 작업인데 state 링크가 없으니 완료 불가"가 기본값이다.
+
+필수 차단 예:
+
+| 현재 state | sender | 잘못된 신호 | 결과 |
+|---|---|---|---|
+| `SPEC_REVIEW` | `be-test` | `task_completed` | 차단. reviewer stage 미완료 |
+| `IMPL_PUSHED` | `be-dev` | `task_completed` | 차단. test/review 미완료 |
+| `REVIEW_PENDING` | `be-reviewer` | `task_completed` | 차단. merge gate 미완료 |
+| `MERGED` | `team-lead` | `task_completed` | 허용 |
+
+### 9.3 검증 명령
+
+```bash
+scripts/endpoint-flow.sh validate <endpoint_id>
+scripts/endpoint-flow.sh validate-all --strict-tasklist
+```
+
+`--strict-tasklist` 는 다음을 오류로 처리한다.
+
+- `tasklist_id` 누락
+- TaskList owner 와 workflow owner 불일치
+- TaskList 는 `completed` 인데 workflow state 가 `MERGED` 가 아님
+- workflow 는 `MERGED` 인데 TaskList status 가 `completed` 가 아님
 
 ## 10. 본 문서의 위치
 
 - 본 문서는 spec SSOT 의 일부 (`docs/spec/agent-workflow.md`).
-- 에이전트 명세 (`.claude/agents/be-*.md`) 는 본 문서를 인용 (`@docs/spec/agent-workflow.md`).
+- 에이전트 명세 (`.codex/agents/be-*.toml`) 는 본 문서를 인용 (`@docs/spec/agent-workflow.md`).
 - 변경 시 PR + 사람 승인 필수.

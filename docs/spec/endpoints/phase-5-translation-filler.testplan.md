@@ -13,7 +13,7 @@
 ## 1. 격리 / mock 정책
 
 - 통합 테스트는 `tests/conftest.py` 의 `isolated_db` fixture 사용. prod schema 미접근
-- **OpenAI 는 통합에서도 mock**. 실 호출 금지 (CLAUDE.md §11 비용 정책, agent-workflow.md §8)
+- **OpenAI 는 통합에서도 mock**. 실 호출 금지 (AGENTS.md §11 비용 정책, agent-workflow.md §8)
 - be-test 의 권한 경계 (be-test.md §"권한 경계"): 외부 API 통합 호출 시 API-Football 만 허용, OpenAI 호출 금지
 
 ## 2. 단위 테스트 (`tests/unit/test_translation_filler.py`)

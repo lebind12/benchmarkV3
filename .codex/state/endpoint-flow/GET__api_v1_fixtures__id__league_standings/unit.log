@@ -1,0 +1,20 @@
+COMMAND
+pytest -q tests/unit/test_fixture_detail_league_standings_endpoint.py --tb=short
+
+RESULT
+exit code 1 (expected TDD Red)
+
+OUTPUT
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_________ test_league_standings_u01_flat_payload_with_highlighted_ids __________
+tests/unit/test_fixture_detail_league_standings_endpoint.py:118: in test_league_standings_u01_flat_payload_with_highlighted_ids
+    with client_with_service(service) as (client, _analytics):
+/opt/homebrew/anaconda3/lib/python3.11/contextlib.py:137: in __enter__
+    return next(self.gen)
+tests/unit/test_fixture_detail_league_standings_endpoint.py:102: in client_with_service
+    from app.api.v1 import fixture_detail_analytics as analytics
+E   ModuleNotFoundError: No module named 'app.api.v1'
+
+All 3 league standings unit tests failed at the missing endpoint router package before
+implementation. This is the intended Red signal for the be-dev handoff.

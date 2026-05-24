@@ -128,7 +128,7 @@ Actions:
 - `retry(slice)` — 개별 패널 재시도
 - `goToFixture(id)` — H2H row 클릭 / router.push + 같은 컴포넌트 reuse → `watch(route.params.externalId)` 로 bootstrap 재실행
 
-폴링 setInterval **사용 금지** (CLAUDE.md §6).
+폴링 setInterval **사용 금지** (AGENTS.md §6).
 
 route param 변화 감지:
 ```ts
@@ -304,7 +304,7 @@ Integration 단계에서 zod 스키마 정의 (fe-workflow §9).
 | `GET__api_v1_fixtures__id__statistics` | `GET /api/v1/fixtures/{external_id}/statistics` | NS / live 시 NULL metric 가능 |
 | `GET__api_v1_fixtures__id__league_standings` | `GET /api/v1/fixtures/{external_id}/league-standings` | 매치 리그의 현재 시즌 standings + group 필터 (UCL/UEL) + highlighted_team_ids |
 
-⚠ `h2h_fixture` 테이블 / `fixture_event` / `fixture_lineup` / `fixture_statistics` 의 존재 여부는 BE 가 확인 필요. CLAUDE.md §4 daily-sync 책임 "fixtures / 상세" 에 포함되어 있다고 가정하나 명시 확인 필요 — devplan 으로 신호.
+⚠ `h2h_fixture` 테이블 / `fixture_event` / `fixture_lineup` / `fixture_statistics` 의 존재 여부는 BE 가 확인 필요. AGENTS.md §4 daily-sync 책임 "fixtures / 상세" 에 포함되어 있다고 가정하나 명시 확인 필요 — devplan 으로 신호.
 
 ---
 

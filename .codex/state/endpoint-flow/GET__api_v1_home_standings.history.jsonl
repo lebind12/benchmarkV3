@@ -1,0 +1,3 @@
+{"ts":"2026-05-13T18:28:41.174Z","from":null,"to":"FE_REQUESTED","by":"fe-dev","note":"FE handoff from main-home"}
+{"ts":"2026-05-14T05:33:55.918Z","from":"FE_REQUESTED","to":"SPEC_DRAFTING","by":"be-test","note":"Start BE spec/test drafting for main-home standings endpoint"}
+{"ts":"2026-05-14T05:41:08.211Z","from":"SPEC_DRAFTING","to":"SPEC_REVIEW","by":"be-test","note":"Spec, testplan, unit and integration tests drafted; unit tests fail Red because home router/service is not implemented yet"}

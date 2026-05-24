@@ -327,7 +327,7 @@ export interface TopPlayerRow {
 | `GET__api_v1_home_standings` | `GET /api/v1/home/standings?league_id` | 현재 시즌 standings |
 | `GET__api_v1_home_top_players` | `GET /api/v1/home/top-players?league_id&metric` | metric ∈ goals/assists/yellow_cards/red_cards |
 
-⚠ `transfer` / `injury` 테이블이 CLAUDE.md 의 `daily-sync` 책임에 명시되어 있으나 (CLAUDE.md §4 "transfers / injuries 적재"), 실제 테이블/마이그레이션 존재 여부는 BE 가 확인해야 함. devplan 으로 신호.
+⚠ `transfer` / `injury` 테이블이 AGENTS.md 의 `daily-sync` 책임에 명시되어 있으나 (AGENTS.md §4 "transfers / injuries 적재"), 실제 테이블/마이그레이션 존재 여부는 BE 가 확인해야 함. devplan 으로 신호.
 
 ---
 

@@ -1,0 +1,11 @@
+command: python -m pytest -m integration tests/integration/test_home_transfers.py --tb=short --disable-warnings --no-header
+exit_code: 0
+
+============================= test session starts ==============================
+collected 1 item
+
+tests/integration/test_home_transfers.py s                               [100%]
+
+======================== 1 skipped, 1 warning in 0.16s =========================
+
+note: TEST_DATABASE_URL is not configured, so tests/conftest.py skipped integration DB tests.

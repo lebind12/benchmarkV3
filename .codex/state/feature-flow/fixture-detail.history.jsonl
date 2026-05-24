@@ -1,0 +1,9 @@
+{"ts":"2026-05-13T18:11:19.557Z","from":"PLAN_APPROVED","to":"IMPL_IN_PROGRESS","by":"fe-dev","note":"start mock impl on fe-feat-fixture-detail worktree"}
+{"ts":"2026-05-13T18:25:51.123Z","from":"IMPL_IN_PROGRESS","to":"IMPL_PUSHED","by":"fe-dev","note":""}
+{"ts":"2026-05-13T18:25:56.078Z","from":"IMPL_PUSHED","to":"PLAYWRIGHT_RUN","by":"fe-dev","note":""}
+{"ts":"2026-05-13T18:26:03.247Z","from":"PLAYWRIGHT_RUN","to":"REVIEW_PENDING","by":"fe-dev","note":""}
+{"ts":"2026-05-13T18:28:35.568Z","from":"REVIEW_PENDING","to":"MERGE_GATE","by":"fe-reviewer","note":"APPROVE: spec match (25vh+75vh 25/50/25, theme tokens, NS/FT/404, store parallel+lazy, mock glob+fallback), 27/27 vitest + 10/10 playwright, build OK (38.71kB). Flagging main-home merge conflict for orchestrator."}
+{"ts":"2026-05-13T18:37:10.941Z","from":"MERGE_GATE","to":"PR_CREATED","by":"team-lead","note":"mock 머지 commit f6d3651"}
+{"ts":"2026-05-13T18:37:10.975Z","from":"PR_CREATED","to":"MERGED","by":"team-lead","note":"merged via f6d3651"}
+{"ts":"2026-05-13T18:42:19.001Z","from":"MERGED","to":"BE_REQUEST_GENERATED","by":"fe-dev","note":"6 endpoint-requests generated, BE states initialized at FE_REQUESTED"}
+{"ts":"2026-05-13T18:42:24.723Z","from":"BE_REQUEST_GENERATED","to":"FE_DONE_AWAITING_BE","by":"fe-dev","note":"mock cycle complete; awaiting BE implementation"}

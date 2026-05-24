@@ -1,0 +1,50 @@
+{
+  "feature_id": "broadcast-match-overlay",
+  "tasklist_id": "broadcast-match-overlay",
+  "current_stage": "FE_DONE_AWAITING_BE",
+  "feature": {
+    "title": "방송용 매치 오버레이 목업",
+    "requirements_doc": "docs/features/broadcast-match-overlay.md"
+  },
+  "phase": "mock",
+  "state": "FE_DONE_AWAITING_BE",
+  "owner": "team-lead",
+  "iteration": {
+    "plan_review_loop": 0,
+    "playwright_loop": 0,
+    "review_loop": 1,
+    "integration_loop": 0
+  },
+  "endpoint_requests": [
+    "GET__api_v1_broadcast_fixtures__id__overlay",
+    "frontend/endpoint-requests/GET__api_v1_broadcast_fixtures__id__overlay.request.json"
+  ],
+  "be_dependency_state": {
+    "GET__api_v1_broadcast_fixtures__id__overlay": "FE_REQUESTED"
+  },
+  "artifacts": {
+    "spec_path": "docs/features/broadcast-match-overlay.spec.md",
+    "devplan_path": "docs/features/broadcast-match-overlay.devplan.md",
+    "testplan_path": "docs/features/broadcast-match-overlay.testplan.md",
+    "branch": null,
+    "commit": "local-broadcast-match-overlay-mock-r2",
+    "playwright_e2e_paths": [],
+    "test_plan_path": "docs/features/broadcast-match-overlay.testplan.md"
+  },
+  "evidence": {
+    "playwright_mock_log": ".codex/state/feature-flow/broadcast-match-overlay.test.log",
+    "test_verdict": "PASS",
+    "review_artifact": ".codex/state/feature-flow/broadcast-match-overlay.review.json",
+    "be_dependency_refreshed_at": "2026-05-24"
+  },
+  "gates": {
+    "plan_approved_by": "fe-reviewer",
+    "review_approved_by": "fe-reviewer",
+    "merge_approved_by": "team-lead"
+  },
+  "blockers": [],
+  "next_action": {
+    "agent": "team-lead",
+    "command": "mock lifecycle complete"
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://benchmark.local/schemas/endpoint-flow.schema.json",
+  "title": "Benchmark Endpoint Flow State",
+  "type": "object",
+  "required": [
+    "endpoint_id",
+    "tasklist_id",
+    "current_stage",
+    "endpoint",
+    "state",
+    "owner",
+    "iteration",
+    "artifacts",
+    "evidence",
+    "gates",
+    "blockers",
+    "next_action"
+  ],
+  "properties": {
+    "endpoint_id": { "type": "string", "minLength": 1 },
+    "tasklist_id": { "type": ["string", "null"] },
+    "current_stage": { "$ref": "#/$defs/state" },
+    "state": { "$ref": "#/$defs/state" },
+    "owner": {
+      "enum": ["be-test", "be-dev", "be-reviewer", "team-lead"]
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["method", "path", "fe_mockup_ref"],
+      "properties": {
+        "method": { "type": "string" },
+        "path": { "type": "string" },
+        "fe_mockup_ref": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "iteration": {
+      "type": "object",
+      "required": ["test_loop", "review_loop"],
+      "properties": {
+        "test_loop": { "type": "integer", "minimum": 0 },
+        "review_loop": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "artifacts": { "type": "object" },
+    "evidence": { "type": "object" },
+    "gates": { "type": "object" },
+    "blockers": { "type": "array" },
+    "next_action": {
+      "type": "object",
+      "required": ["agent", "command"],
+      "properties": {
+        "agent": { "type": ["string", "null"] },
+        "command": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "state": {
+      "enum": [
+        "FE_REQUESTED",
+        "SPEC_DRAFTING",
+        "SPEC_REVIEW",
+        "SPEC_APPROVED",
+        "SPEC_FAILED",
+        "IMPL_IN_PROGRESS",
+        "IMPL_PUSHED",
+        "TESTING",
+        "TEST_FAILED",
+        "REVIEW_PENDING",
+        "CHANGES_REQUESTED",
+        "MERGE_GATE",
+        "PR_CREATED",
+        "MERGED",
+        "ESCALATED"
+      ]
+    }
+  }
+}

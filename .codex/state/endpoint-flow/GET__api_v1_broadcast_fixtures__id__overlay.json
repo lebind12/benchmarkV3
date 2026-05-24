@@ -1,0 +1,40 @@
+{
+  "endpoint_id": "GET__api_v1_broadcast_fixtures__id__overlay",
+  "tasklist_id": "broadcast-match-overlay",
+  "current_stage": "FE_REQUESTED",
+  "endpoint": {
+    "method": "GET",
+    "path": "/api/v1/broadcast/fixtures/{external_id}/overlay",
+    "fe_mockup_ref": "frontend/endpoint-requests/GET__api_v1_broadcast_fixtures__id__overlay.request.json"
+  },
+  "state": "FE_REQUESTED",
+  "owner": "be-test",
+  "iteration": {
+    "test_loop": 0,
+    "review_loop": 0
+  },
+  "artifacts": {
+    "spec_path": "docs/spec/endpoints/GET__api_v1_broadcast_fixtures__id__overlay.md",
+    "test_plan_path": "docs/spec/endpoints/GET__api_v1_broadcast_fixtures__id__overlay.testplan.md",
+    "test_code_path": null,
+    "integration_test_code_path": null,
+    "impl_branch": null,
+    "impl_commit": null,
+    "migrations": []
+  },
+  "evidence": {
+    "fe_handoff_request": "frontend/endpoint-requests/GET__api_v1_broadcast_fixtures__id__overlay.request.json",
+    "api_football_docs_checked_at": "2026-05-14"
+  },
+  "gates": {
+    "spec_approved_by": null,
+    "test_passed_at": null,
+    "review_approved_by": null,
+    "merge_approved_by": null
+  },
+  "blockers": [],
+  "next_action": {
+    "agent": "be-test",
+    "command": "review prepared FE handoff, then transition FE_REQUESTED -> SPEC_DRAFTING when BE work starts"
+  }
+}

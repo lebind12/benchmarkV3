@@ -109,7 +109,7 @@ WHERE pt.name_ko IS NULL OR pt.short_name_ko IS NULL;
 ## 8. 동시성 / 락
 
 - semaphore **5** (동시 OpenAI 호출)
-- 분산 락 없음 (단일 인스턴스 전제, CLAUDE.md §4)
+- 분산 락 없음 (단일 인스턴스 전제, AGENTS.md §4)
 
 ## 9. 로깅 / 모니터링
 
@@ -142,7 +142,7 @@ WHERE pt.name_ko IS NULL OR pt.short_name_ko IS NULL;
 
 ## 11. 인증
 
-워커는 인증 endpoint 가 아님. 그러나 ADMIN endpoint `POST /api/v1/admin/workers/translation-filler/run` 으로 수동 트리거할 수 있도록 entry function 은 공개 (단 그 endpoint 자체는 별도 task — CLAUDE.md §4 운영 원칙 "수동 트리거").
+워커는 인증 endpoint 가 아님. 그러나 ADMIN endpoint `POST /api/v1/admin/workers/translation-filler/run` 으로 수동 트리거할 수 있도록 entry function 은 공개 (단 그 endpoint 자체는 별도 task — AGENTS.md §4 운영 원칙 "수동 트리거").
 
 ## 12. 비기능 / 비용
 

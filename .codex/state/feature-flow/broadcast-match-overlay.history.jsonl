@@ -1,0 +1,18 @@
+{"ts":"2026-05-14T05:59:35.041Z","from":null,"to":"TRIGGERED","by":"team-lead","note":"init"}
+{"ts":"2026-05-14T06:00:51.632Z","from":"TRIGGERED","to":"PLAN_DRAFTING","by":"fe-planner","note":"requirements accepted"}
+{"ts":"2026-05-14T06:01:00.708Z","from":"PLAN_DRAFTING","to":"PLAN_REVIEW","by":"fe-planner","note":"spec devplan testplan drafted"}
+{"ts":"2026-05-14T06:01:11.458Z","from":"PLAN_REVIEW","to":"PLAN_APPROVED","by":"fe-reviewer","note":"plan approved: user-confirmed character safe zone, chat reserve, no transparency/chroma UI"}
+{"ts":"2026-05-14T06:03:15.646Z","from":"PLAN_APPROVED","to":"IMPL_IN_PROGRESS","by":"fe-dev","note":"start broadcast overlay mock implementation"}
+{"ts":"2026-05-14T06:17:44.063Z","from":"IMPL_IN_PROGRESS","to":"IMPL_PUSHED","by":"fe-dev","note":"implemented broadcast overlay mock and tests"}
+{"ts":"2026-05-14T06:17:53.136Z","from":"IMPL_PUSHED","to":"PLAYWRIGHT_RUN","by":"fe-dev","note":"L1/L2 verification executed"}
+{"ts":"2026-05-14T06:18:04.083Z","from":"PLAYWRIGHT_RUN","to":"REVIEW_PENDING","by":"fe-dev","note":"tests passed; ready for FE review"}
+{"ts":"2026-05-14T06:25:02.144Z","from":"REVIEW_PENDING","to":"CHANGES_REQUESTED","by":"fe-reviewer","note":"review requested event popup timing fix"}
+{"ts":"2026-05-14T06:25:09.970Z","from":"CHANGES_REQUESTED","to":"IMPL_IN_PROGRESS","by":"fe-dev","note":"fix event popup timing review finding"}
+{"ts":"2026-05-14T06:28:49.748Z","from":"IMPL_IN_PROGRESS","to":"IMPL_PUSHED","by":"fe-dev","note":"fixed review finding for event popup timing"}
+{"ts":"2026-05-14T06:28:56.181Z","from":"IMPL_PUSHED","to":"PLAYWRIGHT_RUN","by":"fe-dev","note":"reran tests after review fix"}
+{"ts":"2026-05-14T06:29:02.676Z","from":"PLAYWRIGHT_RUN","to":"REVIEW_PENDING","by":"fe-dev","note":"review finding fixed; tests passed"}
+{"ts":"2026-05-14T06:33:40.560Z","from":"REVIEW_PENDING","to":"MERGE_GATE","by":"fe-reviewer","note":"fe-reviewer approved implementation"}
+{"ts":"2026-05-14T06:33:52.193Z","from":"MERGE_GATE","to":"PR_CREATED","by":"team-lead","note":"local harness mock merge gate passed"}
+{"ts":"2026-05-14T06:33:57.797Z","from":"PR_CREATED","to":"MERGED","by":"team-lead","note":"local harness mock lifecycle merged"}
+{"ts":"2026-05-14T06:34:20.333Z","from":"MERGED","to":"BE_REQUEST_GENERATED","by":"fe-dev","note":"generated broadcast overlay endpoint request and initialized BE state"}
+{"ts":"2026-05-14T06:34:43.791Z","from":"BE_REQUEST_GENERATED","to":"FE_DONE_AWAITING_BE","by":"fe-dev","note":"mock cycle complete; awaiting BE broadcast overlay endpoint"}

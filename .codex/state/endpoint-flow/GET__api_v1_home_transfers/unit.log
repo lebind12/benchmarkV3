@@ -1,0 +1,32 @@
+command: python -m pytest -m unit tests/unit/test_home_transfers.py --tb=short --disable-warnings --no-header
+exit_code: 1
+
+============================= test session starts ==============================
+collected 3 items
+
+tests/unit/test_home_transfers.py FFF                                    [100%]
+
+=================================== FAILURES ===================================
+______________ test_ht_u01_public_endpoint_returns_transfer_shape ______________
+tests/unit/test_home_transfers.py:72: in test_ht_u01_public_endpoint_returns_transfer_shape
+    service = _patch_service(monkeypatch, {"items": [_item()]})
+tests/unit/test_home_transfers.py:58: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+_______________________ test_ht_u02_fee_null_is_allowed ________________________
+tests/unit/test_home_transfers.py:83: in test_ht_u02_fee_null_is_allowed
+    _patch_service(monkeypatch, {"items": [_item(fee=None)]})
+tests/unit/test_home_transfers.py:58: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+______________________ test_ht_u03_empty_items_are_valid _______________________
+tests/unit/test_home_transfers.py:92: in test_ht_u03_empty_items_are_valid
+    _patch_service(monkeypatch, {"items": []})
+tests/unit/test_home_transfers.py:58: in _patch_service
+    from app.services import home as home_service
+E   ImportError: cannot import name 'home' from 'app.services' (/Users/woolee/benchmark/app/services/__init__.py)
+=========================== short test summary info ============================
+FAILED tests/unit/test_home_transfers.py::test_ht_u01_public_endpoint_returns_transfer_shape
+FAILED tests/unit/test_home_transfers.py::test_ht_u02_fee_null_is_allowed
+FAILED tests/unit/test_home_transfers.py::test_ht_u03_empty_items_are_valid
+======================== 3 failed, 4 warnings in 1.10s =========================

@@ -1,0 +1,42 @@
+{
+  "endpoint_id": "GET__api_v1_home_top_players",
+  "tasklist_id": null,
+  "current_stage": "SPEC_REVIEW",
+  "endpoint": {
+    "method": "GET",
+    "path": "/api/v1/home/top-players",
+    "fe_mockup_ref": "frontend/endpoint-requests/GET__api_v1_home_top_players.request.json"
+  },
+  "state": "SPEC_REVIEW",
+  "owner": "be-reviewer",
+  "iteration": {
+    "test_loop": 0,
+    "review_loop": 0
+  },
+  "artifacts": {
+    "spec_path": "docs/spec/endpoints/GET__api_v1_home_top_players.md",
+    "test_plan_path": "docs/spec/endpoints/GET__api_v1_home_top_players.testplan.md",
+    "test_code_path": "tests/unit/test_home_top_players.py",
+    "integration_test_code_path": "tests/integration/test_home_top_players.py",
+    "impl_branch": null,
+    "impl_commit": null,
+    "migrations": [],
+    "testplan_path": "docs/spec/endpoints/GET__api_v1_home_top_players.testplan.md"
+  },
+  "evidence": {
+    "unit_test_log": ".codex/state/endpoint-flow/GET__api_v1_home_top_players/unit.log",
+    "integration_test_log": ".codex/state/endpoint-flow/GET__api_v1_home_top_players/integration.log",
+    "test_verdict": "RED"
+  },
+  "gates": {
+    "spec_approved_by": null,
+    "test_passed_at": null,
+    "review_approved_by": null,
+    "merge_approved_by": null
+  },
+  "blockers": [],
+  "next_action": {
+    "agent": "be-reviewer",
+    "command": "review endpoint spec/testplan/tests"
+  }
+}

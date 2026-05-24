@@ -1,0 +1,42 @@
+FEEEFE                                                                   [100%]
+==================================== ERRORS ====================================
+_____________ ERROR at setup of test_hs_u02_public_default_request _____________
+tests/unit/test_home_standings.py:60: in client_and_service
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+________ ERROR at setup of test_hs_u03_accepts_explicit_allowed_league _________
+tests/unit/test_home_standings.py:60: in client_and_service
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+_______ ERROR at setup of test_hs_u04_unsupported_league_id_returns_422 ________
+tests/unit/test_home_standings.py:60: in client_and_service
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+___________ ERROR at setup of test_hs_u06_response_shape_passthrough ___________
+tests/unit/test_home_standings.py:60: in client_and_service
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+=================================== FAILURES ===================================
+___________________ test_hs_u01_route_registered_on_main_app ___________________
+tests/unit/test_home_standings.py:73: in test_hs_u01_route_registered_on_main_app
+    assert "/api/v1/home/standings" in paths
+E   AssertionError: assert '/api/v1/home/standings' in {'/docs', '/docs/oauth2-redirect', '/health', '/openapi.json', '/redoc'}
+_______________ test_hs_u05_empty_standings_payload_returns_200 ________________
+tests/unit/test_home_standings.py:104: in test_hs_u05_empty_standings_payload_returns_200
+    from app.api.v1.home import get_home_service, router
+E   ModuleNotFoundError: No module named 'app.api.v1'
+=============================== warnings summary ===============================
+../../../opt/homebrew/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1373
+  /opt/homebrew/anaconda3/lib/python3.11/site-packages/_pytest/config/__init__.py:1373: PytestConfigWarning: Unknown config option: asyncio_mode
+
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_home_standings.py::test_hs_u01_route_registered_on_main_app
+FAILED tests/unit/test_home_standings.py::test_hs_u05_empty_standings_payload_returns_200
+ERROR tests/unit/test_home_standings.py::test_hs_u02_public_default_request
+ERROR tests/unit/test_home_standings.py::test_hs_u03_accepts_explicit_allowed_league
+ERROR tests/unit/test_home_standings.py::test_hs_u04_unsupported_league_id_returns_422
+ERROR tests/unit/test_home_standings.py::test_hs_u06_response_shape_passthrough
+2 failed, 1 warning, 4 errors in 0.48s

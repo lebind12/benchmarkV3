@@ -138,7 +138,7 @@ shape 상세는 devplan §6 참조.
 | status badge | NS / FT / AET / PEN / PST / CANC 텍스트 배지 |
 | 클릭 | `/fixtures/{external_id}` 이동 |
 
-(CLAUDE.md §6 정책: 일반 페이지는 DB만 사용, polling 없음. 라이브 표시 X. 메인 §7 "라이브 데이터 메인 표시 X" 와 일치.)
+(AGENTS.md §6 정책: 일반 페이지는 DB만 사용, polling 없음. 라이브 표시 X. 메인 §7 "라이브 데이터 메인 표시 X" 와 일치.)
 
 ### 4.3 상태
 
@@ -228,7 +228,7 @@ shape 상세는 devplan §6 참조.
 | 항목 | 값 |
 |---|---|
 | 데이터 신선도 | 일반 = 6h (DB only), 뉴스 = 1h (news-fetcher). 화면에는 "6시간마다 갱신" 안내 텍스트 1회 |
-| 폴링 | 없음 (메인 §7 + CLAUDE.md §6 정책 준수) |
+| 폴링 | 없음 (메인 §7 + AGENTS.md §6 정책 준수) |
 | LCP | < 1.5s @ 1920×1080 |
 | 번들 회귀 | < 10% vs main |
 | 뷰포트 | 최적 1920×1080 / fit 1440×900 / 최소 1366×768 |
@@ -244,13 +244,13 @@ shape 상세는 devplan §6 참조.
 
 | 항목 | 결과 |
 |---|---|
-| 5리그 (EPL/UCL/UEL/Carabao/FA) | ✅ 메인 §5.3 / §5.4 모두 5리그만. CLAUDE.md §2 와 일치 |
+| 5리그 (EPL/UCL/UEL/Carabao/FA) | ✅ 메인 §5.3 / §5.4 모두 5리그만. AGENTS.md §2 와 일치 |
 | 2시즌 | ✅ 본 페이지는 current season 한정. 직전 시즌 데이터 노출 X |
 | Role 체계 | ✅ public/USER/STREAMER/ADMIN. 메인 §2 와 일치 |
 | 방송용 페이지 | ✅ 본 페이지는 방송용 아님 (메인 §4 "no"). `/broadcast` 는 STREAMER 만 상단 탭 노출 |
-| 라이브 폴링 | ✅ 메인 페이지 polling 없음. CLAUDE.md §6 정책 일치 |
+| 라이브 폴링 | ✅ 메인 페이지 polling 없음. AGENTS.md §6 정책 일치 |
 | 새 외부 데이터 의존성 | ❌ 추가 없음 (뉴스/이적/부상은 모두 DB 기반) |
-| `news_article` 사용 | ⚠ CLAUDE.md §4 워커 표에 `news-fetcher` 등재. 본 페이지 뉴스 면이 이를 소비함. devplan 의 endpoint 후보가 BE 에 신호 |
+| `news_article` 사용 | ⚠ AGENTS.md §4 워커 표에 `news-fetcher` 등재. 본 페이지 뉴스 면이 이를 소비함. devplan 의 endpoint 후보가 BE 에 신호 |
 
 → **충돌 없음**, `PLAN_DRAFTING` 진행.
 
@@ -283,7 +283,7 @@ shape 상세는 devplan §6 참조.
 
 ## 11. 한글 표기 정책
 
-- 모든 entity 명: `name_ko` 우선, NULL 이면 영문 `name` fallback (CLAUDE.md §5)
+- 모든 entity 명: `name_ko` 우선, NULL 이면 영문 `name` fallback (AGENTS.md §5)
 - 리그 short_name 한글 라벨 (FE 결정):
   - EPL = "EPL" / UCL = "UCL" / UEL = "UEL" / 카라바오 = "카라바오" / FA = "FA"
 - 큐브 dot 라벨: "뉴스 / 핫 / 이적 / 부상" (메인 §12 결정 위임)
