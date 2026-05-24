@@ -14,6 +14,8 @@ from typing import Iterator
 
 import pytest
 
+from app.core.config import normalize_database_url
+
 
 def _make_run_id() -> str:
     return f"{int(time.time())}_{uuid.uuid4().hex[:8]}"
@@ -25,9 +27,18 @@ def _normalize_driver(url: str) -> str:
     프로젝트는 psycopg v3 만 dependencies 에 포함. .env 가 `postgresql://` 로 와도
     `postgresql+psycopg://` 로 바꿔서 psycopg2 import error 를 피한다.
     """
-    if url.startswith("postgresql://"):
-        return "postgresql+psycopg://" + url[len("postgresql://"):]
-    return url
+    return normalize_database_url(url)
+
+
+def _test_engine_kwargs() -> dict[str, object]:
+    return {
+        "future": True,
+        "pool_pre_ping": True,
+        "pool_size": 1,
+        "max_overflow": 0,
+        "pool_timeout": 10,
+        "pool_recycle": 300,
+    }
 
 
 @pytest.fixture(scope="session")
@@ -66,7 +77,7 @@ def isolated_db(test_database_url, run_id, request) -> Iterator[tuple[object, st
 
     from sqlalchemy import event
 
-    bootstrap = create_engine(test_database_url, future=True)
+    bootstrap = create_engine(test_database_url, **_test_engine_kwargs())
     with bootstrap.begin() as conn:
         conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE'))
         conn.execute(text(f'CREATE SCHEMA "{schema_name}"'))
@@ -74,7 +85,7 @@ def isolated_db(test_database_url, run_id, request) -> Iterator[tuple[object, st
     # search_path 를 매 connection 마다 적용. Supabase pooler 가 libpq `options`
     # 를 통과시키지 않는 경우가 있어, 명시적 `SET search_path` 을 connect 이벤트
     # 에 후킹한다.
-    test_engine = create_engine(test_database_url, future=True)
+    test_engine = create_engine(test_database_url, **_test_engine_kwargs())
 
     @event.listens_for(test_engine, "connect")
     def _set_search_path(dbapi_conn, _conn_record):

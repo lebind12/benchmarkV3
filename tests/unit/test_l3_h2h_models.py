@@ -40,12 +40,14 @@ def _has_unique(tbl, column_name):
     return False
 
 
-EXPECTED_17 = {
+EXPECTED_TABLES = {
+    "api_football_league_catalog",
     "league", "league_translation", "venue", "team", "team_translation",
-    "team_season", "player", "player_translation", "player_season_stat",
+    "team_season", "coach", "coach_translation", "team_coach",
+    "player", "player_translation", "player_season_stat",
     "fixture", "fixture_detail", "standings", "app_user",
     "transfer", "injury", "news_article",
-    "h2h_fixture",
+    "h2h_fixture", "league_sync_target", "worker_sync_log",
 }
 
 
@@ -58,7 +60,7 @@ def test_l3u01_h2h_fixture_importable(models):
 
 
 def test_l3u02_metadata_has_17_tables(metadata):
-    assert set(metadata.tables.keys()) == EXPECTED_17
+    assert set(metadata.tables.keys()) == EXPECTED_TABLES
 
 
 # ---------------------------------------------------------------------------

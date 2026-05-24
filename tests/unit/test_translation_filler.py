@@ -8,7 +8,7 @@ be-dev 가 `app/workers/translation_filler/` 를 작성하기 전까지 ImportEr
 API 가정 (be-dev 와 합의된 SSOT 인터페이스):
   - `app.workers.translation_filler.queue.fetch_queue(session, *, limit: int) -> list[QueueItem]`
       QueueItem: dataclass / TypedDict {entity_type, id, eng_name, context_a, context_b}
-      entity_type in {"team", "player"}  (league 제외)
+      entity_type in {"team", "coach", "player"}  (league 제외)
       SQL 은 UNION ALL with NULL OR 조건
   - `app.workers.translation_filler.prompt.build_prompt(entity_type, name, context) -> list[ChatMessage]`
       few-shot 5~10건 포함
@@ -63,7 +63,7 @@ def mods():
 # TF-U-01 큐 조회 SQL
 # ---------------------------------------------------------------------------
 
-def test_tf_u01_queue_sql_unions_team_and_player_not_league(mods):
+def test_tf_u01_queue_sql_unions_team_coach_and_player_not_league(mods):
     queue = mods["queue"]
     # fetch_queue 는 SQLAlchemy session 을 받음. 빈 결과를 반환하도록 mock.
     session = MagicMock()
@@ -75,7 +75,13 @@ def test_tf_u01_queue_sql_unions_team_and_player_not_league(mods):
     sql_text = str(getattr(sql_obj, "text", sql_obj)).lower()
 
     # 필수 키워드
-    for kw in ("team_translation", "player_translation", "name_ko is null", "union all"):
+    for kw in (
+        "team_translation",
+        "coach_translation",
+        "player_translation",
+        "name_ko is null",
+        "union all",
+    ):
         assert kw in sql_text, f"queue SQL 누락: {kw!r}\n--- SQL ---\n{sql_text}"
     # league 처리 제외
     assert "league_translation" not in sql_text, (

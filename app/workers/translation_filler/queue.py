@@ -1,6 +1,6 @@
 """Queue lookup — rows pending Korean translation.
 
-Implements the team + player UNION ALL from
+Implements the team + coach + player UNION ALL from
 `docs/workers/translation-filler.md` §3 (league is **not** part of this
 worker — ADMIN manual flow handles it). Selects rows whose `name_ko` or
 `short_name_ko` is still NULL after `daily-sync` created them.
@@ -11,7 +11,7 @@ from typing import Any
 
 from sqlalchemy import text
 
-# Fixed SQL — UNION ALL of team + player. Excludes league per spec §2.
+# Fixed SQL — UNION ALL of team + player + coach. Excludes league per spec §2.
 # `LIMIT` is interpolated as a positive int literal to keep the call to
 # session.execute() purely positional (tests assert args[0] is the SQL).
 _QUEUE_SQL_TEMPLATE = """
@@ -23,6 +23,17 @@ SELECT 'team' AS entity_type,
 FROM team_translation tt
 JOIN team t ON t.id = tt.team_id
 WHERE tt.name_ko IS NULL OR tt.short_name_ko IS NULL
+
+UNION ALL
+
+SELECT 'coach' AS entity_type,
+       ct.coach_id AS id,
+       c.name AS eng_name,
+       '' AS context_a,
+       NULL AS context_b
+FROM coach_translation ct
+JOIN coach c ON c.id = ct.coach_id
+WHERE ct.name_ko IS NULL OR ct.short_name_ko IS NULL
 
 UNION ALL
 

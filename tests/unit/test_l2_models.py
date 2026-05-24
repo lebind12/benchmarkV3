@@ -48,11 +48,14 @@ def _has_unique_columns(tbl, columns: set[str]) -> bool:
 # L2U-01 / L2U-02
 # ---------------------------------------------------------------------------
 
-EXPECTED_16 = {
+EXPECTED_TABLES = {
+    "api_football_league_catalog",
     "league", "league_translation", "venue", "team", "team_translation",
-    "team_season", "player", "player_translation", "player_season_stat",
+    "team_season", "coach", "coach_translation", "team_coach",
+    "player", "player_translation", "player_season_stat",
     "fixture", "fixture_detail", "standings", "app_user",
-    "transfer", "injury", "news_article",
+    "transfer", "injury", "news_article", "h2h_fixture",
+    "league_sync_target", "worker_sync_log",
 }
 
 
@@ -61,7 +64,7 @@ def test_l2u01_models_importable(models):
 
 
 def test_l2u02_metadata_has_16_tables(metadata):
-    assert set(metadata.tables.keys()) == EXPECTED_16
+    assert set(metadata.tables.keys()) == EXPECTED_TABLES
 
 
 # ---------------------------------------------------------------------------

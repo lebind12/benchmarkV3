@@ -231,9 +231,10 @@ WHERE league_id IN (5리그 내부 id)
 | 항목 | 값 |
 |---|---|
 | API-Football rate limit | 450 req/min (Ultra plan) |
+| 요청 시작 rate limiter | 300 req/min (`API_FOOTBALL_REQUESTS_PER_MINUTE`, 상한 450) |
 | 동시 호출 semaphore | 6 (`API_FOOTBALL_CONCURRENCY`, 상한 6) |
 | 한 사이클 평균 호출 수 | 235~425 |
-| 한 사이클 예상 소요 시간 | 1~3분 (semaphore 6 + 평균 0.5s/call) |
+| 한 사이클 예상 소요 시간 | 요청 수 / rate limiter + API 응답 지연 |
 
 진행도 정책:
 - daily-sync 는 먼저 측정 단계에서 리그명, 시즌, fixtures 수, players 페이지 수, fixture detail 호출 수를 산정한다.
@@ -247,7 +248,7 @@ WHERE league_id IN (5리그 내부 id)
 | network timeout | 지수 백오프 3회 |
 | 4xx (요청 오류, 404 포함) | 해당 row skip, 로그 기록, 다음 step 진행 |
 | 401 (인증 실패) | 사이클 abort + 운영자 알림 |
-| 429 (rate limit 초과) | 지수 백오프 3회 (semaphore 가 일반적으로 차단) |
+| 429 / 응답 body `errors.rateLimit` | 분당 요청 제한 + 지수 백오프 3회 |
 | 5xx (서버 오류) | 지수 백오프 3회 |
 | DB 트랜잭션 실패 | 해당 row skip, 로그 기록 |
 | DB 접속 불가 | 사이클 abort + 운영자 알림 |
@@ -261,6 +262,11 @@ WHERE league_id IN (5리그 내부 id)
 - `entities_upserted`: `{league: N, team: N, fixture: N, fixture_detail: N, player: N, player_season_stat: N, standings: N}`
 - `translation_rows_created`: `{league: N, team: N, player: N}`
 - `errors`: 오류 분류별 카운트
+
+DB 적재:
+- ADMIN 수동 실행 / 스케줄러 실행이 끝나면 `worker_sync_log` 에 최종 run payload 를 저장한다.
+- 보관 기간은 최대 7일이다. 새 로그 저장 직후 `created_at < now() - 7 days` 로그를 삭제한다.
+- in-memory run registry 는 현재 실행/폴링용이고, `worker_sync_log` 는 재시작 후에도 남는 운영 기록이다.
 
 알람 조건 (운영자 통보):
 - 연속 3 사이클 실패

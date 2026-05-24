@@ -62,6 +62,13 @@ _UPDATE_SQL = {
         "    updated_at = now() "
         "WHERE player_id = :id"
     ),
+    "coach": text(
+        "UPDATE coach_translation "
+        "SET name_ko = COALESCE(name_ko, :name_ko), "
+        "    short_name_ko = COALESCE(short_name_ko, :short_name_ko), "
+        "    updated_at = now() "
+        "WHERE coach_id = :id"
+    ),
 }
 
 
@@ -71,6 +78,8 @@ def _row_context(row: dict[str, Any]) -> dict[str, Any]:
         return {"nationality": row.get("context_a") or ""}
     if row["entity_type"] == "team":
         return {"country": row.get("context_a") or ""}
+    if row["entity_type"] == "coach":
+        return {}
     return {}
 
 
@@ -195,7 +204,7 @@ async def run() -> None:  # pragma: no cover — boot path, exercised manually
     Opens a short-lived SQLAlchemy session and runs one cycle. Real OpenAI
     client is constructed inside (kept out of unit/integration test paths).
     """
-    from app.core.config import get_settings  # local import
+    from app.core.config import database_engine_kwargs, get_settings, normalize_database_url  # local import
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
 
@@ -207,7 +216,13 @@ async def run() -> None:  # pragma: no cover — boot path, exercised manually
         ) from e
 
     settings = get_settings()
-    engine = create_engine(settings.database_url, future=True)
+    engine = create_engine(
+        normalize_database_url(settings.database_url),
+        **database_engine_kwargs(settings),
+    )
     client = AsyncOpenAI(api_key=settings.openai_api_key)
-    with Session(engine) as session:
-        await run_cycle(session, openai_client=client)
+    try:
+        with Session(engine) as session:
+            await run_cycle(session, openai_client=client)
+    finally:
+        engine.dispose()

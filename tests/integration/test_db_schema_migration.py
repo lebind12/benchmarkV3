@@ -1,7 +1,7 @@
 """Phase 1 — DB 스키마 통합 테스트.
 
 격리 schema (`test_<run_id>_<endpoint>`) 안에 alembic `upgrade head` 를 적용한 뒤
-13 테이블 / 인덱스 / CHECK / UNIQUE / FK action / NULL 정책 / downgrade 까지 검증.
+17 테이블 / 인덱스 / CHECK / UNIQUE / FK action / NULL 정책 / downgrade 까지 검증.
 
 전제 환경변수:
 - `TEST_DATABASE_URL` — Postgres URL (없으면 conftest 가 skip 처리)
@@ -41,10 +41,15 @@ EXPECTED_TABLES = {
     "fixture_detail",
     "standings",
     "app_user",
+    "transfer",
+    "injury",
+    "news_article",
+    "h2h_fixture",
 }
 
 EXPECTED_INDEXES = {
     "league_type_idx",
+    "league_active_idx",
     "team_country_idx",
     "team_venue_idx",
     "team_season_league_year_idx",
@@ -61,6 +66,17 @@ EXPECTED_INDEXES = {
     "standings_uniq",
     "standings_league_season_rank_idx",
     "app_user_role_idx",
+    "transfer_player_idx",
+    "transfer_date_idx",
+    "transfer_to_team_idx",
+    "transfer_from_team_idx",
+    "injury_player_idx",
+    "injury_team_season_idx",
+    "injury_fixture_idx",
+    "news_article_published_idx",
+    "news_article_pending_idx",
+    "news_article_tags_gin",
+    "h2h_pair_idx",
 }
 
 
@@ -108,7 +124,7 @@ def migrated_db(isolated_db, test_database_url):
 
 
 # ---------------------------------------------------------------------------
-# I-01 13 테이블 생성
+# I-01 17 테이블 생성
 # ---------------------------------------------------------------------------
 
 def test_i01_all_13_tables_created(migrated_db):
@@ -634,6 +650,38 @@ def test_i20_cascade_fixture_to_detail(migrated_db):
             text("SELECT COUNT(*) FROM fixture_detail WHERE fixture_id=:f"),
             {"f": fid},
         ).scalar() == 0
+
+
+def test_i20b_fixture_detail_players_jsonb(migrated_db):
+    engine, _ = migrated_db
+    with engine.begin() as conn:
+        lid = _insert_league(conn)
+        fid = conn.execute(
+            text(
+                "INSERT INTO fixture (external_id, league_id, season_year, "
+                "kickoff_at, status_short) "
+                "VALUES (2, :l, 2024, now(), 'FT') RETURNING id"
+            ),
+            {"l": lid},
+        ).scalar()
+        conn.execute(
+            text(
+                "INSERT INTO fixture_detail (fixture_id, players) "
+                "VALUES (:f, CAST(:players AS jsonb))"
+            ),
+            {
+                "f": fid,
+                "players": (
+                    '[{"team":{"id":40},"players":[{"player":{"id":1001},'
+                    '"statistics":[{"games":{"minutes":90,"rating":"7.2"}}]}]}]'
+                ),
+            },
+        )
+        payload = conn.execute(
+            text("SELECT players FROM fixture_detail WHERE fixture_id=:f"),
+            {"f": fid},
+        ).scalar()
+        assert payload[0]["players"][0]["statistics"][0]["games"]["rating"] == "7.2"
 
 
 def test_i21_cascade_league_to_fixture(migrated_db):

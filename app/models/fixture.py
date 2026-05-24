@@ -95,6 +95,7 @@ class FixtureDetail(Base):
     events: Mapped[dict | None] = mapped_column(JSONB)
     statistics: Mapped[dict | None] = mapped_column(JSONB)
     lineups: Mapped[dict | None] = mapped_column(JSONB)
+    players: Mapped[dict | None] = mapped_column(JSONB)
     fetched_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

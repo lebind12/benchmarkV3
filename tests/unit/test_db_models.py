@@ -1,7 +1,7 @@
 """Phase 1 — DB 모델 단위 테스트.
 
 정본: docs/spec/db-schema.md (그리고 docs/spec/endpoints/phase-1-db-schema.md).
-SQLAlchemy 메타데이터 introspection 만으로 13 모델의 컬럼/제약/타입을 검증한다.
+SQLAlchemy 메타데이터 introspection 만으로 모델의 컬럼/제약/타입을 검증한다.
 외부 DB 미사용. mock 도 불필요 (메타데이터만 본다).
 
 이 테스트는 be-dev 가 `app/models/` 에 모델을 작성하기 전까지 ImportError 로 실패한다 (TDD Red 정상).
@@ -21,26 +21,41 @@ pytestmark = pytest.mark.unit
 # ---------------------------------------------------------------------------
 
 def _import_models():
-    """13 모델 + Base 를 import. dev 가 모듈 작성 전이면 ImportError."""
+    """모델 + Base 를 import. dev 가 모듈 작성 전이면 ImportError."""
     from app.models import (  # noqa: F401
         AppUser,
         Base,
+        Coach,
+        CoachTranslation,
         Fixture,
         FixtureDetail,
+        H2HFixture,
+        Injury,
+        ApiFootballLeagueCatalog,
         League,
+        LeagueSyncTarget,
         LeagueTranslation,
+        NewsArticle,
         Player,
         PlayerSeasonStat,
         PlayerTranslation,
         Standings,
         Team,
+        TeamCoach,
         TeamSeason,
         TeamTranslation,
+        Transfer,
         Venue,
+        WorkerSyncLog,
     )
     return {
         "Base": Base,
+        "Coach": Coach,
+        "CoachTranslation": CoachTranslation,
+        "TeamCoach": TeamCoach,
+        "ApiFootballLeagueCatalog": ApiFootballLeagueCatalog,
         "League": League,
+        "LeagueSyncTarget": LeagueSyncTarget,
         "LeagueTranslation": LeagueTranslation,
         "Venue": Venue,
         "Team": Team,
@@ -53,16 +68,26 @@ def _import_models():
         "FixtureDetail": FixtureDetail,
         "Standings": Standings,
         "AppUser": AppUser,
+        "Transfer": Transfer,
+        "Injury": Injury,
+        "NewsArticle": NewsArticle,
+        "H2HFixture": H2HFixture,
+        "WorkerSyncLog": WorkerSyncLog,
     }
 
 
 EXPECTED_TABLES = {
     "league",
     "league_translation",
+    "api_football_league_catalog",
+    "league_sync_target",
     "venue",
     "team",
     "team_translation",
     "team_season",
+    "coach",
+    "coach_translation",
+    "team_coach",
     "player",
     "player_translation",
     "player_season_stat",
@@ -70,6 +95,11 @@ EXPECTED_TABLES = {
     "fixture_detail",
     "standings",
     "app_user",
+    "transfer",
+    "injury",
+    "news_article",
+    "h2h_fixture",
+    "worker_sync_log",
 }
 
 
@@ -113,10 +143,10 @@ def _has_unique(table, column_name):
 # ---------------------------------------------------------------------------
 
 def test_u01_all_models_importable(models):
-    assert len(models) == 14  # 13 models + Base
+    assert len(models) == 24  # 23 models + Base
 
 
-def test_u02_metadata_contains_exactly_13_tables(metadata):
+def test_u02_metadata_contains_expected_tables(metadata):
     assert set(metadata.tables.keys()) == EXPECTED_TABLES
 
 
@@ -129,10 +159,15 @@ def test_u02_metadata_contains_exactly_13_tables(metadata):
     [
         ("league", ["id"]),
         ("league_translation", ["league_id"]),
+        ("api_football_league_catalog", ["id"]),
+        ("league_sync_target", ["id"]),
         ("venue", ["id"]),
         ("team", ["id"]),
         ("team_translation", ["team_id"]),
         ("team_season", ["team_id", "league_id", "season_year"]),
+        ("coach", ["id"]),
+        ("coach_translation", ["coach_id"]),
+        ("team_coach", ["team_id", "coach_id"]),
         ("player", ["id"]),
         ("player_translation", ["player_id"]),
         ("player_season_stat", ["id"]),
@@ -140,6 +175,11 @@ def test_u02_metadata_contains_exactly_13_tables(metadata):
         ("fixture_detail", ["fixture_id"]),
         ("standings", ["id"]),
         ("app_user", ["id"]),
+        ("transfer", ["id"]),
+        ("injury", ["id"]),
+        ("news_article", ["id"]),
+        ("h2h_fixture", ["id"]),
+        ("worker_sync_log", ["id"]),
     ],
 )
 def test_u03_primary_keys(metadata, table_name, expected_pk):
@@ -154,7 +194,7 @@ def test_u03_primary_keys(metadata, table_name, expected_pk):
 
 @pytest.mark.parametrize(
     "table_name",
-    ["league", "venue", "team", "player", "fixture"],
+    ["league", "api_football_league_catalog", "venue", "team", "coach", "player", "fixture", "h2h_fixture"],
 )
 def test_u04_entity_external_id_unique(metadata, table_name):
     tbl = metadata.tables[table_name]
@@ -171,6 +211,7 @@ def test_u04_entity_external_id_unique(metadata, table_name):
     [
         ("league_translation", "league_id", "league.id"),
         ("team_translation", "team_id", "team.id"),
+        ("coach_translation", "coach_id", "coach.id"),
         ("player_translation", "player_id", "player.id"),
     ],
 )
@@ -197,6 +238,7 @@ def test_u05_translation_pk_fk_cascade(metadata, table_name, fk_col, target):
         ("fixture", "home_team_id", "team.id"),
         ("fixture", "away_team_id", "team.id"),
         ("fixture", "venue_id", "venue.id"),
+        ("team_coach", "league_id", "league.id"),
     ],
 )
 def test_u06_set_null_fks(metadata, table_name, fk_col, target):
@@ -238,6 +280,18 @@ def test_u08_player_season_stat_unique(metadata):
                 found = True
                 break
     assert found, "player_season_stat UNIQUE(player_id, team_id, league_id, season_year) 필요"
+
+
+def test_u08b_league_sync_target_unique(metadata):
+    from sqlalchemy import UniqueConstraint
+
+    tbl = metadata.tables["league_sync_target"]
+    expected = {"league_id", "season_year"}
+    found = any(
+        isinstance(c, UniqueConstraint) and set(c.columns.keys()) == expected
+        for c in tbl.constraints
+    )
+    assert found, "league_sync_target UNIQUE(league_id, season_year) 필요"
 
 
 # ---------------------------------------------------------------------------
@@ -305,17 +359,26 @@ def test_u12_translation_cols_nullable(metadata, table_name, col_name):
 # created_at 컬럼이 있는 테이블 일람 (정본 §3 기반)
 TABLES_WITH_CREATED_AT = [
     "league",
+    "api_football_league_catalog",
+    "league_sync_target",
     "venue",
     "team",
     "team_season",
     "player",
     "fixture",
     "app_user",
+    "transfer",
+    "injury",
+    "news_article",
+    "h2h_fixture",
+    "worker_sync_log",
 ]
 
 TABLES_WITH_UPDATED_AT = [
     "league",
     "league_translation",
+    "api_football_league_catalog",
+    "league_sync_target",
     "venue",
     "team",
     "team_translation",
@@ -326,6 +389,10 @@ TABLES_WITH_UPDATED_AT = [
     "fixture_detail",
     "standings",
     "app_user",
+    "transfer",
+    "injury",
+    "news_article",
+    "h2h_fixture",
 ]
 
 
@@ -367,8 +434,16 @@ def test_u14_rating_numeric(metadata):
         ("fixture_detail", "events", False),
         ("fixture_detail", "statistics", False),
         ("fixture_detail", "lineups", False),
+        ("fixture_detail", "players", False),
         ("standings", "home_away_breakdown", False),
         ("standings", "raw_data", False),
+        ("transfer", "raw_data", False),
+        ("injury", "raw_data", False),
+        ("news_article", "tags", False),
+        ("h2h_fixture", "raw_data", False),
+        ("api_football_league_catalog", "seasons", True),
+        ("worker_sync_log", "result", False),
+        ("worker_sync_log", "logs", True),
     ],
 )
 def test_u15_jsonb_columns(metadata, table_name, col_name, not_null):

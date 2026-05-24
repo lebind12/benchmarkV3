@@ -36,6 +36,15 @@ _TEAM_FALLBACK: list[dict[str, str]] = [
     {"eng": "Manchester City", "country": "England", "name_ko": "맨체스터 시티", "short_name_ko": "맨시티"},
 ]
 
+_COACH_FALLBACK: list[dict[str, str]] = [
+    {"eng": "Mikel Arteta", "name_ko": "미켈 아르테타", "short_name_ko": "아르테타"},
+    {"eng": "Pep Guardiola", "name_ko": "펩 과르디올라", "short_name_ko": "펩"},
+    {"eng": "Arne Slot", "name_ko": "아르네 슬롯", "short_name_ko": "슬롯"},
+    {"eng": "Enzo Maresca", "name_ko": "엔초 마레스카", "short_name_ko": "마레스카"},
+    {"eng": "Unai Emery", "name_ko": "우나이 에메리", "short_name_ko": "에메리"},
+    {"eng": "Diego Simeone", "name_ko": "디에고 시메오네", "short_name_ko": "시메오네"},
+]
+
 
 def _seed_csv_path() -> Path:
     """Repo-root path to the player seed CSV."""
@@ -149,6 +158,12 @@ _SYSTEM_TEAM = (
     "키는 정확히 name_ko, short_name_ko 두 개입니다."
 )
 
+_SYSTEM_COACH = (
+    "당신은 축구 감독 영문 이름을 한국 축구 중계/기사에서 통용되는 한글 표기로 "
+    "음역하는 번역가입니다. 응답은 JSON 만 출력하세요. "
+    "키는 정확히 name_ko, short_name_ko 두 개입니다."
+)
+
 
 def build_prompt(
     entity_type: str,
@@ -209,6 +224,25 @@ def build_prompt(
         )
         return [
             {"role": "system", "content": _SYSTEM_TEAM},
+            *examples,
+            {
+                "role": "user",
+                "content": (
+                    f"예시:\n{example_lines}\n\n"
+                    f"입력:\n{user_payload}\n\n"
+                    "출력 (JSON):"
+                ),
+            },
+        ]
+
+    if entity_type == "coach":
+        examples = list(_COACH_FALLBACK)
+        example_lines = "\n".join(
+            json.dumps(e, ensure_ascii=False) for e in examples
+        )
+        user_payload = json.dumps({"eng": name}, ensure_ascii=False)
+        return [
+            {"role": "system", "content": _SYSTEM_COACH},
             *examples,
             {
                 "role": "user",

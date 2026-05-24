@@ -1,7 +1,7 @@
 """W1 — translation-filler 통합 테스트.
 
 격리 schema 에 마이그레이션 적용 후 실 Postgres + mock OpenAI 로 워커 1 사이클을
-실행한다. OpenAI 실 호출 금지 (CLAUDE.md §11 비용 정책 + agent-workflow.md §8).
+실행한다. OpenAI 실 호출 금지 (AGENTS.md §11 비용 정책 + agent-workflow.md §8).
 
 be-dev 가 `app/workers/translation_filler/` 와 의존 인터페이스를 작성하기 전까지
 ImportError 로 fail (TDD Red 정상).

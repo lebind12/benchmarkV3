@@ -22,6 +22,7 @@ def models():
         Fixture,
         FixtureDetail,
         League,
+        LeagueSyncTarget,
         LeagueTranslation,
         Player,
         PlayerSeasonStat,
@@ -90,16 +91,21 @@ def test_lu05_league_active_idx_declared_on_model(league_tbl):
 
 
 # ---------------------------------------------------------------------------
-# LU-06 회귀 방지 — 13 테이블 유지
+# LU-06 회귀 방지 — 현재 21 테이블 유지
 # ---------------------------------------------------------------------------
 
 EXPECTED_TABLES = {
+    "api_football_league_catalog",
     "league",
     "league_translation",
+    "league_sync_target",
     "venue",
     "team",
     "team_translation",
     "team_season",
+    "coach",
+    "coach_translation",
+    "team_coach",
     "player",
     "player_translation",
     "player_season_stat",
@@ -111,6 +117,7 @@ EXPECTED_TABLES = {
     "injury",
     "news_article",
     "h2h_fixture",
+    "worker_sync_log",
 }
 
 
