@@ -6,19 +6,13 @@ import PanelScroll from '@/components/common/PanelScroll.vue'
 import SkeletonCard from '@/components/common/SkeletonCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
-import { slugFromId } from '@/lib/league-colors'
+import { HOME_COMPETITION_OPTIONS, slugFromId } from '@/lib/league-colors'
 import type { MetricKey } from '@/types/home'
 
 const home = useHomeStore()
 const router = useRouter()
 
-const leagues = [
-  { id: 39, label: 'EPL' },
-  { id: 2, label: 'UCL' },
-  { id: 3, label: 'UEL' },
-  { id: 48, label: '카라바오' },
-  { id: 45, label: 'FA' },
-]
+const leagues = HOME_COMPETITION_OPTIONS
 const metrics: { v: MetricKey; label: string }[] = [
   { v: 'goals', label: '득점' },
   { v: 'assists', label: '도움' },
@@ -88,7 +82,13 @@ function onLeague(e: Event) {
   </section>
 </template>
 <style scoped>
-.block { display: flex; flex-direction: column; height: 100%; }
+.block {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
 .block__head {
   display: flex;
   justify-content: space-between;
@@ -106,7 +106,12 @@ function onLeague(e: Event) {
   border-radius: 4px;
   padding: 2px 6px;
 }
-.block__body { flex: 1; min-height: 0; padding: 4px 8px; }
+.block__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 4px 8px;
+}
 .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
 .tbl th { text-align: left; color: var(--color-muted); font-weight: 500; padding: 4px 6px; position: sticky; top: 0; background: var(--color-bg); }
 .tbl td { padding: 4px 6px; border-top: 1px solid var(--color-border); cursor: pointer; }

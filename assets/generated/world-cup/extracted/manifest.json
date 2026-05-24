@@ -1,0 +1,658 @@
+[
+  {
+    "slug": "characters/channel_penguin_trophy_ball",
+    "path": "assets/generated/world-cup/extracted/characters/channel_penguin_trophy_ball.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-channel-worldcup-banners.png",
+    "box": [
+      0,
+      10,
+      360,
+      248
+    ],
+    "size": [
+      360,
+      238
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "characters/channel_streamer_cheer",
+    "path": "assets/generated/world-cup/extracted/characters/channel_streamer_cheer.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-channel-worldcup-banners.png",
+    "box": [
+      1358,
+      10,
+      1717,
+      248
+    ],
+    "size": [
+      359,
+      238
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "characters/channel_penguin_megaphone",
+    "path": "assets/generated/world-cup/extracted/characters/channel_penguin_megaphone.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-channel-worldcup-banners.png",
+    "box": [
+      0,
+      255,
+      350,
+      488
+    ],
+    "size": [
+      350,
+      233
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "characters/channel_fan_foam_ball",
+    "path": "assets/generated/world-cup/extracted/characters/channel_fan_foam_ball.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-channel-worldcup-banners.png",
+    "box": [
+      1350,
+      255,
+      1717,
+      488
+    ],
+    "size": [
+      367,
+      233
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "motifs/channel_stadium_ball",
+    "path": "assets/generated/world-cup/extracted/motifs/channel_stadium_ball.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-channel-worldcup-banners.png",
+    "box": [
+      0,
+      495,
+      335,
+      690
+    ],
+    "size": [
+      335,
+      195
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "motifs/channel_medal_badge",
+    "path": "assets/generated/world-cup/extracted/motifs/channel_medal_badge.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-channel-worldcup-banners.png",
+    "box": [
+      1400,
+      495,
+      1717,
+      690
+    ],
+    "size": [
+      317,
+      195
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "motifs/channel_stopwatch_countdown",
+    "path": "assets/generated/world-cup/extracted/motifs/channel_stopwatch_countdown.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-channel-worldcup-banners.png",
+    "box": [
+      0,
+      695,
+      355,
+      912
+    ],
+    "size": [
+      355,
+      217
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "motifs/channel_hourglass_ball",
+    "path": "assets/generated/world-cup/extracted/motifs/channel_hourglass_ball.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-channel-worldcup-banners.png",
+    "box": [
+      1378,
+      695,
+      1717,
+      912
+    ],
+    "size": [
+      339,
+      217
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "icons/event_goal_orbit_ball",
+    "path": "assets/generated/world-cup/extracted/icons/event_goal_orbit_ball.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-priority-banners.png",
+    "box": [
+      0,
+      8,
+      420,
+      255
+    ],
+    "size": [
+      420,
+      247
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "characters/event_goal_cheer_character",
+    "path": "assets/generated/world-cup/extracted/characters/event_goal_cheer_character.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-priority-banners.png",
+    "box": [
+      1410,
+      8,
+      1717,
+      255
+    ],
+    "size": [
+      307,
+      247
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "characters/event_var_mascot_headset",
+    "path": "assets/generated/world-cup/extracted/characters/event_var_mascot_headset.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-priority-banners.png",
+    "box": [
+      0,
+      265,
+      360,
+      485
+    ],
+    "size": [
+      360,
+      220
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "icons/event_var_monitor",
+    "path": "assets/generated/world-cup/extracted/icons/event_var_monitor.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-priority-banners.png",
+    "box": [
+      1410,
+      265,
+      1717,
+      485
+    ],
+    "size": [
+      307,
+      220
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "icons/event_substitution_bench_arrows",
+    "path": "assets/generated/world-cup/extracted/icons/event_substitution_bench_arrows.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-priority-banners.png",
+    "box": [
+      0,
+      490,
+      395,
+      690
+    ],
+    "size": [
+      395,
+      200
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "characters/event_substitution_character_board",
+    "path": "assets/generated/world-cup/extracted/characters/event_substitution_character_board.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-priority-banners.png",
+    "box": [
+      1430,
+      490,
+      1717,
+      690
+    ],
+    "size": [
+      287,
+      200
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "icons/event_cards_whistle",
+    "path": "assets/generated/world-cup/extracted/icons/event_cards_whistle.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-priority-banners.png",
+    "box": [
+      0,
+      695,
+      360,
+      910
+    ],
+    "size": [
+      360,
+      215
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "characters/event_card_referee_mascot",
+    "path": "assets/generated/world-cup/extracted/characters/event_card_referee_mascot.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-priority-banners.png",
+    "box": [
+      1400,
+      695,
+      1717,
+      910
+    ],
+    "size": [
+      317,
+      215
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "characters/support_foul_whistle_mascot",
+    "path": "assets/generated/world-cup/extracted/characters/support_foul_whistle_mascot.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-support-banners.png",
+    "box": [
+      0,
+      55,
+      420,
+      330
+    ],
+    "size": [
+      420,
+      275
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "icons/support_foul_ball",
+    "path": "assets/generated/world-cup/extracted/icons/support_foul_ball.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-support-banners.png",
+    "box": [
+      1465,
+      55,
+      1717,
+      330
+    ],
+    "size": [
+      252,
+      275
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "characters/support_offside_character_flag",
+    "path": "assets/generated/world-cup/extracted/characters/support_offside_character_flag.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-support-banners.png",
+    "box": [
+      0,
+      342,
+      330,
+      610
+    ],
+    "size": [
+      330,
+      268
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "motifs/support_offside_tactics_board",
+    "path": "assets/generated/world-cup/extracted/motifs/support_offside_tactics_board.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-support-banners.png",
+    "box": [
+      1385,
+      342,
+      1717,
+      610
+    ],
+    "size": [
+      332,
+      268
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "motifs/support_goal_net_mesh",
+    "path": "assets/generated/world-cup/extracted/motifs/support_goal_net_mesh.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-support-banners.png",
+    "box": [
+      0,
+      625,
+      310,
+      868
+    ],
+    "size": [
+      310,
+      243
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "characters/support_generic_penguin_ball",
+    "path": "assets/generated/world-cup/extracted/characters/support_generic_penguin_ball.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-event-support-banners.png",
+    "box": [
+      1360,
+      625,
+      1717,
+      868
+    ],
+    "size": [
+      357,
+      243
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "characters/stat_count_penguin_side",
+    "path": "assets/generated/world-cup/extracted/characters/stat_count_penguin_side.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-spotlight-banners.png",
+    "box": [
+      0,
+      48,
+      390,
+      315
+    ],
+    "size": [
+      390,
+      267
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "characters/stat_count_streamer_side",
+    "path": "assets/generated/world-cup/extracted/characters/stat_count_streamer_side.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-spotlight-banners.png",
+    "box": [
+      1460,
+      48,
+      1717,
+      315
+    ],
+    "size": [
+      257,
+      267
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "motifs/stat_player_medal_frame",
+    "path": "assets/generated/world-cup/extracted/motifs/stat_player_medal_frame.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-spotlight-banners.png",
+    "box": [
+      0,
+      340,
+      390,
+      612
+    ],
+    "size": [
+      390,
+      272
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "characters/stat_player_mascot_medal",
+    "path": "assets/generated/world-cup/extracted/characters/stat_player_mascot_medal.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-spotlight-banners.png",
+    "box": [
+      1370,
+      340,
+      1717,
+      612
+    ],
+    "size": [
+      347,
+      272
+    ],
+    "category": "characters"
+  },
+  {
+    "slug": "motifs/stat_tactical_pitch",
+    "path": "assets/generated/world-cup/extracted/motifs/stat_tactical_pitch.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-spotlight-banners.png",
+    "box": [
+      0,
+      630,
+      370,
+      870
+    ],
+    "size": [
+      370,
+      240
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "motifs/stat_chart_ball",
+    "path": "assets/generated/world-cup/extracted/motifs/stat_chart_ball.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-spotlight-banners.png",
+    "box": [
+      1340,
+      630,
+      1717,
+      870
+    ],
+    "size": [
+      377,
+      240
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "icons/stat_count_icon_lane",
+    "path": "assets/generated/world-cup/extracted/icons/stat_count_icon_lane.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-spotlight-banners.png",
+    "box": [
+      360,
+      50,
+      1380,
+      315
+    ],
+    "size": [
+      1020,
+      265
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "icons/stat_player_metric_icons",
+    "path": "assets/generated/world-cup/extracted/icons/stat_player_metric_icons.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-spotlight-banners.png",
+    "box": [
+      430,
+      430,
+      1250,
+      585
+    ],
+    "size": [
+      820,
+      155
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "motifs/stat_momentum_bar",
+    "path": "assets/generated/world-cup/extracted/motifs/stat_momentum_bar.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-spotlight-banners.png",
+    "box": [
+      460,
+      760,
+      1320,
+      870
+    ],
+    "size": [
+      860,
+      110
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "motifs/stat_possession_dual_meter",
+    "path": "assets/generated/world-cup/extracted/motifs/stat_possession_dual_meter.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-comparison-banners.png",
+    "box": [
+      0,
+      5,
+      1717,
+      178
+    ],
+    "size": [
+      1717,
+      173
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "motifs/stat_shots_three_rows",
+    "path": "assets/generated/world-cup/extracted/motifs/stat_shots_three_rows.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-comparison-banners.png",
+    "box": [
+      0,
+      185,
+      1717,
+      355
+    ],
+    "size": [
+      1717,
+      170
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "icons/stat_fouls_cards_flags_icons",
+    "path": "assets/generated/world-cup/extracted/icons/stat_fouls_cards_flags_icons.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-comparison-banners.png",
+    "box": [
+      300,
+      365,
+      1410,
+      530
+    ],
+    "size": [
+      1110,
+      165
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "motifs/stat_percent_meter",
+    "path": "assets/generated/world-cup/extracted/motifs/stat_percent_meter.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-comparison-banners.png",
+    "box": [
+      0,
+      542,
+      1717,
+      710
+    ],
+    "size": [
+      1717,
+      168
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "motifs/stat_player_summary_strip",
+    "path": "assets/generated/world-cup/extracted/motifs/stat_player_summary_strip.png",
+    "source": "assets/generated/world-cup/bottom-bar/round1-stat-comparison-banners.png",
+    "box": [
+      0,
+      720,
+      1717,
+      880
+    ],
+    "size": [
+      1717,
+      160
+    ],
+    "category": "motifs"
+  },
+  {
+    "slug": "icons/simple_goal_ball_net",
+    "path": "assets/generated/world-cup/extracted/icons/simple_goal_ball_net.png",
+    "source": "assets/generated/world-cup/bottom-bar/round2-simple-event-banners.png",
+    "box": [
+      20,
+      12,
+      230,
+      182
+    ],
+    "size": [
+      210,
+      170
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "icons/simple_var_monitor",
+    "path": "assets/generated/world-cup/extracted/icons/simple_var_monitor.png",
+    "source": "assets/generated/world-cup/bottom-bar/round2-simple-event-banners.png",
+    "box": [
+      35,
+      202,
+      215,
+      350
+    ],
+    "size": [
+      180,
+      148
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "icons/simple_substitution_arrows",
+    "path": "assets/generated/world-cup/extracted/icons/simple_substitution_arrows.png",
+    "source": "assets/generated/world-cup/bottom-bar/round2-simple-event-banners.png",
+    "box": [
+      35,
+      395,
+      225,
+      540
+    ],
+    "size": [
+      190,
+      145
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "icons/simple_cards",
+    "path": "assets/generated/world-cup/extracted/icons/simple_cards.png",
+    "source": "assets/generated/world-cup/bottom-bar/round2-simple-event-banners.png",
+    "box": [
+      35,
+      575,
+      220,
+      730
+    ],
+    "size": [
+      185,
+      155
+    ],
+    "category": "icons"
+  },
+  {
+    "slug": "icons/simple_whistle",
+    "path": "assets/generated/world-cup/extracted/icons/simple_whistle.png",
+    "source": "assets/generated/world-cup/bottom-bar/round2-simple-event-banners.png",
+    "box": [
+      35,
+      755,
+      220,
+      900
+    ],
+    "size": [
+      185,
+      145
+    ],
+    "category": "icons"
+  }
+]

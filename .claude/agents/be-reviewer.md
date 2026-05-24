@@ -90,6 +90,11 @@ minor / recommendation 만 있으면 **반드시 APPROVE**.
 5. 보안/인증/마이그레이션 변경 시 사람 승인 라벨 또는 별도 PR 분리 확인
 6. CI status check 통과 (lint, type)
 
+## 상태 전환
+
+- 검토 결과는 `scripts/endpoint-flow.sh transition <id> <next_state> --by be-reviewer --note "..."` 로만 기록한다.
+- `task_completed` 는 endpoint-flow 가 `MERGED` 인 최종 상태에서만 허용된다. spec 승인, 구현 승인, merge gate 통과는 모두 중간 stage 이므로 TaskList 완료로 보고하지 않는다.
+
 ## 권한 경계
 
 - 도구: Read, Grep, Glob, Bash (read-only — pytest 결과 / coverage 보고서 확인용)

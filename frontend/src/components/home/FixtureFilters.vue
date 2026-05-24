@@ -1,18 +1,10 @@
 <script setup lang="ts">
 import { useHomeStore } from '@/stores/home'
-import { slugFromId } from '@/lib/league-colors'
+import LeagueMark from '@/components/common/LeagueMark.vue'
+import { HOME_LEAGUE_TABS } from '@/lib/league-colors'
 import type { Period } from '@/types/home'
 
 const home = useHomeStore()
-
-const leagueTabs: { id: number | null; label: string }[] = [
-  { id: null, label: '전체' },
-  { id: 39, label: 'EPL' },
-  { id: 2, label: 'UCL' },
-  { id: 3, label: 'UEL' },
-  { id: 48, label: '카라바오' },
-  { id: 45, label: 'FA' },
-]
 
 const periodToggles: { v: Period; label: string }[] = [
   { v: 'month', label: '월' },
@@ -24,17 +16,25 @@ const periodToggles: { v: Period; label: string }[] = [
   <div class="filters">
     <div class="filters__row" role="tablist" aria-label="리그 필터">
       <button
-        v-for="t in leagueTabs"
+        v-for="t in HOME_LEAGUE_TABS"
         :key="t.label"
         type="button"
         role="tab"
         :aria-selected="home.fixtures.filter.league_id === t.id"
-        :data-league="slugFromId(t.id ?? undefined) || undefined"
+        :data-league="t.slug || undefined"
         :data-testid="'league-tab-' + (t.id ?? 'all')"
         :class="['tab', { 'tab--active': home.fixtures.filter.league_id === t.id }]"
         @click="home.setLeagueFilter(t.id)"
       >
-        {{ t.label }}
+        <LeagueMark
+          v-if="t.id !== null"
+          :external-id="t.id"
+          :slug="t.slug"
+          :logo-url="t.logoUrl"
+          :label="t.label"
+          size="sm"
+        />
+        <span class="tab__label">{{ t.label }}</span>
       </button>
     </div>
     <div class="filters__row filters__row--date" aria-label="날짜 선택">
@@ -91,8 +91,15 @@ const periodToggles: { v: Period; label: string }[] = [
   border-bottom: 1px solid var(--color-border);
 }
 .filters__row { display: flex; gap: 6px; flex-wrap: wrap; }
+.filters__row:first-child {
+  gap: 8px;
+}
 .tab,
 .toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
   background: transparent;
   border: 1px solid var(--color-border);
   color: var(--color-fg);
@@ -100,6 +107,18 @@ const periodToggles: { v: Period; label: string }[] = [
   border-radius: 999px;
   cursor: pointer;
   font-size: 12px;
+}
+.tab {
+  gap: 8px;
+  min-width: 78px;
+  min-height: 36px;
+  padding: 6px 13px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tab__label {
+  line-height: 1;
+  white-space: nowrap;
 }
 .tab--active {
   background: var(--theme-primary, var(--color-fg));
@@ -109,6 +128,9 @@ const periodToggles: { v: Period; label: string }[] = [
 .toggle--active {
   background: var(--color-fg);
   color: var(--color-bg);
+}
+.toggle {
+  min-width: 38px;
 }
 .filters__row--date {
   align-items: center;

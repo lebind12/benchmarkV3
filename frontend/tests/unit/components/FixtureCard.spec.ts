@@ -43,6 +43,12 @@ describe('FixtureCard', () => {
     const w = mount(FixtureCard, { props: { fixture: makeFixture() } })
     expect(w.attributes('data-league')).toBe('premier-league')
   })
+  it('renders league logo inside fixture badge', () => {
+    const w = mount(FixtureCard, { props: { fixture: makeFixture() } })
+    const badge = w.get('[data-testid="fixture-badge-9001"]')
+    expect(badge.find('img').attributes('src')).toContain('/football/leagues/39.png')
+    expect(badge.text()).toContain('EPL')
+  })
   it('emits open with id when clicked', async () => {
     const w = mount(FixtureCard, { props: { fixture: makeFixture() } })
     await w.trigger('click')

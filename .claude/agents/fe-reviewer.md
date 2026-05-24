@@ -117,6 +117,11 @@ APPROVE 후 다음 7개 모두 통과 시 `PR_CREATED`:
 9. zod 런타임 검증 통과 (모든 응답)
 10. L3 가 prod 데이터를 변경하지 않았음을 확인 (audit 로그)
 
+## 상태 전환
+
+- 검토 결과는 `scripts/feature-flow.sh transition <id> <next_state> --by fe-reviewer --note "..."` 로만 기록한다.
+- `task_completed` 는 feature-flow 가 `FE_DONE_AWAITING_BE` 또는 `DONE` 인 최종 상태에서만 허용된다. plan 승인, 구현 승인, merge gate 통과는 모두 중간 stage 이므로 TaskList 완료로 보고하지 않는다.
+
 ## 권한 경계
 
 - 도구: Read, Grep, Glob, Bash (read-only — npm 명령은 결과 조회만)

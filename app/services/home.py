@@ -10,7 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 
-ALLOWED_LEAGUE_IDS = {39, 2, 3, 48, 45}
+ALLOWED_LEAGUE_IDS = {39, 2, 3, 48, 45, 1}
 METRICS = {"goals", "assists", "yellow_cards", "red_cards"}
 KST = ZoneInfo("Asia/Seoul")
 
@@ -20,7 +20,7 @@ LEAGUE_SLUGS = {
     3: "europa-league",
     48: "carabao-cup",
     45: "fa-cup",
-    1: "world-cup",
+    1: "world-cup-2026",
 }
 
 
@@ -217,8 +217,9 @@ def get_home_standings(session: Session, *, league_id: int = 39) -> dict[str, An
     rows = session.execute(
         text(
             """
-            SELECT s.rank, s.points, s.played, s.win, s.draw, s.loss,
+            SELECT s.group_name, s.rank, s.points, s.played, s.win, s.draw, s.loss,
                    s.goals_for, s.goals_against,
+                   COALESCE(s.goals_diff, s.goals_for - s.goals_against) AS goal_diff,
                    t.external_id AS team_external_id, t.slug AS team_slug,
                    t.name AS team_name, t.logo_url AS team_logo_url,
                    tt.name_ko AS team_name_ko, tt.short_name_ko AS team_short_name_ko
@@ -228,7 +229,7 @@ def get_home_standings(session: Session, *, league_id: int = 39) -> dict[str, An
             LEFT JOIN team_translation tt ON tt.team_id = t.id
             WHERE l.external_id = :league_id
               AND s.season_year = :season
-            ORDER BY s.rank ASC, s.id ASC
+            ORDER BY s.group_name NULLS LAST, s.rank ASC, s.id ASC
             """
         ),
         {"league_id": league_id, "season": season},
@@ -238,6 +239,7 @@ def get_home_standings(session: Session, *, league_id: int = 39) -> dict[str, An
         "season": season,
         "rows": [
             {
+                "group_name": row["group_name"],
                 "rank": row["rank"],
                 "team": _team_ref(row, prefix="team"),
                 "points": row["points"],
@@ -247,6 +249,7 @@ def get_home_standings(session: Session, *, league_id: int = 39) -> dict[str, An
                 "loss": row["loss"],
                 "goals_for": row["goals_for"],
                 "goals_against": row["goals_against"],
+                "goal_diff": row["goal_diff"],
             }
             for row in rows
         ],

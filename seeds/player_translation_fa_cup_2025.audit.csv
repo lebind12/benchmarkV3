@@ -1,0 +1,585 @@
+external_id,eng_name,full_name,team,method,matched_name,name_ko,short_name_ko
+538387,A. Abdulmalik,A. Abdulmalik,Boreham Wood,phonetic-fallback-openai,,알리 압둘말릭,압둘말릭
+362145,A. Ahmed,Ali Ahmed,Norwich,phonetic-fallback-openai,,알리 아흐메드,아흐메드
+19844,A. Bass,Alexander Michael Bass,Peterborough,phonetic-fallback-openai,,알렉산더 마이클 바스,바스
+20434,A. Bates,Alfie Bates,Tamworth,phonetic-fallback-openai,,알피 베이츠,베이츠
+19466,A. Bell,Amari'i Kyren Bell,Charlton,phonetic-fallback-openai,,아마리 벨,벨
+19446,A. Browne,Alan James Browne,Middlesbrough,phonetic-fallback-openai,,앨런 제임스 브라운,브라운
+19859,A. Cannon,Andy Cannon,Burton Albion,phonetic-fallback-openai,,앤디 캐넌,캐넌
+17551,A. Collins,Aaron Graham John Collins,Milton Keynes Dons,phonetic-fallback-openai,,아론 그레이엄 존 콜린스,콜린스
+19772,A. Connolly,Aaron Anthony Connolly,Leyton Orient,phonetic-fallback-openai,,아론 앤서니 코널리,코널리
+17910,A. Crookes,Adam Mark Crookes,Gainsborough Trinity,phonetic-fallback-openai,,아담 마크 크룩스,크룩스
+578928,A. Dausch,A. Dausch,Forest Green,phonetic-fallback-openai,,에이 다우시,다우시
+138791,A. Davies,Archie Daniel Davies,Carlisle,phonetic-fallback-openai,,아치 다니엘 데이비스,데이비스
+138880,A. Desbois,Adam Desbois,Slough Town,phonetic-fallback-openai,,아담 데스보이스,데스보이스
+401091,A. Doherty,Aodhan Doherty,Blackburn,phonetic-fallback-openai,,아오단 도허티,도허티
+311817,A. Dorrington,Alfie Dorrington,Salford City,phonetic-fallback-openai,,알피 도링턴,도링턴
+19829,A. Doughty,Alfie Henry Harman Doughty,Millwall,phonetic-fallback-openai,,알피 도티,도티
+413136,A. Elliott-Wheeler,Aidan Elliott-Wheeler,Gateshead,phonetic-fallback-openai,,에이덴 엘리엇-휠러,엘리엇-휠러
+304026,A. Forson,Amankwah Forson,Norwich,phonetic-fallback-openai,,아만콰 포슨,포슨
+335813,A. Francis-Clarke,Aidan Francis-Clarke,Braintree,phonetic-fallback-openai,,에이덴 프란시스-클라크,프란시스-클라크
+284406,A. Gilchrist,Alfie Gilchrist,West Brom,phonetic-fallback-openai,,알피 길크리스트,길크리스트
+18810,A. Gray,Andre Anthony Gray,Port Vale,wikidata-ko-label,Andre Gray,안드레 그레이,그레이
+118604,A. Hayden,Aaron Edward-George Hayden,Carlisle,phonetic-fallback-openai,,아론 에드워드-조지 헤이든,헤이든
+327734,A. Higgins,Akeel Higgins,Exeter City,phonetic-fallback-openai,,아킬 히긴스,히긴스
+167043,A. Jackson,Ashley Jackson,Gainsborough Trinity,phonetic-fallback-openai,,애슐리 잭슨,잭슨
+167346,A. Janneh,Ansu Janneh,Slough Town,phonetic-fallback-openai,,안수 잔네,잔네
+60648,A. Jatta,Alassana Jatta,Notts County,phonetic-fallback-openai,,알라산나 자타,자타
+103145,A. Jones,Aaron Jones,Sutton Utd,phonetic-fallback-openai,,아론 존스,존스
+288200,A. Lloyd,Alfie David Lloyd,Leyton Orient,phonetic-fallback-openai,,알피 로이드,로이드
+175037,A. Malanda,Adilson Malanda,Middlesbrough,phonetic-fallback-openai,,아딜손 말란다,말란다
+37236,A. Matusiwa,Azor Matusiwa,Ipswich,phonetic-fallback-openai,,아조르 마투시와,마투시와
+276553,A. Mbengue,Amadou Salif Mbengue,QPR,phonetic-fallback-openai,,아마두 살리프 엠벵게,엠벵게
+19834,A. Morgan,Albie Robert Morgan,Blackpool,phonetic-fallback-openai,,알비 로버트 모건,모건
+632115,A. Moseley,A. Moseley,Wigan,phonetic-fallback-openai,,에이 모즐리,모즐리
+20097,A. Nadesan,Ashley Kevin Nadesan,Sutton Utd,phonetic-fallback-openai,,애슐리 케빈 나데산,나데산
+137229,A. Odimayo,Akinwale Joseph Odimayo,Newport County,phonetic-fallback-openai,,아킨왈 조셉 오디마요,오디마요
+20361,A. Oshilaja,Abdulyussuf Adedeji Adeniyi Oshilaja,Mansfield Town,phonetic-fallback-openai,,아브둘유수프 아데데지 아데니이 오시라자,오시라자
+17775,A. Pierre,Aaron Jordan Pierre,Eastleigh,phonetic-fallback-openai,,아론 조던 피에르,피에르
+138934,A. Pressley,Aaron Alex Pressley,Walsall,phonetic-fallback-openai,,아론 알렉스 프레슬리,프레슬리
+344816,A. Priske,August Priske Flyger,Birmingham,phonetic-fallback-openai,,아우구스트 프리스케 플리거,플리거
+69391,A. Simpson,Aaron Simpson,Gainsborough Trinity,phonetic-fallback-openai,,아론 심슨,심슨
+18846,A. Wan-Bissaka,Aaron Wan-Bissaka,West Ham,wikidata-ko-label,Aaron Wan-Bissaka,에런 완비사카,완비사카
+20374,A. Wordsworth,Anthony Daniel Wordsworth,Maldon & Tiptree,phonetic-fallback-openai,,앤서니 다니엘 워즈워스,워즈워스
+313242,Abraham Kanu,Abraham Kanu,Forest Green,phonetic-fallback-openai,,에이브러햄 카누,카누
+331564,Angel Waruih,Angel Waruih,Eastleigh,phonetic-fallback-openai,,엔젤 와루이,와루이
+449224,Archie Harris,Archie Harris,Eastleigh,phonetic-fallback-openai,,아치 해리스,해리스
+19627,B. Amos,Benjamin Paul Amos,Port Vale,phonetic-fallback-openai,,벤자민 폴 에이모스,에이모스
+19249,B. Assombalonga,Britt Curtis Assombalonga,Barnet,wikidata-ko-label,Britt Assombalonga,브리트 아솜발롱가,아솜발롱가
+557347,B. Bateman,B. Bateman,Birmingham,phonetic-fallback-openai,,비. 베이트먼,베이트먼
+394585,B. Cadamarteri,Bailey-Tye Cadamarteri,Sheffield Wednesday; Wrexham,phonetic-fallback-openai,,베일리-타이 카다마르테리,카다마르테리
+19437,B. Davies,Benjamin Keith Davies,Oxford United,known-ko,Benjamin Davies,벤 데이비스,데이비스
+19004,B. De Cordova-Reid,Bobby Armani De Cordova-Reid,Leicester,phonetic-fallback-openai,,바비 아르마니 데 코르도바-리드,데 코르도바-리드
+460966,B. Enoru,Beck-Ray Besongbap Enoru,Tamworth,phonetic-fallback-openai,,벡-레이 베송밥 에노루,에노루
+19038,B. Hamer,Benjamin John Hamer,QPR,phonetic-fallback-openai,,벤자민 존 헤이머,헤이머
+118463,B. Johnson,Bobby Johnson,Gainsborough Trinity,phonetic-fallback-openai,,바비 존슨,존슨
+373420,B. Kirkman,Billy Naylor Kirkman,Swindon Town,phonetic-fallback-openai,,빌리 네일러 커크먼,커크먼
+18917,B. Mee,Benjamin Thomas Mee,Sheffield Utd,phonetic-fallback-openai,,벤자민 토마스 미,미
+167291,B. Milnes,Ben Milnes,Tamworth,phonetic-fallback-openai,,벤 밀네스,밀네스
+19642,B. Mitchell,Billy James Mitchell,Millwall,phonetic-fallback-openai,,빌리 제임스 미첼,미첼
+329339,B. Pendleton,Byron Pendleton,Brackley Town,phonetic-fallback-openai,,바이런 펜들턴,펜들턴
+19455,B. Potts,Bradley Potts,Preston,phonetic-fallback-openai,,브래들리 포츠,포츠
+337495,B. Powell,Brandon Powell,Blackburn,phonetic-fallback-openai,,브랜든 파웰,파웰
+88457,B. Sheaf,Benjamin David Sheaf,Wrexham,phonetic-fallback-openai,,벤자민 데이비드 쉬프,쉬프
+17578,B. Stevenson,Ben Edward Stevenson,Cheltenham,phonetic-fallback-openai,,벤 에드워드 스티븐슨,스티븐슨
+557372,B. Williams,B. Williams,Southampton,phonetic-fallback-openai,,비. 윌리엄스,윌리엄스
+538470,B. Williams,B. Williams,Gateshead,phonetic-fallback-openai,,비. 윌리엄스,윌리엄스
+492118,B. Wodskou,Ben Wodskou,Brackley Town,phonetic-fallback-openai,,벤 워드스쿠,워드스쿠
+284215,B. Woods,Benjamin Woods,Peterborough,phonetic-fallback-openai,,벤자민 우즈,우즈
+449056,Ben Lomax,Ben Lomax,Port Vale,phonetic-fallback-openai,,벤 로맥스,로맥스
+330206,Bradley Mayo,Bradley Mayo,Birmingham,phonetic-fallback-openai,,브래들리 메요,메요
+393349,Brandon Edward Bak,Brandon Edward Bak,Weston-super-Mare,phonetic-fallback-openai,,브랜든 에드워드 백,백
+615688,Brian Nelson,Brian Nelson,Slough Town,phonetic-fallback-openai,,브라이언 넬슨,넬슨
+2380,C. Akpom,Chuba Amechi Akpom,Ipswich,wikidata-ko-label,Chuba Akpom,추바 아크폼,아크폼
+17431,C. Aneke,Chukwuemeka Ademola Amachi Aneke,Shrewsbury,phonetic-fallback-openai,,추크웨메카 아데몰라 아마치 아네케,아네케
+538491,C. Bell,C. Bell,Sutton Utd,phonetic-fallback-openai,,씨. 벨,벨
+122094,C. Bishop,Colby David Bishop,Portsmouth,phonetic-fallback-openai,,콜비 데이비드 비숍,비숍
+20450,C. Blackett-Taylor,Corey Josiah Paul Blackett-Taylor,Derby,phonetic-fallback-openai,,코리 조사이아 폴 블라켓-테일러,블라켓-테일러
+538398,C. Bone,C. Bone,Gateshead,phonetic-fallback-openai,,씨. 본,본
+44939,C. Brown,Ciaron Maurice Brown,Oxford United,phonetic-fallback-openai,,카이런 모리스 브라운,브라운
+18251,C. Bush,Christopher Miles Bush,Boreham Wood,phonetic-fallback-openai,,크리스토퍼 마일스 부시,부시
+82670,C. Clayden,Charles Clayden,Boreham Wood,phonetic-fallback-openai,,찰스 클레이든,클레이든
+215132,C. Conn-Clarke,Christopher Seamus Michael Conn-Clarke,Carlisle,phonetic-fallback-openai,,크리스토퍼 세이머스 마이클 콘-클라크,콘-클라크
+231051,C. Cooper,Chay Cooper,Braintree,phonetic-fallback-openai,,체이 쿠퍼,쿠퍼
+18820,C. Coventry,Conor James Coventry,Charlton,phonetic-fallback-openai,,코너 제임스 코벤트리,코벤트리
+18989,C. Coxe,Cameron Terry Coxe,Boreham Wood,phonetic-fallback-openai,,캐머런 테리 콕스,콕스
+20403,C. Grant,Conor James Grant,Accrington ST,phonetic-fallback-openai,,코너 제임스 그랜트,그랜트
+19714,C. Hall,Connor Matthew Hall,Brackley Town,phonetic-fallback-openai,,코너 매튜 홀,홀
+45137,C. Harper,Cameron Harper,Carlisle,phonetic-fallback-openai,,캐머런 하퍼,하퍼
+570093,C. Ibeh,C. Ibeh,Middlesbrough,phonetic-fallback-openai,,씨 아이베,아이베
+18652,C. James,Cameron Lewis James,Maldon & Tiptree,phonetic-fallback-openai,,캐머런 루이스 제임스,제임스
+152697,C. Johnston,Carl Robert Johnston,Peterborough,phonetic-fallback-openai,,칼 로버트 존스턴,존스턴
+19529,C. Lakin,Charlie Lakin,Walsall,phonetic-fallback-openai,,찰리 라킨,라킨
+630605,C. Llyton,C. Llyton,Wigan,phonetic-fallback-openai,,씨 릿턴,릿턴
+412926,C. Makosso,Christ Melik Makosso,Luton; Oxford United,phonetic-fallback-openai,,크리스 멜릭 마코소,마코소
+440043,C. McLean,Crispin McLean,Fleetwood Town,phonetic-fallback-openai,,크리스핀 맥린,맥린
+18866,C. Mepham,Christopher James Mepham,West Brom,phonetic-fallback-openai,,크리스토퍼 제임스 멥햄,멥햄
+20109,C. Nelson,Curtis Alexander Nelson,Derby,phonetic-fallback-openai,,커티스 알렉산더 넬슨,넬슨
+557442,C. O'Neill,C. O'Neill,Arsenal,phonetic-fallback-openai,,씨 오닐,오닐
+377796,C. O&apos;Brien,Connor O'Brien,Accrington ST,phonetic-fallback-openai,,코너 오브라이언,오브라이언
+291019,C. O&apos;Connell,Charlie O'Connell,Boreham Wood,phonetic-fallback-openai,,찰리 오코넬,오코넬
+20138,C. Ogilvie,Connor Stuart Ogilvie,Portsmouth,wikidata-ko-label,Connor Ogilvie,코너 오길비,오길비
+17805,C. Pring,Cameron Lewis Moir-Pring,Bristol City,phonetic-fallback-openai,,캐머런 루이스 모이어-프링,프링
+18386,C. Reynolds,Callum Reynolds,Boreham Wood,phonetic-fallback-openai,,캘럼 레이놀즈,레이놀즈
+108046,C. Scott,Cedwyn Scott,South Shields,phonetic-fallback-openai,,세드윈 스콧,스콧
+17577,C. Senior,Courtney Fitzroy Senior,Maldon & Tiptree,phonetic-fallback-openai,,코트니 피츠로이 세니어,세니어
+44875,C. Shaughnessy,Conor Glynn Shaughnessy,Portsmouth,phonetic-fallback-openai,,코너 글린 쇼니시,쇼니시
+70908,C. Stockton,Cole John Stockton,Salford City,phonetic-fallback-openai,,콜 존 스톡턴,스톡턴
+272558,C. Sykes,Cain Sykes,South Shields,phonetic-fallback-openai,,케인 사이크스,사이크스
+344878,C. Tripp,Callum Tripp,Milton Keynes Dons,phonetic-fallback-openai,,캘럼 트립,트립
+17926,C. Whelan,Callum Tyler Whelan,Carlisle,phonetic-fallback-openai,,캘럼 타일러 휠란,휠란
+20286,Cameron Akash James Gregory,Cameron Akash James Gregory,Brackley Town,phonetic-fallback-openai,,캐머런 아카쉬 제임스 그레고리,그레고리
+304318,Cameron Bragg,Cameron Bragg,Southampton,phonetic-fallback-openai,,캐머런 브래그,브래그
+187214,Carlos Vicente,Carlos Vicente Robles,Birmingham,phonetic-fallback-openai,,카를로스 비센테 로블레스,로블레스
+614716,Charles Price,Charles Price,Tamworth,phonetic-fallback-openai,,찰스 프라이스,프라이스
+593011,Conor Haughey,Conor Haughey,Fleetwood Town,phonetic-fallback-openai,,코너 하우히,하우히
+126789,D. Ajiboye,David Ibukun Ajiboye,Carlisle,phonetic-fallback-openai,,데이비드 이부쿤 아지보예,아지보예
+1186,D. Akintola,Babajide David Akintola,Hull City,phonetic-fallback-openai,,바바지데 데이비드 아킨톨라,아킨톨라
+303460,D. Ballard,Dominic Ballard,Leyton Orient,phonetic-fallback-openai,,도미닉 발라드,발라드
+18606,D. Bernard,Dominic Archie Bernard,Weston-super-Mare,phonetic-fallback-openai,,도미닉 아치 버나드,버나드
+127409,D. Carson,David Carson,South Shields,phonetic-fallback-openai,,데이비드 카슨,카슨
+156817,D. Creaney,Daniel James Creaney,Tamworth,phonetic-fallback-openai,,다니엘 제임스 크리니,크리니
+293314,D. De Silva,Dillon Senan De Silva,Tamworth,phonetic-fallback-openai,,딜론 세난 데 실바,데 실바
+201709,D. Dike,Daryl Enyinnaya Dike,West Brom,phonetic-fallback-openai,,다릴 에닌나야 다이크,다이크
+231068,D. Dodds,Daniel Dodds,South Shields,phonetic-fallback-openai,,다니엘 도즈,도즈
+114844,D. Ferguson,David Lee Ferguson,Gateshead,phonetic-fallback-openai,,데이비드 리 퍼거슨,퍼거슨
+19577,D. Furlong,Darnell Anthony Furlong,Ipswich,phonetic-fallback-openai,,다넬 앤서니 퍼롱,퍼롱
+459175,D. Gonzalez-Birchall,Dani Gonzalez-Birchall,Swindon Town,phonetic-fallback-openai,,다니 곤잘레스-버첼,버첼
+282124,D. Gyabi,Darko Boateng Gyabi,Hull City,wikidata-ko-label,Darko Gyabi,다코 갸비,갸비
+18068,D. Happe,Daniel Keith Happe,Leyton Orient,phonetic-fallback-openai,,다니엘 키스 합프,합프
+545974,D. Iddrisa,D. Iddrisa,West Brom,phonetic-fallback-openai,,디 이드리사,이드리사
+18955,D. Ings,Daniel William John Ings,Sheffield Utd,phonetic-fallback-openai,,다니엘 윌리엄 존 잉스,잉스
+119957,D. Longe-King,David Enitan Damilola Longe-King,Chelmsford City,phonetic-fallback-openai,,데이비드 에니탄 다밀로라 롱킹,롱킹
+199852,D. Martin,Daniel John Martin,Weston-super-Mare,phonetic-fallback-openai,,다니엘 존 마틴,마틴
+19108,D. McGoldrick,David James McGoldrick,Barnsley,phonetic-fallback-openai,,데이비드 제임스 맥골드릭,맥골드릭
+19641,D. McNamara,Danny John McNamara,Millwall,phonetic-fallback-openai,,댄니 존 맥나마라,맥나마라
+155212,D. Morse,Dillon Morse,South Shields,phonetic-fallback-openai,,딜런 모스,모스
+626591,D. Moses,D. Moses,Sheffield Wednesday,phonetic-fallback-openai,,디 모세스,모세스
+17647,D. Newton,Daniel James Newton,Brackley Town,phonetic-fallback-openai,,다니엘 제임스 뉴턴,뉴턴
+430352,D. Ogbonna,David Ogbonna,Sutton Utd,phonetic-fallback-openai,,데이비드 옥본나,옥본나
+411808,D. Richards,Dujuan Odile Richards,Leicester,phonetic-fallback-openai,,두후안 오딜 리처즈,리처즈
+315769,D. Robinson,Darren Robert Russell Robinson,Doncaster,phonetic-fallback-openai,,다렌 로버트 러셀 로빈슨,러셀
+278113,D. Robson,David Leslie Robson,Gainsborough Trinity,phonetic-fallback-openai,,데이비드 레슬리 롭슨,롭슨
+482048,D. Singh-Hurditt,Damerai Singh-Hurditt,Milton Keynes Dons,phonetic-fallback-openai,,다메라이 싱 허디트,허디트
+17410,D. Telford,Dominic David Telford,Gateshead,phonetic-fallback-openai,,도미닉 데이비드 텔포드,텔포드
+283222,D. Waldron,Danny Waldron,Brackley Town,phonetic-fallback-openai,,댄니 월드런,월드런
+18146,D. Ward,Daniel Ward,Wrexham,phonetic-fallback-openai,,다니엘 워드,워드
+167147,D. Ward,Daniel John Ward,South Shields,phonetic-fallback-openai,,다니엘 존 워드,워드
+167396,D. Williams,Dylan Williams,Maldon & Tiptree,phonetic-fallback-openai,,딜런 윌리엄스,윌리엄스
+154807,Daniel Chesters,Daniel Chesters,Salford City,phonetic-fallback-openai,,다니엘 체스터스,체스터스
+126530,Daniel Peretz,Daniel Peretz,Southampton,wikidata-ko-label,Daniel Peretz,다니엘 페레츠,페레츠
+356382,David Aziaya,David Aziaya,Sutton Utd,phonetic-fallback-openai,,데이비드 아지아야,아지아야
+304288,Declan Frith,Declan Frith,Peterborough,phonetic-fallback-openai,,덱란 프리스,프리스
+297635,Devan Austin Tanton Pedraza,Devan Austin Tanton Pedraza,Chesterfield,phonetic-fallback-openai,,데반 오스틴 탄톤 페드라자,페드라자
+283265,E. Baggott,Elkan William Tio Baggott,Ipswich,phonetic-fallback-openai,,엘칸 윌리엄 티오 바고트,바고트
+632812,E. Boateng,E. Boateng,Milton Keynes Dons,phonetic-fallback-openai,,이 보텡,보텡
+18535,E. Bonds,Elliott Michael Bonds,Fleetwood Town,phonetic-fallback-openai,,엘리엇 마이클 본즈,본즈
+153422,E. Brierley,Ethan Craig Brierley,Exeter City,phonetic-fallback-openai,,이단 크레이그 브라일리,브라일리
+201052,E. Jones,Ethan Jones,Eastleigh,phonetic-fallback-openai,,이단 존스,존스
+18517,E. Justham,Elliot Justham,Maldon & Tiptree,phonetic-fallback-openai,,엘리엇 저스햄,저스햄
+53314,E. Lewis,Emlyn Jones Lewis,Weston-super-Mare,phonetic-fallback-openai,,엠린 존스 루이스,루이스
+18404,E. Mason-Clark,Ephron Jardell Mason-Clark,Coventry,phonetic-fallback-openai,,에프론 자델 메이슨-클라크,메이슨-클라크
+346986,E. Pruti,Edon Pruti,Sutton Utd,phonetic-fallback-openai,,에돈 프루티,프루티
+138901,E. Thorpe,Elliot Morgan Thorpe,Braintree,phonetic-fallback-openai,,엘리엇 모건 소프,소프
+280672,E. Turns,Edward James Turns,Exeter City,phonetic-fallback-openai,,에드워드 제임스 턴스,턴스
+200234,E. Weir,Evan Weir,Walsall,phonetic-fallback-openai,,에반 웨어,웨어
+350693,Eduino Vaz,Eduino Vaz,Sutton Utd,phonetic-fallback-openai,,에두이노 바즈,바즈
+20181,Érico Sousa,Érico Henrique Esteves de Sousa,Boreham Wood,phonetic-fallback-openai,,에리코 소우사,소우사
+284307,Ethan Ennis,Ethan Ennis,Fleetwood Town,wikidata-ko-label,Ethan Ennis,이선 에니스,에니스
+231039,F. Azaz,Finn Isaac Azaz,Southampton,phonetic-fallback-openai,,핀 아자즈,아자즈
+1648,F. Borini,Fabio Borini,Salford City,wikidata-ko-label,Fabio Borini,파비오 보리니,보리니
+553701,F. Geragusian,F. Geragusian,Sunderland,phonetic-fallback-openai,,F. 게라구시안,게라구시안
+82611,F. Horsfall,Fraser Matthew Horsfall,Blackpool,phonetic-fallback-openai,,프레이저 매튜 호스폴,호스폴
+18580,F. Ilesanmi,Oluwafemi Abayomi Alaba Ilesanmi,Boreham Wood,phonetic-fallback-openai,,올루와페미 아바요미 알라바 일레산미,일레산미
+538399,F. John,F. John,Gateshead,phonetic-fallback-openai,,에프 존,존
+11245,F. Krastev,Filip Yavorov Krastev,Oxford United,wikidata-ko-label,Filip Krastev,필리프 크라스테프,크라스테프
+162236,F. Mendy,Formose Mendy,Watford,wikidata-ko-label,Formose Mendy,포르모즈 멘디,멘디
+82466,F. Mulhern,Frank Mulhern,Gainsborough Trinity,phonetic-fallback-openai,,프랭크 멀허른,멀허른
+17584,F. Nouble,Frank Herman Nouble,Gateshead,phonetic-fallback-openai,,프랭크 허먼 누블,누블
+373668,F. Pagel,Fiachra Pagel,Forest Green,phonetic-fallback-openai,,피아크라 파겔,파겔
+568008,F. Samba,F. Samba,Manchester City,phonetic-fallback-openai,,에프 삼바,삼바
+19748,F. Sears,Frederick David Sears,Maldon & Tiptree,phonetic-fallback-openai,,프레드릭 데이비드 시어스,시어스
+322884,F. Terry,Frankie Terry,Braintree,phonetic-fallback-openai,,프랭키 테리,테리
+340136,F. Umeh,Franco Umeh-Chibueze,Portsmouth,phonetic-fallback-openai,,프랑코 우메-치부에제,우메
+379610,Fábio Jaló,Fábio Rúben Soares Jaló,Barnsley,phonetic-fallback-openai,,파비오 루벤 소아레스 할로,할로
+444288,Fletcher Hubbard,Fletcher Hubbard,Braintree,phonetic-fallback-openai,,플레처 허버드,허버드
+179996,Fran Vieites,Francisco Barbosa Vieites,Leicester,phonetic-fallback-openai,,프란시스코 바르보사 비에이테스,비에이테스
+19403,Fraser Thomas Preston,Fraser Thomas Preston,Gainsborough Trinity,phonetic-fallback-openai,,프레이저 토마스 프레스턴,프레스턴
+308299,G. Breeze,Gabriel Breeze,Carlisle,phonetic-fallback-openai,,가브리엘 브리즈,브리즈
+196854,G. Broadbent,George Broadbent,Doncaster,phonetic-fallback-openai,,조지 브로드벤트,브로드벤트
+118769,G. Dean,Gareth Dean,Brackley Town,phonetic-fallback-openai,,가레스 딘,딘
+20470,G. Hornshaw,George Matthew Hornshaw,Gainsborough Trinity,phonetic-fallback-openai,,조지 매튜 호른쇼,호른쇼
+69249,G. Kelly,George Martin Kelly,Carlisle,phonetic-fallback-openai,,조지 마틴 켈리,켈리
+301867,G. Langston,George James Barbosa Langston,Braintree,phonetic-fallback-openai,,조지 제임스 바르보사 랭스턴,랭스턴
+38690,G. Leigh,Gregory Alex Leigh,Oxford United,phonetic-fallback-openai,,그레고리 알렉스 리,리
+373858,G. Robesten,George Robesten,Weston-super-Mare,phonetic-fallback-openai,,조지 로베스텐,로베스텐
+616757,G. Vorster,G. Vorster,Sutton Utd,phonetic-fallback-openai,,지 보스터,보스터
+19742,G. Ward,Grant Ward,Port Vale,wikidata-ko-label,Grant Ward,그랜트 워드,워드
+284328,George Christopher John Pratt,George Christopher John Pratt,Blackburn,phonetic-fallback-openai,,조지 크리스토퍼 존 프랫,프랫
+292111,Georgie Gent,Georgie Gent,Barnsley,phonetic-fallback-openai,,조지 젠트,젠트
+284429,Goran Babic,Goran Babic,Braintree,phonetic-fallback-openai,,고란 바비치,바비치
+19267,H. Adelakun,Hakeeb Adeola Jerome Abiola Ayinde Adelakun,Doncaster,phonetic-fallback-openai,,하킵 아데올라 제롬 아비올라 아인데 아델라쿤,아델라쿤
+284247,H. Blair,Harvey Blair,Portsmouth,phonetic-fallback-openai,,하비 블레어,블레어
+171029,H. Bunker,Harvey James Bunker,Forest Green,phonetic-fallback-openai,,하비 제임스 벙커,벙커
+19961,H. Burrows,Harrison Burrows,Sheffield Utd,phonetic-fallback-openai,,해리슨 버로우스,버로우스
+18439,H. Hollis,Haydn Joseph Hollis,Tamworth,phonetic-fallback-openai,,헤이든 조셉 홀리스,홀리스
+284191,H. Leonard,Harry Paul Leonard,Peterborough,phonetic-fallback-openai,,해리 폴 레오나드,레오나드
+18934,H. Lewis,Harry Lewis,Carlisle; Mansfield Town,phonetic-fallback-openai,,해리 루이스,루이스
+295661,H. Macadam,Harvey Macadam,Carlisle,phonetic-fallback-openai,,하비 맥아담,맥아담
+19869,H. Mnoga,Haji Suleiman Haji Ali Mnoga,Salford City,phonetic-fallback-openai,,하지 수레이만 하지 알리 무노가,무노가
+264325,H. Muller,Hayden Kai Muller,Sutton Utd,phonetic-fallback-openai,,헤이든 카이 뮐러,뮐러
+380680,H. Mustapha,Hindolo Thomas E. Mustapha,West Brom,phonetic-fallback-openai,,힌돌로 토마스 이. 무스타파,무스타파
+44946,H. Odoffin,Hakeem Ademola Odoffin,Luton,phonetic-fallback-openai,,하킴 아데몰라 오도핀,오도핀
+568933,H. Parker,H. Parker,Hull City,phonetic-fallback-openai,,에이치 파커,파커
+282134,H. Sayer,Harvey Stephen Sayer,Tamworth,phonetic-fallback-openai,,하비 스테판 세이어,세이어
+568950,Harrison Bettoni,Harrison Bettoni,Wigan,phonetic-fallback-openai,,해리슨 베토니,베토니
+615692,Harvey Walker,Harvey Walker,Slough Town,phonetic-fallback-openai,,하비 워커,워커
+494012,Hayden Atkinson,Hayden Atkinson,Carlisle,phonetic-fallback-openai,,헤이든 애킨슨,애킨슨
+19723,I. El Mizouni,Idris El Mizouni,Leyton Orient,phonetic-fallback-openai,,이드리스 엘 미주니,엘 미주니
+18899,I. Hayden,Isaac Scott Hayden,QPR,wikidata-ko-label,Isaac Hayden,아이작 하이든,하이든
+197764,I. Jones,Isaiah Benjamin Montell Jones,Luton,phonetic-fallback-openai,,아이저 벤자민 몬텔 존스,존스
+293643,I. Osman,Ibrahim Osman,Birmingham,wikidata-ko-label,Ibrahim Osman,이브라힘 오스만,오스만
+296664,Isaac Heath,Isaac Heath,Accrington ST,phonetic-fallback-openai,,아이작 히스,히스
+470046,Isaac Moore,Isaac Moore,Forest Green,phonetic-fallback-openai,,아이작 무어,무어
+407033,Ismeal Kabia,Ismeal Kabia,Shrewsbury,phonetic-fallback-openai,,이스마엘 카비아,카비아
+161590,Iván Azón,Iván Azón Monzón,Ipswich,phonetic-fallback-openai,,이반 아손 몬손,아손
+400938,Iwan Morgan,Iwan Morgan,Shrewsbury,phonetic-fallback-openai,,이완 모건,모건
+320335,J. Abankwah,James Bright Adusei Abankwah,Watford,phonetic-fallback-openai,,제임스 브라이트 아두세이 아반쿠아,아반쿠아
+45279,J. Aitchison,Jack Aitchison,Exeter City,phonetic-fallback-openai,,잭 에이치슨,에이치슨
+432404,J. Ajala,Joshua Ajala,West Ham,phonetic-fallback-openai,,조슈아 아자라,아자라
+17382,J. Akinde,John Job Ayo Akinde,Braintree,phonetic-fallback-openai,,존 조브 아요 아킨디,아킨디
+328126,J. Amissah,Jordan Yamoah Amissah,Burton Albion,phonetic-fallback-openai,,조단 야모아 아미사,아미사
+538468,J. Balagizi,J. Balagizi,Forest Green,phonetic-fallback-openai,,제이 발라지지,발라지지
+87869,J. Beesley,Jake Elliott Beesley,Burton Albion,phonetic-fallback-openai,,제이크 엘리엇 비즐리,비즐리
+538420,J. Benton,J. Benton,Boreham Wood,phonetic-fallback-openai,,제이 벤튼,벤튼
+190505,J. Berry-McNally,James Berry-McNally,Chesterfield,phonetic-fallback-openai,,제임스 베리 맥날리,맥날리
+83029,J. Bowler,Joshua Luke Bowler,Blackpool,phonetic-fallback-openai,,조슈아 루크 보울러,보울러
+19719,J. Bree,James Patrick Bree,Charlton; Southampton,phonetic-fallback-openai,,제임스 패트릭 브리,브리
+585152,J. Bryant,J. Bryant,Doncaster,phonetic-fallback-openai,,제이 브라이언트,브라이언트
+87878,J. Bursik,Josef John Bursik,Portsmouth,phonetic-fallback-openai,,요제프 존 버식,버식
+20496,J. Butterfield,Jacob Luke Butterfield,Gateshead,wikidata-ko-label,Jacob Butterfield,제이콥 버터필드,버터필드
+538423,J. Buyabu,J. Buyabu,Forest Green,phonetic-fallback-openai,,제이 바이아부,바이아부
+15797,J. Cajuste,Jens-Lys Michel Cajuste,Ipswich,phonetic-fallback-openai,,옌스 리스 미셸 카유스테,카유스테
+326767,J. Carragher,James Lee Carragher,Wigan,phonetic-fallback-openai,,제임스 리 카라거,카라거
+118669,J. Cawley,Jack Cawley,Maldon & Tiptree,phonetic-fallback-openai,,잭 칼리,칼리
+494234,J. Clarke,Javelle Clarke,Gainsborough Trinity,phonetic-fallback-openai,,자벨 클라크,클라크
+379045,J. Clarke,Jayden Clarke,Forest Green,phonetic-fallback-openai,,제이든 클라크,클라크
+19585,J. Cousins,Jordan Paul Cousins,Eastleigh,phonetic-fallback-openai,,조던 폴 커진스,커진스
+82533,J. Cullinane-Liburd,Jordan Thomas Cullinane-Liburd,Tamworth,phonetic-fallback-openai,,조던 토마스 컬리넨 리버드,컬리넨 리버드
+82948,J. Davies,Jordan Andrew Davies,Fleetwood Town,phonetic-fallback-openai,,조던 앤드류 데이비스,데이비스
+123562,J. Donawa,Justin Donawa,Brackley Town,wikidata-ko-label,Justin Donawa,저스틴 도나와,도나와
+17951,J. Doyle-Hayes,Jake Billy Doyle-Hayes,Exeter City,phonetic-fallback-openai,,제이크 빌리 도일 헤이즈,도일 헤이즈
+574772,J. Drakes-Thomas,J. Drakes-Thomas,Slough Town,phonetic-fallback-openai,,제이 드레이크스 토마스,드레이크스
+19886,J. Dunne,James Gerard Dunne,QPR,phonetic-fallback-openai,,제임스 제라드 던,던
+19984,J. Eccles,Joshua Elliot Eccles,Coventry,phonetic-fallback-openai,,조슈아 엘리엇 에클스,에클스
+491621,J. Eccleston,Junior Eccleston,Sutton Utd,phonetic-fallback-openai,,주니어 에클스턴,에클스턴
+338910,J. Ellis,Jack Ellis,Carlisle,phonetic-fallback-openai,,잭 엘리스,엘리스
+434183,J. Evans,Jake Evans,Leicester,phonetic-fallback-openai,,제이크 에반스,에반스
+389579,J. Eyestone,Julian Eyestone,Brentford,phonetic-fallback-openai,,줄리언 아이스톤,아이스톤
+20424,J. Fitzwater,Jackson Joseph Fitzwater,Exeter City,phonetic-fallback-openai,,잭슨 조셉 피츠워터,피츠워터
+19102,J. Fleck,John Alexander Fleck,Chesterfield,phonetic-fallback-openai,,존 알렉산더 플렉,플렉
+18626,J. Goddard,John Robert Goddard,Slough Town,phonetic-fallback-openai,,존 로버트 고다드,고다드
+17839,J. Grayson,Joseph Nicholas Grayson,Gateshead,phonetic-fallback-openai,,조셉 니콜라스 그레이슨,그레이슨
+81743,J. Greenidge,Jordan Neil Greenidge,Slough Town,phonetic-fallback-openai,,조던 닐 그리니지,그리니지
+344858,J. Griffin,Jake Griffin,Stoke City,phonetic-fallback-openai,,제이크 그리핀,그리핀
+153402,J. Harris,Jayden John-Lloyd Harris,Sutton Utd,phonetic-fallback-openai,,제이든 존-로이드 해리스,해리스
+295750,J. Hazlehurst,Jack Hazlehurst,Burton Albion,phonetic-fallback-openai,,잭 해즐허스트,해즐허스트
+19785,J. Helliwell,Jordan Lewis Helliwell,Gainsborough Trinity,phonetic-fallback-openai,,조던 루이스 헬리웰,헬리웰
+538397,J. Home,J. Home,Gateshead,phonetic-fallback-openai,,제이 홈,홈
+19261,J. Hunt,Jack Paul Hunt,Wigan,phonetic-fallback-openai,,잭 폴 헌트,헌트
+20076,J. Husband,James Andrew Husband,Blackpool,phonetic-fallback-openai,,제임스 앤드류 허즈번드,허즈번드
+328074,J. James,Jordan Anthony James,Leicester,phonetic-fallback-openai,,조던 앤서니 제임스,제임스
+632813,J. Kay,J. Kay,Sheffield Wednesday,phonetic-fallback-openai,,제이 케이,케이
+118532,J. King,Jeff Francis King,Boreham Wood,phonetic-fallback-openai,,제프 프란시스 킹,킹
+18080,J. Koroma,Joshua Abdulai Koroma,Leyton Orient,phonetic-fallback-openai,,조슈아 아브다라이 코로마,코로마
+145538,J. Latibeaudiere,Joel Owen Latibeaudiere,Coventry,phonetic-fallback-openai,,조엘 오웬 라티보디에르,라티보디에르
+401240,J. Loughran,Jack Loughran,Shrewsbury,phonetic-fallback-openai,,잭 로프란,로프란
+276991,J. Luamba,Junior Luamba,Carlisle,phonetic-fallback-openai,,주니어 루암바,루암바
+88450,J. Lundstram,Joshua Lundstram,Eastleigh,phonetic-fallback-openai,,조슈아 룬스트럼,룬스트럼
+152696,J. Matete,Jay Matete,Milton Keynes Dons,phonetic-fallback-openai,,제이 마테트,마테트
+20163,J. Maxted,Jonathan Maxted,Brackley Town,phonetic-fallback-openai,,조나단 맥스티드,맥스티드
+283563,J. McKiernan,John Joshua McKiernan,Burton Albion,phonetic-fallback-openai,,존 조슈아 맥키어난,맥키어난
+19880,J. McLaughlin,Jonathan Peter McLaughlin,Middlesbrough,phonetic-fallback-openai,,조나단 피터 맥로플린,맥로플린
+280972,J. Mcloughlin,Jack Mcloughlin,Gainsborough Trinity,phonetic-fallback,,잭 맥러플린,맥러플린
+45209,J. McMillan,Jack McMillan,Exeter City,wikidata-ko-label,Jack McMillan,잭 맥밀런,맥밀런
+17427,J. Moore-Taylor,Jordan Alan Moore-Taylor,Forest Green,phonetic-fallback-openai,,조던 앨런 무어-테일러,무어-테일러
+330982,J. Morgan,Jimmy Jay Morgan,Peterborough,phonetic-fallback-openai,,지미 제이 모건,모건
+167660,J. Morris,James William Morris,Watford,phonetic-fallback-openai,,제임스 윌리엄 모리스,모리스
+579298,J. Myers,J. Myers,Slough Town,phonetic-fallback-openai,,제이 마이어스,마이어스
+180563,J. Newton,Joseph Neil Newton,Boreham Wood,phonetic-fallback-openai,,조셉 닐 뉴튼,뉴튼
+322305,J. O&apos;Brien-Whitmarsh,Joseph O'Brien-Whitmarsh,Southampton,phonetic-fallback-openai,,조셉 오브라이언-위트마쉬,위트마쉬
+84088,J. Panzo,Jonathan William Panzo,Birmingham,phonetic-fallback-openai,,조나단 윌리엄 판조,판조
+18261,J. Payne,Jack Stephen Payne,Boreham Wood,phonetic-fallback-openai,,잭 스테판 페인,페인
+56374,J. Pétris,Jérémy Pétris,Watford,phonetic-fallback-openai,,제레미 페트리스,페트리스
+138931,J. Philogene,Jaden Philogene-Bidace,Ipswich,phonetic-fallback-openai,,제이든 필로제네-비데이스,필로제네
+538461,J. Pinnington,J. Pinnington,Braintree,phonetic-fallback-openai,,제이 핀잉턴,핀잉턴
+20011,J. Ponticelli,Jordan Ponticelli,Tamworth,phonetic-fallback-openai,,조던 폰티첼리,폰티첼리
+118470,J. Pope,Jason Warren Pope,Weston-super-Mare,phonetic-fallback-openai,,제이슨 워렌 포프,포프
+51317,J. Price,Jack Alexander Price,Brackley Town,phonetic-fallback-openai,,잭 알렉산더 프라이스,프라이스
+18853,J. Riedewald,Jaïro Jocquim Riedewald,Sheffield Utd,wikidata-ko-label,Jaïro Riedewald,야이로 리데발트,리데발트
+19169,J. Rodríguez,Jay Enrique Rodríguez,Wrexham,phonetic-fallback-openai,,제이 엔리크 로드리게스,로드리게스
+20119,J. Ruffels,Joshua Andrew Bernard Ruffels,Shrewsbury,phonetic-fallback-openai,,조슈아 앤드류 버나드 러펠스,러펠스
+448500,J. Sheik,Jasper Sheik,South Shields,phonetic-fallback-openai,,재스퍼 쉬크,쉬크
+127155,J. Sims,Jack Sims,Sutton Utd,phonetic-fallback-openai,,잭 심스,심스
+118600,J. Singh,Jasbir Singh,Tamworth,phonetic-fallback-openai,,자스비르 싱,싱
+280689,J. Smith,Jackson Smith,Barnsley; Grimsby,phonetic-fallback-openai,,잭슨 스미스,스미스
+306727,J. Solis,Jhon Elmer Solis Romero,Birmingham,phonetic-fallback-openai,,존 엘머 솔리스 로메로,솔리스
+294639,J. Sraha,Jason Robert Sraha Sraha,Burton Albion,phonetic-fallback-openai,,제이슨 로버트 스라하 스라하,스라하
+19769,J. Stacey,Jack William Stacey,Norwich,phonetic-fallback-openai,,잭 윌리엄 스테이시,스테이시
+577002,J. Stephenson,J. Stephenson,Brentford,phonetic-fallback-openai,,제이 스테프슨,스테프슨
+82100,J. Sterry,Jamie Michael Sterry,Doncaster,phonetic-fallback-openai,,제이미 마이클 스테리,스테리
+400702,J. Taylor,Jack Taylor,Sutton Utd,phonetic-fallback-openai,,잭 테일러,테일러
+17613,J. Taylor,Jake William Trevor Taylor,Sutton Utd,wikidata-ko-label,Jake Taylor,제이크 테일러,테일러
+20061,J. Thompson,Jordan Andrew Thompson,Preston,phonetic-fallback-openai,,조던 앤드류 톰슨,톰슨
+557452,J. Thompson,J. Thompson,Braintree,phonetic-fallback-openai,,제이 톰슨,톰슨
+278092,J. Tomkinson,Jonathan Tomkinson,Cheltenham,phonetic-fallback-openai,,조나단 톰킨슨,톰킨슨
+345776,J. Uchegbulam,Jesurun Uchegbulam,Chelmsford City,phonetic-fallback-openai,,제수런 우체그불람,우체그불람
+179633,J. Vennings,James Frederick Vennings,Braintree,phonetic-fallback-openai,,제임스 프레드릭 베닝스,베닝스
+18943,J. Vestergaard,Jannik Vestergaard,Leicester,wikidata-ko-label,Jannik Vestergaard,야니크 베스테르고르,베스테르고르
+130420,J. Vokins,Jake Vokins,Eastleigh,phonetic-fallback-openai,,제이크 보킨스,보킨스
+127206,J. Walsh,Joseph Anthony Walsh,QPR,phonetic-fallback-openai,,조셉 앤서니 월쉬,월쉬
+18847,J. Ward,Joel Edward Philip Ward,Swansea,wikidata-ko-label,Joel Ward,조엘 워드,워드
+191981,J. Wareham,Jayden Darren George Wareham,Exeter City,phonetic-fallback-openai,,제이든 다렌 조지 웨어햄,웨어햄
+48033,J. Widell Zetterström,Jacob Mikael Widell Zetterström,Derby,phonetic-fallback-openai,,야콥 미카엘 비델 젯터스트롬,젯터스트롬
+328714,J. Williams,Joshua Aaron Williams,Carlisle,phonetic-fallback-openai,,조슈아 아론 윌리엄스,윌리엄스
+19791,J. Williams,Jordan Williams,Portsmouth,phonetic-fallback-openai,,조던 윌리엄스,윌리엄스
+568943,Jack Burke,Jack Burke,Milton Keynes Dons,phonetic-fallback-openai,,잭 버크,버크
+284513,Jacob Borgnis,Jacob Borgnis,Slough Town,phonetic-fallback-openai,,제이콥 보그니스,보그니스
+615663,Jacob Cane,Jacob Cane,Weston-super-Mare,phonetic-fallback-openai,,제이콥 케인,케인
+418403,Jaden Dixon,Jaden Dixon,Arsenal; Stoke City,phonetic-fallback-openai,,제이든 딕슨,딕슨
+615664,Jake Hicks,Jake Hicks,Weston-super-Mare,phonetic-fallback-openai,,제이크 힉스,힉스
+615661,Jakob Glover,Jakob Glover,Weston-super-Mare,phonetic-fallback-openai,,야콥 글로버,글로버
+568979,Jamal Williamson,Jamal Williamson,Burton Albion,phonetic-fallback-openai,,자말 윌리엄슨,윌리엄슨
+615686,Jayden Dennison,Jayden Dennison,Slough Town,phonetic-fallback-openai,,제이든 덴니슨,덴니슨
+34708,Jeon Jin-Woo,Jin-Woo Jeon,Oxford United,phonetic-fallback-openai,,진우 전,전
+415075,João Henrique,João Henrique Mendes da Silva,QPR,phonetic-fallback-openai,,조아우 엔리케 멘데스 다 실바,멘데스
+82706,Jonathon Margetts,Jonathon Margetts,Gainsborough Trinity,phonetic-fallback-openai,,조너선 마겟츠,마겟츠
+44788,Jordan Jones,Jordan Lewis Jones,Carlisle,phonetic-fallback-openai,,조던 루이스 존스,존스
+284444,Junior Robinson,Junior Robinson,Boreham Wood,phonetic-fallback-openai,,주니어 로빈슨,로빈슨
+358719,K. Adamson,Kealey Adamson,QPR,phonetic-fallback-openai,,키리 애덤슨,애덤슨
+399568,K. Adom,Kain Adom,Burton Albion; Gateshead,phonetic-fallback-openai,,케인 아돔,아돔
+129915,K. Berkoe,Kevin Nana Yaw Berkoe,Salford City,phonetic-fallback-openai,,케빈 나나 야우 버코,버코
+19826,K. Bielik,Krystian Bielik,West Brom,wikidata-ko-label,Krystian Bielik,크리스티안 비엘리크,비엘리크
+276604,K. Crichlow,Kane Crichlow,Sutton Utd,phonetic-fallback-openai,,케인 크리클로우,크리클로우
+67959,K. Dembélé,Karamoko Kader Dembélé,QPR,wikidata-ko-label,Karamoko Dembélé,카라모코 뎀벨레,뎀벨레
+107782,K. Digie,Kennedy Digie,Tamworth,phonetic-fallback-openai,,케네디 디지,디지
+275575,K. Evans,Kieron Thomas Evans,Eastleigh,phonetic-fallback-openai,,키런 토마스 에반스,에반스
+557468,K. Gray,K. Gray,Leicester,phonetic-fallback-openai,,케이 그레이,그레이
+277432,K. Hurst,Kyle Hurst,Gateshead,phonetic-fallback-openai,,카일 허스트,허스트
+45013,K. McAllister,Kyle McAllister,Forest Green,phonetic-fallback-openai,,카일 맥알리스터,맥알리스터
+269469,K. Morrison,Kyle Morrison,Brackley Town,phonetic-fallback-openai,,카일 모리슨,모리슨
+19559,K. Naismith,Kallum Lachlan Alexander Naismith,Luton,phonetic-fallback-openai,,칼럼 라클란 알렉산더 네이스미스,네이스미스
+557586,K. Pennant,K. Pennant,Gateshead,phonetic-fallback-openai,,케이 페넌트,페넌트
+18512,K. Richardson,Kenton Terry Richardson,Gateshead,phonetic-fallback-openai,,켄턴 테리 리처드슨,리처드슨
+169201,K. Ronan,Kian Joe Ronan,Chelmsford City,phonetic-fallback-openai,,키안 조 로난,로난
+19140,K. Roofe,Kemar Roofe,Walsall,wikidata-ko-label,Kemar Roofe,케마르 루피,루피
+33838,K. Saito,Koki Saito,QPR,wikidata-ko-label,Koki Saito,사이토 고키,고키
+553061,K. Thompson-Sommers,K. Thompson-Sommers,Milton Keynes Dons,phonetic-fallback-openai,,케이 톰슨-솜머스,솜머스
+50738,K. Wagner,Kai Harley Wagner,Birmingham,phonetic-fallback-openai,,카이 하를리 바그너,바그너
+436976,Kai Jennings,Kai Jennings,Sutton Utd,phonetic-fallback-openai,,카이 제닝스,제닝스
+440035,Kayden Hughes,Kayden Hughes,Fleetwood Town,phonetic-fallback-openai,,케이덴 휴즈,휴즈
+396628,Kieran Morgan,Kieran Morgan,QPR,phonetic-fallback-openai,,키런 모건,모건
+444921,Kiki Oshilaja,Kiki Oshilaja,Slough Town,phonetic-fallback-openai,,키키 오실라자,오실라자
+438097,Kwaku Poku Agyeman Donkor,Kwaku Poku Agyeman Donkor,Tamworth,phonetic-fallback-openai,,콰쿠 포쿠 아게만 돈코르,돈코르
+20035,L. Akins,Lucas-Jordan Jeremiah Akins,Mansfield Town,phonetic-fallback-openai,,루카스-조던 제레마이아 에이킨스,에이킨스
+20188,L. Armstrong,Luke Thomas Armstrong,Carlisle,phonetic-fallback-openai,,루크 토마스 암스트롱,암스트롱
+180473,L. Britton,Louis Sidney Britton,Weston-super-Mare,phonetic-fallback-openai,,루이 시드니 브리튼,브리튼
+20458,L. Butroid,Lewis Malcolm Butroid,Gainsborough Trinity,phonetic-fallback-openai,,루이스 말콤 부트로이드,부트로이드
+312902,L. Cissé,Mohamed Lamine Cissé,Stoke City,phonetic-fallback-openai,,모하메드 라민 시세,시세
+18353,L. Coulson,Luke Coulson,Weston-super-Mare,phonetic-fallback-openai,,루크 콜슨,콜슨
+20073,L. Coyle,Lewie Coyle,Hull City,phonetic-fallback-openai,,루이 코일,코일
+17571,L. Dunne,Louis Anthony Dunne,Maldon & Tiptree,phonetic-fallback-openai,,루이스 앤서니 던,던
+167198,L. Fairlamb,Luke Fairlamb,Tamworth,phonetic-fallback-openai,,루크 페어램,페어램
+130865,L. Fernandez,Luis Theo Fernandez,Eastleigh,wikidata-ko-label,Luis Fernandez,루이스 페르난데스,페르난데스
+20389,L. Jones,Lloyd Richard Jones,Charlton,wikidata-ko-label,Lloyd Jones,로이드 존스,존스
+298130,L. Macari,Lewis Jon Macari,Notts County,phonetic-fallback-openai,,루이스 존 맥칸,맥칸
+383773,L. Mahovo,Lucien Mahovo,Norwich,phonetic-fallback-openai,,루시앙 마호보,마호보
+45259,L. McCann,Lewis McCann,Fleetwood Town,phonetic-fallback-openai,,루이스 맥캔,맥캔
+568978,L. McDougald,L. McDougald,Cambridge United,phonetic-fallback-openai,,엘 맥도갈드,맥도갈드
+69363,L. McNicholas,Luke McNicholas,Forest Green,phonetic-fallback-openai,,루크 맥니콜라스,맥니콜라스
+538503,L. Mendy,L. Mendy,Forest Green,phonetic-fallback-openai,,엘 멘디,멘디
+44798,L. Millar,Liam Alan Millar,Hull City,wikidata-ko-label,Liam Millar,리엄 밀라,밀라
+320836,L. Ness,Lucas Ness,Notts County,phonetic-fallback-openai,,루카스 네스,네스
+17583,L. Norris,Luke Michael Norris 'Hacker',Boreham Wood,phonetic-fallback-openai,,루크 마이클 노리스 '해커',노리스
+2031,L. Salvesen,Lars-Jørgen Salvesen,Derby,phonetic-fallback-openai,,라스-요르겐 살베센,살베센
+154803,L. Simper,Lewis Simper,Sutton Utd,phonetic-fallback-openai,,루이스 심퍼,심퍼
+179765,L. Spokes,Luke Spokes,Weston-super-Mare,phonetic-fallback-openai,,루크 스포크스,스포크스
+19842,L. Taylor,Lyle James Alfred Taylor,Chelmsford City,phonetic-fallback-openai,,라일 제임스 알프레드 테일러,테일러
+19596,L. Walker,Lewis Walker,Braintree,phonetic-fallback-openai,,루이스 워커,워커
+311096,L. Woolston,Luke James Woolston,South Shields,phonetic-fallback-openai,,루크 제임스 울스턴,울스턴
+137299,Lewis Mark Richardson,Lewis Mark Richardson,Boreham Wood,phonetic-fallback-openai,,루이스 마크 리처드슨,리처드슨
+513316,Luka Bentt,Luka Bentt,Brentford,phonetic-fallback-openai,,루카 벤투,벤투
+445925,Luke Faxon,Luke Faxon,Sheffield Utd,phonetic-fallback-openai,,루크 팩슨,팩슨
+615690,Luke Holness,Luke Holness,Slough Town,phonetic-fallback-openai,,루크 홀네스,홀네스
+429613,M. Baradji,Moussa Baradji,Blackburn,phonetic-fallback-openai,,무사 바라지,바라지
+18085,M. Bonne,Macauley Miles Bonne,Maldon & Tiptree,phonetic-fallback-openai,,마컬리 마일스 본,본
+18871,M. Butcher,Matthew David Butcher,Salford City,phonetic-fallback-openai,,매튜 데이비드 버처,버처
+155408,M. Curley,Matt Curley,Tamworth,phonetic-fallback-openai,,맷 컬리,컬리
+326107,M. Dabre,Mohammad Dabre,Sutton Utd,phonetic-fallback-openai,,모하마드 다브레,다브레
+18483,M. Duku,Immanuelson Kwadwo Opoku Duku,Tamworth,phonetic-fallback-openai,,이만율손 과드우 오포쿠 두쿠,두쿠
+180455,M. Garbett,Matthew Jimmy David Garbett,Peterborough,phonetic-fallback-openai,,매튜 지미 데이비드 가르벳,가르벳
+20100,M. Harris,Max James Harris,Weston-super-Mare,phonetic-fallback-openai,,맥스 제임스 해리스,해리스
+498374,M. Heys,Marshall Heys,Salford City,phonetic-fallback-openai,,마셜 헤이스,헤이스
+19103,M. Johnson,Marvin Nicholas Johnson,Port Vale,phonetic-fallback-openai,,마빈 니콜라스 존슨,존슨
+380697,M. Kacurri,Maldini Kacurri,Grimsby,phonetic-fallback-openai,,말디니 카추리,카추리
+401278,M. Kanté,Mohamadou Kanté,West Ham,phonetic-fallback-openai,,모하마두 칸테,칸테
+328997,M. Kirk,MaKenzie Kirk,Portsmouth,phonetic-fallback-openai,,마켄지 커크,커크
+472252,M. Koné,Mohamed Abdoul Kader Koné,Aston Villa,phonetic-fallback-openai,,모하메드 아브둘 카데르 코네,코네
+118774,M. Lowe,Matt Lowe,Brackley Town,wikidata-ko-label,Matt Lowe,맷 로,로
+557511,M. Mazwi,M. Mazwi,Birmingham,phonetic-fallback-openai,,엠 맛즈위,맛즈위
+275570,M. Miranda,Marley Marshall Miranda,Boreham Wood; Braintree,phonetic-fallback-openai,,말리 마샬 미란다,미란다
+19521,M. Morrison,Michael Morrison,Cambridge United,phonetic-fallback-openai,,마이클 모리슨,모리슨
+20046,M. Nottingham,Michael Jermain Nottingham,Brackley Town,phonetic-fallback-openai,,마이클 제르메인 낫팅엄,낫팅엄
+19258,M. O’Leary,Max Edward O’Leary,Bristol City; West Brom,phonetic-fallback-openai,,맥스 에드워드 올리리,올리리
+294948,M. Okafor,Miracle Okafor,Brackley Town,phonetic-fallback-openai,,미라클 오카포,오카포
+284474,M. Olakigbe,Michael Oluwakorede Olakigbe,Swindon Town,phonetic-fallback-openai,,마이클 올루와코레데 올라키그베,올라키그베
+538390,M. Omrore,M. Omrore,Braintree,phonetic-fallback-openai,,엠 옴로레,옴로레
+19273,M. Pack,Marlon Pack,Portsmouth,phonetic-fallback-openai,,말론 팩,팩
+17832,M. Pollock,Matthew William Pollock,Watford,phonetic-fallback-openai,,매튜 윌리엄 폴락,폴락
+19523,M. Roberts,Marc Roberts,Barnsley,phonetic-fallback-openai,,마크 로버츠,로버츠
+17786,M. Roberts,Morgan Elliot Roberts,Brackley Town,phonetic-fallback-openai,,모건 엘리엇 로버츠,로버츠
+15717,M. Ross,Mathias Ross Jensen,Plymouth,wikidata-ko-label,Mathias Jensen,마티아스 옌센,옌센
+154845,M. Rush,Matthew Thomas Rush,Boreham Wood,phonetic-fallback-openai,,매튜 토마스 러쉬,러쉬
+44864,M. Smith,Michael Smith,Weston-super-Mare,phonetic-fallback-openai,,마이클 스미스,스미스
+638879,M. Thelwell,M. Thelwell,Bristol City,phonetic-fallback-openai,,엠 텔웰,텔웰
+198352,M. Touré,Mohamed Touré,Norwich,phonetic-fallback-openai,,모하메드 투레,투레
+137977,M. Traoré,Maï Traoré,Notts County,phonetic-fallback-openai,,마이 트라오레,트라오레
+588468,Malik Olayiwola,Malik Olayiwola,Everton,phonetic-fallback-openai,,말릭 올라이월라,올라이월라
+557501,N. Dlamini,N. Dlamini,Blackburn,phonetic-fallback-openai,,엔 딜라미니,딜라미니
+207200,N. Eile,Noah Johannes Eile,Bristol City,phonetic-fallback-openai,,노아 요한네스 에일,에일
+18188,N. Haughton,Nicholas George Haughton,Forest Green,phonetic-fallback-openai,,니콜라스 조지 호튼,호튼
+538376,N. Kengni,N. Kengni,Forest Green,phonetic-fallback-openai,,엔 켕니,켕니
+15801,N. Madsen,Nicolas Martin Hautorp Madsen,QPR,phonetic-fallback-openai,,니콜라스 마틴 하우토르프 마드센,마드센
+18785,N. Mendy,Nampalys Mendy,Watford,wikidata-ko-label,Nampalys Mendy,남팔리스 멘디,멘디
+405905,N. Opoku,Nathaniel Opoku Onyina,Newport County,phonetic-fallback-openai,,나타니엘 오포쿠 오니나,오포쿠
+546536,N. Oyekunle,N. Oyekunle,Southampton,phonetic-fallback-openai,,엔 오예쿤레,오예쿤레
+18948,N. Redmond,Nathan Daniel Jerome Redmond,Sheffield Wednesday,wikidata-ko-label,Nathan Redmond,네이선 레드먼드,레드먼드
+280758,N. Siri,Nicolás Hernán Siri Cagno,Salford City,phonetic-fallback-openai,,니콜라스 헤른난 시리 카뇨,시리
+82024,N. Townsend,Nicholas Peter Townsend,Eastleigh,phonetic-fallback-openai,,니콜라스 피터 타운젠드,타운젠드
+169224,N. Tsaroulla,Nicholas Andrew Tsaroulla,Notts County,phonetic-fallback-openai,,니콜라스 앤드류 차룰라,차룰라
+19597,N. Wells,Nahki Michael Wells,Luton,wikidata-ko-label,Nahki Wells,나키 웰스,웰스
+342660,O. Arblaster,Oliver Luke Arblaster,Sheffield Utd,phonetic-fallback-openai,,올리버 루크 아블라스터,아블라스터
+20367,O. Ashley,Ossama Ashley,Salford City,phonetic-fallback-openai,,오사마 애슐리,애슐리
+20288,O. Beckles,Omar Jerome Beckles,Leyton Orient,phonetic-fallback-openai,,오마르 제롬 베클스,베클스
+180298,O. Fraulo,Oscar Luigi Fraulo,Derby,phonetic-fallback-openai,,오스카 루이지 프라울로,프라울로
+19074,O. Hernández,Onel Lázaro Hernández Mayea,Port Vale,phonetic-fallback-openai,,오넬 라자로 에르난데스 마예아,에르난데스
+349383,O. Irow,Oliver Irow,Mansfield Town,phonetic-fallback-openai,,올리버 이로우,이로우
+538378,O. Lynch,O. Lynch,Tamworth,phonetic-fallback-openai,,오 린치,린치
+399906,O. Maamma,Othmane Maamma,Watford,phonetic-fallback-openai,,오토만 마마,마마
+98067,O. Moxon,Owen Moxon,Wigan,phonetic-fallback-openai,,오웬 목슨,목슨
+37383,O. Romeny,Ole ter Haar Romeny,Oxford United,wikidata-ko-label,Ole Romeny,올레 로메니,로메니
+624708,O. Shield,O. Shield,Brentford,phonetic-fallback-openai,,오 실드,실드
+494237,O. Sykes,Ollie Sykes,Gainsborough Trinity,phonetic-fallback-openai,,올리 시크스,시크스
+284381,Oliver Bainbridge,Oliver Bainbridge,South Shields,phonetic-fallback-openai,,올리버 베인브리지,베인브리지
+413499,Oliver Bostock,Oliver Bostock,West Brom,phonetic-fallback-openai,,올리버 보스톡,보스톡
+498728,Oluchukwu Nwankwo,Oluchukwu Nwankwo,Blackpool,phonetic-fallback-openai,,올루추쿠 뉴앙크우,뉴앙크우
+18949,Oriol Romeu,Oriol Romeu Vidal,Southampton,wikidata-ko-label,Oriol Romeu,오리올 로메우,로메우
+407652,P. Agyemang,Patrick Agyemang,Derby,phonetic-fallback-openai,,패트릭 아게만,아게만
+19134,P. Bamford,Patrick James Bamford,Sheffield Utd,wikidata-ko-label,Patrick Bamford,패트릭 뱀퍼드,뱀퍼드
+167071,P. Blackett,Paul Blackett,South Shields,phonetic-fallback-openai,,폴 블래켓,블래켓
+437558,P. Chinedu,Phillip Chinedu,Leyton Orient,phonetic-fallback-openai,,필립 치네두,치네두
+18499,P. Kioso,Peter Kioso,Peterborough,phonetic-fallback-openai,,피터 키오소,키오소
+538535,P. Leech,P. Leech,Gateshead,phonetic-fallback-openai,,피 르치,르치
+162075,P. Maghoma,Edmond-Paris Maghoma,Norwich,phonetic-fallback-openai,,에드몬-파리스 마고마,마고마
+15936,P. Mattsson,Pelle Elkjær Mattsson,Norwich,phonetic-fallback-openai,,펠레 엘케르 마츠손,마츠손
+19242,P. McNair,Patrick James Coleman McNair,Hull City,phonetic-fallback-openai,,패트릭 제임스 콜먼 맥네어,맥네어
+603520,P. Ojemen,P. Ojemen,Slough Town,phonetic-fallback-openai,,피 오제멘,오제멘
+20192,P. Smyth,Paul Patrick Smyth,QPR,phonetic-fallback-openai,,폴 패트릭 스미스,스미스
+283287,Paul Nana Akwashi Appiah,Paul Nana Akwashi Appiah,Chelmsford City,phonetic-fallback-openai,,폴 나나 아크와시 아피아,아피아
+358666,R. Akachukwu,Romeo Akachukwu,Southampton,phonetic-fallback-openai,,로미오 아카추쿠,아카추쿠
+18648,R. Atkinson,Robert Philip Atkinson,Bristol City,phonetic-fallback-openai,,로버트 필립 앳킨슨,앳킨슨
+18352,R. Brindley,Richard Michael Brindley,Eastleigh,phonetic-fallback-openai,,리처드 마이클 브린들리,브린들리
+82228,R. Calder,Riccardo Amos Calder,Brackley Town,phonetic-fallback-openai,,리카르도 아모스 칼더,칼더
+288125,R. Clayton,Regan Clayton,Braintree,phonetic-fallback-openai,,리건 클레이튼,클레이튼
+17985,R. Cole,Reece George Cole,Exeter City,phonetic-fallback-openai,,리스 조지 콜,콜
+94676,R. Greenidge,Reiss James Greenidge,Slough Town,phonetic-fallback-openai,,라이스 제임스 그리니지,그리니지
+20291,R. Haynes,Ryan Matthew Haynes,Brackley Town,phonetic-fallback-openai,,라이언 매튜 헤인즈,헤인즈
+20161,R. Holmes,Ricky Lee Holmes,Chelmsford City,phonetic-fallback-openai,,리키 리 홈즈,홈즈
+45027,R. Inniss,Ryan Stuart Clayton Inniss,Forest Green,phonetic-fallback-openai,,라이언 스튜어트 클레이튼 이니스,이니스
+453043,R. Kone,Richard Kone,QPR,phonetic-fallback-openai,,리차드 코네,코네
+538383,R. Linney,R. Linney,Carlisle,phonetic-fallback-openai,,알 린니,린니
+557419,R. Otegbayo,R. Otegbayo,Stoke City,phonetic-fallback-openai,,알 오테바요,오테바요
+19958,R. Tafazolli,Ryan Sirous Tafazolli,Swindon Town,phonetic-fallback-openai,,라이언 시러스 타파졸리,타파졸리
+18276,R. Tinkler,Robbie Tinkler,South Shields,phonetic-fallback-openai,,로비 틴클러,틴클러
+284361,R. Vítek,Radek Vítek,Bristol City,phonetic-fallback-openai,,라덱 비텍,비텍
+18771,Ricardo Pereira,Ricardo Domingos Barbosa Pereira,Leicester,wikidata-ko-label,Ricardo Pereira,히카르두 도밍구스 바르보자 페레이라,페레이라
+361504,Ruben Curly,Ruben Curly,Stoke City,phonetic-fallback-openai,,루벤 컬리,컬리
+286777,Ruben Okemute Shakpoke,Ruben Okemute Shakpoke,Slough Town,phonetic-fallback-openai,,루벤 오케무테 샤크포케,샤크포케
+167123,S. Avery,Sam Avery,Weston-super-Mare,phonetic-fallback-openai,,샘 에이브리,에이브리
+107087,S. Banks,Scott Brian Banks,Blackpool,phonetic-fallback-openai,,스콧 브라이언 뱅크스,뱅크스
+327749,S. Boniface,Somto chukwu Boniface,Ipswich,phonetic-fallback-openai,,솜토 츄크우 보니파스,보니파스
+289624,S. Braybrooke,Samuel Charles Braybrooke,Newport County,phonetic-fallback-openai,,사무엘 찰스 브레이브룩,브레이브룩
+118773,S. Byrne,Shane William Byrne,Brackley Town,phonetic-fallback-openai,,셰인 윌리엄 번,번
+167165,S. Carey,Sonny Jack Carey,Charlton,phonetic-fallback-openai,,손니 잭 캐리,캐리
+44868,S. Clare,Sean James Kewku Clare,Leyton Orient,phonetic-fallback-openai,,션 제임스 크우쿠 클레어,클레어
+18863,S. Cook,Steve Anthony Cook,QPR,wikidata-ko-label,Steve Cook,스티브 쿡,쿡
+278085,S. Edozie,Samuel Ikechukwu Edozie,Southampton,phonetic-fallback-openai,,사무엘 이케추쿠 에도지에,에도지에
+342654,S. Egeli,Sindre Walle Egeli,Ipswich,phonetic-fallback-openai,,신드레 발레 에겔리,에겔리
+19156,S. Field,Samuel Edward Field,Norwich; QPR,phonetic-fallback-openai,,사무엘 에드워드 필드,필드
+272555,S. Folarin,Samuel Oluwatimilchin Adetokunbo Fola,Chelmsford City,phonetic-fallback-openai,,사무엘 올라티밀친 아데토쿤보 폴라,폴라
+18954,S. Gallagher,Samuel James Gallagher,Stoke City,phonetic-fallback-openai,,사무엘 제임스 갤러거,갤러거
+161884,S. Hansen,Sontje Hansen,Middlesbrough,phonetic-fallback-openai,,손테 한센,한센
+30809,S. Ingelsson,Svante Ulf Ingel Ingelsson,Sheffield Wednesday,phonetic-fallback-openai,,스반테 울프 잉겔 잉겔손,잉겔손
+538392,S. Kamara,S. Kamara,Braintree,phonetic-fallback-openai,,에스 카마라,카마라
+265444,S. Langås,Sondre Klingen Langås,Derby,phonetic-fallback-openai,,손드레 클링엔 랑오스,랑오스
+284391,S. Murray,Sam Murray,Carlisle,phonetic-fallback-openai,,샘 머레이,머레이
+780,S. Nzonzi,Steven N'Kemboanza Mike Christ Nzonzi,Stoke City,wikidata-ko-label,Steven Nzonzi,스티븐 은존지,은존지
+449047,S. Obieri,Sopuruchukwu Obieri,Cheltenham,phonetic-fallback-openai,,소푸루추쿠 오비에리,오비에리
+17785,S. Pollock,Scott Alexander Gladman Pollock,Brackley Town,phonetic-fallback-openai,,스콧 알렉산더 글래드만 폴럭,폴럭
+378951,S. Remy,Shiloh Remy,Chelmsford City,phonetic-fallback-openai,,실로 레미,레미
+138237,S. Robertson,Scott Robertson,Notts County,phonetic-fallback-openai,,스콧 로버트슨,로버트슨
+557450,S. Sillah Dibaga,S. Sillah Dibaga,Southampton,phonetic-fallback-openai,,에스 실라 디바가,디바가
+126872,S. Silvera,Samuel Miles Silvera,Middlesbrough,phonetic-fallback-openai,,사무엘 마일스 실베라,실베라
+494235,S. Tuntulwana,Sisa Tuntulwana,Gainsborough Trinity,phonetic-fallback-openai,,시사 툰툴와나,툰툴와나
+129725,S. Wearne,Stephen Christopher Wearne,Carlisle,phonetic-fallback-openai,,스티븐 크리스토퍼 웨언,웨언
+20318,S. Whalley,Shaun James Whalley,Accrington ST,phonetic-fallback-openai,,숀 제임스 웰리,웰리
+17998,S. Wilson,Scott Kristien Scott-Wilson,Weston-super-Mare,phonetic-fallback-openai,,스콧 크리스틴 스콧-윌슨,스콧-윌슨
+19558,Sam Morsy,Samy Sayed Morsy,Bristol City,wikidata-ko-label,Sam Morsy,샘 모시,모시
+118359,Scott Myles Edward Davies,Scott Myles Edward Davies,Slough Town,phonetic-fallback-openai,,스콧 마일스 에드워드 데이비스,데이비스
+400693,Sean Etaluku,Sean Etaluku,Forest Green,phonetic-fallback-openai,,션 에탈루쿠,에탈루쿠
+279049,Sean McGurk,Sean McGurk,South Shields,phonetic-fallback-openai,,션 맥거크,맥거크
+382354,Sebastian  Naylor,Sebastian Naylor,Bristol City,phonetic-fallback-openai,,세바스찬 네일러,네일러
+231089,Stefan Mols,Stefan Edouard Mols,Tamworth,phonetic-fallback-openai,,스테판 모스,모스
+477992,T. Akindileni,Timothy Akindileni,QPR,phonetic-fallback-openai,,티모시 아킨딜레니,아킨딜레니
+19351,T. Archibald,Theodore Valentine Archibald,Leyton Orient,phonetic-fallback-openai,,테오도어 발렌타인 아키볼드,아키볼드
+579354,T. Babalola,T. Babalola,Forest Green,phonetic-fallback-openai,,테이 빠발로라,빠발로라
+282727,T. Brooks,Tiernan Brooks,Gateshead,phonetic-fallback-openai,,티어난 브룩스,브룩스
+906,T. Chong,Tahith Jose Chong,Sheffield Utd,wikidata-ko-label,Tahith Chong,타히트 총,총
+347928,T. Clark,Taylor Clark,Chelmsford City,phonetic-fallback-openai,,테일러 클락,클락
+18762,T. Davies,Thomas Davies,Sheffield Utd,phonetic-fallback-openai,,토마스 데이비스,데이비스
+135523,T. Dixon-Hodge,Tommy Dixon-Hodge,Maldon & Tiptree,phonetic-fallback-openai,,토미 딕슨-호지,딕슨-호지
+557522,T. Dobson-Ventura,T. Dobson-Ventura,Southampton,phonetic-fallback-openai,,티 돕슨-벤츄라,돕슨-벤츄라
+278073,T. Dyce,Tyrese Dyce,Slough Town,phonetic-fallback-openai,,타이리즈 다이스,다이스
+17563,T. Eastman,Thomas Michael Eastman,Maldon & Tiptree,phonetic-fallback-openai,,토마스 마이클 이스트맨,이스트맨
+375876,T. Eweka,Temitope Eweka,Eastleigh,phonetic-fallback-openai,,테미토페 에웨카,에웨카
+350590,T. Gidaree,Tarik Gidaree,Slough Town,phonetic-fallback-openai,,타릭 지다리,지다리
+18040,T. James,Thomas Lynn James,Leyton Orient,phonetic-fallback-openai,,토마스 린 제임스,제임스
+17965,T. Knowles,Thomas Andrew Knowles,Forest Green,phonetic-fallback-openai,,토마스 앤드류 노울스,노울스
+19378,T. Lees,Thomas James Lees,Peterborough,phonetic-fallback-openai,,토마스 제임스 리스,리스
+19468,T. Magloire,Tyler Jordan Magloire,Port Vale,phonetic-fallback-openai,,타일러 조던 매글로이어,매글로이어
+153429,T. Mengi,Teden Mambuene Mengi,Luton,phonetic-fallback-openai,,테덴 맘부에네 멩기,멩기
+400739,T. Ogunsuyi,Trey Samuel-Ogunsuyi,Shrewsbury,phonetic-fallback-openai,,트레이 사무엘-오군수이,사무엘-오군수이
+538480,T. Pemberton,T. Pemberton,Forest Green,phonetic-fallback-openai,,티. 펨버튼,펨버튼
+290211,T. Rigo,Tomáš Rigo,Stoke City,phonetic-fallback-openai,,토마쉬 리고,리고
+19139,T. Roberts,Tyler D'Whyte Roberts,Mansfield Town,phonetic-fallback-openai,,타일러 디화이트 로버츠,로버츠
+366630,T. Sellars-Fleming,Tyrell Sellars-Fleming,Grimsby,phonetic-fallback-openai,,테릴 셀러스-플레밍,셀러스-플레밍
+51307,T. Smith,Thomas Jefferson Smith,Braintree,phonetic-fallback-openai,,토마스 제퍼슨 스미스,스미스
+583870,T. Spencer-Clarke,T. Spencer-Clarke,Slough Town,phonetic-fallback-openai,,티. 스펜서-클락,스펜서-클락
+278064,T. Springett,Anthony Gary Springett,Norwich,phonetic-fallback-openai,,앤써니 게리 스프링엇,스프링엇
+17639,T. Vancooten,Terence Owen Vancooten,Burton Albion,phonetic-fallback-openai,,테렌스 오웬 반쿠텐,반쿠텐
+538479,T. Works,T. Works,Braintree,phonetic-fallback-openai,,티. 웍스,웍스
+153076,Terrell Evieoghene Oluwatoby Egbri,Terrell Evieoghene Oluwatoby Egbri,Maldon & Tiptree,phonetic-fallback-openai,,테렐 에비오게네 올라토비 에그브리,에그브리
+498726,Terry Bondo,Terry Bondo,Blackpool,phonetic-fallback-openai,,테리 본도,본도
+486405,Theo Upton,Theo Upton,Blackpool,phonetic-fallback-openai,,테오 업턴,업턴
+308844,Todd Alcock,Todd Alcock,South Shields,phonetic-fallback-openai,,토드 알콕,알콕
+403232,Tom Atcheson,Tom Atcheson,Blackburn,phonetic-fallback-openai,,톰 애치슨,애치슨
+455009,Tom Taylor,Tom Taylor,Cheltenham,phonetic-fallback-openai,,톰 테일러,테일러
+82473,Tom Tonks,Tom Tonks,Tamworth,phonetic-fallback-openai,,톰 톤크스,톤크스
+231203,Tyler Lyttle,Tyler Lyttle,Brackley Town,phonetic-fallback-openai,,타일러 리틀,리틀
+394294,Tyreece Anthony  Tupac Shakur Campbell,Tyreece Anthony Tupac Shakur Campbell,Charlton,phonetic-fallback-openai,,타이리스 앤써니 투팍 샤쿠르 캠벨,캠벨
+586262,Tyrelle Newton,Tyrelle Newton,Gateshead,phonetic-fallback-openai,,타이렐 뉴튼,뉴튼
+17482,U. Godwin-Malife,Udoka Favour Godwin-Malife,Burton Albion,phonetic-fallback-openai,,우도카 파보르 고드윈-말리프,고드윈-말리프
+19801,V. Adeboyejo,Victor Adeboyejo,Mansfield Town,phonetic-fallback-openai,,빅터 아데보예조,아데보예조
+70336,V. Kovačević,Vladan Kovačević,Norwich,phonetic-fallback-openai,,블라단 코바체비치,코바체비치
+158710,V. Kristiansen,Victor Bernth Kristiansen,Leicester,wikidata-ko-label,Victor Kristiansen,빅토르 크리스티안센,크리스티안센
+17800,W. Boyle,William Sam Douglas Boyle,Shrewsbury,phonetic-fallback-openai,,윌리엄 보일,보일
+20089,W. Burns,Wesley James Burns,Ipswich,phonetic-fallback-openai,,웨슬리 제임스 번스,번스
+557509,W. Burrell,W. Burrell,Birmingham,phonetic-fallback-openai,,W. 버렐,버렐
+88462,W. Dawes,William John Dawes,Weston-super-Mare,phonetic-fallback-openai,,윌리엄 존 도우즈,도우즈
+339174,W. Eastwood,William Eastwood,Chelmsford City,phonetic-fallback-openai,,윌리엄 이스트우드,이스트우드
+398870,W. Flint,Will Flint,Gateshead,phonetic-fallback-openai,,윌 플린트,플린트
+326764,W. Jarvis,William Jarvis,Notts County,phonetic-fallback-openai,,윌리엄 자비스,자비스
+182065,W. Jenkins,Will Jenkins,South Shields,phonetic-fallback-openai,,윌 젠킨스,젠킨스
+19745,W. Keane,William David Keane,Preston,phonetic-fallback-openai,,윌리엄 데이비드 키인,키인
+277435,W. Lancaster,Will Lancaster,Gainsborough Trinity,phonetic-fallback-openai,,윌 랭커스터,랭커스터
+574756,W. Makowski,W. Makowski,Slough Town,phonetic-fallback-openai,,W. 마코우스키,마코우스키
+284431,W. Tizzard,William James Tizzard,Sutton Utd,phonetic-fallback-openai,,윌리엄 제임스 티자드,티자드
+284487,Wanya Marçal,Wanya Marçal-Madivadua,Leicester,phonetic-fallback-openai,,와냐 마르살,마르살
+180919,Welington,Welington Damascena Santos,Southampton,phonetic-fallback-openai,,웰링턴 다마센나 산토스,산토스
+329352,William Dickson,William Dickson,Chesterfield,phonetic-fallback-openai,,윌리엄 딕슨,딕슨
+284335,William Michael Brook,William Michael Brook,Shrewsbury,phonetic-fallback-openai,,윌리엄 마이클 브룩,브룩
+459341,Z. Betteka,Zaid Betteka,Birmingham,phonetic-fallback-openai,,자이드 베테카,베테카
+231079,Z. Brown,Zak Brown,Brackley Town,phonetic-fallback-openai,,자크 브라운,브라운
+167321,Z. Lilly,Zak Lilly,Brackley Town,phonetic-fallback-openai,,자크 릴리,릴리
+620204,Zac Scutt,Zac Scutt,Burton Albion,phonetic-fallback-openai,,자크 스컷,스컷
+284420,Zachariah Olumide Awe,Zachariah Olumide Awe,Salford City,phonetic-fallback-openai,,자카리아 오루미데 아웨,아웨

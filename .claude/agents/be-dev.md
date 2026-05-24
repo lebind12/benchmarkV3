@@ -53,6 +53,7 @@ model: sonnet
 
 - 시작 시: state 파일 읽고 `state` 가 `SPEC_APPROVED` / `TEST_FAILED` / `CHANGES_REQUESTED` 인지 확인.
 - 종료 시: `scripts/endpoint-flow.sh transition <id> IMPL_PUSHED --by be-dev --note "commit <hash>"` 호출. `artifacts.impl_commit` 에 hash 기록.
+- `task_completed` 는 endpoint-flow 가 `MERGED` 인 최종 상태에서만 허용된다. 구현 commit / push 완료는 TaskList 완료가 아니라 `IMPL_PUSHED` stage 전환으로만 기록한다.
 
 ## Worktree / 동시 작업 격리
 

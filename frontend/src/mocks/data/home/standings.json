@@ -1,31 +1,1462 @@
 {
+  "1": {
+    "league": {
+      "external_id": 1,
+      "slug": "world-cup-2026",
+      "name_ko": "월드컵",
+      "short_name_ko": "월드컵",
+      "name": "FIFA World Cup"
+    },
+    "season": 2026,
+    "rows": [
+      {
+        "group_name": "Group A",
+        "rank": 1,
+        "team": {
+          "external_id": 9001,
+          "slug": "wc26-a-1",
+          "name_ko": "멕시코",
+          "short_name_ko": "멕시코",
+          "name": "World Cup A1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group A",
+        "rank": 2,
+        "team": {
+          "external_id": 9002,
+          "slug": "wc26-a-2",
+          "name_ko": "대한민국",
+          "short_name_ko": "대한민국",
+          "name": "World Cup A2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group A",
+        "rank": 3,
+        "team": {
+          "external_id": 9003,
+          "slug": "wc26-a-3",
+          "name_ko": "남아공",
+          "short_name_ko": "남아공",
+          "name": "World Cup A3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group A",
+        "rank": 4,
+        "team": {
+          "external_id": 9004,
+          "slug": "wc26-a-4",
+          "name_ko": "노르웨이",
+          "short_name_ko": "노르웨이",
+          "name": "World Cup A4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group B",
+        "rank": 1,
+        "team": {
+          "external_id": 9005,
+          "slug": "wc26-b-1",
+          "name_ko": "캐나다",
+          "short_name_ko": "캐나다",
+          "name": "World Cup B1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group B",
+        "rank": 2,
+        "team": {
+          "external_id": 9006,
+          "slug": "wc26-b-2",
+          "name_ko": "스위스",
+          "short_name_ko": "스위스",
+          "name": "World Cup B2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group B",
+        "rank": 3,
+        "team": {
+          "external_id": 9007,
+          "slug": "wc26-b-3",
+          "name_ko": "카타르",
+          "short_name_ko": "카타르",
+          "name": "World Cup B3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group B",
+        "rank": 4,
+        "team": {
+          "external_id": 9008,
+          "slug": "wc26-b-4",
+          "name_ko": "가나",
+          "short_name_ko": "가나",
+          "name": "World Cup B4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group C",
+        "rank": 1,
+        "team": {
+          "external_id": 9009,
+          "slug": "wc26-c-1",
+          "name_ko": "브라질",
+          "short_name_ko": "브라질",
+          "name": "World Cup C1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group C",
+        "rank": 2,
+        "team": {
+          "external_id": 9010,
+          "slug": "wc26-c-2",
+          "name_ko": "모로코",
+          "short_name_ko": "모로코",
+          "name": "World Cup C2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group C",
+        "rank": 3,
+        "team": {
+          "external_id": 9011,
+          "slug": "wc26-c-3",
+          "name_ko": "스코틀랜드",
+          "short_name_ko": "스코틀랜드",
+          "name": "World Cup C3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group C",
+        "rank": 4,
+        "team": {
+          "external_id": 9012,
+          "slug": "wc26-c-4",
+          "name_ko": "아이티",
+          "short_name_ko": "아이티",
+          "name": "World Cup C4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group D",
+        "rank": 1,
+        "team": {
+          "external_id": 9013,
+          "slug": "wc26-d-1",
+          "name_ko": "미국",
+          "short_name_ko": "미국",
+          "name": "World Cup D1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group D",
+        "rank": 2,
+        "team": {
+          "external_id": 9014,
+          "slug": "wc26-d-2",
+          "name_ko": "일본",
+          "short_name_ko": "일본",
+          "name": "World Cup D2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group D",
+        "rank": 3,
+        "team": {
+          "external_id": 9015,
+          "slug": "wc26-d-3",
+          "name_ko": "파라과이",
+          "short_name_ko": "파라과이",
+          "name": "World Cup D3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group D",
+        "rank": 4,
+        "team": {
+          "external_id": 9016,
+          "slug": "wc26-d-4",
+          "name_ko": "튀니지",
+          "short_name_ko": "튀니지",
+          "name": "World Cup D4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group E",
+        "rank": 1,
+        "team": {
+          "external_id": 9017,
+          "slug": "wc26-e-1",
+          "name_ko": "독일",
+          "short_name_ko": "독일",
+          "name": "World Cup E1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group E",
+        "rank": 2,
+        "team": {
+          "external_id": 9018,
+          "slug": "wc26-e-2",
+          "name_ko": "코트디부아르",
+          "short_name_ko": "코트디부아르",
+          "name": "World Cup E2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group E",
+        "rank": 3,
+        "team": {
+          "external_id": 9019,
+          "slug": "wc26-e-3",
+          "name_ko": "에콰도르",
+          "short_name_ko": "에콰도르",
+          "name": "World Cup E3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group E",
+        "rank": 4,
+        "team": {
+          "external_id": 9020,
+          "slug": "wc26-e-4",
+          "name_ko": "뉴질랜드",
+          "short_name_ko": "뉴질랜드",
+          "name": "World Cup E4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group F",
+        "rank": 1,
+        "team": {
+          "external_id": 9021,
+          "slug": "wc26-f-1",
+          "name_ko": "프랑스",
+          "short_name_ko": "프랑스",
+          "name": "World Cup F1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group F",
+        "rank": 2,
+        "team": {
+          "external_id": 9022,
+          "slug": "wc26-f-2",
+          "name_ko": "콜롬비아",
+          "short_name_ko": "콜롬비아",
+          "name": "World Cup F2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group F",
+        "rank": 3,
+        "team": {
+          "external_id": 9023,
+          "slug": "wc26-f-3",
+          "name_ko": "세네갈",
+          "short_name_ko": "세네갈",
+          "name": "World Cup F3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group F",
+        "rank": 4,
+        "team": {
+          "external_id": 9024,
+          "slug": "wc26-f-4",
+          "name_ko": "오스트리아",
+          "short_name_ko": "오스트리아",
+          "name": "World Cup F4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group G",
+        "rank": 1,
+        "team": {
+          "external_id": 9025,
+          "slug": "wc26-g-1",
+          "name_ko": "스페인",
+          "short_name_ko": "스페인",
+          "name": "World Cup G1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group G",
+        "rank": 2,
+        "team": {
+          "external_id": 9026,
+          "slug": "wc26-g-2",
+          "name_ko": "이집트",
+          "short_name_ko": "이집트",
+          "name": "World Cup G2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group G",
+        "rank": 3,
+        "team": {
+          "external_id": 9027,
+          "slug": "wc26-g-3",
+          "name_ko": "호주",
+          "short_name_ko": "호주",
+          "name": "World Cup G3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group G",
+        "rank": 4,
+        "team": {
+          "external_id": 9028,
+          "slug": "wc26-g-4",
+          "name_ko": "볼리비아",
+          "short_name_ko": "볼리비아",
+          "name": "World Cup G4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group H",
+        "rank": 1,
+        "team": {
+          "external_id": 9029,
+          "slug": "wc26-h-1",
+          "name_ko": "잉글랜드",
+          "short_name_ko": "잉글랜드",
+          "name": "World Cup H1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group H",
+        "rank": 2,
+        "team": {
+          "external_id": 9030,
+          "slug": "wc26-h-2",
+          "name_ko": "크로아티아",
+          "short_name_ko": "크로아티아",
+          "name": "World Cup H2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group H",
+        "rank": 3,
+        "team": {
+          "external_id": 9031,
+          "slug": "wc26-h-3",
+          "name_ko": "이란",
+          "short_name_ko": "이란",
+          "name": "World Cup H3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group H",
+        "rank": 4,
+        "team": {
+          "external_id": 9032,
+          "slug": "wc26-h-4",
+          "name_ko": "파나마",
+          "short_name_ko": "파나마",
+          "name": "World Cup H4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group I",
+        "rank": 1,
+        "team": {
+          "external_id": 9033,
+          "slug": "wc26-i-1",
+          "name_ko": "아르헨티나",
+          "short_name_ko": "아르헨티나",
+          "name": "World Cup I1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group I",
+        "rank": 2,
+        "team": {
+          "external_id": 9034,
+          "slug": "wc26-i-2",
+          "name_ko": "알제리",
+          "short_name_ko": "알제리",
+          "name": "World Cup I2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group I",
+        "rank": 3,
+        "team": {
+          "external_id": 9035,
+          "slug": "wc26-i-3",
+          "name_ko": "사우디아라비아",
+          "short_name_ko": "사우디아라비아",
+          "name": "World Cup I3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group I",
+        "rank": 4,
+        "team": {
+          "external_id": 9036,
+          "slug": "wc26-i-4",
+          "name_ko": "요르단",
+          "short_name_ko": "요르단",
+          "name": "World Cup I4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group J",
+        "rank": 1,
+        "team": {
+          "external_id": 9037,
+          "slug": "wc26-j-1",
+          "name_ko": "벨기에",
+          "short_name_ko": "벨기에",
+          "name": "World Cup J1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group J",
+        "rank": 2,
+        "team": {
+          "external_id": 9038,
+          "slug": "wc26-j-2",
+          "name_ko": "우루과이",
+          "short_name_ko": "우루과이",
+          "name": "World Cup J2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group J",
+        "rank": 3,
+        "team": {
+          "external_id": 9039,
+          "slug": "wc26-j-3",
+          "name_ko": "대한민국 B",
+          "short_name_ko": "대한민국 B",
+          "name": "World Cup J3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group J",
+        "rank": 4,
+        "team": {
+          "external_id": 9040,
+          "slug": "wc26-j-4",
+          "name_ko": "쿠라소",
+          "short_name_ko": "쿠라소",
+          "name": "World Cup J4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group K",
+        "rank": 1,
+        "team": {
+          "external_id": 9041,
+          "slug": "wc26-k-1",
+          "name_ko": "포르투갈",
+          "short_name_ko": "포르투갈",
+          "name": "World Cup K1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group K",
+        "rank": 2,
+        "team": {
+          "external_id": 9042,
+          "slug": "wc26-k-2",
+          "name_ko": "네덜란드",
+          "short_name_ko": "네덜란드",
+          "name": "World Cup K2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group K",
+        "rank": 3,
+        "team": {
+          "external_id": 9043,
+          "slug": "wc26-k-3",
+          "name_ko": "우즈베키스탄",
+          "short_name_ko": "우즈베키스탄",
+          "name": "World Cup K3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group K",
+        "rank": 4,
+        "team": {
+          "external_id": 9044,
+          "slug": "wc26-k-4",
+          "name_ko": "자메이카",
+          "short_name_ko": "자메이카",
+          "name": "World Cup K4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      },
+      {
+        "group_name": "Group L",
+        "rank": 1,
+        "team": {
+          "external_id": 9045,
+          "slug": "wc26-l-1",
+          "name_ko": "이탈리아",
+          "short_name_ko": "이탈리아",
+          "name": "World Cup L1",
+          "logo_url": null
+        },
+        "points": 7,
+        "played": 3,
+        "win": 2,
+        "draw": 0,
+        "loss": 0,
+        "goals_for": 7,
+        "goals_against": 2,
+        "goal_diff": 5
+      },
+      {
+        "group_name": "Group L",
+        "rank": 2,
+        "team": {
+          "external_id": 9046,
+          "slug": "wc26-l-2",
+          "name_ko": "덴마크",
+          "short_name_ko": "덴마크",
+          "name": "World Cup L2",
+          "logo_url": null
+        },
+        "points": 5,
+        "played": 3,
+        "win": 1,
+        "draw": 1,
+        "loss": 1,
+        "goals_for": 6,
+        "goals_against": 3,
+        "goal_diff": 3
+      },
+      {
+        "group_name": "Group L",
+        "rank": 3,
+        "team": {
+          "external_id": 9047,
+          "slug": "wc26-l-3",
+          "name_ko": "콜롬비아 B",
+          "short_name_ko": "콜롬비아 B",
+          "name": "World Cup L3",
+          "logo_url": null
+        },
+        "points": 3,
+        "played": 3,
+        "win": 0,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 5,
+        "goals_against": 4,
+        "goal_diff": 1
+      },
+      {
+        "group_name": "Group L",
+        "rank": 4,
+        "team": {
+          "external_id": 9048,
+          "slug": "wc26-l-4",
+          "name_ko": "카보베르데",
+          "short_name_ko": "카보베르데",
+          "name": "World Cup L4",
+          "logo_url": null
+        },
+        "points": 1,
+        "played": 3,
+        "win": 0,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 4,
+        "goals_against": 5,
+        "goal_diff": -1
+      }
+    ],
+    "tournament": {
+      "has_tournament": true,
+      "template_rounds": [
+        {
+          "round_label": "32강",
+          "slot_count": 16
+        },
+        {
+          "round_label": "16강",
+          "slot_count": 8
+        },
+        {
+          "round_label": "8강",
+          "slot_count": 4
+        },
+        {
+          "round_label": "4강",
+          "slot_count": 2
+        },
+        {
+          "round_label": "3위 결정전",
+          "slot_count": 1
+        },
+        {
+          "round_label": "결승",
+          "slot_count": 1
+        }
+      ],
+      "rounds": []
+    }
+  },
   "39": {
-    "league": { "external_id": 39, "slug": "premier-league", "name_ko": "프리미어리그", "short_name_ko": "EPL", "name": "Premier League" },
+    "league": {
+      "external_id": 39,
+      "slug": "premier-league",
+      "name_ko": "프리미어리그",
+      "short_name_ko": "EPL",
+      "name": "Premier League"
+    },
     "season": 2025,
     "rows": [
-      { "rank": 1, "team": { "external_id": 40, "slug": "liverpool", "name_ko": "리버풀", "short_name_ko": "리버풀", "name": "Liverpool", "logo_url": null }, "points": 78, "played": 35, "win": 24, "draw": 6, "loss": 5, "goals_for": 78, "goals_against": 32 },
-      { "rank": 2, "team": { "external_id": 42, "slug": "arsenal", "name_ko": "아스날", "short_name_ko": "아스날", "name": "Arsenal", "logo_url": null }, "points": 74, "played": 35, "win": 22, "draw": 8, "loss": 5, "goals_for": 70, "goals_against": 30 },
-      { "rank": 3, "team": { "external_id": 50, "slug": "manchester-city", "name_ko": "맨체스터 시티", "short_name_ko": "맨시티", "name": "Manchester City", "logo_url": null }, "points": 71, "played": 35, "win": 21, "draw": 8, "loss": 6, "goals_for": 72, "goals_against": 35 },
-      { "rank": 4, "team": { "external_id": 49, "slug": "chelsea", "name_ko": "첼시", "short_name_ko": "첼시", "name": "Chelsea", "logo_url": null }, "points": 65, "played": 35, "win": 19, "draw": 8, "loss": 8, "goals_for": 62, "goals_against": 40 },
-      { "rank": 5, "team": { "external_id": 47, "slug": "tottenham", "name_ko": "토트넘", "short_name_ko": "토트넘", "name": "Tottenham", "logo_url": null }, "points": 60, "played": 35, "win": 18, "draw": 6, "loss": 11, "goals_for": 65, "goals_against": 50 },
-      { "rank": 6, "team": { "external_id": 33, "slug": "manchester-united", "name_ko": "맨체스터 유나이티드", "short_name_ko": "맨유", "name": "Manchester United", "logo_url": null }, "points": 55, "played": 35, "win": 16, "draw": 7, "loss": 12, "goals_for": 55, "goals_against": 48 }
+      {
+        "rank": 1,
+        "team": {
+          "external_id": 40,
+          "slug": "liverpool",
+          "name_ko": "리버풀",
+          "short_name_ko": "리버풀",
+          "name": "Liverpool",
+          "logo_url": null
+        },
+        "points": 78,
+        "played": 35,
+        "win": 24,
+        "draw": 6,
+        "loss": 5,
+        "goals_for": 78,
+        "goals_against": 32
+      },
+      {
+        "rank": 2,
+        "team": {
+          "external_id": 42,
+          "slug": "arsenal",
+          "name_ko": "아스날",
+          "short_name_ko": "아스날",
+          "name": "Arsenal",
+          "logo_url": null
+        },
+        "points": 74,
+        "played": 35,
+        "win": 22,
+        "draw": 8,
+        "loss": 5,
+        "goals_for": 70,
+        "goals_against": 30
+      },
+      {
+        "rank": 3,
+        "team": {
+          "external_id": 50,
+          "slug": "manchester-city",
+          "name_ko": "맨체스터 시티",
+          "short_name_ko": "맨시티",
+          "name": "Manchester City",
+          "logo_url": null
+        },
+        "points": 71,
+        "played": 35,
+        "win": 21,
+        "draw": 8,
+        "loss": 6,
+        "goals_for": 72,
+        "goals_against": 35
+      },
+      {
+        "rank": 4,
+        "team": {
+          "external_id": 49,
+          "slug": "chelsea",
+          "name_ko": "첼시",
+          "short_name_ko": "첼시",
+          "name": "Chelsea",
+          "logo_url": null
+        },
+        "points": 65,
+        "played": 35,
+        "win": 19,
+        "draw": 8,
+        "loss": 8,
+        "goals_for": 62,
+        "goals_against": 40
+      },
+      {
+        "rank": 5,
+        "team": {
+          "external_id": 47,
+          "slug": "tottenham",
+          "name_ko": "토트넘",
+          "short_name_ko": "토트넘",
+          "name": "Tottenham",
+          "logo_url": null
+        },
+        "points": 60,
+        "played": 35,
+        "win": 18,
+        "draw": 6,
+        "loss": 11,
+        "goals_for": 65,
+        "goals_against": 50
+      },
+      {
+        "rank": 6,
+        "team": {
+          "external_id": 33,
+          "slug": "manchester-united",
+          "name_ko": "맨체스터 유나이티드",
+          "short_name_ko": "맨유",
+          "name": "Manchester United",
+          "logo_url": null
+        },
+        "points": 55,
+        "played": 35,
+        "win": 16,
+        "draw": 7,
+        "loss": 12,
+        "goals_for": 55,
+        "goals_against": 48
+      }
     ]
   },
   "2": {
-    "league": { "external_id": 2, "slug": "champions-league", "name_ko": "챔피언스리그", "short_name_ko": "UCL", "name": "UEFA Champions League" },
+    "league": {
+      "external_id": 2,
+      "slug": "champions-league",
+      "name_ko": "챔피언스리그",
+      "short_name_ko": "UCL",
+      "name": "UEFA Champions League"
+    },
     "season": 2025,
     "rows": [
-      { "rank": 1, "team": { "external_id": 541, "slug": "real-madrid", "name_ko": "레알 마드리드", "short_name_ko": "레알", "name": "Real Madrid", "logo_url": null }, "points": 16, "played": 8, "win": 5, "draw": 1, "loss": 2, "goals_for": 17, "goals_against": 9 },
-      { "rank": 2, "team": { "external_id": 40, "slug": "liverpool", "name_ko": "리버풀", "short_name_ko": "리버풀", "name": "Liverpool", "logo_url": null }, "points": 15, "played": 8, "win": 5, "draw": 0, "loss": 3, "goals_for": 14, "goals_against": 7 }
-    ]
+      {
+        "rank": 1,
+        "team": {
+          "external_id": 541,
+          "slug": "real-madrid",
+          "name_ko": "레알 마드리드",
+          "short_name_ko": "레알",
+          "name": "Real Madrid",
+          "logo_url": null
+        },
+        "points": 16,
+        "played": 8,
+        "win": 5,
+        "draw": 1,
+        "loss": 2,
+        "goals_for": 17,
+        "goals_against": 9
+      },
+      {
+        "rank": 2,
+        "team": {
+          "external_id": 40,
+          "slug": "liverpool",
+          "name_ko": "리버풀",
+          "short_name_ko": "리버풀",
+          "name": "Liverpool",
+          "logo_url": null
+        },
+        "points": 15,
+        "played": 8,
+        "win": 5,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 14,
+        "goals_against": 7
+      }
+    ],
+    "tournament": {
+      "has_tournament": true,
+      "template_rounds": [
+        {
+          "round_label": "플레이오프",
+          "slot_count": 16
+        },
+        {
+          "round_label": "32강",
+          "slot_count": 16
+        },
+        {
+          "round_label": "16강",
+          "slot_count": 8
+        },
+        {
+          "round_label": "8강",
+          "slot_count": 4
+        },
+        {
+          "round_label": "4강",
+          "slot_count": 2
+        },
+        {
+          "round_label": "결승",
+          "slot_count": 1
+        }
+      ],
+      "rounds": [
+        {
+          "round_label": "16강",
+          "rounds": [
+            "Round of 16"
+          ],
+          "round_order": 984,
+          "slot_count": 8,
+          "fixture_count": 2,
+          "from_template": true,
+          "fixtures": [
+            {
+              "external_id": 20001,
+              "round": "Round of 16",
+              "kickoff_at": "2026-06-30T19:00:00Z",
+              "status_short": "NS",
+              "goals_home": null,
+              "goals_away": null,
+              "score_pen_home": null,
+              "score_pen_away": null,
+              "home_winner": false,
+              "away_winner": false,
+              "home": {
+                "external_id": 541,
+                "slug": "real-madrid",
+                "name_ko": "레알",
+                "short_name_ko": "레알",
+                "name": "Real Madrid",
+                "logo_url": null
+              },
+              "away": {
+                "external_id": 40,
+                "slug": "liverpool",
+                "name_ko": "리버풀",
+                "short_name_ko": "리버풀",
+                "name": "Liverpool",
+                "logo_url": null
+              }
+            },
+            {
+              "external_id": 20002,
+              "round": "Round of 16",
+              "kickoff_at": "2026-06-30T19:00:00Z",
+              "status_short": "NS",
+              "goals_home": null,
+              "goals_away": null,
+              "score_pen_home": null,
+              "score_pen_away": null,
+              "home_winner": false,
+              "away_winner": false,
+              "home": {
+                "external_id": 50,
+                "slug": "manchester-city",
+                "name_ko": "맨시티",
+                "short_name_ko": "맨시티",
+                "name": "Manchester City",
+                "logo_url": null
+              },
+              "away": {
+                "external_id": 529,
+                "slug": "barcelona",
+                "name_ko": "바르셀로나",
+                "short_name_ko": "바르셀로나",
+                "name": "Barcelona",
+                "logo_url": null
+              }
+            }
+          ]
+        }
+      ]
+    }
   },
   "3": {
-    "league": { "external_id": 3, "slug": "europa-league", "name_ko": "유로파리그", "short_name_ko": "UEL", "name": "UEFA Europa League" },
+    "league": {
+      "external_id": 3,
+      "slug": "europa-league",
+      "name_ko": "유로파리그",
+      "short_name_ko": "UEL",
+      "name": "UEFA Europa League"
+    },
     "season": 2025,
     "rows": [
-      { "rank": 1, "team": { "external_id": 33, "slug": "manchester-united", "name_ko": "맨체스터 유나이티드", "short_name_ko": "맨유", "name": "Manchester United", "logo_url": null }, "points": 14, "played": 8, "win": 4, "draw": 2, "loss": 2, "goals_for": 12, "goals_against": 8 }
-    ]
+      {
+        "rank": 1,
+        "team": {
+          "external_id": 33,
+          "slug": "manchester-united",
+          "name_ko": "맨체스터 유나이티드",
+          "short_name_ko": "맨유",
+          "name": "Manchester United",
+          "logo_url": null
+        },
+        "points": 14,
+        "played": 8,
+        "win": 4,
+        "draw": 2,
+        "loss": 2,
+        "goals_for": 12,
+        "goals_against": 8
+      }
+    ],
+    "tournament": {
+      "has_tournament": true,
+      "template_rounds": [
+        {
+          "round_label": "플레이오프",
+          "slot_count": 16
+        },
+        {
+          "round_label": "32강",
+          "slot_count": 16
+        },
+        {
+          "round_label": "16강",
+          "slot_count": 8
+        },
+        {
+          "round_label": "8강",
+          "slot_count": 4
+        },
+        {
+          "round_label": "4강",
+          "slot_count": 2
+        },
+        {
+          "round_label": "결승",
+          "slot_count": 1
+        }
+      ],
+      "rounds": []
+    }
   },
-  "48": { "league": { "external_id": 48, "slug": "carabao-cup", "name_ko": "카라바오컵", "short_name_ko": "카라바오", "name": "Carabao Cup" }, "season": 2025, "rows": [] },
-  "45": { "league": { "external_id": 45, "slug": "fa-cup", "name_ko": "FA컵", "short_name_ko": "FA", "name": "FA Cup" }, "season": 2025, "rows": [] }
+  "48": {
+    "league": {
+      "external_id": 48,
+      "slug": "carabao-cup",
+      "name_ko": "카라바오컵",
+      "short_name_ko": "카라바오",
+      "name": "Carabao Cup"
+    },
+    "season": 2025,
+    "rows": [],
+    "tournament": {
+      "has_tournament": true,
+      "template_rounds": [
+        {
+          "round_label": "1라운드",
+          "slot_count": 35
+        },
+        {
+          "round_label": "2라운드",
+          "slot_count": 25
+        },
+        {
+          "round_label": "3라운드",
+          "slot_count": 16
+        },
+        {
+          "round_label": "16강",
+          "slot_count": 8
+        },
+        {
+          "round_label": "8강",
+          "slot_count": 4
+        },
+        {
+          "round_label": "4강",
+          "slot_count": 2
+        },
+        {
+          "round_label": "결승",
+          "slot_count": 1
+        }
+      ],
+      "rounds": []
+    }
+  },
+  "45": {
+    "league": {
+      "external_id": 45,
+      "slug": "fa-cup",
+      "name_ko": "FA컵",
+      "short_name_ko": "FA",
+      "name": "FA Cup"
+    },
+    "season": 2025,
+    "rows": [],
+    "tournament": {
+      "has_tournament": true,
+      "template_rounds": [
+        {
+          "round_label": "128강",
+          "slot_count": 64
+        },
+        {
+          "round_label": "64강",
+          "slot_count": 32
+        },
+        {
+          "round_label": "32강",
+          "slot_count": 16
+        },
+        {
+          "round_label": "16강",
+          "slot_count": 8
+        },
+        {
+          "round_label": "8강",
+          "slot_count": 4
+        },
+        {
+          "round_label": "4강",
+          "slot_count": 2
+        },
+        {
+          "round_label": "결승",
+          "slot_count": 1
+        }
+      ],
+      "rounds": [
+        {
+          "round_label": "8강",
+          "rounds": [
+            "Quarter-finals"
+          ],
+          "round_order": 992,
+          "slot_count": 4,
+          "fixture_count": 1,
+          "from_template": true,
+          "fixtures": [
+            {
+              "external_id": 45001,
+              "round": "Quarter-finals",
+              "kickoff_at": "2026-06-30T19:00:00Z",
+              "status_short": "FT",
+              "goals_home": 2,
+              "goals_away": 1,
+              "score_pen_home": null,
+              "score_pen_away": null,
+              "home_winner": true,
+              "away_winner": false,
+              "home": {
+                "external_id": 40,
+                "slug": "liverpool",
+                "name_ko": "리버풀",
+                "short_name_ko": "리버풀",
+                "name": "Liverpool",
+                "logo_url": null
+              },
+              "away": {
+                "external_id": 42,
+                "slug": "arsenal",
+                "name_ko": "아스날",
+                "short_name_ko": "아스날",
+                "name": "Arsenal",
+                "logo_url": null
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
 }

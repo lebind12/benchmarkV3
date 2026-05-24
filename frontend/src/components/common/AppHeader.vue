@@ -13,6 +13,8 @@ const tabs = computed(() => {
     { path: '/teams', label: '팀' },
     { path: '/players', label: '선수' },
     { path: '/stats', label: '스탯' },
+    { path: '/news', label: '뉴스' },
+    { path: '/admin', label: '관리' },
   ]
   if (auth.isStreamer) base.push({ path: '/broadcast', label: '방송' })
   return base
@@ -84,7 +86,7 @@ function toggleTheme() {
   gap: 16px;
 }
 .hdr__logo { font-weight: 700; }
-.hdr__nav { display: flex; gap: 16px; flex: 1; }
+.hdr__nav { display: flex; gap: 16px; flex: 1; overflow-x: auto; }
 .hdr__tab {
   text-decoration: none;
   color: var(--color-muted);

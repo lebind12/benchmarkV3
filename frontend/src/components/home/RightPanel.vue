@@ -10,11 +10,17 @@ import TopPlayersBlock from './TopPlayersBlock.vue'
 </template>
 <style scoped>
 .right {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
   border-left: 1px solid var(--color-border);
 }
-.right__top, .right__bot { flex: 1 1 50%; min-height: 0; }
+.right__top,
+.right__bot {
+  min-height: 0;
+  overflow: hidden;
+}
 .right__top { border-bottom: 1px solid var(--color-border); }
 </style>

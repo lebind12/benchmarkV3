@@ -75,7 +75,14 @@ export interface LineupPlayer {
 export interface TeamLineup {
   team: TeamRef
   formation: string | null
-  coach: { name: string } | null
+  coach: {
+    external_id: number | null
+    slug: string
+    name: string
+    name_ko: string | null
+    short_name_ko: string | null
+    photo_url: string | null
+  } | null
   start_xi: LineupPlayer[]
   bench: LineupPlayer[]
 }

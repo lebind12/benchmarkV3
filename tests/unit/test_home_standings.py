@@ -92,6 +92,15 @@ def test_hs_u03_accepts_explicit_allowed_league(client_and_service):
     assert service.standings_calls[-1] == {"league_id": 2}
 
 
+def test_hs_u03b_accepts_world_cup_league(client_and_service):
+    client, service = client_and_service
+
+    response = client.get("/api/v1/home/standings?league_id=1")
+
+    assert response.status_code == 200
+    assert service.standings_calls[-1] == {"league_id": 1}
+
+
 def test_hs_u04_unsupported_league_id_returns_422(client_and_service):
     client, _service = client_and_service
 

@@ -5,6 +5,8 @@ export type LeagueSlug =
   | 'europa-league'
   | 'carabao-cup'
   | 'fa-cup'
+  | 'world-cup'
+  | 'world-cup-2026'
 
 export interface LeagueRef {
   external_id: number
@@ -93,6 +95,7 @@ export interface FixtureSummary {
 }
 
 export interface StandingRow {
+  group_name?: string | null
   rank: number
   team: TeamRef
   points: number
@@ -102,6 +105,7 @@ export interface StandingRow {
   loss: number
   goals_for: number
   goals_against: number
+  goal_diff?: number | null
 }
 
 export interface TopPlayerRow {

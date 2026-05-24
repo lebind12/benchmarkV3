@@ -34,7 +34,7 @@ const empty = computed(
         }}</strong
       >
       <span v-if="lineup?.coach?.name" class="lineup-panel__coach">
-        {{ lineup.coach.name }}
+        {{ lineup.coach.name_ko ?? lineup.coach.name }}
       </span>
     </header>
 

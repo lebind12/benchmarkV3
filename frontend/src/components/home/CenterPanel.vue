@@ -56,8 +56,19 @@ function goFixturesPage() {
   </section>
 </template>
 <style scoped>
-.center { display: flex; flex-direction: column; height: 100%; }
-.center__list { flex: 1; min-height: 0; padding: 8px 12px 0; }
+.center {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.center__list {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 12px 0;
+}
 .reset-row { text-align: center; padding-top: 8px; }
 .reset {
   background: transparent;

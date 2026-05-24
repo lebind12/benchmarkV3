@@ -10,9 +10,10 @@ import type {
   TopPlayerRow,
   Transfer,
 } from '@/types/home'
+import { apiUrl, apiUrlWithQuery } from '@/lib/api/base'
 
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: { Accept: 'application/json' } })
+  const res = await fetch(apiUrl(url), { headers: { Accept: 'application/json' } })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return (await res.json()) as T
 }
@@ -24,14 +25,10 @@ export const homeApi = {
   injuries:  () => getJson<{ items: Injury[] }>('/api/v1/home/injuries'),
 
   fixtures: (period: Period, leagueId: number | null, date?: string) => {
-    const u = new URL('/api/v1/home/fixtures', window.location.origin)
-    u.searchParams.set('period', period)
-    if (leagueId != null) u.searchParams.set('league_id', String(leagueId))
-    if (date) u.searchParams.set('date', date)
     return getJson<{
       items: FixtureSummary[]
       filters_applied: { period: Period; league_id?: number; date?: string }
-    }>(u.pathname + '?' + u.searchParams.toString())
+    }>(apiUrlWithQuery('/api/v1/home/fixtures', { period, league_id: leagueId, date }))
   },
 
   standings: (leagueId: number) =>

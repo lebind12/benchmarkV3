@@ -36,6 +36,12 @@
   --league-fa-secondary: #e22636;
   --league-fa-accent: #d4af37;
   --league-fa-on-primary: #ffffff;
+
+  /* FIFA World Cup 2026 — light */
+  --league-wc-primary: #111111;
+  --league-wc-secondary: #d6b45c;
+  --league-wc-accent: #0057b8;
+  --league-wc-on-primary: #ffffff;
 }
 
 /* league-palette.md §8 dark variants */
@@ -74,4 +80,10 @@ html.dark {
   --league-fa-secondary: #ff4856;
   --league-fa-accent: #eec34a;
   --league-fa-on-primary: #ffffff;
+
+  /* FIFA World Cup 2026 — dark */
+  --league-wc-primary: #f5f1e7;
+  --league-wc-secondary: #d6b45c;
+  --league-wc-accent: #e53935;
+  --league-wc-on-primary: #111111;
 }

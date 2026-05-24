@@ -14,6 +14,11 @@ import type {
 } from '@/types/home'
 
 const ROTATE_MS = 10_000
+const CUP_LEAGUES_WITHOUT_STANDINGS = new Set([48, 45])
+
+export function hasHomeStandings(id: number): boolean {
+  return !CUP_LEAGUES_WITHOUT_STANDINGS.has(id)
+}
 
 function newSlice<T>(): AsyncSlice<T> {
   return { status: 'idle', value: null, error: null, fetchedAt: null }
@@ -112,6 +117,13 @@ export const useHomeStore = defineStore('home', {
       )
     },
     fetchStandings() {
+      if (!hasHomeStandings(this.standings.league_id)) {
+        this.standings.data.status = 'ok'
+        this.standings.data.value = []
+        this.standings.data.error = null
+        this.standings.data.fetchedAt = Date.now()
+        return Promise.resolve()
+      }
       return this._runSlice(this.standings.data, async () =>
         (await homeApi.standings(this.standings.league_id)).rows,
       )

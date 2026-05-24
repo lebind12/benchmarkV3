@@ -49,6 +49,7 @@ model: sonnet
 - 시작: state 파일 확인. `state == "TRIGGERED"` 또는 `PLAN_DRAFTING` 이고 본인이 owner.
 - 종료: `scripts/feature-flow.sh transition <id> PLAN_REVIEW --by fe-planner --note "..."` 호출. artifacts.{spec,devplan,testplan}_path 갱신.
 - 도메인 충돌 발견 시: `state.blockers` 에 사유 기록 후 `PLAN_FAILED` 로 전이.
+- `task_completed` 는 feature-flow 가 `FE_DONE_AWAITING_BE` 또는 `DONE` 인 최종 상태에서만 허용된다. planner 산출물 완료는 feature 완료가 아니므로 `PLAN_REVIEW` stage 전환으로만 기록하고 TaskList 완료로 보고하지 않는다.
 
 ## 권한 경계
 

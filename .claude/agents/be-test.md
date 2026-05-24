@@ -50,6 +50,7 @@ model: sonnet
 - 시작 시: state 파일 읽고 `state` 가 `FE_REQUESTED` 또는 `IMPL_PUSHED` 인지 확인. 아니면 정지.
 - 종료 시: `scripts/endpoint-flow.sh transition <id> <next_state> --by be-test --note "..."` 호출.
 - 테스트 실패 시: `evidence.integration_test_log` 에 실 출력 첨부 + `iteration.test_loop` 증가.
+- `task_completed` 는 endpoint-flow 가 `MERGED` 인 최종 상태에서만 허용된다. spec 작성 완료, test 작성 완료, test 통과는 모두 stage 전환으로만 기록하고 TaskList 완료로 보고하지 않는다.
 
 ## 권한 경계
 

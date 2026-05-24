@@ -44,3 +44,11 @@
   --theme-accent: var(--league-fa-accent);
   --theme-on-primary: var(--league-fa-on-primary);
 }
+
+[data-league='world-cup'],
+[data-league='world-cup-2026'] {
+  --theme-primary: var(--league-wc-primary);
+  --theme-secondary: var(--league-wc-secondary);
+  --theme-accent: var(--league-wc-accent);
+  --theme-on-primary: var(--league-wc-on-primary);
+}

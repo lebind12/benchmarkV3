@@ -44,4 +44,42 @@ describe('MatchHeader', () => {
     const w = mount(MatchHeader, { props: { match: m } })
     expect(w.html()).toContain('Liverpool')
   })
+
+  it('opens a streaming picker with watch-together and program page links', async () => {
+    const w = mount(MatchHeader, {
+      props: { match: match1 as unknown as MatchDetail },
+    })
+    const trigger = w.find('[data-testid=broadcast-picker-trigger]')
+    expect(trigger.exists()).toBe(true)
+    expect(trigger.text()).toContain('스트리밍')
+    expect(w.find('[data-testid=broadcast-picker]').exists()).toBe(false)
+
+    await trigger.trigger('click')
+
+    expect(w.find('[data-testid=broadcast-picker]').exists()).toBe(true)
+    const watchTogetherLink = w.find('[data-testid=watch-together-link]')
+    const programLink = w.find('[data-testid=program-link]')
+    expect(watchTogetherLink.attributes('href')).toBe(
+      '/broadcast.html?fixtureId=1000001&league=premier-league',
+    )
+    expect(watchTogetherLink.text()).toContain('같이보기 화면')
+    expect(programLink.attributes('href')).toBe(
+      '/broadcast-program.html?fixtureId=1000001&league=premier-league',
+    )
+    expect(programLink.text()).toContain('중계용 화면')
+    expect(watchTogetherLink.attributes('target')).toBe('_blank')
+    expect(programLink.attributes('target')).toBe('_blank')
+  })
+
+  it('closes the streaming picker from the close button', async () => {
+    const w = mount(MatchHeader, {
+      props: { match: match1 as unknown as MatchDetail },
+    })
+    await w.find('[data-testid=broadcast-picker-trigger]').trigger('click')
+    expect(w.find('[data-testid=broadcast-picker]').exists()).toBe(true)
+
+    await w.find('[data-testid=broadcast-picker-close]').trigger('click')
+
+    expect(w.find('[data-testid=broadcast-picker]').exists()).toBe(false)
+  })
 })

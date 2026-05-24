@@ -26,6 +26,12 @@ onBeforeUnmount(() => {
   height: calc(100vh - var(--header-height));
   display: grid;
   grid-template-columns: 25% 50% 25%;
+  min-height: 0;
   overflow: hidden;
+}
+
+.home > * {
+  min-width: 0;
+  min-height: 0;
 }
 </style>

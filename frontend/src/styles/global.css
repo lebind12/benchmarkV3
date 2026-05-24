@@ -35,6 +35,10 @@ body {
 }
 
 .panel-scroll {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
@@ -46,6 +50,8 @@ body {
 .panel-scroll-wrap {
   position: relative;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 .panel-scroll-fade {
   position: absolute;

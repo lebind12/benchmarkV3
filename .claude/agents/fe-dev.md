@@ -104,6 +104,7 @@ Mock 머지 완료 직후 다음 절차 자동 수행:
 - 시작 시 state 파일 확인. owner 또는 owner==null + 진입 가능 state.
 - 종료 시 `scripts/feature-flow.sh transition <id> <state> --by fe-dev --note "..."`.
 - 실패 시 evidence 에 로그 첨부 + 해당 loop counter 증가.
+- `task_completed` 는 feature-flow 가 `FE_DONE_AWAITING_BE` 또는 `DONE` 인 최종 상태에서만 허용된다. mock 구현, Playwright 통과, endpoint-request 생성, integration 구현은 각각 stage 전환으로만 기록하고 TaskList 완료로 보고하지 않는다.
 
 ## Worktree / 동시 작업 격리
 
