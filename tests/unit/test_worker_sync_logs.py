@@ -34,6 +34,7 @@ def test_persist_worker_sync_log_extracts_queryable_fields():
         "progress_percent": 80.0,
         "started_at": "2026-05-24T10:00:00+00:00",
         "finished_at": "2026-05-24T10:00:12+00:00",
+        "origin": {"pid": 123, "hostname": "test-host"},
         "result": {"has_errors": True},
         "error": None,
         "logs": [{"ts": "2026-05-24T10:00:01+00:00", "message": "started"}],
@@ -46,6 +47,7 @@ def test_persist_worker_sync_log_extracts_queryable_fields():
     assert params["worker_name"] == "daily-sync"
     assert params["status"] == "failed"
     assert params["duration_seconds"] == 12.0
+    assert params["origin"] == {"pid": 123, "hostname": "test-host"}
     assert params["result"] == {"has_errors": True}
     assert params["logs"][0]["message"] == "started"
 

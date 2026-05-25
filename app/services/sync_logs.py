@@ -30,12 +30,12 @@ _UPSERT_WORKER_SYNC_LOG = (
         INSERT INTO worker_sync_log (
             run_id, worker_name, status, total_units, completed_units,
             progress_percent, started_at, finished_at, duration_seconds,
-            result, error, logs
+            origin, result, error, logs
         )
         VALUES (
             :run_id, :worker_name, :status, :total_units, :completed_units,
             :progress_percent, :started_at, :finished_at, :duration_seconds,
-            :result, :error, :logs
+            :origin, :result, :error, :logs
         )
         ON CONFLICT (run_id) DO UPDATE SET
             worker_name = EXCLUDED.worker_name,
@@ -46,11 +46,13 @@ _UPSERT_WORKER_SYNC_LOG = (
             started_at = EXCLUDED.started_at,
             finished_at = EXCLUDED.finished_at,
             duration_seconds = EXCLUDED.duration_seconds,
+            origin = EXCLUDED.origin,
             result = EXCLUDED.result,
             error = EXCLUDED.error,
             logs = EXCLUDED.logs
         """
     )
+    .bindparams(bindparam("origin", type_=JSONB))
     .bindparams(bindparam("result", type_=JSONB))
     .bindparams(bindparam("logs", type_=JSONB))
 )
@@ -67,7 +69,7 @@ _LIST_WORKER_SYNC_LOGS = text(
     SELECT
         run_id, worker_name, status, total_units, completed_units,
         progress_percent, started_at, finished_at, duration_seconds,
-        result, error, logs, created_at
+        origin, result, error, logs, created_at
     FROM worker_sync_log
     WHERE worker_name = :worker_name
     ORDER BY created_at DESC
@@ -91,6 +93,7 @@ def persist_worker_sync_log(session: Session, payload: dict[str, Any]) -> None:
             "started_at": started_at,
             "finished_at": finished_at,
             "duration_seconds": _duration_seconds(started_at, finished_at),
+            "origin": payload.get("origin"),
             "result": payload.get("result"),
             "error": payload.get("error"),
             "logs": payload.get("logs") or [],

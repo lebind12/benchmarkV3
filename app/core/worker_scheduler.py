@@ -5,6 +5,7 @@ import logging
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from app.core.config import get_settings
 from app.workers.daily_sync import scheduler as daily_sync_scheduler
 
 
@@ -14,6 +15,11 @@ KST = ZoneInfo("Asia/Seoul")
 
 def start_worker_scheduler() -> Any | None:
     """Start the in-process APScheduler worker scheduler."""
+    settings = get_settings()
+    if not settings.worker_scheduler_enabled:
+        LOGGER.info("worker scheduler disabled by WORKER_SCHEDULER_ENABLED")
+        return None
+
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
     except ModuleNotFoundError:

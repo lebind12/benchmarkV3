@@ -1,11 +1,13 @@
-"""In-process ADMIN worker run registry.
+"""ADMIN worker run registry.
 
-Koyeb currently runs a single backend service, so an in-memory run registry is
-enough for MVP ADMIN polling. The worker still writes the actual progress/log
-events from backend execution; the frontend only renders this state.
+The in-memory registry is only for polling this process. Scheduled daily-sync
+execution is additionally guarded by a PostgreSQL advisory lock so other
+processes cannot run the same sync concurrently.
 """
 from __future__ import annotations
 
+import os
+import socket
 import threading
 import time
 from dataclasses import dataclass, field
@@ -13,14 +15,36 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
+from sqlalchemy import create_engine, text
+
+from app.core.config import database_engine_kwargs, get_settings, normalize_database_url
 from app.workers.daily_sync.runner import load_configured_sync_specs, run_backfill_batch
 
 
 MAX_LOG_LINES = 1000
+DAILY_SYNC_ADVISORY_LOCK_KEY = 202605240001
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _origin_payload() -> dict[str, Any]:
+    keys = [
+        "KOYEB_APP_NAME",
+        "KOYEB_SERVICE_NAME",
+        "KOYEB_SERVICE_ID",
+        "KOYEB_INSTANCE_ID",
+        "KOYEB_REGION",
+        "KOYEB_DEPLOYMENT_ID",
+        "HOSTNAME",
+    ]
+    env = {key: value for key in keys if (value := os.getenv(key))}
+    return {
+        "pid": os.getpid(),
+        "hostname": socket.gethostname(),
+        "env": env,
+    }
 
 
 @dataclass
@@ -34,6 +58,7 @@ class WorkerRun:
     logs: list[dict[str, str]] = field(default_factory=list)
     result: dict[str, Any] | None = None
     error: str | None = None
+    origin: dict[str, Any] = field(default_factory=_origin_payload)
     created_at: str = field(default_factory=_now)
     started_at: str | None = None
     finished_at: str | None = None
@@ -52,6 +77,7 @@ class WorkerRun:
             "logs": list(self.logs),
             "result": self.result,
             "error": self.error,
+            "origin": dict(self.origin),
             "created_at": self.created_at,
             "started_at": self.started_at,
             "finished_at": self.finished_at,
@@ -138,6 +164,47 @@ def _try_persist_finished_run(run: WorkerRun, tracker: WorkerRunTracker) -> None
         tracker.log(f"daily-sync: log persistence failed: {exc}")
 
 
+class _DailySyncAdvisoryLock:
+    def __init__(self) -> None:
+        self._engine = None
+        self._connection = None
+        self.acquired = False
+
+    def __enter__(self) -> "_DailySyncAdvisoryLock":
+        settings = get_settings()
+        kwargs = {
+            **database_engine_kwargs(settings),
+            "pool_size": 1,
+            "max_overflow": 0,
+            "pool_timeout": min(settings.db_pool_timeout, 5),
+        }
+        self._engine = create_engine(
+            normalize_database_url(settings.database_url),
+            **kwargs,
+        )
+        self._connection = self._engine.connect()
+        self.acquired = bool(
+            self._connection.execute(
+                text("SELECT pg_try_advisory_lock(:key)"),
+                {"key": DAILY_SYNC_ADVISORY_LOCK_KEY},
+            ).scalar_one()
+        )
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        try:
+            if self.acquired and self._connection is not None:
+                self._connection.execute(
+                    text("SELECT pg_advisory_unlock(:key)"),
+                    {"key": DAILY_SYNC_ADVISORY_LOCK_KEY},
+                )
+        finally:
+            if self._connection is not None:
+                self._connection.close()
+            if self._engine is not None:
+                self._engine.dispose()
+
+
 def start_daily_sync_run(
     *,
     fallback_defaults: bool = False,
@@ -161,18 +228,34 @@ def start_daily_sync_run(
         with _lock:
             run.status = "running"
             run.started_at = _now()
-        tracker.log("daily-sync: run started")
+        tracker.log(f"daily-sync: run started origin={run.origin}")
         try:
-            specs = load_configured_sync_specs(fallback_defaults=fallback_defaults)
-            tracker.log(f"daily-sync: loaded {len(specs)} configured specs")
-            result = run_backfill_batch(
-                specs=specs,
-                include_details=include_details,
-                include_players=include_players,
-                include_standings=include_standings,
-                fixture_limit=fixture_limit,
-                progress=tracker,
-            )
+            with _DailySyncAdvisoryLock() as distributed_lock:
+                if not distributed_lock.acquired:
+                    with _lock:
+                        run.result = {
+                            "skipped": True,
+                            "reason": "daily_sync_advisory_lock_held",
+                        }
+                        run.status = "succeeded"
+                        run.finished_at = _now()
+                    tracker.log("daily-sync: skipped because distributed lock is held")
+                    _try_persist_finished_run(run, tracker)
+                    return
+
+                tracker.log(
+                    f"daily-sync: acquired advisory lock key={DAILY_SYNC_ADVISORY_LOCK_KEY}"
+                )
+                specs = load_configured_sync_specs(fallback_defaults=fallback_defaults)
+                tracker.log(f"daily-sync: loaded {len(specs)} configured specs")
+                result = run_backfill_batch(
+                    specs=specs,
+                    include_details=include_details,
+                    include_players=include_players,
+                    include_standings=include_standings,
+                    fixture_limit=fixture_limit,
+                    progress=tracker,
+                )
             payload = result.to_log_payload()
             with _lock:
                 run.result = payload

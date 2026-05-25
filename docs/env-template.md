@@ -15,6 +15,12 @@ DB_MAX_OVERFLOW=0
 DB_POOL_TIMEOUT=10
 DB_POOL_RECYCLE=300
 
+# --- Worker scheduler ---
+# Local dev should normally keep this false so `uvicorn --reload` does not run
+# production sync jobs against Supabase. Enable only on the single process that
+# owns scheduled workers.
+WORKER_SCHEDULER_ENABLED=false
+
 # Optional: separate DB used by `pytest -m integration`. If unset, integration
 # tests are skipped via conftest guard.
 TEST_DATABASE_URL=

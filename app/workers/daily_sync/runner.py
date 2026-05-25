@@ -245,6 +245,15 @@ def _fetch_parallel_endpoints(
                 )
 
 
+def _is_retryable_db_error(exc: Exception) -> bool:
+    message = str(exc)
+    return (
+        "DeadlockDetected" in message
+        or "deadlock detected" in message
+        or "40P01" in message
+    )
+
+
 def measure_league_sync_plan(
     client: ApiFootballClient,
     *,
@@ -670,32 +679,45 @@ def run_backfill_batch(
                     progress,
                     f"daily-sync: start {label} seasons={[season.season_year for season in plan.seasons]}",
                 )
-                try:
-                    batch.leagues.append(
-                        backfill_measured_league(
-                            session,
-                            client,
-                            plan=plan,
-                            include_details=include_details and spec.include_details,
-                            include_players=include_players and spec.include_players,
-                            include_standings=include_standings and spec.include_standings,
-                            translation_csv=translation_csv,
-                            progress=progress,
-                            max_workers=settings.api_football_concurrency,
+                max_attempts = 3
+                for attempt in range(1, max_attempts + 1):
+                    try:
+                        batch.leagues.append(
+                            backfill_measured_league(
+                                session,
+                                client,
+                                plan=plan,
+                                include_details=include_details and spec.include_details,
+                                include_players=include_players and spec.include_players,
+                                include_standings=include_standings and spec.include_standings,
+                                translation_csv=translation_csv,
+                                progress=progress,
+                                max_workers=settings.api_football_concurrency,
+                            )
                         )
-                    )
-                    _progress_log(progress, f"daily-sync: complete {label}")
-                except Exception as exc:  # noqa: BLE001 - keep the rest of the batch moving
-                    session.rollback()
-                    batch.failures.append(
-                        LeagueSyncFailure(
-                            league_external_id=spec.league_external_id,
-                            seasons=list(spec.seasons) if spec.seasons is not None else None,
-                            error=str(exc),
-                            duration_seconds=round(time.monotonic() - league_started, 4),
+                        _progress_log(progress, f"daily-sync: complete {label}")
+                        break
+                    except Exception as exc:  # noqa: BLE001 - keep the rest of the batch moving
+                        session.rollback()
+                        if _is_retryable_db_error(exc) and attempt < max_attempts:
+                            delay_seconds = 2 * attempt
+                            _progress_log(
+                                progress,
+                                f"daily-sync: retry {label} after deadlock "
+                                f"attempt={attempt}/{max_attempts} delay={delay_seconds}s",
+                            )
+                            time.sleep(delay_seconds)
+                            continue
+                        batch.failures.append(
+                            LeagueSyncFailure(
+                                league_external_id=spec.league_external_id,
+                                seasons=list(spec.seasons) if spec.seasons is not None else None,
+                                error=str(exc),
+                                duration_seconds=round(time.monotonic() - league_started, 4),
+                            )
                         )
-                    )
-                    _progress_log(progress, f"daily-sync: failed {label}: {exc}")
+                        _progress_log(progress, f"daily-sync: failed {label}: {exc}")
+                        break
     finally:
         batch.api_calls_total = client.calls_total
         batch.api_calls_failed = client.calls_failed

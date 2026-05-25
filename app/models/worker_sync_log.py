@@ -29,6 +29,7 @@ class WorkerSyncLog(Base):
     started_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     duration_seconds: Mapped[float | None] = mapped_column(Float)
+    origin: Mapped[dict | None] = mapped_column(JSONB)
     result: Mapped[dict | None] = mapped_column(JSONB)
     error: Mapped[str | None] = mapped_column(Text)
     logs: Mapped[list] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))

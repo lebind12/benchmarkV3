@@ -442,6 +442,7 @@ def test_u14_rating_numeric(metadata):
         ("news_article", "tags", False),
         ("h2h_fixture", "raw_data", False),
         ("api_football_league_catalog", "seasons", True),
+        ("worker_sync_log", "origin", False),
         ("worker_sync_log", "result", False),
         ("worker_sync_log", "logs", True),
     ],

@@ -58,6 +58,15 @@ class Settings(BaseSettings):
         description="Seconds before recycling pooled DB connections.",
     )
 
+    # --- Worker scheduler -------------------------------------------------
+    worker_scheduler_enabled: bool = Field(
+        default=False,
+        description=(
+            "Start APScheduler in this process. Keep false for local/dev web "
+            "servers unless this process is the single intended worker owner."
+        ),
+    )
+
     # --- External APIs ----------------------------------------------------
     api_football_key: str | None = Field(default=None)
     api_football_host: str = Field(default="v3.football.api-sports.io")
