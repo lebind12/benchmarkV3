@@ -353,6 +353,101 @@ def list_fixtures(
     }
 
 
+def _team_fixture_summary(row: Any) -> dict[str, Any]:
+    return {
+        "external_id": row["external_id"],
+        "league": _league_ref(row),
+        "home": _team_ref(row, prefix="home"),
+        "away": _team_ref(row, prefix="away"),
+        "kickoff_at": _iso(row["kickoff_at"]),
+        "status_short": row["status_short"] or "NS",
+        "goals_home": row["goals_home"],
+        "goals_away": row["goals_away"],
+    }
+
+
+def _team_fixture_rows(
+    session: Session,
+    *,
+    team_id: int,
+    kind: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    if kind == "recent":
+        status_filter = "f.status_short IN ('FT', 'AET', 'PEN')"
+        order_by = "f.kickoff_at DESC, f.id DESC"
+    elif kind == "upcoming":
+        status_filter = (
+            "f.kickoff_at >= CURRENT_TIMESTAMP "
+            "AND COALESCE(f.status_short, 'NS') NOT IN ('FT', 'AET', 'PEN', 'CANC')"
+        )
+        order_by = "f.kickoff_at ASC, f.id ASC"
+    else:
+        raise ValueError(f"unsupported team fixture kind: {kind}")
+
+    rows = session.execute(
+        text(
+            f"""
+            SELECT f.external_id, f.kickoff_at, f.status_short, f.goals_home, f.goals_away,
+                   l.external_id AS league_external_id, l.slug AS league_slug,
+                   l.name AS league_name, l.logo_url AS league_logo_url,
+                   lt.name_ko AS league_name_ko, lt.short_name_ko AS league_short_name_ko,
+                   ht.external_id AS home_external_id, ht.slug AS home_slug,
+                   ht.name AS home_name, ht.logo_url AS home_logo_url,
+                   htt.name_ko AS home_name_ko, htt.short_name_ko AS home_short_name_ko,
+                   at.external_id AS away_external_id, at.slug AS away_slug,
+                   at.name AS away_name, at.logo_url AS away_logo_url,
+                   att.name_ko AS away_name_ko, att.short_name_ko AS away_short_name_ko
+            FROM fixture f
+            JOIN league l ON l.id = f.league_id
+            LEFT JOIN league_translation lt ON lt.league_id = l.id
+            JOIN team ht ON ht.id = f.home_team_id
+            JOIN team at ON at.id = f.away_team_id
+            LEFT JOIN team_translation htt ON htt.team_id = ht.id
+            LEFT JOIN team_translation att ON att.team_id = at.id
+            WHERE (f.home_team_id = :team_id OR f.away_team_id = :team_id)
+              AND f.home_team_id IS NOT NULL
+              AND f.away_team_id IS NOT NULL
+              AND l.is_active = true
+              AND {status_filter}
+            ORDER BY {order_by}
+            LIMIT :limit
+            """
+        ),
+        {"team_id": team_id, "limit": limit},
+    ).mappings()
+    return [_team_fixture_summary(row) for row in rows]
+
+
+def get_team_fixtures(
+    session: Session,
+    *,
+    slug: str,
+    recent_limit: int = 10,
+    upcoming_limit: int = 10,
+) -> dict[str, Any] | None:
+    row = session.execute(
+        text(
+            """
+            SELECT t.id, t.external_id AS team_external_id, t.slug AS team_slug,
+                   t.name AS team_name, t.logo_url AS team_logo_url,
+                   tt.name_ko AS team_name_ko, tt.short_name_ko AS team_short_name_ko
+            FROM team t
+            LEFT JOIN team_translation tt ON tt.team_id = t.id
+            WHERE t.slug = :slug
+            """
+        ),
+        {"slug": slug},
+    ).mappings().first()
+    if not row:
+        return None
+    return {
+        "team": _team_ref(row, prefix="team"),
+        "recent_results": _team_fixture_rows(session, team_id=row["id"], kind="recent", limit=recent_limit),
+        "upcoming_fixtures": _team_fixture_rows(session, team_id=row["id"], kind="upcoming", limit=upcoming_limit),
+    }
+
+
 def get_standings(session: Session, *, league_id: int = 39) -> dict[str, Any]:
     payload = home_service.get_home_standings(session, league_id=league_id)
     league = payload["league"]
@@ -523,7 +618,11 @@ def get_team(session: Session, *, slug: str) -> dict[str, Any] | None:
         ),
         {"team_id": row["id"]},
     ).mappings()
-    fixtures = list_fixtures(session, team_slug=slug, period="month", limit=20)["items"]
+    team_fixtures = get_team_fixtures(session, slug=slug, recent_limit=10, upcoming_limit=10) or {
+        "recent_results": [],
+        "upcoming_fixtures": [],
+    }
+    fixtures = team_fixtures["recent_results"] + team_fixtures["upcoming_fixtures"]
     coach = session.execute(
         text(
             """
@@ -562,6 +661,8 @@ def get_team(session: Session, *, slug: str) -> dict[str, Any] | None:
         } if row["venue_name"] else None,
         "leagues": [{"league": _league_ref(item), "season": item["season_year"]} for item in leagues],
         "fixtures": fixtures,
+        "recent_results": team_fixtures["recent_results"],
+        "upcoming_fixtures": team_fixtures["upcoming_fixtures"],
         "squad": [
             {
                 "player": {

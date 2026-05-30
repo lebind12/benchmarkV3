@@ -61,6 +61,36 @@ def fixture_h2h(
         raise _not_found(external_id) from exc
 
 
+@router.get("/{external_id}/team-recent")
+def fixture_team_recent_matches(
+    external_id: int,
+    session: DbSession,
+    service: AnalyticsService,
+    limit: int = Query(default=10, ge=1, le=20),
+):
+    try:
+        if _is_default_service(service):
+            return service.get_team_recent_matches(session, external_id, limit=limit)
+        return service.get_team_recent_matches(external_id, limit=limit)
+    except FixtureNotFoundError as exc:
+        raise _not_found(external_id) from exc
+
+
+@router.get("/{external_id}/matchup-insights")
+def fixture_matchup_insights(
+    external_id: int,
+    session: DbSession,
+    service: AnalyticsService,
+    limit: int = Query(default=10, ge=1, le=20),
+):
+    try:
+        if _is_default_service(service):
+            return service.get_matchup_insights(session, external_id, limit=limit)
+        return service.get_matchup_insights(external_id, limit=limit)
+    except FixtureNotFoundError as exc:
+        raise _not_found(external_id) from exc
+
+
 @router.get("/{external_id}/league-standings")
 def fixture_league_standings(external_id: int, session: DbSession, service: AnalyticsService):
     try:

@@ -5,6 +5,7 @@ import type {
   FixtureSummary,
   HotPlayer,
   Injury,
+  LeagueRef,
   MetricKey,
   NewsItem,
   Period,
@@ -68,6 +69,8 @@ export const useHomeStore = defineStore('home', {
     },
     standings: {
       league_id: 39,
+      league: null as LeagueRef | null,
+      season: null as number | null,
       data: newSlice<StandingRow[]>(),
     },
     topPlayers: {
@@ -118,15 +121,20 @@ export const useHomeStore = defineStore('home', {
     },
     fetchStandings() {
       if (!hasHomeStandings(this.standings.league_id)) {
+        this.standings.league = null
+        this.standings.season = null
         this.standings.data.status = 'ok'
         this.standings.data.value = []
         this.standings.data.error = null
         this.standings.data.fetchedAt = Date.now()
         return Promise.resolve()
       }
-      return this._runSlice(this.standings.data, async () =>
-        (await homeApi.standings(this.standings.league_id)).rows,
-      )
+      return this._runSlice(this.standings.data, async () => {
+        const payload = await homeApi.standings(this.standings.league_id)
+        this.standings.league = payload.league
+        this.standings.season = payload.season
+        return payload.rows
+      })
     },
     fetchTopPlayers() {
       return this._runSlice(this.topPlayers.data, async () =>

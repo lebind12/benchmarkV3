@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -88,6 +89,57 @@ def _insert_stat(
             "goals": goals,
             "assists": assists,
             "raw": "{}",
+        },
+    )
+
+
+def _insert_team(conn, *, external_id: int, name: str, slug: str) -> int:
+    return conn.execute(
+        text(
+            """
+            INSERT INTO team (external_id, name, slug, country, founded)
+            VALUES (:external_id, :name, :slug, 'England', 1900)
+            RETURNING id
+            """
+        ),
+        {"external_id": external_id, "name": name, "slug": slug},
+    ).scalar_one()
+
+
+def _insert_fixture(
+    conn,
+    *,
+    external_id: int,
+    league_id: int,
+    kickoff_at: datetime,
+    status_short: str,
+    home_team_id: int,
+    away_team_id: int,
+    goals_home: int | None = None,
+    goals_away: int | None = None,
+) -> None:
+    conn.execute(
+        text(
+            """
+            INSERT INTO fixture (
+                external_id, league_id, season_year, kickoff_at, status_short,
+                home_team_id, away_team_id, goals_home, goals_away
+            )
+            VALUES (
+                :external_id, :league_id, 2025, :kickoff_at, :status_short,
+                :home_team_id, :away_team_id, :goals_home, :goals_away
+            )
+            """
+        ),
+        {
+            "external_id": external_id,
+            "league_id": league_id,
+            "kickoff_at": kickoff_at,
+            "status_short": status_short,
+            "home_team_id": home_team_id,
+            "away_team_id": away_team_id,
+            "goals_home": goals_home,
+            "goals_away": goals_away,
         },
     )
 
@@ -202,3 +254,90 @@ def test_team_detail_squad_aggregates_player_rows_across_active_current_competit
     assert row["appearances"] == 35
     assert row["goals"] == 8
     assert row["assists"] == 21
+
+
+def test_team_detail_exposes_recent_results_and_upcoming_fixtures(migrated_db):
+    from app.services.general import get_team, get_team_fixtures
+
+    engine, _ = migrated_db
+    with engine.begin() as conn:
+        league_id = _insert_league(conn, external_id=39, name="Premier League", slug="premier-league")
+        inactive_id = conn.execute(
+            text(
+                """
+                INSERT INTO league (external_id, name, type, slug, current_season, is_active)
+                VALUES (1000, 'Inactive Cup', 'Cup', 'inactive-cup', 2025, false)
+                RETURNING id
+                """
+            )
+        ).scalar_one()
+        team_id = _insert_team(conn, external_id=33, name="Manchester United", slug="manchester-united-33")
+        rival_id = _insert_team(conn, external_id=40, name="Liverpool", slug="liverpool-40")
+        for tid in (team_id, rival_id):
+            conn.execute(
+                text("INSERT INTO team_season (team_id, league_id, season_year) VALUES (:team_id, :league_id, 2025)"),
+                {"team_id": tid, "league_id": league_id},
+            )
+        _insert_fixture(
+            conn,
+            external_id=9001,
+            league_id=league_id,
+            kickoff_at=datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc),
+            status_short="FT",
+            home_team_id=team_id,
+            away_team_id=rival_id,
+            goals_home=2,
+            goals_away=0,
+        )
+        _insert_fixture(
+            conn,
+            external_id=9002,
+            league_id=league_id,
+            kickoff_at=datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc),
+            status_short="PEN",
+            home_team_id=rival_id,
+            away_team_id=team_id,
+            goals_home=1,
+            goals_away=1,
+        )
+        _insert_fixture(
+            conn,
+            external_id=9003,
+            league_id=league_id,
+            kickoff_at=datetime(2099, 6, 1, 12, 0, tzinfo=timezone.utc),
+            status_short="NS",
+            home_team_id=team_id,
+            away_team_id=rival_id,
+        )
+        _insert_fixture(
+            conn,
+            external_id=9004,
+            league_id=league_id,
+            kickoff_at=datetime(2099, 6, 8, 12, 0, tzinfo=timezone.utc),
+            status_short="CANC",
+            home_team_id=team_id,
+            away_team_id=rival_id,
+        )
+        _insert_fixture(
+            conn,
+            external_id=9005,
+            league_id=inactive_id,
+            kickoff_at=datetime(2026, 5, 9, 12, 0, tzinfo=timezone.utc),
+            status_short="FT",
+            home_team_id=team_id,
+            away_team_id=rival_id,
+            goals_home=9,
+            goals_away=0,
+        )
+
+    with Session(engine) as session:
+        fixture_payload = get_team_fixtures(session, slug="manchester-united-33")
+        team_payload = get_team(session, slug="manchester-united-33")
+
+    assert fixture_payload is not None
+    assert [item["external_id"] for item in fixture_payload["recent_results"]] == [9002, 9001]
+    assert [item["external_id"] for item in fixture_payload["upcoming_fixtures"]] == [9003]
+    assert team_payload is not None
+    assert [item["external_id"] for item in team_payload["recent_results"]] == [9002, 9001]
+    assert [item["external_id"] for item in team_payload["upcoming_fixtures"]] == [9003]
+    assert [item["external_id"] for item in team_payload["fixtures"]] == [9002, 9001, 9003]

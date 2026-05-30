@@ -1,4 +1,4 @@
-import type { LeagueRef, TeamRef, PlayerRef } from '@/types/home'
+import type { LeagueRef, TeamRef, PlayerRef, FixtureSummary } from '@/types/home'
 
 export type FixtureStatus =
   | 'NS'
@@ -96,6 +96,47 @@ export interface H2HFixture {
   goals_home: number
   goals_away: number
   status_short: FixtureStatus
+}
+
+export interface TeamRecentMatchesPayload {
+  home: {
+    team: TeamRef
+    fixtures: FixtureSummary[]
+  }
+  away: {
+    team: TeamRef
+    fixtures: FixtureSummary[]
+  }
+}
+
+export type MatchupInsightMode = 'pre_match' | 'post_match'
+export type MatchupInsightSource = 'fixture_statistics' | 'recent_completed_fixtures'
+export type MatchupInsightBetter = 'higher' | 'lower'
+
+export interface MatchupInsightMetric {
+  key: 'xg' | 'box_shots' | 'shots_on_target' | 'corners' | 'cards'
+  label: string
+  unit: string
+  precision: number
+  better: MatchupInsightBetter
+  home: number | null
+  away: number | null
+}
+
+export interface MatchupInsightsPayload {
+  mode: MatchupInsightMode
+  source: MatchupInsightSource
+  title: string
+  subtitle: string
+  home: {
+    team: TeamRef
+    sample_size: number
+  }
+  away: {
+    team: TeamRef
+    sample_size: number
+  }
+  metrics: MatchupInsightMetric[]
 }
 
 export interface TeamStat {

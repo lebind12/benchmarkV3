@@ -69,6 +69,7 @@ def _fallback_player(external_id: int | None, name: str | None) -> dict[str, Any
         "slug": _compact_slug(player_name, player_id),
         "name": player_name,
         "name_ko": None,
+        "short_name_ko": None,
         "photo_url": None,
     }
 
@@ -147,7 +148,8 @@ def _player_ref(
             """
             SELECT p.external_id AS player_external_id, p.slug AS player_slug,
                    p.name AS player_name, p.photo_url AS player_photo_url,
-                   pt.name_ko AS player_name_ko
+                   pt.name_ko AS player_name_ko,
+                   pt.short_name_ko AS player_short_name_ko
             FROM player p
             LEFT JOIN player_translation pt ON pt.player_id = p.id
             WHERE p.external_id = :external_id
@@ -162,6 +164,7 @@ def _player_ref(
         "slug": row["player_slug"],
         "name": row["player_name"],
         "name_ko": row["player_name_ko"],
+        "short_name_ko": row["player_short_name_ko"],
         "photo_url": row["player_photo_url"],
     }
 
@@ -403,6 +406,23 @@ STAT_KEYS = {
     "Offsides": "offsides",
 }
 
+MATCHUP_STAT_KEYS = {
+    "expected_goals": "xg",
+    "Shots insidebox": "box_shots",
+    "Shots on Goal": "shots_on_target",
+    "Corner Kicks": "corners",
+    "Yellow Cards": "yellow_cards",
+    "Red Cards": "red_cards",
+}
+
+MATCHUP_METRICS = [
+    {"key": "xg", "label": "xG", "unit": "", "precision": 2, "better": "higher"},
+    {"key": "box_shots", "label": "박스 안 슈팅", "unit": "", "precision": 1, "better": "higher"},
+    {"key": "shots_on_target", "label": "유효슈팅", "unit": "", "precision": 1, "better": "higher"},
+    {"key": "corners", "label": "코너킥", "unit": "", "precision": 1, "better": "higher"},
+    {"key": "cards", "label": "카드 리스크", "unit": "", "precision": 1, "better": "lower"},
+]
+
 
 def _stat_number(value: Any) -> int | None:
     if value is None:
@@ -411,6 +431,19 @@ def _stat_number(value: Any) -> int | None:
         value = value.replace("%", "").strip()
     try:
         return int(Decimal(str(value)))
+    except Exception:
+        return None
+
+
+def _stat_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.replace("%", "").strip()
+    if value == "":
+        return None
+    try:
+        return float(Decimal(str(value)))
     except Exception:
         return None
 
@@ -438,9 +471,172 @@ def get_statistics(session: Session, external_id: int) -> dict[str, Any]:
     return {"home": result[row["home_external_id"]], "away": result[row["away_external_id"]]}
 
 
+def _matchup_stats_for_team(statistics_payload: Any, team_external_id: int) -> dict[str, float | None]:
+    result: dict[str, float | None] = {key["key"]: None for key in MATCHUP_METRICS}
+    yellow_cards: float | None = None
+    red_cards: float | None = None
+    if not isinstance(statistics_payload, list):
+        return result
+    for entry in statistics_payload:
+        if not isinstance(entry, dict):
+            continue
+        team = entry.get("team") if isinstance(entry.get("team"), dict) else {}
+        if team.get("id") != team_external_id:
+            continue
+        for stat in entry.get("statistics") or []:
+            if not isinstance(stat, dict):
+                continue
+            key = MATCHUP_STAT_KEYS.get(stat.get("type"))
+            if not key:
+                continue
+            value = _stat_float(stat.get("value"))
+            if key == "yellow_cards":
+                yellow_cards = value
+            elif key == "red_cards":
+                red_cards = value
+            else:
+                result[key] = value
+        break
+    if yellow_cards is not None or red_cards is not None:
+        result["cards"] = (yellow_cards or 0) + (red_cards or 0)
+    return result
+
+
+def _has_matchup_stats(stats: dict[str, float | None]) -> bool:
+    return any(value is not None for value in stats.values())
+
+
+_TEAM_RECENT_STATISTICS_SQL = text(
+    """
+    SELECT fd.statistics
+    FROM fixture f
+    JOIN fixture_detail fd ON fd.fixture_id = f.id
+    WHERE (f.home_team_id = :team_id OR f.away_team_id = :team_id)
+      AND f.external_id <> :current_external_id
+      AND f.status_short IN ('FT', 'AET', 'PEN')
+      AND f.kickoff_at <= :cutoff
+      AND fd.statistics IS NOT NULL
+    ORDER BY f.kickoff_at DESC, f.id DESC
+    LIMIT :limit
+    """
+)
+
+
+def _recent_matchup_average(
+    session: Session,
+    *,
+    team_id: int | None,
+    team_external_id: int,
+    current_external_id: int,
+    cutoff: datetime,
+    limit: int,
+) -> tuple[dict[str, float | None], int]:
+    if team_id is None:
+        return {key["key"]: None for key in MATCHUP_METRICS}, 0
+    rows = session.execute(
+        _TEAM_RECENT_STATISTICS_SQL,
+        {
+            "team_id": team_id,
+            "team_external_id": team_external_id,
+            "current_external_id": current_external_id,
+            "cutoff": cutoff,
+            "limit": limit,
+        },
+    ).mappings()
+    values: dict[str, list[float]] = {key["key"]: [] for key in MATCHUP_METRICS}
+    sample_size = 0
+    for row in rows:
+        stats = _matchup_stats_for_team(row["statistics"], team_external_id)
+        if not _has_matchup_stats(stats):
+            continue
+        sample_size += 1
+        for key, value in stats.items():
+            if value is not None:
+                values[key].append(value)
+    averaged = {
+        key: (sum(items) / len(items) if items else None)
+        for key, items in values.items()
+    }
+    return averaged, sample_size
+
+
+def _build_matchup_metrics(
+    home_stats: dict[str, float | None],
+    away_stats: dict[str, float | None],
+) -> list[dict[str, Any]]:
+    metrics = []
+    for meta in MATCHUP_METRICS:
+        key = meta["key"]
+        precision = int(meta["precision"])
+        home_value = home_stats.get(key)
+        away_value = away_stats.get(key)
+        metrics.append(
+            {
+                **meta,
+                "home": round(home_value, precision) if home_value is not None else None,
+                "away": round(away_value, precision) if away_value is not None else None,
+            }
+        )
+    return metrics
+
+
+def get_matchup_insights(session: Session, external_id: int, limit: int = 10) -> dict[str, Any]:
+    row = _fixture_row(session, external_id)
+    current_home = _matchup_stats_for_team(row.get("statistics"), row["home_external_id"])
+    current_away = _matchup_stats_for_team(row.get("statistics"), row["away_external_id"])
+    has_current_stats = _has_matchup_stats(current_home) or _has_matchup_stats(current_away)
+
+    if row["status_short"] in {"FT", "AET", "PEN"} and has_current_stats:
+        mode = "post_match"
+        source = "fixture_statistics"
+        title = "경기 인사이트"
+        subtitle = "실제 경기 기록 기준"
+        home_stats = current_home
+        away_stats = current_away
+        home_sample_size = 1
+        away_sample_size = 1
+    else:
+        mode = "pre_match"
+        source = "recent_completed_fixtures"
+        title = "매치업 인사이트"
+        subtitle = f"최근 완료 경기 최대 {limit}경기 평균"
+        home_stats, home_sample_size = _recent_matchup_average(
+            session,
+            team_id=row["home_team_id"],
+            team_external_id=row["home_external_id"],
+            current_external_id=external_id,
+            cutoff=row["kickoff_at"],
+            limit=limit,
+        )
+        away_stats, away_sample_size = _recent_matchup_average(
+            session,
+            team_id=row["away_team_id"],
+            team_external_id=row["away_external_id"],
+            current_external_id=external_id,
+            cutoff=row["kickoff_at"],
+            limit=limit,
+        )
+
+    return {
+        "mode": mode,
+        "source": source,
+        "title": title,
+        "subtitle": subtitle,
+        "home": {
+            "team": _team_ref(row, prefix="home"),
+            "sample_size": home_sample_size,
+        },
+        "away": {
+            "team": _team_ref(row, prefix="away"),
+            "sample_size": away_sample_size,
+        },
+        "metrics": _build_matchup_metrics(home_stats, away_stats),
+    }
+
+
 def get_h2h(session: Session, external_id: int, limit: int = 5) -> dict[str, Any]:
     row = _fixture_row(session, external_id)
-    rows = session.execute(
+    rows = list(session.execute(
         text(
             """
             SELECT h.external_id, h.kickoff_at, h.status_short, h.goals_home, h.goals_away,
@@ -473,7 +669,42 @@ def get_h2h(session: Session, external_id: int, limit: int = 5) -> dict[str, Any
             "external_id": external_id,
             "limit": limit,
         },
-    ).mappings()
+    ).mappings())
+    if not rows:
+        rows = list(session.execute(
+            text(
+                """
+                SELECT f.external_id, f.kickoff_at, f.status_short, f.goals_home, f.goals_away,
+                       l.external_id AS league_external_id, l.name AS league_name,
+                       l.slug AS league_slug, lt.short_name_ko AS league_short_name_ko,
+                       ht.external_id AS home_external_id, ht.slug AS home_slug,
+                       ht.name AS home_name, ht.logo_url AS home_logo_url,
+                       htt.name_ko AS home_name_ko, htt.short_name_ko AS home_short_name_ko,
+                       at.external_id AS away_external_id, at.slug AS away_slug,
+                       at.name AS away_name, at.logo_url AS away_logo_url,
+                       att.name_ko AS away_name_ko, att.short_name_ko AS away_short_name_ko
+                FROM fixture f
+                JOIN league l ON l.id = f.league_id
+                JOIN team ht ON ht.id = f.home_team_id
+                JOIN team at ON at.id = f.away_team_id
+                LEFT JOIN league_translation lt ON lt.league_id = l.id
+                LEFT JOIN team_translation htt ON htt.team_id = ht.id
+                LEFT JOIN team_translation att ON att.team_id = at.id
+                WHERE LEAST(f.home_team_id, f.away_team_id) = LEAST(:home_id, :away_id)
+                  AND GREATEST(f.home_team_id, f.away_team_id) = GREATEST(:home_id, :away_id)
+                  AND f.external_id <> :external_id
+                  AND f.status_short IN ('FT', 'AET', 'PEN')
+                ORDER BY f.kickoff_at DESC
+                LIMIT :limit
+                """
+            ),
+            {
+                "home_id": row["home_team_id"],
+                "away_id": row["away_team_id"],
+                "external_id": external_id,
+                "limit": limit,
+            },
+        ).mappings())
     return {
         "h2h": [
             {
@@ -493,6 +724,96 @@ def get_h2h(session: Session, external_id: int, limit: int = 5) -> dict[str, Any
             }
             for item in rows
         ]
+    }
+
+
+_TEAM_RECENT_FIXTURES_SQL = text(
+    """
+    SELECT f.external_id, f.kickoff_at, f.status_short, f.goals_home, f.goals_away,
+           l.external_id AS league_external_id, l.slug AS league_slug,
+           l.name AS league_name, l.logo_url AS league_logo_url,
+           lt.name_ko AS league_name_ko, lt.short_name_ko AS league_short_name_ko,
+           ht.external_id AS home_external_id, ht.slug AS home_slug,
+           ht.name AS home_name, ht.logo_url AS home_logo_url,
+           htt.name_ko AS home_name_ko, htt.short_name_ko AS home_short_name_ko,
+           at.external_id AS away_external_id, at.slug AS away_slug,
+           at.name AS away_name, at.logo_url AS away_logo_url,
+           att.name_ko AS away_name_ko, att.short_name_ko AS away_short_name_ko
+    FROM fixture f
+    JOIN league l ON l.id = f.league_id
+    JOIN team ht ON ht.id = f.home_team_id
+    JOIN team at ON at.id = f.away_team_id
+    LEFT JOIN league_translation lt ON lt.league_id = l.id
+    LEFT JOIN team_translation htt ON htt.team_id = ht.id
+    LEFT JOIN team_translation att ON att.team_id = at.id
+    WHERE (f.home_team_id = :team_id OR f.away_team_id = :team_id)
+      AND f.external_id <> :current_external_id
+      AND f.status_short IN ('FT', 'AET', 'PEN')
+      AND f.kickoff_at <= :cutoff
+    ORDER BY f.kickoff_at DESC, f.id DESC
+    LIMIT :limit
+    """
+)
+
+
+def _fixture_summary(row: Any) -> dict[str, Any]:
+    return {
+        "external_id": row["external_id"],
+        "league": _league_ref(row),
+        "home": _team_ref(row, prefix="home"),
+        "away": _team_ref(row, prefix="away"),
+        "kickoff_at": _iso(row["kickoff_at"]),
+        "status_short": row["status_short"],
+        "goals_home": row["goals_home"],
+        "goals_away": row["goals_away"],
+    }
+
+
+def _team_recent_fixtures(
+    session: Session,
+    *,
+    team_id: int | None,
+    current_external_id: int,
+    cutoff: datetime,
+    limit: int,
+) -> list[dict[str, Any]]:
+    if team_id is None:
+        return []
+    rows = session.execute(
+        _TEAM_RECENT_FIXTURES_SQL,
+        {
+            "team_id": team_id,
+            "current_external_id": current_external_id,
+            "cutoff": cutoff,
+            "limit": limit,
+        },
+    ).mappings()
+    return [_fixture_summary(row) for row in rows]
+
+
+def get_team_recent_matches(session: Session, external_id: int, limit: int = 10) -> dict[str, Any]:
+    row = _fixture_row(session, external_id)
+    return {
+        "home": {
+            "team": _team_ref(row, prefix="home"),
+            "fixtures": _team_recent_fixtures(
+                session,
+                team_id=row["home_team_id"],
+                current_external_id=external_id,
+                cutoff=row["kickoff_at"],
+                limit=limit,
+            ),
+        },
+        "away": {
+            "team": _team_ref(row, prefix="away"),
+            "fixtures": _team_recent_fixtures(
+                session,
+                team_id=row["away_team_id"],
+                current_external_id=external_id,
+                cutoff=row["kickoff_at"],
+                limit=limit,
+            ),
+        },
     }
 
 

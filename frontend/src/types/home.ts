@@ -30,6 +30,7 @@ export interface PlayerRef {
   external_id: number
   slug: string
   name_ko: string | null
+  short_name_ko: string | null
   name: string
   photo_url: string | null
   team: Pick<TeamRef, 'external_id' | 'slug' | 'name_ko' | 'name' | 'logo_url'>

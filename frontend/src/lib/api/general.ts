@@ -79,6 +79,7 @@ export interface BasicPlayerRef {
   external_id: number
   slug: string
   name_ko: string | null
+  short_name_ko: string | null
   name: string
   photo_url: string | null
 }
@@ -115,6 +116,8 @@ export interface TeamDetailPayload {
   venue: { name: string; city: string | null; capacity: number | null } | null
   leagues: { league: LeagueRef; season: number }[]
   fixtures: FixtureSummary[]
+  recent_results: FixtureSummary[]
+  upcoming_fixtures: FixtureSummary[]
   squad: TeamSquadRow[]
 }
 
@@ -205,6 +208,14 @@ export const generalApi = {
     ),
 
   team: (slug: string) => getJson<TeamDetailPayload>(`/api/v1/teams/${slug}`),
+
+  teamFixtures: (slug: string, params: { recentLimit?: number; upcomingLimit?: number } = {}) =>
+    getJson<{ team: TeamRef; recent_results: FixtureSummary[]; upcoming_fixtures: FixtureSummary[] }>(
+      withQuery(`/api/v1/teams/${slug}/fixtures`, {
+        recent_limit: params.recentLimit,
+        upcoming_limit: params.upcomingLimit,
+      }),
+    ),
 
   players: (params: { leagueId?: number | null; query?: string | null; metric: MetricKey; limit?: number }) =>
     getJson<{ items: PlayerListItem[]; coaches: CoachListItem[]; metric: MetricKey }>(

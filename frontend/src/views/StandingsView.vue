@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Trophy } from 'lucide-vue-next'
 import { generalApi, type LeagueListItem, type StandingsPayload } from '@/lib/api/general'
 import { leagueName, teamName } from '@/lib/displayNames'
 import TournamentBracket from '@/components/standings/TournamentBracket.vue'
 
+const DEFAULT_LEAGUE_ID = 39
+const route = useRoute()
 const leagues = ref<LeagueListItem[]>([])
-const selectedLeague = ref('39')
+const selectedLeague = ref(String(routeLeagueId()))
 const payload = ref<StandingsPayload | null>(null)
 const status = ref<'idle' | 'loading' | 'ok' | 'error'>('idle')
 const error = ref<string | null>(null)
-const activeTab = ref<'standings' | 'tournament'>('standings')
+const activeTab = ref<'standings' | 'tournament'>(routeTab())
 
 const selectedLeagueId = computed(() => Number(selectedLeague.value || 39))
 const visibleGroups = computed(() => payload.value?.groups.filter((group) => group.rows.length > 0) ?? [])
@@ -29,6 +32,21 @@ const availableTabs = computed(() => {
   return tabs
 })
 const showStandings = computed(() => availableTabs.value.length === 0 || activeTab.value === 'standings')
+
+function firstQueryValue(value: unknown): string | null {
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : null
+  return typeof value === 'string' ? value : null
+}
+
+function routeLeagueId(): number {
+  const raw = firstQueryValue(route.query.league_id)
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_LEAGUE_ID
+}
+
+function routeTab(): 'standings' | 'tournament' {
+  return firstQueryValue(route.query.tab) === 'tournament' ? 'tournament' : 'standings'
+}
 
 async function loadLeagues() {
   leagues.value = (await generalApi.leagues()).items
@@ -59,6 +77,17 @@ onMounted(async () => {
 watch(selectedLeague, () => {
   void loadStandings()
 })
+
+watch(
+  () => [route.query.league_id, route.query.tab],
+  () => {
+    const nextLeague = String(routeLeagueId())
+    if (selectedLeague.value !== nextLeague) {
+      selectedLeague.value = nextLeague
+    }
+    activeTab.value = routeTab()
+  },
+)
 
 watch(availableTabs, (tabs) => {
   if (tabs.length === 0) {

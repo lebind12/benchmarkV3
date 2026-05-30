@@ -94,9 +94,21 @@ def _current_kst_date() -> date_cls:
 
 def _date_window(value: date_cls | None, period: str) -> tuple[datetime, datetime]:
     day = value or _current_kst_date()
+    if period == "week":
+        day = day - timedelta(days=day.weekday())
+    elif period == "month":
+        day = day.replace(day=1)
+
     start_kst = datetime.combine(day, time.min, tzinfo=KST)
-    days = {"day": 1, "week": 7, "month": 31}[period]
-    end_kst = start_kst + timedelta(days=days)
+    if period == "month":
+        if day.month == 12:
+            end_day = day.replace(year=day.year + 1, month=1, day=1)
+        else:
+            end_day = day.replace(month=day.month + 1, day=1)
+        end_kst = datetime.combine(end_day, time.min, tzinfo=KST)
+    else:
+        days = {"day": 1, "week": 7}[period]
+        end_kst = start_kst + timedelta(days=days)
     return start_kst.astimezone(timezone.utc), end_kst.astimezone(timezone.utc)
 
 

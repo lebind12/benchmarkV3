@@ -5,6 +5,8 @@ import type {
   H2HFixture,
   TeamStat,
   LeagueStandingsPayload,
+  TeamRecentMatchesPayload,
+  MatchupInsightsPayload,
 } from '@/types/fixtureDetail'
 import { apiUrl } from '@/lib/api/base'
 
@@ -47,6 +49,18 @@ export async function getH2H(
   externalId: number,
 ): Promise<{ h2h: H2HFixture[] }> {
   return getJson<{ h2h: H2HFixture[] }>(externalId, `/api/v1/fixtures/${externalId}/h2h?limit=5`)
+}
+
+export async function getTeamRecentMatches(
+  externalId: number,
+): Promise<TeamRecentMatchesPayload> {
+  return getJson<TeamRecentMatchesPayload>(externalId, `/api/v1/fixtures/${externalId}/team-recent?limit=10`)
+}
+
+export async function getMatchupInsights(
+  externalId: number,
+): Promise<MatchupInsightsPayload> {
+  return getJson<MatchupInsightsPayload>(externalId, `/api/v1/fixtures/${externalId}/matchup-insights?limit=10`)
 }
 
 export async function getStatistics(

@@ -68,6 +68,24 @@ def teams(
     return general_service.list_teams(session, league_id=league_id, query=query, limit=limit)
 
 
+@router.get("/teams/{slug}/fixtures")
+def team_fixtures(
+    slug: str,
+    session: DbSession,
+    recent_limit: int = Query(default=10, ge=1, le=20),
+    upcoming_limit: int = Query(default=10, ge=1, le=20),
+):
+    payload = general_service.get_team_fixtures(
+        session,
+        slug=slug,
+        recent_limit=recent_limit,
+        upcoming_limit=upcoming_limit,
+    )
+    if payload is None:
+        raise HTTPException(status_code=404, detail="team_not_found")
+    return payload
+
+
 @router.get("/teams/{slug}")
 def team_detail(slug: str, session: DbSession):
     payload = general_service.get_team(session, slug=slug)
