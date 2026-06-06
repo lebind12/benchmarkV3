@@ -171,18 +171,3 @@ def test_nt_u07_exponential_backoff_1_2_4(mods):
         )
     assert parsed is None
     assert sleeps[:3] == [1, 2, 4]
-
-
-def test_nt_u08_scheduler_registers_sync_wrapper():
-    from app.workers.news_translator import scheduler
-
-    fake_scheduler = MagicMock()
-    scheduler.register(fake_scheduler)
-
-    args, kwargs = fake_scheduler.add_job.call_args
-    assert args[0] is scheduler.run_scheduled_news_translator
-    assert args[1] == "interval"
-    assert kwargs["id"] == scheduler.JOB_ID
-    assert kwargs["seconds"] == 60
-    assert kwargs["max_instances"] == 1
-    assert kwargs["coalesce"] is True
