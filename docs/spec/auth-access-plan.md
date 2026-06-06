@@ -103,7 +103,7 @@ Response `201`:
 }
 ```
 
-현재 signup-only MVP는 가입 직후 토큰을 발급하지 않는다. 로그인/JWT/refresh 구현이 들어갈 때 signup 직후 자동 로그인 여부를 FE 정책과 함께 확정한다.
+현재 signup/login MVP는 토큰을 발급하지 않고 `user` payload만 반환한다. JWT/refresh 구현이 들어갈 때 로그인 응답의 token contract와 가입 직후 자동 로그인 여부를 FE 정책과 함께 확정한다.
 
 Errors:
 
@@ -121,7 +121,7 @@ Request:
 }
 ```
 
-Response `200`: signup response와 동일.
+Response `200`: 현재 signup response와 동일한 `user` payload를 반환한다. JWT 도입 후 access/refresh token을 추가한다.
 
 Errors:
 
@@ -196,9 +196,9 @@ Role hierarchy는 암묵적으로 두지 않는다. MVP에서 권한으로 잠�
 |---|---|---|
 | Auth helpers | `app/core/security.py` | password hash/verify 단위 테스트 완료. JWT encode/decode는 후속 |
 | Token store | `app/services/auth_tokens.py` | fake Upstash로 refresh rotation 테스트 |
-| Auth service | `app/services/auth.py` | signup 완료. login/refresh/logout 비즈니스 로직은 후속 |
+| Auth service | `app/services/auth.py` | signup/login 완료. refresh/logout 비즈니스 로직은 후속 |
 | Dependencies | `app/api/deps.py` | `get_current_user`, `require_roles`, `require_admin` |
-| Auth router | `app/api/v1/auth.py` | signup 완료. login/refresh/logout/me 통합 테스트는 후속 |
+| Auth router | `app/api/v1/auth.py` | signup/login 완료. refresh/logout/me 통합 테스트는 후속 |
 | Route migration | `app/api/v1/broadcast.py`, `app/api/v1/admin.py` | 임시 auth 제거, 공통 dependency 사용 |
 
 ## Test Plan
@@ -239,7 +239,7 @@ Integration:
 
 ## Rollout Order
 
-1. `app/core/security.py` password helper와 signup 단위 테스트 (완료: 2026-06-06 local)
+1. `app/core/security.py` password helper와 signup/login 단위 테스트 (완료: 2026-06-06 local)
 2. Upstash token store와 fake store 테스트
 3. auth service와 auth router
 4. 공통 dependency 도입

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -49,6 +49,7 @@ def client():
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[db.get_db_session] = override_session
+    app.state.SessionLocal = SessionLocal
     return TestClient(app)
 
 
@@ -108,3 +109,84 @@ def test_signup_rejects_weak_password(client: TestClient):
 
     assert response.status_code == 422
     assert response.json()["detail"] == "weak_password"
+
+
+def test_login_returns_user_for_valid_credentials(client: TestClient):
+    signup_response = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "login@example.com",
+            "password": "Bench1234",
+            "nickname": "Login User",
+        },
+    )
+    assert signup_response.status_code == 201
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": " LOGIN@example.com ",
+            "password": "Bench1234",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user"] == {
+        "id": 1,
+        "email": "login@example.com",
+        "role": "USER",
+        "nickname": "Login User",
+        "is_active": True,
+    }
+    with client.app.state.SessionLocal() as session:
+        last_login_at = session.execute(
+            text("SELECT last_login_at FROM app_user WHERE email='login@example.com'")
+        ).scalar_one()
+    assert last_login_at is not None
+
+
+def test_login_rejects_invalid_credentials(client: TestClient):
+    assert client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "wrong@example.com",
+            "password": "Bench1234",
+        },
+    ).status_code == 201
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "wrong@example.com",
+            "password": "Wrong1234",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid_credentials"
+
+
+def test_login_rejects_inactive_user(client: TestClient):
+    assert client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "inactive@example.com",
+            "password": "Bench1234",
+        },
+    ).status_code == 201
+    with client.app.state.SessionLocal() as session:
+        session.execute(
+            text("UPDATE app_user SET is_active=0 WHERE email='inactive@example.com'")
+        )
+        session.commit()
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "inactive@example.com",
+            "password": "Bench1234",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "inactive_user"

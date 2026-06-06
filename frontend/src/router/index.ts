@@ -171,7 +171,7 @@ const routes: RouteRecordRaw[] = [
         component: PlaceholderView,
         props: { title: '중계 화면' },
       },
-      { path: 'auth/login', name: 'login', component: PlaceholderView, props: { title: '로그인' } },
+      { path: 'auth/login', name: 'login', component: () => import('@/views/LoginView.vue') },
       { path: 'auth/signup', name: 'signup', component: () => import('@/views/SignupView.vue') },
       { path: 'not-found', name: 'not-found', component: NotFound },
     ],

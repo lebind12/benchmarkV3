@@ -50,7 +50,7 @@
 | 3.2 | JWT 발급 / 검증 (access 짧은 만료) | 단위 테스트 (만료, 변조, role) | 1.7 | cc:TODO |
 | 3.3 | Refresh token rotation (Upstash 저장, blacklist) | 단위 + 통합 테스트 | 3.2, 0.3 | cc:TODO |
 | 3.4 | Role 검사 FastAPI Dependency (USER/STREAMER/ADMIN) | 권한 검사 단위 테스트 | 3.2 | cc:TODO |
-| 3.5 | `/auth/signup`, `/auth/login`, `/auth/refresh`, `/auth/logout` | 통합 테스트 (정상/오류 케이스). signup-only MVP 완료, login/refresh/logout 후속 | 3.1-3.4 | cc:WIP [local-signup-mvp] |
+| 3.5 | `/auth/signup`, `/auth/login`, `/auth/refresh`, `/auth/logout` | 통합 테스트 (정상/오류 케이스). signup/login MVP 완료, JWT/refresh/logout 후속 | 3.1-3.4 | cc:WIP [local-auth-mvp] |
 
 ## Phase 4: 워커 - daily-sync
 
@@ -132,7 +132,7 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | 9.7 | Playwright 셋업 (L1/L2/L3 분리 실행 가능) | `npm run test:e2e` / `test:e2e:integration` 동작 | 9.1, 9.4 | cc:TODO |
 | 9.8 | Vercel 배포 셋업 (vercel.json + env) | 첫 push 로 preview URL 생성 | 9.1 | cc:TODO |
 | 9.9 | 방송용 페이지 entry + 크로마키 (`#00B140`) 레이아웃 | 방송용 라우트가 녹색 배경으로 렌더 | 9.1, 9.3 | cc:완료 [local-broadcast-match-overlay-mock-r2] |
-| 9.10 | 인증 흐름 (JWT 저장 / refresh / role 가드) — BE Phase 3 완료 후 통합 | 로그인 / 로그아웃 동작. signup UI + USER mock auth 저장 완료 | 3.5, 9.3 | cc:WIP [local-signup-mvp] |
+| 9.10 | 인증 흐름 (JWT 저장 / refresh / role 가드) — BE Phase 3 완료 후 통합 | signup/login UI + USER mock auth 저장 완료. 로그아웃/JWT 저장 후속 | 3.5, 9.3 | cc:WIP [local-auth-mvp] |
 | 9.11 | i18n 미도입 결정 명시 + 한글 폰트 토큰화 | 결정 문서 + Tailwind theme 한글 폰트 | 9.2 | cc:TODO |
 
 ## Phase 10: FE 자동화 (에이전트 워크플로 — FE 측)

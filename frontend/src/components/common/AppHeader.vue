@@ -53,15 +53,14 @@ function toggleTheme() {
         >
           ☾
         </button>
-        <Button
+        <router-link
           v-if="!auth.isLoggedIn"
-          variant="outline"
-          size="sm"
           class="hdr__login"
           data-testid="auth-login"
+          to="/auth/login"
         >
           로그인
-        </Button>
+        </router-link>
         <router-link
           v-if="!auth.isLoggedIn"
           to="/auth/signup"

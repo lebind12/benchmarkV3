@@ -14,12 +14,17 @@ export type SignupPayload = {
   nickname?: string
 }
 
-export type SignupResponse = {
+export type LoginPayload = {
+  email: string
+  password: string
+}
+
+export type AuthUserResponse = {
   user: AuthUser
 }
 
-export async function signup(payload: SignupPayload): Promise<SignupResponse> {
-  const response = await fetch(apiUrl('/api/v1/auth/signup'), {
+async function postAuth(path: string, payload: SignupPayload | LoginPayload, fallbackDetail: string): Promise<AuthUserResponse> {
+  const response = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -27,9 +32,17 @@ export async function signup(payload: SignupPayload): Promise<SignupResponse> {
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
-    const detail = typeof body.detail === 'string' ? body.detail : 'signup_failed'
+    const detail = typeof body.detail === 'string' ? body.detail : fallbackDetail
     throw new Error(detail)
   }
 
   return response.json()
+}
+
+export async function signup(payload: SignupPayload): Promise<AuthUserResponse> {
+  return postAuth('/api/v1/auth/signup', payload, 'signup_failed')
+}
+
+export async function login(payload: LoginPayload): Promise<AuthUserResponse> {
+  return postAuth('/api/v1/auth/login', payload, 'login_failed')
 }

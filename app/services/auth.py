@@ -1,13 +1,14 @@
-"""Auth business logic for email signup."""
+"""Auth business logic for email signup and login."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password, is_strong_password
+from app.core.security import hash_password, is_strong_password, verify_password
 from app.models.app_user import AppUser
 
 
@@ -23,11 +24,25 @@ class WeakPassword(AuthError):
     code = "weak_password"
 
 
+class InvalidCredentials(AuthError):
+    code = "invalid_credentials"
+
+
+class InactiveUser(AuthError):
+    code = "inactive_user"
+
+
 @dataclass(frozen=True)
 class SignupInput:
     email: str
     password: str
     nickname: str | None = None
+
+
+@dataclass(frozen=True)
+class LoginInput:
+    email: str
+    password: str
 
 
 def normalize_email(email: str) -> str:
@@ -63,6 +78,22 @@ def signup_user(session: Session, payload: SignupInput) -> AppUser:
     except IntegrityError as exc:
         session.rollback()
         raise EmailAlreadyRegistered("email_already_registered") from exc
+    session.refresh(user)
+    return user
+
+
+def login_user(session: Session, payload: LoginInput) -> AppUser:
+    email = normalize_email(payload.email)
+    user = session.execute(
+        select(AppUser).where(func.lower(AppUser.email) == email)
+    ).scalar_one_or_none()
+    if user is None or not verify_password(payload.password, user.password_hash):
+        raise InvalidCredentials("invalid_credentials")
+    if not user.is_active:
+        raise InactiveUser("inactive_user")
+
+    user.last_login_at = datetime.now(UTC)
+    session.commit()
     session.refresh(user)
     return user
 
