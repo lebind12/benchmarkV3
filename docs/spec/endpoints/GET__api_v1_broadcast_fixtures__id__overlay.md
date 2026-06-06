@@ -12,9 +12,9 @@ created: 2026-05-14
 
 ## Current Status
 
-2026-05-14 사용자 결정으로 방송용 오버레이와 중계화면 포함 페이지의 live 데이터는 FE 에서 API-Football 을 직접 호출한다. 현재 FE 구현은 이 FastAPI endpoint 를 사용하지 않으며 `/api/v1/...` 경로도 호출하지 않는다.
+2026-05-24 기준 이 문서는 `broadcast-match-overlay` 백엔드 endpoint lifecycle 의 정본이다. 이전 목업 단계에서 FE 가 API-Football 을 직접 호출하던 흐름은 이 endpoint 전환 후 더 이상 방송용 overlay 의 정본 데이터 경로가 아니다.
 
-이 문서는 post-MVP 백엔드 전환 후보로 보존한다. 현재 구현 명세는 `docs/spec/broadcast-api-football-live-fe.md` 를 따른다.
+FE handoff source 는 `frontend/endpoint-requests/GET__api_v1_broadcast_fixtures__id__overlay.request.json` 이며, FastAPI 구현은 아래 요청/응답/권한/캐시 규칙을 따라야 한다.
 
 ## Purpose
 
@@ -66,7 +66,7 @@ Query params:
 
 | Name | Type | Required | Rule |
 |---|---|---:|---|
-| `league_slug` | string | no | Optional FE theme hint. Backend may echo/validate but must derive canonical league from fixture DB/API data. |
+| `league_slug` | string | no | Optional FE theme hint. If supplied, must be one of `premier-league`, `champions-league`, `europa-league`, `carabao-cup`, `fa-cup`, `world-cup-2026`; invalid values return `422`. Backend still derives canonical league/theme from fixture DB/API data. |
 
 ## Response: 200
 
@@ -295,10 +295,10 @@ and semaphore limit 6 for external calls.
 
 | Scenario | Response |
 |---|---|
-| Live fixture (`1H`, `HT`, `2H`, `ET`, `P`, `BT`) | Use API-Football through cache; return live score/events/statistics when available. |
+| Live fixture (`1H`, `HT`, `2H`, `ET`, `BT`, `P`, `LIVE`) | Use API-Football through cache; return live score/events/statistics when available. |
 | Not started (`NS`) | Return DB snapshot plus cached/pre-match API data if available; lineups may be empty. |
 | Finished (`FT`, `AET`, `PEN`) | Prefer DB fallback unless a short post-match refresh window is configured. |
-| Postponed/cancelled/suspended | Return fixture payload with empty `events`/`statistics` as appropriate. |
+| Postponed/cancelled/suspended (`PST`, `CANC`, `SUSP`) | Return fixture payload with empty `events`/`statistics` as appropriate. |
 | API-Football partial coverage | Return null/empty arrays for missing blocks, not 500. |
 
 ## Errors
@@ -332,11 +332,13 @@ Expected backend shape:
 
 | Symbol | Contract |
 |---|---|
-| route module | `app.api.broadcast.router` or equivalent v1 router included in `app.main.app` |
-| dependency | `get_broadcast_overlay_service()` override hook for unit tests |
-| service method | `get_overlay(external_id: int, user: CurrentUser, league_slug: str | None = None) -> dict` |
-| API client | isolated API-Football client interface that can be mocked in unit tests |
-| cache | Upstash/fake cache interface; tests must not require real Redis |
+| route module | `app.api.v1.broadcast.router` included in `app.main.app` |
+| route path | `/api/v1/broadcast/fixtures/{external_id}/overlay` |
+| auth dependency | `get_broadcast_current_user()` override hook returning an object with `role`; route must allow `STREAMER` and `ADMIN`, reject `USER` with `403`, and propagate missing/expired JWT as `401` |
+| service dependency | `get_broadcast_overlay_service()` override hook for unit tests |
+| service method | `get_overlay(external_id: int, user: CurrentUser, league_slug: str | None = None) -> dict | None`; `None` maps to `404 fixture_not_found`; `BroadcastOverlayError` maps to `502 broadcast_upstream_unavailable` |
+| API client dependency | `get_broadcast_api_football_client()` override hook for integration tests; default implementation must respect project semaphore/rate-limit policy |
+| cache dependency | `get_broadcast_cache()` override hook for integration tests; tests use fake cache and must not require real Redis |
 
 ## Non-Goals
 
@@ -346,16 +348,17 @@ Expected backend shape:
 - BE does not create OBS/chroma behavior.
 - BE does not implement general-user live score polling.
 
-## Open Questions Before BE Starts
+## MVP Defaults For Reviewer/Dev
 
-1. Confirm whether live overlay should allow finished matches to keep polling for a short
-   post-match window, or immediately fall back to DB.
-2. Confirm whether derived `stat` event alerts are MVP or post-MVP.
-3. Confirm whether national-team `badge_url` should be persisted from API-Football team logo,
-   an internal flag asset map, or a separate asset service.
+| Topic | Default |
+|---|---|
+| Finished match refresh | Immediately prefer DB fallback after `FT`/`AET`/`PEN`; post-match live refresh window is post-MVP unless reviewer requests otherwise. |
+| Derived `stat` event alerts | Post-MVP. Return API-Football match events only for MVP, plus empty `stat` events unless a later spec extends this. |
+| National-team `badge_url` | Use API-Football team logo as `logo_url`/`badge_url` fallback. Internal flag asset mapping is post-MVP. |
 
 ## Change Log
 
 | Date | Change |
 |---|---|
+| 2026-05-24 | Refreshed stale FE-direct status; added explicit auth/dependency/cache contracts and MVP defaults for backend lifecycle. |
 | 2026-05-14 | Initial FE handoff endpoint spec for broadcast overlay mock completion. |

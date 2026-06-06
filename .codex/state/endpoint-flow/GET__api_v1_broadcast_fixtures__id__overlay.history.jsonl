@@ -1,1 +1,11 @@
 {"ts":"2026-05-14T06:34:13.487Z","from":null,"to":"FE_REQUESTED","by":"team-lead","note":"init"}
+{"ts":"2026-05-24T11:21:43.583Z","from":"FE_REQUESTED","to":"SPEC_DRAFTING","by":"be-test","note":"Begin backend spec/test drafting for broadcast overlay endpoint"}
+{"ts":"2026-05-24T11:31:49.686Z","from":"SPEC_DRAFTING","to":"SPEC_REVIEW","by":"be-test","note":"Spec, testplan, and Red tests ready for be-reviewer"}
+{"ts":"2026-06-06T08:40:55.480Z","from":"SPEC_REVIEW","to":"SPEC_APPROVED","by":"be-reviewer","note":"Spec and testplan approved for broadcast overlay implementation"}
+{"ts":"2026-06-06T08:40:59.422Z","from":"SPEC_APPROVED","to":"IMPL_IN_PROGRESS","by":"be-dev","note":"Implement broadcast overlay route, service aggregation, cache adapter, and tests"}
+{"ts":"2026-06-06T08:41:06.490Z","from":"IMPL_IN_PROGRESS","to":"IMPL_PUSHED","by":"be-dev","note":"Implementation ready for endpoint tests"}
+{"ts":"2026-06-06T08:41:11.509Z","from":"IMPL_PUSHED","to":"TESTING","by":"be-test","note":"Run unit and integration endpoint tests"}
+{"ts":"2026-06-06T08:41:15.291Z","from":"TESTING","to":"REVIEW_PENDING","by":"be-test","note":"Unit and integration tests passed"}
+{"ts":"2026-06-06T08:41:50.278Z","from":"REVIEW_PENDING","to":"MERGE_GATE","by":"be-reviewer","note":"Review passed: route auth gate, cache/API aggregation, 502 fallback mapping, and tests are acceptable"}
+{"ts":"2026-06-06T08:41:55.161Z","from":"MERGE_GATE","to":"PR_CREATED","by":"team-lead","note":"Direct main commit approved for current single-branch workflow"}
+{"ts":"2026-06-06T08:41:59.275Z","from":"PR_CREATED","to":"MERGED","by":"team-lead","note":"Merged by direct main commit workflow"}

@@ -1,0 +1,335 @@
+{
+  "fixture": {
+    "fixture": {
+      "id": 1000001,
+      "timezone": "UTC",
+      "date": "2026-05-24T10:00:00+00:00",
+      "timestamp": 1787047200,
+      "periods": {
+        "first": 1787047200,
+        "second": 1787050800
+      },
+      "status": {
+        "long": "Second Half",
+        "short": "2H",
+        "elapsed": 63,
+        "extra": null
+      }
+    },
+    "league": {
+      "id": 39,
+      "name": "Premier League",
+      "country": "England",
+      "logo": "https://example.test/epl.png",
+      "season": 2025
+    },
+    "teams": {
+      "home": {
+        "id": 40,
+        "name": "Liverpool",
+        "logo": "https://example.test/liverpool.png",
+        "winner": true
+      },
+      "away": {
+        "id": 42,
+        "name": "Arsenal",
+        "logo": "https://example.test/arsenal.png",
+        "winner": false
+      }
+    },
+    "goals": {
+      "home": 2,
+      "away": 1
+    },
+    "score": {
+      "halftime": {
+        "home": 1,
+        "away": 1
+      },
+      "fulltime": {
+        "home": null,
+        "away": null
+      }
+    }
+  },
+  "events": [
+    {
+      "time": {
+        "elapsed": 23,
+        "extra": null
+      },
+      "team": {
+        "id": 40,
+        "name": "Liverpool",
+        "logo": "https://example.test/liverpool.png"
+      },
+      "player": {
+        "id": 1001,
+        "name": "Mohamed Salah"
+      },
+      "assist": {
+        "id": 1002,
+        "name": "Trent Alexander-Arnold"
+      },
+      "type": "Goal",
+      "detail": "Normal Goal"
+    },
+    {
+      "time": {
+        "elapsed": 45,
+        "extra": 2
+      },
+      "team": {
+        "id": 42,
+        "name": "Arsenal",
+        "logo": "https://example.test/arsenal.png"
+      },
+      "player": {
+        "id": 1003,
+        "name": "Bukayo Saka"
+      },
+      "assist": null,
+      "type": "Card",
+      "detail": "Yellow Card"
+    },
+    {
+      "time": {
+        "elapsed": 63,
+        "extra": null
+      },
+      "team": {
+        "id": 40,
+        "name": "Liverpool",
+        "logo": "https://example.test/liverpool.png"
+      },
+      "player": {
+        "id": 1004,
+        "name": "Darwin Nunez"
+      },
+      "assist": {
+        "id": 1005,
+        "name": "Luis Diaz"
+      },
+      "type": "subst",
+      "detail": "Substitution"
+    }
+  ],
+  "lineups": [
+    {
+      "team": {
+        "id": 40,
+        "name": "Liverpool",
+        "logo": "https://example.test/liverpool.png"
+      },
+      "formation": "4-3-3",
+      "startXI": [
+        {
+          "player": {
+            "id": 1001,
+            "name": "Mohamed Salah",
+            "number": 11,
+            "pos": "F",
+            "grid": "3:3"
+          }
+        },
+        {
+          "player": {
+            "id": 1002,
+            "name": "Trent Alexander-Arnold",
+            "number": 66,
+            "pos": "D",
+            "grid": "2:4"
+          }
+        }
+      ],
+      "substitutes": [
+        {
+          "player": {
+            "id": 1004,
+            "name": "Darwin Nunez",
+            "number": 9,
+            "pos": "F",
+            "grid": null
+          }
+        }
+      ]
+    },
+    {
+      "team": {
+        "id": 42,
+        "name": "Arsenal",
+        "logo": "https://example.test/arsenal.png"
+      },
+      "formation": "4-2-3-1",
+      "startXI": [
+        {
+          "player": {
+            "id": 1003,
+            "name": "Bukayo Saka",
+            "number": 7,
+            "pos": "F",
+            "grid": "3:4"
+          }
+        }
+      ],
+      "substitutes": []
+    }
+  ],
+  "statistics": [
+    {
+      "team": {
+        "id": 40,
+        "name": "Liverpool"
+      },
+      "statistics": [
+        {
+          "type": "Ball Possession",
+          "value": "61%"
+        },
+        {
+          "type": "Total Shots",
+          "value": 14
+        },
+        {
+          "type": "Shots on Goal",
+          "value": 7
+        },
+        {
+          "type": "Corner Kicks",
+          "value": 5
+        },
+        {
+          "type": "Passes %",
+          "value": "84%"
+        }
+      ]
+    },
+    {
+      "team": {
+        "id": 42,
+        "name": "Arsenal"
+      },
+      "statistics": [
+        {
+          "type": "Ball Possession",
+          "value": "39%"
+        },
+        {
+          "type": "Total Shots",
+          "value": 9
+        },
+        {
+          "type": "Shots on Goal",
+          "value": 4
+        },
+        {
+          "type": "Corner Kicks",
+          "value": 2
+        },
+        {
+          "type": "Passes %",
+          "value": "79%"
+        }
+      ]
+    }
+  ],
+  "players": [
+    {
+      "team": {
+        "id": 40,
+        "name": "Liverpool"
+      },
+      "players": [
+        {
+          "player": {
+            "id": 1001,
+            "name": "Mohamed Salah"
+          },
+          "statistics": [
+            {
+              "games": {
+                "number": 11,
+                "position": "F",
+                "rating": "7.8"
+              },
+              "goals": {
+                "total": 2,
+                "assists": 1
+              },
+              "cards": {
+                "yellow": 0,
+                "red": 0
+              },
+              "substitutes": {
+                "in": 0,
+                "out": 0
+              }
+            }
+          ]
+        },
+        {
+          "player": {
+            "id": 1002,
+            "name": "Trent Alexander-Arnold"
+          },
+          "statistics": [
+            {
+              "games": {
+                "number": 66,
+                "position": "D",
+                "rating": "7.1"
+              },
+              "goals": {
+                "total": 0,
+                "assists": 1
+              },
+              "cards": {
+                "yellow": 1,
+                "red": 0
+              },
+              "substitutes": {
+                "in": 0,
+                "out": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "team": {
+        "id": 42,
+        "name": "Arsenal"
+      },
+      "players": [
+        {
+          "player": {
+            "id": 1003,
+            "name": "Bukayo Saka"
+          },
+          "statistics": [
+            {
+              "games": {
+                "number": 7,
+                "position": "F",
+                "rating": "6.9"
+              },
+              "goals": {
+                "total": 1,
+                "assists": 0
+              },
+              "cards": {
+                "yellow": 1,
+                "red": 0
+              },
+              "substitutes": {
+                "in": 0,
+                "out": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+set -a; source .env; set +a; .venv/bin/pytest tests/integration/test_broadcast_overlay_endpoint.py -q -rs
+
+....                                                                     [100%]
+4 passed in 33.40s

@@ -42,6 +42,8 @@
 
 ## Phase 3: 인증
 
+기획 정본: `docs/spec/auth-access-plan.md` (2026-06-06 작성). 구현 상태는 아래 task 기준으로 관리한다.
+
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | 3.1 | 비밀번호 해시 (bcrypt or argon2) 헬퍼 | 단위 테스트 통과 | 1.7 | cc:TODO |
@@ -114,7 +116,7 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | 8.1 | FE endpoint 목록 수신 인터페이스 (mock + endpoint spec 파일 위치 약속) | 디렉토리 구조 + 양식 문서 | 7.1 | cc:완료 [local-p0-status] |
-| 8.2 | endpoint 별 라이프사이클 1건 (시범) | 1 endpoint 가 `MERGED` 까지 완주 | 7.1-7.9, 8.1 | cc:WIP |
+| 8.2 | endpoint 별 라이프사이클 1건 (시범) | 1 endpoint 가 `MERGED` 까지 완주 | 7.1-7.9, 8.1 | cc:완료 [local-broadcast-overlay-endpoint] |
 | 8.3 | 이후 endpoint 들은 8.2 시범을 패턴 삼아 진행 | FE 진행에 따라 채워짐 | 8.2 | cc:WIP |
 
 ## Phase 9: 프론트엔드 인프라
