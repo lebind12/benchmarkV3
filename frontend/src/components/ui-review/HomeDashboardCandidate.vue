@@ -54,11 +54,6 @@ const phaseGroups = computed(() => groupStandingRows(standingsRowsAll.value))
 const singlePhaseGroup = computed(() => (phaseGroups.value.length === 1 ? phaseGroups.value[0] : null))
 const isSinglePhaseTable = computed(() => (singlePhaseGroup.value?.rows.length ?? 0) > 8)
 
-const selectedLeagueLabel = computed(() => {
-  const selected = HOME_LEAGUE_TABS.find((item) => item.id === home.fixtures.filter.league_id)
-  return selected?.label ?? '전체'
-})
-
 const standingsLeagueLabel = computed(() => {
   const selected = standingsLeagueOptions.find((league) => league.id === home.standings.league_id)
   return selected?.label ?? '순위'
@@ -71,10 +66,6 @@ const standingsSeasonLabel = computed(() => {
 })
 
 const standingsMetaLabel = computed(() => (isPhaseStandings.value ? '조별리그' : '상위 6팀'))
-
-const selectedPeriodLabel = computed(() => {
-  return periodOptions.find((option) => option.value === home.fixtures.filter.period)?.label ?? '일간'
-})
 
 function teamName(team: TeamRef): string {
   return team.short_name_ko ?? team.name_ko ?? team.name
@@ -157,30 +148,19 @@ function openTournament(leagueId: number) {
 
 <template>
   <div class="candidate-home" data-testid="ui-review-home-candidate">
-    <section class="hero" aria-label="홈 상단 요약">
-      <div class="hero__copy">
-        <span class="eyebrow">홈 대시보드</span>
-        <h2>주요 경기와 시즌 흐름을 한 화면에 정리</h2>
-        <p>{{ selectedLeagueLabel }} · {{ home.fixtures.filter.date }} · {{ selectedPeriodLabel }}</p>
-      </div>
-      <div class="hero__actions" aria-label="홈 필터">
-        <div class="info-chip">
-          <CalendarDays :size="14" aria-hidden="true" />
-          <span>다가오는 경기 우선</span>
-        </div>
-        <div class="periods" role="tablist" aria-label="기간 필터">
-          <button
-            v-for="option in periodOptions"
-            :key="option.value"
-            type="button"
-            :class="['period', { 'period--active': home.fixtures.filter.period === option.value }]"
-            :aria-selected="home.fixtures.filter.period === option.value"
-            role="tab"
-            @click="setPeriod(option.value)"
-          >
-            {{ option.label }}
-          </button>
-        </div>
+    <section class="home-toolbar" aria-label="홈 필터">
+      <div class="periods" role="tablist" aria-label="기간 필터">
+        <button
+          v-for="option in periodOptions"
+          :key="option.value"
+          type="button"
+          :class="['period', { 'period--active': home.fixtures.filter.period === option.value }]"
+          :aria-selected="home.fixtures.filter.period === option.value"
+          role="tab"
+          @click="setPeriod(option.value)"
+        >
+          {{ option.label }}
+        </button>
       </div>
     </section>
 
@@ -459,56 +439,14 @@ function openTournament(leagueId: number) {
   background: var(--color-bg);
 }
 
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+.home-toolbar {
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
-  padding: 12px;
+  padding: 8px 10px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-card);
-}
-
-.eyebrow {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--color-muted);
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.hero h2 {
-  margin: 0;
-  color: var(--color-fg);
-  font-size: 17px;
-  line-height: 1.25;
-}
-
-.hero p {
-  margin: 5px 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
-}
-
-.hero__actions {
-  display: grid;
-  justify-items: end;
-  gap: 7px;
-}
-
-.info-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 176px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 6px 10px;
-  color: var(--color-muted);
-  background: var(--color-bg);
-  font-size: 12px;
 }
 
 .periods {
