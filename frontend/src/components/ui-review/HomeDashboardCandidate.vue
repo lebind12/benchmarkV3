@@ -4,6 +4,9 @@ import { useRouter } from 'vue-router'
 import {
   ArrowRight,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  RotateCw,
   Table2,
   TrendingUp,
   UsersRound,
@@ -53,6 +56,27 @@ const isPhaseStandings = computed(() => PHASE_STANDINGS_LEAGUE_IDS.has(home.stan
 const phaseGroups = computed(() => groupStandingRows(standingsRowsAll.value))
 const singlePhaseGroup = computed(() => (phaseGroups.value.length === 1 ? phaseGroups.value[0] : null))
 const isSinglePhaseTable = computed(() => (singlePhaseGroup.value?.rows.length ?? 0) > 8)
+const fixtureSummary = computed(() => ({
+  total: fixtureRows.value.length,
+  upcoming: fixtureRows.value.filter((fixture) => fixtureKind(fixture.status_short) === 'upcoming').length,
+  finished: fixtureRows.value.filter((fixture) => fixtureKind(fixture.status_short) === 'finished').length,
+}))
+const dateRangeLabel = computed(() => formatRangeLabel(home.fixtures.filter.date, home.fixtures.filter.period))
+const dateControlLabel = computed(() => {
+  if (home.fixtures.filter.period === 'day') return '기준일'
+  if (home.fixtures.filter.period === 'week') return '기준 주'
+  return '기준 월'
+})
+const lastFixtureUpdatedLabel = computed(() => {
+  const fetchedAt = home.fixtures.data.fetchedAt
+  if (!fetchedAt) return '갱신 전'
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(fetchedAt))
+})
 
 const standingsLeagueLabel = computed(() => {
   const selected = standingsLeagueOptions.find((league) => league.id === home.standings.league_id)
@@ -93,6 +117,12 @@ function fixtureStatus(fixture: FixtureSummary): string {
   return fixture.status_short
 }
 
+function fixtureKind(status: string): 'upcoming' | 'finished' | 'live' {
+  if (status === 'FT' || status === 'AET' || status === 'PEN') return 'finished'
+  if (status === 'NS' || status === 'TBD' || status === 'PST' || status === 'CANC') return 'upcoming'
+  return 'live'
+}
+
 function goalDiff(row: { goals_for: number; goals_against: number; goal_diff?: number | null }): number {
   return row.goal_diff ?? row.goals_for - row.goals_against
 }
@@ -112,6 +142,71 @@ function setLeague(id: number | null) {
 
 function setPeriod(period: Period) {
   home.setPeriod(period)
+}
+
+function shiftPeriod(direction: -1 | 1) {
+  const period = home.fixtures.filter.period
+  if (period === 'month') {
+    home.setFixtureDate(shiftMonth(home.fixtures.filter.date, direction))
+    return
+  }
+  home.shiftFixtureDate(period === 'week' ? direction * 7 : direction)
+}
+
+function refreshFixtures() {
+  home.fetchFixtures()
+}
+
+function shiftMonth(ymd: string, deltaMonths: number): string {
+  const [year, month, day] = ymd.split('-').map(Number)
+  const dt = new Date(Date.UTC(year, month - 1 + deltaMonths, 1))
+  const lastDay = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 0)).getUTCDate()
+  dt.setUTCDate(Math.min(day, lastDay))
+  return utcDateToYmd(dt)
+}
+
+function utcDateToYmd(dt: Date): string {
+  return [
+    dt.getUTCFullYear(),
+    String(dt.getUTCMonth() + 1).padStart(2, '0'),
+    String(dt.getUTCDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function ymdToUtcDate(ymd: string): Date {
+  const [year, month, day] = ymd.split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day))
+}
+
+function shiftDate(ymd: string, days: number): string {
+  const dt = ymdToUtcDate(ymd)
+  dt.setUTCDate(dt.getUTCDate() + days)
+  return utcDateToYmd(dt)
+}
+
+function periodStartYmd(ymd: string, period: Period): string {
+  const dt = ymdToUtcDate(ymd)
+  if (period === 'week') {
+    const weekday = dt.getUTCDay() || 7
+    dt.setUTCDate(dt.getUTCDate() - weekday + 1)
+  }
+  if (period === 'month') {
+    dt.setUTCDate(1)
+  }
+  return utcDateToYmd(dt)
+}
+
+function formatDate(ymd: string): string {
+  const [, month, day] = ymd.split('-').map(Number)
+  return `${month}.${String(day).padStart(2, '0')}`
+}
+
+function formatRangeLabel(ymd: string, period: Period): string {
+  const start = periodStartYmd(ymd, period)
+  if (period === 'day') return formatDate(start)
+  if (period === 'week') return `${formatDate(start)} - ${formatDate(shiftDate(start, 6))}`
+  const [year, month] = start.split('-').map(Number)
+  return `${year}.${String(month).padStart(2, '0')}`
 }
 
 function setStandingsLeague(id: number) {
@@ -162,6 +257,32 @@ function openTournament(leagueId: number) {
           {{ option.label }}
         </button>
       </div>
+      <div class="date-control" aria-label="기준 기간">
+        <button type="button" class="icon-button" aria-label="이전 기간" @click="shiftPeriod(-1)">
+          <ChevronLeft :size="15" aria-hidden="true" />
+        </button>
+        <div class="date-control__label">
+          <span>{{ dateControlLabel }}</span>
+          <strong>{{ dateRangeLabel }}</strong>
+        </div>
+        <button type="button" class="icon-button" aria-label="다음 기간" @click="shiftPeriod(1)">
+          <ChevronRight :size="15" aria-hidden="true" />
+        </button>
+      </div>
+      <div class="fixture-summary" aria-label="경기 요약">
+        <span>전체 <strong>{{ fixtureSummary.total }}</strong></span>
+        <span>예정 <strong>{{ fixtureSummary.upcoming }}</strong></span>
+        <span>종료 <strong>{{ fixtureSummary.finished }}</strong></span>
+      </div>
+      <button
+        type="button"
+        class="refresh-button"
+        :disabled="home.fixtures.data.status === 'loading'"
+        @click="refreshFixtures"
+      >
+        <RotateCw :size="14" aria-hidden="true" />
+        <span>{{ lastFixtureUpdatedLabel }}</span>
+      </button>
     </section>
 
     <section class="league-strip" aria-label="리그 필터">
@@ -440,9 +561,11 @@ function openTournament(leagueId: number) {
 }
 
 .home-toolbar {
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: auto auto minmax(250px, 1fr) auto;
   align-items: center;
+  gap: 8px;
+  min-width: 0;
   padding: 8px 10px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -471,6 +594,99 @@ function openTournament(leagueId: number) {
 .period--active {
   color: var(--color-bg);
   background: var(--color-fg);
+}
+
+.date-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.icon-button,
+.refresh-button {
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  background: var(--color-bg);
+  cursor: pointer;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+}
+
+.date-control__label {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 7px;
+  min-width: 140px;
+  height: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 0 10px;
+  background: var(--color-bg);
+  white-space: nowrap;
+}
+
+.date-control__label span {
+  color: var(--color-muted);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.date-control__label strong {
+  color: var(--color-fg);
+  font-size: 12px;
+}
+
+.fixture-summary {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fixture-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--color-muted);
+  background: var(--color-bg);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.fixture-summary strong {
+  color: var(--color-fg);
+  font-size: 13px;
+}
+
+.refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.refresh-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .league-strip {
@@ -564,6 +780,57 @@ function openTournament(leagueId: number) {
   justify-content: center;
   color: var(--color-muted);
   font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .candidate-home {
+    padding: 8px;
+  }
+
+  .home-toolbar {
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .home-toolbar::-webkit-scrollbar,
+  .league-strip::-webkit-scrollbar,
+  .featured::-webkit-scrollbar {
+    display: none;
+  }
+
+  .periods,
+  .date-control,
+  .fixture-summary,
+  .refresh-button {
+    flex: 0 0 auto;
+  }
+
+  .fixture-summary {
+    justify-content: flex-start;
+  }
+
+  .league-strip {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .league-chip {
+    flex: 0 0 auto;
+  }
+
+  .featured {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .featured__item,
+  .featured__placeholder {
+    flex: 0 0 220px;
+  }
 }
 
 .dashboard {
