@@ -43,5 +43,13 @@ export const useAuthStore = defineStore('auth', {
         localStorage.setItem('authUser', JSON.stringify(user))
       }
     },
+    logout() {
+      this.user = null
+      this.role = 'public'
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('authUser')
+        localStorage.setItem('mockRole', 'public')
+      }
+    },
   },
 })

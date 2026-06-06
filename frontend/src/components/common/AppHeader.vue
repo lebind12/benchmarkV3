@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { Button } from '@/components/ui/button'
 
 const auth = useAuthStore()
 
@@ -25,6 +24,10 @@ const tabs = computed(() => {
 function toggleTheme() {
   const isDark = document.documentElement.classList.toggle('dark')
   localStorage.setItem('theme', isDark ? 'dark' : 'light')
+}
+
+function logout() {
+  auth.logout()
 }
 </script>
 <template>
@@ -69,15 +72,19 @@ function toggleTheme() {
         >
           회원가입
         </router-link>
-        <Button
-          v-else
-          variant="outline"
-          size="sm"
-          class="hdr__login"
-          data-testid="auth-profile"
-        >
-          프로필
-        </Button>
+        <div v-else class="hdr__session" data-testid="auth-session">
+          <span class="hdr__user" data-testid="auth-profile">
+            {{ auth.user?.nickname || auth.user?.email || auth.role }}
+          </span>
+          <button
+            type="button"
+            class="hdr__logout"
+            data-testid="auth-logout"
+            @click="logout"
+          >
+            로그아웃
+          </button>
+        </div>
       </div>
     </div>
   </header>
@@ -124,7 +131,8 @@ function toggleTheme() {
 }
 .hdr__icon,
 .hdr__login,
-.hdr__signup {
+.hdr__signup,
+.hdr__logout {
   background: transparent;
   border: 1px solid var(--color-border);
   color: var(--color-fg);
@@ -132,6 +140,20 @@ function toggleTheme() {
   border-radius: 6px;
   cursor: pointer;
   text-decoration: none;
+}
+.hdr__session {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hdr__user {
+  max-width: 10rem;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 560px) {
@@ -159,8 +181,13 @@ function toggleTheme() {
 
   .hdr__icon,
   .hdr__login,
-  .hdr__signup {
+  .hdr__signup,
+  .hdr__logout {
     padding-inline: 7px;
+  }
+
+  .hdr__user {
+    display: none;
   }
 }
 </style>
