@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -31,6 +31,8 @@ describe('AppHeader', () => {
   it('shows logout for signed-in users and clears local auth state', async () => {
     const pinia = createPinia()
     const router = makeRouter()
+    router.push('/fixtures')
+    await router.isReady()
     const auth = useAuthStore(pinia)
     auth.setUser({
       id: 3,
@@ -48,7 +50,9 @@ describe('AppHeader', () => {
     expect(wrapper.find('[data-testid=auth-login]').exists()).toBe(false)
 
     await wrapper.get('[data-testid=auth-logout]').trigger('click')
+    await flushPromises()
 
+    expect(router.currentRoute.value.path).toBe('/')
     expect(auth.role).toBe('public')
     expect(auth.user).toBeNull()
     expect(localStorage.getItem('authUser')).toBeNull()

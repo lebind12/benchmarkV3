@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+const router = useRouter()
 
 const tabs = computed(() => {
   const base = [
@@ -25,8 +27,12 @@ function toggleTheme() {
   localStorage.setItem('theme', isDark ? 'dark' : 'light')
 }
 
-function logout() {
-  auth.logout()
+async function logout() {
+  try {
+    await router.push('/')
+  } finally {
+    auth.logout()
+  }
 }
 </script>
 <template>
