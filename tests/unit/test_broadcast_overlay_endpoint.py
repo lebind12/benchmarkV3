@@ -226,7 +226,7 @@ def _broadcast_api_contract():
 def _build_client(
     service: FakeBroadcastOverlayService,
     *,
-    role: str = "STREAMER",
+    role: str = "ADMIN",
     authenticated: bool = True,
 ) -> TestClient:
     broadcast_api = _broadcast_api_contract()
@@ -255,9 +255,9 @@ def test_bo_u08_route_registered_on_main_app():
     assert "/api/v1/broadcast/fixtures/{external_id}/overlay" in paths
 
 
-def test_bo_u01_streamer_access_returns_canonical_payload():
+def test_bo_u01_admin_access_returns_canonical_payload():
     service = FakeBroadcastOverlayService(FULL_OVERLAY_PAYLOAD)
-    client = _build_client(service, role="STREAMER")
+    client = _build_client(service, role="ADMIN")
 
     response = client.get(
         "/api/v1/broadcast/fixtures/1000001/overlay?league_slug=premier-league"
@@ -267,7 +267,7 @@ def test_bo_u01_streamer_access_returns_canonical_payload():
     assert service.calls == [
         {
             "external_id": 1000001,
-            "role": "STREAMER",
+            "role": "ADMIN",
             "league_slug": "premier-league",
         }
     ]
@@ -279,14 +279,14 @@ def test_bo_u01_streamer_access_returns_canonical_payload():
     assert body["polling"]["interval_seconds"] == 10
 
 
-def test_bo_u02_admin_access_allowed():
+def test_bo_u02_streamer_access_forbidden_before_service_call():
     service = FakeBroadcastOverlayService(FULL_OVERLAY_PAYLOAD)
-    client = _build_client(service, role="ADMIN")
+    client = _build_client(service, role="STREAMER")
 
     response = client.get("/api/v1/broadcast/fixtures/1000001/overlay")
 
-    assert response.status_code == 200
-    assert service.calls[0]["role"] == "ADMIN"
+    assert response.status_code == 403
+    assert service.calls == []
 
 
 def test_bo_u03_user_access_forbidden_before_service_call():
@@ -311,7 +311,7 @@ def test_bo_u04_missing_auth_returns_401_before_service_call():
 
 def test_bo_u05_unknown_fixture_maps_to_404():
     service = FakeBroadcastOverlayService(None)
-    client = _build_client(service, role="STREAMER")
+    client = _build_client(service, role="ADMIN")
 
     response = client.get("/api/v1/broadcast/fixtures/9999999/overlay")
 
@@ -326,7 +326,7 @@ def test_bo_u09_upstream_failure_without_fallback_maps_to_502():
         None,
         raises=BroadcastOverlayError("broadcast_upstream_unavailable"),
     )
-    client = _build_client(service, role="STREAMER")
+    client = _build_client(service, role="ADMIN")
 
     response = client.get("/api/v1/broadcast/fixtures/1000001/overlay")
 
@@ -337,7 +337,7 @@ def test_bo_u09_upstream_failure_without_fallback_maps_to_502():
 
 def test_bo_u06_invalid_external_id_returns_422():
     service = FakeBroadcastOverlayService(FULL_OVERLAY_PAYLOAD)
-    client = _build_client(service, role="STREAMER")
+    client = _build_client(service, role="ADMIN")
 
     response = client.get("/api/v1/broadcast/fixtures/not-int/overlay")
 
@@ -347,7 +347,7 @@ def test_bo_u06_invalid_external_id_returns_422():
 
 def test_bo_u07_partial_live_data_serializes_empty_and_null_blocks():
     service = FakeBroadcastOverlayService(PARTIAL_OVERLAY_PAYLOAD)
-    client = _build_client(service, role="STREAMER")
+    client = _build_client(service, role="ADMIN")
 
     response = client.get("/api/v1/broadcast/fixtures/1000001/overlay")
 

@@ -26,8 +26,8 @@ later behind an explicit manual marker.
 
 | ID | Case | Setup | Assertion |
 |---|---|---|---|
-| BO-U-01 | STREAMER access returns canonical payload | Override auth as STREAMER and service with full payload | `200`, `fixture`, `lineups`, `statistics`, `events`, `polling` keys present |
-| BO-U-02 | ADMIN access allowed | Override auth as ADMIN | `200` |
+| BO-U-01 | ADMIN access returns canonical payload | Override auth as ADMIN and service with full payload | `200`, `fixture`, `lineups`, `statistics`, `events`, `polling` keys present |
+| BO-U-02 | STREAMER access forbidden | Override auth as STREAMER | `403`, service not called |
 | BO-U-03 | USER access forbidden | Override auth as USER | `403` |
 | BO-U-04 | Missing auth | No current user | `401` |
 | BO-U-05 | Unknown fixture | Service raises/returns not found | `404 {"detail":"fixture_not_found"}` |

@@ -14,9 +14,11 @@ const tabs = computed(() => {
     { path: '/players', label: '선수' },
     { path: '/stats', label: '스탯' },
     { path: '/news', label: '뉴스' },
-    { path: '/admin', label: '관리' },
   ]
-  if (auth.isStreamer) base.push({ path: '/broadcast', label: '방송' })
+  if (auth.isAdmin) {
+    base.push({ path: '/admin', label: '관리' })
+    base.push({ path: '/broadcast', label: '방송' })
+  }
   return base
 })
 
@@ -60,6 +62,14 @@ function toggleTheme() {
         >
           로그인
         </Button>
+        <router-link
+          v-if="!auth.isLoggedIn"
+          to="/auth/signup"
+          class="hdr__signup"
+          data-testid="auth-signup"
+        >
+          회원가입
+        </router-link>
         <Button
           v-else
           variant="outline"
@@ -85,23 +95,73 @@ function toggleTheme() {
   align-items: center;
   gap: 16px;
 }
-.hdr__logo { font-weight: 700; }
-.hdr__nav { display: flex; gap: 16px; flex: 1; overflow-x: auto; }
+.hdr__logo {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+.hdr__nav {
+  min-width: 0;
+  display: flex;
+  gap: 16px;
+  flex: 1 1 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.hdr__nav::-webkit-scrollbar { display: none; }
 .hdr__tab {
+  flex: 0 0 auto;
   text-decoration: none;
   color: var(--color-muted);
   padding: 6px 8px;
   border-radius: 4px;
 }
 .hdr__tab--active { color: var(--color-fg); font-weight: 600; }
-.hdr__right { display: flex; gap: 8px; align-items: center; }
+.hdr__right {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 .hdr__icon,
-.hdr__login {
+.hdr__login,
+.hdr__signup {
   background: transparent;
   border: 1px solid var(--color-border);
   color: var(--color-fg);
   padding: 4px 10px;
   border-radius: 6px;
   cursor: pointer;
+  text-decoration: none;
+}
+
+@media (max-width: 560px) {
+  .hdr__inner {
+    gap: 8px;
+  }
+
+  .hdr__logo {
+    max-width: 5.4rem;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .hdr__nav {
+    gap: 6px;
+  }
+
+  .hdr__tab {
+    padding-inline: 4px;
+  }
+
+  .hdr__right {
+    gap: 4px;
+  }
+
+  .hdr__icon,
+  .hdr__login,
+  .hdr__signup {
+    padding-inline: 7px;
+  }
 }
 </style>

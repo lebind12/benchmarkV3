@@ -115,8 +115,8 @@ test.describe('main-home (mock mode)', () => {
     await expect(page.getByTestId('auth-login')).toBeVisible()
   })
 
-  test('S28 STREAMER role shows 방송 tab', async ({ page }) => {
-    await page.addInitScript(() => { localStorage.setItem('mockRole', 'STREAMER') })
+  test('S28 ADMIN role shows 방송 tab', async ({ page }) => {
+    await page.addInitScript(() => { localStorage.setItem('mockRole', 'ADMIN') })
     await page.goto('/')
     await expect(page.getByTestId('nav-방송')).toBeVisible()
   })

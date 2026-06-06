@@ -338,6 +338,9 @@ const liveStateLabel = computed(() => {
     return liveError.value ?? "API-Football 라이브 데이터 사용 불가";
   return "API-Football 라이브 데이터";
 });
+const isAdminAllowed = ref(
+  typeof localStorage !== "undefined" && localStorage.getItem("mockRole") === "ADMIN",
+);
 const carouselCards = computed<CarouselInfoCard[]>(() => {
   const cards = carouselQueue.value;
   const realCards = cards.map((card, index) => ({
@@ -473,6 +476,8 @@ function handleDemoKeyboard(event: KeyboardEvent) {
 }
 
 onMounted(() => {
+  if (!isAdminAllowed.value) return;
+
   if (demoEventsMode) {
     loadDemoEventQueue();
     window.addEventListener("keydown", handleDemoKeyboard);
@@ -1375,6 +1380,7 @@ function playerNumberLabel(number: number | undefined) {
 
 <template>
   <main
+    v-if="isAdminAllowed"
     class="program-stage"
     :data-league="theme.slug"
     :style="themeVars"
@@ -1682,6 +1688,12 @@ function playerNumberLabel(number: number | undefined) {
       ></section>
     </aside>
   </main>
+  <main v-else class="program-stage program-stage--locked" data-testid="program-locked">
+    <section class="program-locked-panel">
+      <strong>권한이 필요합니다</strong>
+      <span>방송용 페이지는 ADMIN 전용입니다.</span>
+    </section>
+  </main>
 </template>
 
 <style scoped>
@@ -1708,6 +1720,32 @@ function playerNumberLabel(number: number | undefined) {
     "Avenir Next Condensed", "DIN Condensed", "Pretendard", system-ui,
     sans-serif;
   letter-spacing: 0;
+}
+
+.program-stage--locked {
+  align-items: center;
+  justify-content: center;
+  background: #101318;
+  color: #f8fafc;
+}
+
+.program-locked-panel {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 18rem;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  background: rgba(12, 16, 22, 0.92);
+  text-align: center;
+}
+
+.program-locked-panel strong {
+  font-size: 1.25rem;
+}
+
+.program-locked-panel span {
+  color: rgba(248, 250, 252, 0.72);
 }
 
 .program-left {

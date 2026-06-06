@@ -584,8 +584,13 @@ const awayScoreboardName = computed(() => match.value ? shortTeamLabel(match.val
 const displayClock = computed(() => formatClock(manualClockSeconds.value))
 const displayAddedTime = computed(() => formatClock(manualAddedSeconds.value))
 const shouldShowEventLiveState = computed(() => liveStatus.value !== 'ready')
+const isAdminAllowed = ref(
+  typeof localStorage !== 'undefined' && localStorage.getItem('mockRole') === 'ADMIN',
+)
 
 onMounted(() => {
+  if (!isAdminAllowed.value) return
+
   void refreshApiFootballLive()
   if (shouldUseApiFootballLive()) {
     livePollingTimer = window.setInterval(() => {
@@ -1084,6 +1089,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 <template>
   <main
+    v-if="isAdminAllowed"
     class="broadcast-stage"
     :data-league="theme.slug"
     :data-revision="materialRevision ? 'material' : 'base'"
@@ -1406,6 +1412,12 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
     </section>
 
   </main>
+  <main v-else class="broadcast-stage broadcast-stage--locked" data-testid="broadcast-locked">
+    <section class="broadcast-locked-panel">
+      <strong>권한이 필요합니다</strong>
+      <span>방송용 페이지는 ADMIN 전용입니다.</span>
+    </section>
+  </main>
 </template>
 
 <style scoped>
@@ -1431,6 +1443,32 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
     system-ui,
     sans-serif;
   letter-spacing: 0;
+}
+
+.broadcast-stage--locked {
+  align-items: center;
+  justify-content: center;
+  background: #101318;
+  color: #f8fafc;
+}
+
+.broadcast-locked-panel {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 18rem;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  background: rgba(12, 16, 22, 0.92);
+  text-align: center;
+}
+
+.broadcast-locked-panel strong {
+  font-size: 1.25rem;
+}
+
+.broadcast-locked-panel span {
+  color: rgba(248, 250, 252, 0.72);
 }
 
 .top-row {

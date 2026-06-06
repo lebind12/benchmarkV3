@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.fixture_detail import router as fixture_detail_router
 from app.api.v1.admin import router as admin_router
+from app.api.v1.auth import router as auth_router
 from app.api.v1.broadcast import router as broadcast_router
 from app.api.v1.fixture_detail_analytics import router as fixture_detail_analytics_router
 from app.api.v1.general import router as general_router
@@ -59,6 +60,7 @@ def health() -> dict[str, str]:
 
 
 app.include_router(home_router, prefix="/api/v1/home")
+app.include_router(auth_router)
 app.include_router(broadcast_router)
 app.include_router(admin_router)
 app.include_router(general_router)

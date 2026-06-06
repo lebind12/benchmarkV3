@@ -6,6 +6,9 @@ import GoalHistoryInline from './GoalHistoryInline.vue'
 
 const props = defineProps<{ match: MatchDetail }>()
 const isBroadcastPickerOpen = ref(false)
+const canOpenBroadcast = computed(
+  () => typeof localStorage !== 'undefined' && localStorage.getItem('mockRole') === 'ADMIN',
+)
 
 const isFinished = computed(() =>
   ['FT', 'AET', 'PEN'].includes(props.match.status_short),
@@ -86,6 +89,7 @@ const watchTogetherHref = computed(() => `/broadcast.html?${broadcastQuery.value
 const programHref = computed(() => `/broadcast-program.html?${broadcastQuery.value}`)
 
 function openBroadcastPicker() {
+  if (!canOpenBroadcast.value) return
   isBroadcastPickerOpen.value = true
 }
 
@@ -116,6 +120,7 @@ onBeforeUnmount(() => {
   <header class="match-header" data-testid="match-header">
     <div class="match-header__actions">
       <button
+        v-if="canOpenBroadcast"
         type="button"
         class="match-header__broadcast-button"
         data-testid="broadcast-picker-trigger"

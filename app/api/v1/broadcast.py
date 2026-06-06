@@ -140,7 +140,7 @@ def broadcast_fixture_overlay(
     if league_slug is not None and league_slug not in ALLOWED_BROADCAST_LEAGUE_SLUGS:
         raise HTTPException(status_code=422, detail="unsupported league_slug")
     role = getattr(current_user, "role", None)
-    if role not in {"STREAMER", "ADMIN"}:
+    if role != "ADMIN":
         raise HTTPException(status_code=403, detail="forbidden")
     try:
         payload = service.get_overlay(

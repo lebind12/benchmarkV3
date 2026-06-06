@@ -3,7 +3,7 @@ endpoint_id: GET__api_v1_broadcast_fixtures__id__overlay
 method: GET
 path: /api/v1/broadcast/fixtures/{external_id}/overlay
 feature: broadcast-match-overlay
-auth: STREAMER
+auth: ADMIN
 owner: be-test
 created: 2026-05-14
 ---
@@ -28,7 +28,7 @@ polling payload for:
 
 This endpoint is intentionally different from normal user fixture pages. Normal pages are
 DB-only and may be stale up to the 6h worker SLA. This broadcast endpoint is for
-STREAMER/ADMIN users and may call API-Football at request time through an Upstash cache.
+ADMIN users and may call API-Football at request time through an Upstash cache.
 
 FE handoff source: `frontend/endpoint-requests/GET__api_v1_broadcast_fixtures__id__overlay.request.json`.
 
@@ -59,7 +59,7 @@ calls. If embedded blocks are absent or incomplete, call the explicit sub-endpoi
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/broadcast/fixtures/{external_id}/overlay` |
-| Auth | `STREAMER` or `ADMIN` JWT required |
+| Auth | `ADMIN` JWT required |
 | Path params | `external_id: int`, API-Football fixture id |
 
 Query params:
@@ -306,7 +306,7 @@ and semaphore limit 6 for external calls.
 | Status | Case |
 |---|---|
 | `401` | Missing/expired JWT. |
-| `403` | Authenticated user lacks `STREAMER` or `ADMIN` role. |
+| `403` | Authenticated user lacks `ADMIN` role. |
 | `404` | Fixture external id not found in DB and not found in API-Football lookup. |
 | `422` | Non-integer path param or invalid query param. |
 | `502` | API-Football failed and no usable cached/DB fallback exists for a live fixture. |
@@ -334,7 +334,7 @@ Expected backend shape:
 |---|---|
 | route module | `app.api.v1.broadcast.router` included in `app.main.app` |
 | route path | `/api/v1/broadcast/fixtures/{external_id}/overlay` |
-| auth dependency | `get_broadcast_current_user()` override hook returning an object with `role`; route must allow `STREAMER` and `ADMIN`, reject `USER` with `403`, and propagate missing/expired JWT as `401` |
+| auth dependency | `get_broadcast_current_user()` override hook returning an object with `role`; route must allow `ADMIN`, reject `STREAMER`/`USER` with `403`, and propagate missing/expired JWT as `401` |
 | service dependency | `get_broadcast_overlay_service()` override hook for unit tests |
 | service method | `get_overlay(external_id: int, user: CurrentUser, league_slug: str | None = None) -> dict | None`; `None` maps to `404 fixture_not_found`; `BroadcastOverlayError` maps to `502 broadcast_upstream_unavailable` |
 | API client dependency | `get_broadcast_api_football_client()` override hook for integration tests; default implementation must respect project semaphore/rate-limit policy |

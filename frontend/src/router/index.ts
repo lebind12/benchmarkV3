@@ -5,6 +5,7 @@ import {
   BROADCAST_FIXTURE_QUERY_PARAM,
   BROADCAST_LEGACY_FIXTURE_QUERY_PARAM,
 } from '@/lib/broadcastQuery'
+import { useAuthStore } from '@/stores/auth'
 
 const PlaceholderView = {
   template: '<main style="padding:24px"><h2>{{ title }}</h2><p>(placeholder)</p></main>',
@@ -67,15 +68,23 @@ function buildBroadcastPageUrl(fileName: string, to: BroadcastRouteTarget) {
 }
 
 function openBroadcast(to: BroadcastRouteTarget) {
+  if (!isAdminRouteAllowed()) return { name: 'not-found' }
   if (typeof window === 'undefined') return false
   window.location.assign(buildBroadcastPageUrl('broadcast.html', to))
   return false
 }
 
 function openBroadcastProgram(to: BroadcastRouteTarget) {
+  if (!isAdminRouteAllowed()) return { name: 'not-found' }
   if (typeof window === 'undefined') return false
   window.location.assign(buildBroadcastPageUrl('broadcast-program.html', to))
   return false
+}
+
+function isAdminRouteAllowed() {
+  const auth = useAuthStore()
+  auth.hydrateFromMock()
+  return auth.isAdmin
 }
 
 const routes: RouteRecordRaw[] = [
@@ -141,7 +150,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/ui-review/UiReviewNewsView.vue'),
         meta: { title: '뉴스 후보' },
       },
-      { path: 'admin', name: 'admin', component: () => import('@/views/AdminView.vue') },
+      {
+        path: 'admin',
+        name: 'admin',
+        beforeEnter: () => (isAdminRouteAllowed() ? true : { name: 'not-found' }),
+        component: () => import('@/views/AdminView.vue'),
+      },
       { path: 'broadcast', name: 'broadcast', beforeEnter: openBroadcast, component: PlaceholderView, props: { title: '방송' } },
       {
         path: 'broadcast/fixtures/:externalId(\\d+)',
@@ -158,6 +172,7 @@ const routes: RouteRecordRaw[] = [
         props: { title: '중계 화면' },
       },
       { path: 'auth/login', name: 'login', component: PlaceholderView, props: { title: '로그인' } },
+      { path: 'auth/signup', name: 'signup', component: () => import('@/views/SignupView.vue') },
       { path: 'not-found', name: 'not-found', component: NotFound },
     ],
   },

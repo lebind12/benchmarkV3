@@ -225,6 +225,7 @@ function stubApiFootballFetch() {
 
 async function mountProgram(search = '') {
   vi.resetModules()
+  localStorage.setItem('mockRole', 'ADMIN')
   fixtureEvents = defaultFixtureEvents()
   stubApiFootballFetch()
   setSearch(search)
@@ -240,6 +241,7 @@ async function mountProgram(search = '') {
 describe('BroadcastProgramApp', () => {
   afterEach(() => {
     setSearch('')
+    localStorage.removeItem('mockRole')
     vi.useRealTimers()
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
@@ -248,6 +250,7 @@ describe('BroadcastProgramApp', () => {
 
   it('renders the 78/22 program regions without mock cards before live data', async () => {
     vi.resetModules()
+    localStorage.setItem('mockRole', 'ADMIN')
     setSearch('')
     const { default: BroadcastProgramApp } = await import('@/BroadcastProgramApp.vue')
     const wrapper = mount(BroadcastProgramApp)

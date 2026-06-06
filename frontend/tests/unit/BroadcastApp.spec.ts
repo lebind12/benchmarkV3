@@ -271,6 +271,7 @@ function stubApiFootballFetch() {
 
 async function mountBroadcast(search = '') {
   vi.resetModules()
+  localStorage.setItem('mockRole', 'ADMIN')
   stubApiFootballFetch()
   setSearch(search)
 
@@ -285,6 +286,7 @@ async function mountBroadcast(search = '') {
 describe('BroadcastApp', () => {
   afterEach(() => {
     setSearch('')
+    localStorage.removeItem('mockRole')
     homeFormation = '4-3-3'
     awayFormation = '4-2-3-1'
     fixtureHomeName = 'Korea Republic'

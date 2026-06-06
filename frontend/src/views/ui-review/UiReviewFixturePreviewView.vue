@@ -26,6 +26,9 @@ import { resolveFormation } from '@/lib/formations'
 
 const route = useRoute()
 const router = useRouter()
+const canOpenBroadcast = computed(
+  () => typeof localStorage !== 'undefined' && localStorage.getItem('mockRole') === 'ADMIN',
+)
 
 const match = ref<MatchDetail | null>(null)
 const lineups = ref<{ home: TeamLineup; away: TeamLineup } | null>(null)
@@ -298,6 +301,7 @@ function goPlayer(slug: string) {
 }
 
 function openBroadcastPicker() {
+  if (!canOpenBroadcast.value) return
   isBroadcastPickerOpen.value = true
 }
 
@@ -379,6 +383,7 @@ onBeforeUnmount(() => {
     <template v-else-if="match">
       <header class="match-hero">
         <button
+          v-if="canOpenBroadcast"
           type="button"
           class="streaming-button"
           :aria-expanded="isBroadcastPickerOpen"

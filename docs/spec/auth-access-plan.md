@@ -22,7 +22,7 @@ Phase 3 인증/권한 작업의 구현 계획이다. MVP 범위는 이메일/비
 - refresh token rotation 및 blacklist 저장
 - FastAPI dependency:
   - `get_current_user`
-  - `require_roles("STREAMER", "ADMIN")`
+  - `require_roles("ADMIN")`
   - `require_admin`
 - broadcast/admin endpoint의 임시/개별 auth 로직을 공통 dependency로 교체
 
@@ -42,7 +42,7 @@ Phase 3 인증/권한 작업의 구현 계획이다. MVP 범위는 이메일/비
 | Column | Rule |
 |---|---|
 | `email` | lowercase normalized, unique |
-| `password_hash` | argon2id preferred; bcrypt도 가능하지만 하나로 고정 |
+| `password_hash` | MVP 현재 구현은 stdlib 기반 PBKDF2-HMAC-SHA256. argon2id 전환은 post-MVP 후보 |
 | `role` | default `USER`; `STREAMER`/`ADMIN` 변경은 ADMIN 전용 |
 | `is_active` | false면 로그인/refresh/API 접근 모두 거부 |
 | `email_verified` | MVP에서는 false 허용, post-MVP 이메일 인증에 사용 |
@@ -97,13 +97,13 @@ Response `201`:
     "id": 1,
     "email": "user@example.com",
     "role": "USER",
-    "nickname": "optional"
-  },
-  "access_token": "...",
-  "refresh_token": "...",
-  "token_type": "bearer"
+    "nickname": "optional",
+    "is_active": true
+  }
 }
 ```
+
+현재 signup-only MVP는 가입 직후 토큰을 발급하지 않는다. 로그인/JWT/refresh 구현이 들어갈 때 signup 직후 자동 로그인 여부를 FE 정책과 함께 확정한다.
 
 Errors:
 
@@ -172,7 +172,7 @@ Response `200`:
 {
   "id": 1,
   "email": "user@example.com",
-  "role": "STREAMER",
+  "role": "ADMIN",
   "nickname": "name",
   "is_active": true
 }
@@ -183,21 +183,22 @@ Response `200`:
 | Area | Required role |
 |---|---|
 | 일반 페이지 API | anonymous or `USER` depending endpoint |
-| `/api/v1/broadcast/*` | `STREAMER` or `ADMIN` |
+| `/api/v1/broadcast/*` | `ADMIN` |
 | `/api/v1/admin/*` | `ADMIN` |
 | worker manual trigger | `ADMIN` |
+| `/fixture?id=...` / fixture detail의 스트리밍 버튼 | `ADMIN`일 때만 노출 |
 
-Role hierarchy는 암묵적으로 두지 않는다. endpoint별 허용 role set을 명시한다. 예외적으로 `ADMIN`은 방송용 endpoint에 포함한다.
+Role hierarchy는 암묵적으로 두지 않는다. MVP에서 권한으로 잠그는 영역은 관리페이지와 방송용 페이지만이며, 둘 다 `ADMIN`만 허용한다. `STREAMER` role은 DB enum 호환성 때문에 남겨두지만 MVP 권한 판정에는 사용하지 않는다.
 
 ## Implementation Tasks
 
 | Task | Files | DoD |
 |---|---|---|
-| Auth helpers | `app/core/security.py` | hash/verify, JWT encode/decode 단위 테스트 |
+| Auth helpers | `app/core/security.py` | password hash/verify 단위 테스트 완료. JWT encode/decode는 후속 |
 | Token store | `app/services/auth_tokens.py` | fake Upstash로 refresh rotation 테스트 |
-| Auth service | `app/services/auth.py` | signup/login/refresh/logout 비즈니스 로직 |
+| Auth service | `app/services/auth.py` | signup 완료. login/refresh/logout 비즈니스 로직은 후속 |
 | Dependencies | `app/api/deps.py` | `get_current_user`, `require_roles`, `require_admin` |
-| Auth router | `app/api/v1/auth.py` | 5개 endpoint 통합 테스트 |
+| Auth router | `app/api/v1/auth.py` | signup 완료. login/refresh/logout/me 통합 테스트는 후속 |
 | Route migration | `app/api/v1/broadcast.py`, `app/api/v1/admin.py` | 임시 auth 제거, 공통 dependency 사용 |
 
 ## Test Plan
@@ -218,8 +219,9 @@ Integration:
 - inactive user login/refresh 거부
 - refresh는 기존 refresh token을 재사용 불가하게 만든다
 - logout 후 refresh 재사용 불가
-- STREAMER는 broadcast 접근 가능, USER는 403
+- ADMIN은 broadcast/admin 접근 가능, STREAMER/USER/public은 403 또는 FE route guard로 차단
 - ADMIN endpoint는 ADMIN만 접근 가능
+- fixture detail의 스트리밍 버튼은 ADMIN에게만 노출
 
 ## Migration Notes
 
@@ -231,13 +233,13 @@ Integration:
 
 대체:
 
-- `current_user: Annotated[AppUserPrincipal, Depends(require_roles("STREAMER", "ADMIN"))]`
+- `current_user: Annotated[AppUserPrincipal, Depends(require_admin)]`
 
 이 교체 후 broadcast endpoint 테스트는 auth dependency override hook을 공통 dependency 기준으로 갱신한다.
 
 ## Rollout Order
 
-1. `app/core/security.py`와 단위 테스트
+1. `app/core/security.py` password helper와 signup 단위 테스트 (완료: 2026-06-06 local)
 2. Upstash token store와 fake store 테스트
 3. auth service와 auth router
 4. 공통 dependency 도입

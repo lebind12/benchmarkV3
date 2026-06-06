@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import MatchHeader from '@/components/fixture/MatchHeader.vue'
 import match1 from '@/mocks/data/fixture-detail/match.1000001.json'
@@ -6,6 +6,10 @@ import match2 from '@/mocks/data/fixture-detail/match.1000002.json'
 import type { MatchDetail } from '@/types/fixtureDetail'
 
 describe('MatchHeader', () => {
+  afterEach(() => {
+    localStorage.removeItem('mockRole')
+  })
+
   it('renders score for FT match', () => {
     const w = mount(MatchHeader, {
       props: { match: match1 as unknown as MatchDetail },
@@ -46,6 +50,7 @@ describe('MatchHeader', () => {
   })
 
   it('opens a streaming picker with watch-together and program page links', async () => {
+    localStorage.setItem('mockRole', 'ADMIN')
     const w = mount(MatchHeader, {
       props: { match: match1 as unknown as MatchDetail },
     })
@@ -72,6 +77,7 @@ describe('MatchHeader', () => {
   })
 
   it('closes the streaming picker from the close button', async () => {
+    localStorage.setItem('mockRole', 'ADMIN')
     const w = mount(MatchHeader, {
       props: { match: match1 as unknown as MatchDetail },
     })

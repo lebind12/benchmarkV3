@@ -22,7 +22,7 @@ pytestmark = pytest.mark.integration
 
 
 class FakeUser:
-    role = "STREAMER"
+    role = "ADMIN"
     user_id = 1
 
 
