@@ -16,6 +16,7 @@ function makeRouter() {
       { path: '/players', component: { template: '<div />' } },
       { path: '/stats', component: { template: '<div />' } },
       { path: '/news', component: { template: '<div />' } },
+      { path: '/admin', component: { template: '<div />' } },
       { path: '/auth/login', component: { template: '<div />' } },
       { path: '/auth/signup', component: { template: '<div />' } },
     ],
@@ -53,5 +54,25 @@ describe('AppHeader', () => {
     expect(localStorage.getItem('authUser')).toBeNull()
     expect(localStorage.getItem('mockRole')).toBe('public')
     expect(wrapper.get('[data-testid=auth-login]').text()).toBe('로그인')
+  })
+
+  it('keeps broadcast out of the header even for ADMIN users', () => {
+    const pinia = createPinia()
+    const router = makeRouter()
+    const auth = useAuthStore(pinia)
+    auth.setUser({
+      id: 4,
+      email: 'admin@example.com',
+      role: 'ADMIN',
+      nickname: 'Admin',
+      is_active: true,
+    })
+
+    const wrapper = mount(AppHeader, {
+      global: { plugins: [pinia, router] },
+    })
+
+    expect(wrapper.find('[data-testid=nav-관리]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid=nav-방송]').exists()).toBe(false)
   })
 })

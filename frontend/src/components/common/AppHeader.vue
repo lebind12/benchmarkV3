@@ -16,7 +16,6 @@ const tabs = computed(() => {
   ]
   if (auth.isAdmin) {
     base.push({ path: '/admin', label: '관리' })
-    base.push({ path: '/broadcast', label: '방송' })
   }
   return base
 })

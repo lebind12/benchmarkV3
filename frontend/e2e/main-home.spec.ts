@@ -115,10 +115,11 @@ test.describe('main-home (mock mode)', () => {
     await expect(page.getByTestId('auth-login')).toBeVisible()
   })
 
-  test('S28 ADMIN role shows 방송 tab', async ({ page }) => {
+  test('S28 ADMIN role shows management tab but not broadcast tab', async ({ page }) => {
     await page.addInitScript(() => { localStorage.setItem('mockRole', 'ADMIN') })
     await page.goto('/')
-    await expect(page.getByTestId('nav-방송')).toBeVisible()
+    await expect(page.getByTestId('nav-관리')).toBeVisible()
+    await expect(page.getByTestId('nav-방송')).toHaveCount(0)
   })
 
   test('S34 cube accessibility attributes', async ({ page }) => {
