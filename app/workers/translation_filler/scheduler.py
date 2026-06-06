@@ -6,9 +6,9 @@ That makes the worker boot-time wiring testable with a plain ``MagicMock``.
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
-from app.workers.translation_filler import POLL_INTERVAL_SEC
 from app.workers.translation_filler.runner import run
 
 # How often to invoke `runner.run`. Spec §16 fixes 60 s; we restate in
@@ -17,13 +17,20 @@ _INTERVAL_KWARGS = {"minutes": 1}
 JOB_ID = "translation-filler"
 
 
+def run_scheduled_translation_filler() -> None:
+    """Run one translation-filler cycle from a sync APScheduler executor."""
+    asyncio.run(run())
+
+
 def register(scheduler: Any) -> None:
     """Add the polling job to a caller-supplied APScheduler instance."""
     scheduler.add_job(
-        run,
+        run_scheduled_translation_filler,
         "interval",
         id=JOB_ID,
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
         **_INTERVAL_KWARGS,
     )
 

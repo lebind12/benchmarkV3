@@ -196,6 +196,21 @@ def test_tf_u05_openai_call_parameters(mods):
     assert kwargs.get("response_format") == {"type": "json_object"}
 
 
+def test_tf_u05_scheduler_registers_sync_wrapper():
+    from app.workers.translation_filler import scheduler
+
+    fake_scheduler = MagicMock()
+    scheduler.register(fake_scheduler)
+
+    args, kwargs = fake_scheduler.add_job.call_args
+    assert args[0] is scheduler.run_scheduled_translation_filler
+    assert args[1] == "interval"
+    assert kwargs["id"] == scheduler.JOB_ID
+    assert kwargs["minutes"] == 1
+    assert kwargs["max_instances"] == 1
+    assert kwargs["coalesce"] is True
+
+
 # ---------------------------------------------------------------------------
 # TF-U-06 배치 상한 50
 # ---------------------------------------------------------------------------

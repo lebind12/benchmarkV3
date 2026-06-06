@@ -7,6 +7,8 @@ from zoneinfo import ZoneInfo
 
 from app.core.config import get_settings
 from app.workers.daily_sync import scheduler as daily_sync_scheduler
+from app.workers.news_translator import scheduler as news_translator_scheduler
+from app.workers.translation_filler import scheduler as translation_filler_scheduler
 
 
 LOGGER = logging.getLogger(__name__)
@@ -28,6 +30,8 @@ def start_worker_scheduler() -> Any | None:
 
     scheduler = BackgroundScheduler(timezone=KST)
     daily_sync_scheduler.register(scheduler)
+    translation_filler_scheduler.register(scheduler)
+    news_translator_scheduler.register(scheduler)
     scheduler.start()
     LOGGER.info("worker scheduler started")
     return scheduler
