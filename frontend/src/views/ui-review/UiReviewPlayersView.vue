@@ -78,20 +78,12 @@ watch([selectedLeague, metric], () => {
 
 <template>
   <main class="players-page app-container" data-testid="ui-review-players-page">
-    <header class="page-head">
-      <div>
-        <span class="eyebrow">선수 보드</span>
-        <h1>선수 목록을 선수 중심으로 재정렬</h1>
-        <p>감독 정보는 별도 패널로 분리하고, 선수 검색과 랭킹 스캔을 먼저 노출합니다.</p>
-      </div>
+    <section class="control-bar" aria-label="선수 필터">
       <form class="search-box" @submit.prevent="loadPlayers">
         <Search :size="16" aria-hidden="true" />
         <input v-model="query" type="search" placeholder="선수명 검색" />
         <button type="submit">검색</button>
       </form>
-    </header>
-
-    <section class="control-bar" aria-label="선수 필터">
       <label>
         <span>리그</span>
         <select v-model="selectedLeague">
@@ -211,7 +203,7 @@ watch([selectedLeague, metric], () => {
 <style scoped>
 .players-page {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
   height: calc(100vh - var(--header-height));
   min-height: 0;
@@ -219,42 +211,11 @@ watch([selectedLeague, metric], () => {
   padding-block: 16px;
 }
 
-.page-head,
 .control-bar,
 .panel {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-card);
-}
-
-.page-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-  align-items: center;
-  gap: 16px;
-  padding: 14px;
-}
-
-.eyebrow {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-h1 {
-  margin: 0;
-  color: var(--color-fg);
-  font-size: 22px;
-  line-height: 1.2;
-}
-
-.page-head p {
-  margin: 6px 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
 }
 
 .search-box {
@@ -296,6 +257,11 @@ h1 {
   align-items: end;
   gap: 12px;
   padding: 10px 12px;
+}
+
+.control-bar .search-box {
+  flex: 1 1 260px;
+  min-width: 220px;
 }
 
 label {

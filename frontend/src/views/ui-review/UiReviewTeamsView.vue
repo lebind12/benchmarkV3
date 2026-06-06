@@ -309,18 +309,13 @@ watch(orderedTeams, () => {
 <template>
   <main class="teams-page app-container" data-testid="ui-review-teams-page">
     <section class="teams-shell">
-      <header class="teams-hero" :style="themeStyle(selectedLeagueSlug)">
-        <div class="teams-hero__copy">
-          <span class="eyebrow">Club Index</span>
-          <h1>팀 허브</h1>
-          <p>{{ selectedLeagueName }} · {{ visibleCount }}팀 · 팀을 선택하면 일정과 스쿼드를 바로 확인합니다.</p>
-        </div>
+      <section class="team-search-row" aria-label="팀 검색">
         <form class="search-box" @submit.prevent="loadTeams">
           <Search :size="16" aria-hidden="true" />
           <input v-model="query" type="search" placeholder="팀명 검색" />
           <button type="submit">검색</button>
         </form>
-      </header>
+      </section>
 
       <section class="league-strip" aria-label="리그 필터">
         <button
@@ -639,7 +634,7 @@ watch(orderedTeams, () => {
   min-height: 0;
 }
 
-.teams-hero,
+.team-search-row,
 .panel,
 .club-hero,
 .detail-tabs,
@@ -653,17 +648,8 @@ watch(orderedTeams, () => {
   background: var(--color-card);
 }
 
-.teams-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-  align-items: center;
-  gap: 18px;
-  min-height: 96px;
-  padding: 16px 18px;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--team-primary) 15%, transparent), transparent 58%),
-    var(--color-card);
-  box-shadow: inset 4px 0 0 var(--team-primary);
+.team-search-row {
+  padding: 10px 12px;
 }
 
 .eyebrow {
@@ -690,7 +676,6 @@ h2 {
   font-size: 26px;
 }
 
-.teams-hero p,
 .club-hero p {
   margin: 8px 0 0;
   color: var(--color-muted);

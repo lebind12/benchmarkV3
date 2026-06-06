@@ -56,7 +56,6 @@ const statusOptions: { value: StatusFilter; label: string }[] = [
   { value: 'finished', label: '종료' },
 ]
 
-const activeLeague = computed(() => HOME_LEAGUE_TABS.find((league) => league.id === selectedLeagueId.value))
 const requestDate = computed(() => periodStartYmd(baseDate.value, period.value))
 const pickerType = computed(() => {
   if (period.value === 'week') return 'week'
@@ -87,20 +86,7 @@ const pickerValue = computed({
     baseDate.value = value
   },
 })
-const rangeLabel = computed(() => {
-  const start = requestDate.value
-  if (period.value === 'day') return formatYmdKo(start)
-  const endExclusive = period.value === 'week' ? shiftKstYmd(start, 7) : shiftKstMonthYmd(start, 1)
-  return `${formatYmdKo(start)} - ${formatYmdKo(shiftKstYmd(endExclusive, -1))}`
-})
 const filteredFixtures = computed(() => fixtures.value.filter((fixture) => statusMatches(fixture.status_short)))
-const summary = computed(() => ({
-  total: fixtures.value.length,
-  visible: filteredFixtures.value.length,
-  upcoming: fixtures.value.filter((fixture) => fixtureKind(fixture.status_short) === 'upcoming').length,
-  live: fixtures.value.filter((fixture) => fixtureKind(fixture.status_short) === 'live').length,
-  finished: fixtures.value.filter((fixture) => fixtureKind(fixture.status_short) === 'finished').length,
-}))
 
 const nextFixture = computed(() => {
   const upcoming = filteredFixtures.value
@@ -249,16 +235,6 @@ function isoWeekToMondayYmd(value: string): string {
   return utcDateToYmd(monday)
 }
 
-function formatYmdKo(ymd: string): string {
-  const dt = ymdToUtcDate(ymd)
-  return new Intl.DateTimeFormat('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short',
-  }).format(dt)
-}
-
 function ymdToUtcDate(ymd: string): Date {
   const [year, month, day] = ymd.split('-').map(Number)
   return new Date(Date.UTC(year, month - 1, day))
@@ -345,22 +321,6 @@ watch([selectedLeagueId, period], () => {
 <template>
   <main class="fixtures-page app-container" data-testid="ui-review-fixtures-page">
     <section class="fixtures-shell">
-      <header class="fixtures-hero" :style="leagueTabStyle(selectedLeagueId)">
-        <div class="fixtures-hero__copy">
-          <span class="eyebrow">Fixtures Board</span>
-          <h1>경기 일정</h1>
-          <p>
-            {{ activeLeague?.label ?? '전체 대회' }} · {{ rangeLabel }} ·
-            {{ periodOptions.find((option) => option.value === period)?.label }}
-          </p>
-        </div>
-        <div class="fixtures-hero__stats" aria-label="일정 요약">
-          <span><strong>{{ summary.visible }}</strong>표시</span>
-          <span><strong>{{ summary.upcoming }}</strong>예정</span>
-          <span><strong>{{ summary.finished }}</strong>종료</span>
-        </div>
-      </header>
-
       <section class="control-band" aria-label="일정 필터">
         <div class="date-control">
           <button type="button" class="icon-button" aria-label="이전 기간" @click="shiftDate(-1)">
@@ -536,71 +496,10 @@ watch([selectedLeagueId, period], () => {
 
 .fixtures-shell {
   display: grid;
-  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 10px;
   height: 100%;
   min-height: 0;
-}
-
-.fixtures-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 18px;
-  min-height: 96px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 16px 18px;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--fixture-primary) 15%, transparent), transparent 58%),
-    var(--color-card);
-  box-shadow: inset 4px 0 0 var(--fixture-primary);
-}
-
-.eyebrow {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--fixture-primary);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-h1 {
-  margin: 0;
-  color: var(--color-fg);
-  font-size: 28px;
-  line-height: 1.1;
-}
-
-.fixtures-hero p {
-  margin: 8px 0 0;
-  color: var(--color-muted);
-  font-size: 13px;
-}
-
-.fixtures-hero__stats {
-  display: grid;
-  grid-template-columns: repeat(3, 76px);
-  gap: 7px;
-}
-
-.fixtures-hero__stats span {
-  display: grid;
-  place-items: center;
-  gap: 2px;
-  height: 58px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  color: var(--color-muted);
-  background: var(--color-bg);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.fixtures-hero__stats strong {
-  color: var(--color-fg);
-  font-size: 20px;
 }
 
 .control-band {

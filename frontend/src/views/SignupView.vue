@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { UserPlus, ShieldCheck, Mail, LockKeyhole, Badge } from 'lucide-vue-next'
+import { UserPlus, Mail, LockKeyhole, Badge } from 'lucide-vue-next'
 import { signup } from '@/lib/api/auth'
 import { useAuthStore } from '@/stores/auth'
 
@@ -66,32 +66,10 @@ async function onSubmit() {
 <template>
   <main class="signup-page">
     <section class="signup-shell" aria-labelledby="signup-title">
-      <aside class="signup-brief">
-        <div class="signup-brief__mark">
-          <ShieldCheck :size="26" aria-hidden="true" />
-        </div>
-        <p class="signup-brief__eyebrow">BENCH MARK ACCESS</p>
-        <h1 id="signup-title">축구 데이터를 보는 계정 만들기</h1>
-        <p>
-          일반 페이지는 누구나 볼 수 있고, 관리와 방송 도구는 ADMIN 권한으로만 열립니다.
-          가입 후 기본 권한은 USER입니다.
-        </p>
-        <dl>
-          <div>
-            <dt>기본 권한</dt>
-            <dd>USER</dd>
-          </div>
-          <div>
-            <dt>보호 영역</dt>
-            <dd>관리 · 방송</dd>
-          </div>
-        </dl>
-      </aside>
-
       <form class="signup-form" data-testid="signup-form" @submit.prevent="onSubmit">
         <header>
           <UserPlus :size="20" aria-hidden="true" />
-          <strong>회원가입</strong>
+          <strong id="signup-title">회원가입</strong>
         </header>
 
         <label>
@@ -180,68 +158,9 @@ async function onSubmit() {
 }
 
 .signup-shell {
-  width: min(960px, 100%);
-  display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1fr);
+  width: min(520px, 100%);
   border: 1px solid var(--color-border);
   background: var(--color-card);
-}
-
-.signup-brief {
-  padding: 2rem;
-  background: #101318;
-  color: #f8fafc;
-}
-
-.signup-brief__mark {
-  width: 3rem;
-  height: 3rem;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.signup-brief__eyebrow {
-  margin: 1.5rem 0 0.5rem;
-  color: #9fd3c7;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.signup-brief h1 {
-  margin: 0;
-  font-size: clamp(1.8rem, 3vw, 3rem);
-  line-height: 1.05;
-}
-
-.signup-brief p {
-  color: rgba(248, 250, 252, 0.72);
-  line-height: 1.65;
-}
-
-.signup-brief dl {
-  display: grid;
-  gap: 0.75rem;
-  margin: 2rem 0 0;
-}
-
-.signup-brief dl div {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.signup-brief dt {
-  color: rgba(248, 250, 252, 0.58);
-}
-
-.signup-brief dd {
-  margin: 0;
-  font-weight: 700;
 }
 
 .signup-form {
@@ -329,11 +248,6 @@ async function onSubmit() {
     padding: 1rem;
   }
 
-  .signup-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .signup-brief,
   .signup-form {
     padding: 1.35rem;
   }

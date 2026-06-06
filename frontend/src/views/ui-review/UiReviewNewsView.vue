@@ -12,7 +12,6 @@ const error = ref<string | null>(null)
 const lead = computed(() => news.value[0] ?? null)
 const sideItems = computed(() => news.value.slice(1, 12))
 const gridItems = computed(() => news.value.slice(12, 40))
-const sourceCount = computed(() => new Set(news.value.map((item) => item.source)).size)
 
 function title(item: NewsItem): string {
   return item.title_ko ?? item.title
@@ -42,17 +41,12 @@ onMounted(() => {
 
 <template>
   <main class="news-page app-container" data-testid="ui-review-news-page">
-    <header class="page-head">
-      <div>
-        <span class="eyebrow">뉴스룸</span>
-        <h1>주요 기사와 최신 뉴스를 분리한 편집형 화면</h1>
-        <p>{{ news.length }}개 기사 · {{ sourceCount }}개 출처</p>
-      </div>
+    <section class="news-toolbar" aria-label="뉴스 조작">
       <button type="button" class="reload" @click="loadNews">
         <RefreshCw :size="15" aria-hidden="true" />
         새로고침
       </button>
-    </header>
+    </section>
 
     <div v-if="status === 'loading'" class="state">뉴스를 불러오는 중입니다.</div>
     <div v-else-if="status === 'error'" class="state state--error">{{ error }}</div>
@@ -127,7 +121,7 @@ onMounted(() => {
   padding-block: 16px;
 }
 
-.page-head,
+.news-toolbar,
 .lead-card,
 .latest-panel,
 .grid-panel,
@@ -137,33 +131,11 @@ onMounted(() => {
   background: var(--color-card);
 }
 
-.page-head {
+.news-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px;
-}
-
-.eyebrow {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-h1 {
-  margin: 0;
-  color: var(--color-fg);
-  font-size: 22px;
-}
-
-.page-head p {
-  margin: 6px 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
+  justify-content: flex-end;
+  padding: 10px 12px;
 }
 
 .reload {

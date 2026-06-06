@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { LogIn, Mail, LockKeyhole, ShieldCheck } from 'lucide-vue-next'
+import { LogIn, Mail, LockKeyhole } from 'lucide-vue-next'
 import { login } from '@/lib/api/auth'
 import { useAuthStore } from '@/stores/auth'
 
@@ -60,32 +60,10 @@ async function onSubmit() {
 <template>
   <main class="login-page">
     <section class="login-shell" aria-labelledby="login-title">
-      <aside class="login-brief">
-        <div class="login-brief__mark">
-          <ShieldCheck :size="26" aria-hidden="true" />
-        </div>
-        <p class="login-brief__eyebrow">BENCH MARK ACCESS</p>
-        <h1 id="login-title">계정으로 돌아가기</h1>
-        <p>
-          기본 로그인은 USER 권한으로 일반 페이지를 이어서 사용합니다.
-          관리와 방송 도구는 ADMIN 권한 계정에서만 열립니다.
-        </p>
-        <dl>
-          <div>
-            <dt>세션 상태</dt>
-            <dd>로컬 저장</dd>
-          </div>
-          <div>
-            <dt>보호 영역</dt>
-            <dd>ADMIN</dd>
-          </div>
-        </dl>
-      </aside>
-
       <form class="login-form" data-testid="login-form" @submit.prevent="onSubmit">
         <header>
           <LogIn :size="20" aria-hidden="true" />
-          <strong>로그인</strong>
+          <strong id="login-title">로그인</strong>
         </header>
 
         <label>
@@ -155,68 +133,9 @@ async function onSubmit() {
 }
 
 .login-shell {
-  width: min(900px, 100%);
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1fr);
+  width: min(480px, 100%);
   border: 1px solid var(--color-border);
   background: var(--color-card);
-}
-
-.login-brief {
-  padding: 2rem;
-  background: #101318;
-  color: #f8fafc;
-}
-
-.login-brief__mark {
-  width: 3rem;
-  height: 3rem;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.login-brief__eyebrow {
-  margin: 1.5rem 0 0.5rem;
-  color: #9fd3c7;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.login-brief h1 {
-  margin: 0;
-  font-size: clamp(1.8rem, 3vw, 2.8rem);
-  line-height: 1.05;
-}
-
-.login-brief p {
-  color: rgba(248, 250, 252, 0.72);
-  line-height: 1.65;
-}
-
-.login-brief dl {
-  display: grid;
-  gap: 0.75rem;
-  margin: 2rem 0 0;
-}
-
-.login-brief dl div {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.login-brief dt {
-  color: rgba(248, 250, 252, 0.58);
-}
-
-.login-brief dd {
-  margin: 0;
-  font-weight: 700;
 }
 
 .login-form {
@@ -318,11 +237,6 @@ async function onSubmit() {
     padding: 1rem;
   }
 
-  .login-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .login-brief,
   .login-form {
     padding: 1.35rem;
   }

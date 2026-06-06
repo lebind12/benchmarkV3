@@ -114,12 +114,7 @@ watch([activeMetric, payload], async () => {
 
 <template>
   <main class="stats-page app-container" data-testid="ui-review-stats-page">
-    <header class="page-head">
-      <div>
-        <span class="eyebrow">스탯 센터</span>
-        <h1>차트와 테이블을 함께 보는 리그 스탯</h1>
-        <p>{{ selectedLeagueName }} · 상위 선수와 순위 흐름을 한 화면에서 확인합니다.</p>
-      </div>
+    <section class="stats-toolbar" aria-label="스탯 필터">
       <label class="league-picker">
         <span>리그</span>
         <select v-model="selectedLeague">
@@ -128,7 +123,7 @@ watch([activeMetric, payload], async () => {
           </option>
         </select>
       </label>
-    </header>
+    </section>
 
     <section class="metric-strip" aria-label="스탯 지표">
       <button
@@ -223,7 +218,7 @@ watch([activeMetric, payload], async () => {
   padding-block: 16px;
 }
 
-.page-head,
+.stats-toolbar,
 .metric-card,
 .panel {
   border: 1px solid var(--color-border);
@@ -231,33 +226,10 @@ watch([activeMetric, payload], async () => {
   background: var(--color-card);
 }
 
-.page-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
-  align-items: center;
-  gap: 16px;
-  padding: 14px;
-}
-
-.eyebrow {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-h1 {
-  margin: 0;
-  color: var(--color-fg);
-  font-size: 22px;
-}
-
-.page-head p {
-  margin: 6px 0 0;
-  color: var(--color-muted);
-  font-size: 12px;
+.stats-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 12px;
 }
 
 .league-picker {
