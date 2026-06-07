@@ -1,10 +1,37 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useFixtureDetailStore } from '@/stores/fixtureDetail'
+import match1000001 from '@/mocks/data/fixture-detail/match.1000001.json'
+import events1000001 from '@/mocks/data/fixture-detail/events.1000001.json'
+import lineups1000001 from '@/mocks/data/fixture-detail/lineups.1000001.json'
+import statistics1000001 from '@/mocks/data/fixture-detail/statistics.1000001.json'
+
+function jsonResponse(body: unknown, init?: ResponseInit) {
+  return new Response(JSON.stringify(body), {
+    status: init?.status ?? 200,
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  })
+}
+
+function stubFixtureDetailFetch() {
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = new URL(String(input), 'http://localhost')
+    if (url.pathname === '/api/v1/fixtures/1000099') {
+      return jsonResponse({ error: 'not found' }, { status: 404 })
+    }
+    if (url.pathname === '/api/v1/fixtures/1000001') return jsonResponse(match1000001)
+    if (url.pathname === '/api/v1/fixtures/1000001/events') return jsonResponse(events1000001)
+    if (url.pathname === '/api/v1/fixtures/1000001/lineups') return jsonResponse(lineups1000001)
+    if (url.pathname === '/api/v1/fixtures/1000001/statistics') return jsonResponse(statistics1000001)
+    return jsonResponse({ error: 'unhandled test route' }, { status: 500 })
+  }))
+}
 
 describe('useFixtureDetailStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    stubFixtureDetailFetch()
   })
 
   it('bootstrap loads match/events/lineups in parallel', async () => {

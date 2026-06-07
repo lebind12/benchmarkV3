@@ -12,11 +12,14 @@ import {
 } from 'lucide-vue-next'
 import { generalApi } from '@/lib/api/general'
 import {
+  HOME_FIXTURE_LEAGUE_TABS,
   HOME_LEAGUE_TABS,
   LEAGUE_SHORT_KO,
+  isPrimaryHomeFixtureLeague,
   leagueLogoUrl,
   leagueVar,
   slugFromId,
+  type FixtureLeagueFilterId,
 } from '@/lib/league-colors'
 import { shiftKstYmd, todayKstYmd } from '@/stores/home'
 import type { FixtureSummary, FixtureStatus, LeagueRef, LeagueSlug, Period, TeamRef } from '@/types/home'
@@ -35,7 +38,7 @@ interface FixtureGroup {
 
 const router = useRouter()
 const fixtures = ref<FixtureSummary[]>([])
-const selectedLeagueId = ref<number | null>(null)
+const selectedLeagueId = ref<FixtureLeagueFilterId>(null)
 const period = ref<Period>('week')
 const baseDate = ref(todayKstYmd())
 const statusFilter = ref<StatusFilter>('all')
@@ -103,14 +106,16 @@ async function loadFixtures() {
   status.value = 'loading'
   error.value = null
   try {
-    fixtures.value = (
+    const selected = selectedLeagueId.value
+    const items = (
       await generalApi.fixtures({
-        leagueId: selectedLeagueId.value,
+        leagueId: typeof selected === 'number' ? selected : null,
         period: period.value,
         date: requestDate.value,
         limit: 200,
       })
     ).items
+    fixtures.value = filterFixtureTimeline(items, selected)
     status.value = 'ok'
   } catch (err) {
     fixtures.value = []
@@ -119,7 +124,7 @@ async function loadFixtures() {
   }
 }
 
-function setLeague(id: number | null) {
+function setLeague(id: FixtureLeagueFilterId) {
   selectedLeagueId.value = id
 }
 
@@ -167,6 +172,19 @@ function fixtureKind(statusShort: FixtureStatus): Exclude<StatusFilter, 'all'> {
 
 function statusMatches(statusShort: FixtureStatus): boolean {
   return statusFilter.value === 'all' || fixtureKind(statusShort) === statusFilter.value
+}
+
+function filterFixtureTimeline(
+  rows: FixtureSummary[],
+  leagueId: FixtureLeagueFilterId,
+): FixtureSummary[] {
+  if (leagueId === 'other') {
+    return rows.filter((fixture) => !isPrimaryHomeFixtureLeague(fixture.league.external_id))
+  }
+  if (leagueId == null) {
+    return rows.filter((fixture) => isPrimaryHomeFixtureLeague(fixture.league.external_id))
+  }
+  return rows
 }
 
 function scoreText(fixture: FixtureSummary): string {
@@ -305,8 +323,8 @@ function themeStyle(slug: LeagueSlug | null): Record<string, string> {
   }
 }
 
-function leagueTabStyle(id: number | null): Record<string, string> {
-  return themeStyle(slugFromId(id))
+function leagueTabStyle(id: FixtureLeagueFilterId): Record<string, string> {
+  return themeStyle(typeof id === 'number' ? slugFromId(id) : null)
 }
 
 onMounted(() => {
@@ -384,7 +402,7 @@ watch([selectedLeagueId, period], () => {
 
       <section class="league-filter" aria-label="리그 필터">
         <button
-          v-for="league in HOME_LEAGUE_TABS"
+          v-for="league in HOME_FIXTURE_LEAGUE_TABS"
           :key="league.id ?? 'all'"
           type="button"
           :class="['league-card', { 'league-card--active': selectedLeagueId === league.id }]"
@@ -393,7 +411,7 @@ watch([selectedLeagueId, period], () => {
         >
           <span class="league-card__mark">
             <img v-if="league.logoUrl" :src="league.logoUrl" alt="" />
-            <b v-else>ALL</b>
+            <b v-else>{{ league.id === 'other' ? 'ETC' : 'ALL' }}</b>
           </span>
           <span>{{ league.label }}</span>
         </button>
@@ -631,7 +649,7 @@ watch([selectedLeagueId, period], () => {
 
 .league-filter {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 7px;
   min-width: 0;
 }

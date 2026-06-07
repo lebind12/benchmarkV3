@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -223,3 +224,100 @@ def test_backfill_players_uses_league_season_endpoint(monkeypatch):
     assert any("Premier League (#39)" in message for message in progress.logs)
     assert result.seasons[0].player_pages_seen == 2
     assert result.seasons[0].player_rows_seen == 2
+
+
+def test_daily_sync_filters_fixture_work_to_recent_past_and_future(monkeypatch):
+    class FakeSession:
+        def commit(self):
+            pass
+
+        def rollback(self):
+            pass
+
+    class FakeClient:
+        def __init__(self):
+            self.calls = []
+            self.calls_total = 0
+            self.calls_failed = 0
+
+        def response(self, path, **params):
+            self.calls.append((path, params))
+            self.calls_total += 1
+            if path == "/leagues":
+                return [
+                    {
+                        "league": {"id": 39, "name": "Premier League", "type": "League"},
+                        "country": {"name": "England"},
+                        "seasons": [{"year": 2025, "current": True}],
+                    }
+                ]
+            raise AssertionError(f"unexpected response call: {path} {params}")
+
+        def get(self, path, **params):
+            self.calls.append((path, params))
+            self.calls_total += 1
+            if path == "/teams":
+                return {"response": [{"team": {"id": 40, "name": "Liverpool"}}]}
+            if path == "/fixtures":
+                return {
+                    "response": [
+                        {
+                            "fixture": {"id": 1001, "date": "2026-06-03T11:00:00+00:00"},
+                            "league": {"id": 39, "season": 2025},
+                            "teams": {"home": {"id": 40}, "away": {"id": 41}},
+                        },
+                        {
+                            "fixture": {"id": 1002, "date": "2026-06-04T12:00:00+00:00"},
+                            "league": {"id": 39, "season": 2025},
+                            "teams": {"home": {"id": 40}, "away": {"id": 42}},
+                        },
+                        {
+                            "fixture": {"id": 1003, "date": "2026-06-10T12:00:00+00:00"},
+                            "league": {"id": 39, "season": 2025},
+                            "teams": {"home": {"id": 40}, "away": {"id": 43}},
+                        },
+                    ]
+                }
+            if path.startswith("/fixtures/"):
+                return {"response": []}
+            raise AssertionError(f"unexpected get call: {path} {params}")
+
+    fixture_upserts = []
+    detail_upserts = []
+    monkeypatch.setattr(runner, "_utc_now", lambda: datetime(2026, 6, 7, 12, tzinfo=timezone.utc))
+    monkeypatch.setattr(runner, "upsert_league", lambda *args, **kwargs: (1, [2025]))
+    monkeypatch.setattr(runner, "upsert_team_entry", lambda *args, **kwargs: None)
+    monkeypatch.setattr(runner, "ensure_team_season_from_fixtures", lambda *args, **kwargs: None)
+
+    def fake_upsert_fixture_entry(_session, entry, _counts):
+        fixture_upserts.append(entry["fixture"]["id"])
+        return entry["fixture"]["id"]
+
+    def fake_upsert_fixture_detail(*args, fixture_external_id, **kwargs):
+        detail_upserts.append(fixture_external_id)
+        return 1
+
+    monkeypatch.setattr(runner, "upsert_fixture_entry", fake_upsert_fixture_entry)
+    monkeypatch.setattr(runner, "upsert_fixture_detail", fake_upsert_fixture_detail)
+
+    client = FakeClient()
+    result = runner.backfill_league(
+        FakeSession(),
+        client,
+        league_external_id=39,
+        seasons=[2025],
+        include_details=True,
+        include_players=False,
+        include_standings=False,
+    )
+
+    detail_fixture_ids = [
+        params["fixture"]
+        for path, params in client.calls
+        if path in {"/fixtures/events", "/fixtures/statistics", "/fixtures/lineups", "/fixtures/players"}
+    ]
+    assert fixture_upserts == [1002, 1003]
+    assert sorted(set(detail_fixture_ids)) == [1002, 1003]
+    assert detail_upserts == [1002, 1003]
+    assert result.seasons[0].fixtures_seen == 2
+    assert result.seasons[0].fixture_details_seen == 2

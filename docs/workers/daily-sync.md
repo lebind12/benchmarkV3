@@ -125,29 +125,21 @@ Step 9. *_translation 신규 row 보장 (DB-only)
 
 #### Step 3. fixture 목록
 - 5리그 × 2시즌 각각 `GET /fixtures?league={external_id}&season={year}`
-- 응답의 각 fixture 마다 fixture 테이블 upsert:
+- 응답 중 `kickoff_at >= now() - 3 days` 인 fixture 만 이번 사이클 처리 대상으로 삼는다. 즉, 과거 경기는 최근 3일까지만 다시 갱신하고 미래 fixture 는 계속 갱신한다.
+- 이번 사이클 처리 대상 fixture 마다 fixture 테이블 upsert:
   - status / score / kickoff_at / venue / home_team / away_team 모두 전체 덮어쓰기
   - 컵 추첨 미정 라운드 → `home_team_id` / `away_team_id` = NULL (API 응답에서 teams.home.id / teams.away.id 가 null/0 일 때)
   - 새 team / venue 가 fixture 응답에 있고 DB 에 없으면 → 본 step 에선 fixture 만 처리하고 team/venue 는 step 2 / step 6 에서 처리. fixture 의 FK 가 일시적으로 NULL 일 수 있음
 
 #### Step 4. 활성 fixture 큐(B) 산정
-DB 쿼리만:
+측정 단계에서 만든 이번 사이클 fixture 큐를 사용한다:
 ```sql
-SELECT id FROM fixture
-WHERE league_id IN (5리그 내부 id)
-  AND season_year IN (current_season, current_season - 1)
-  AND (
-       status_short NOT IN ('FT', 'AET', 'PEN', 'CANC', 'PST')      -- 미종료
-    OR (status_short IN ('FT', 'AET', 'PEN')
-        AND kickoff_at > now() - INTERVAL '48 hours')               -- 종료 후 48h
-    OR (kickoff_at > now()
-        AND kickoff_at < now() + INTERVAL '14 days')                -- 다가오는 14일
-  );
+fixture.kickoff_at >= now() - INTERVAL '3 days'
 ```
-- 결과를 메모리에 보관하고 Step 5, 6 가 사용
+- 결과를 메모리에 보관하고 Step 5 가 사용한다. 오래된 fixture_detail endpoint 재호출을 막는 비용 절감 정책이다.
 
 #### Step 5. fixture_detail
-- 활성 fixture 각각:
+- 이번 사이클 fixture 큐의 각 fixture:
   - `GET /fixtures/events?fixture={external_id}`
   - `GET /fixtures/statistics?fixture={external_id}`
   - `GET /fixtures/lineups?fixture={external_id}`

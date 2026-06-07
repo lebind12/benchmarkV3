@@ -36,6 +36,15 @@ export interface LeagueOption {
   logoUrl: string | null
 }
 
+export type FixtureLeagueFilterId = number | null | 'other'
+
+export interface FixtureLeagueOption {
+  id: FixtureLeagueFilterId
+  label: string
+  slug: LeagueSlug | null
+  logoUrl: string | null
+}
+
 export interface CompetitionLeagueOption extends LeagueOption {
   id: number
   slug: LeagueSlug
@@ -56,9 +65,22 @@ export const HOME_LEAGUE_TABS: LeagueOption[] = [
   { id: 45, label: 'FA', slug: 'fa-cup', logoUrl: leagueLogoUrl(45) },
 ]
 
+export const HOME_FIXTURE_LEAGUE_TABS: FixtureLeagueOption[] = [
+  ...HOME_LEAGUE_TABS,
+  { id: 'other', label: '기타', slug: null, logoUrl: null },
+]
+
 export const HOME_COMPETITION_OPTIONS: CompetitionLeagueOption[] = HOME_LEAGUE_TABS.filter(
   (league): league is CompetitionLeagueOption => league.id != null && league.slug != null,
 )
+
+export const HOME_FIXTURE_PRIMARY_LEAGUE_IDS = new Set(
+  HOME_COMPETITION_OPTIONS.map((league) => league.id),
+)
+
+export function isPrimaryHomeFixtureLeague(id: number): boolean {
+  return HOME_FIXTURE_PRIMARY_LEAGUE_IDS.has(id)
+}
 
 export function slugFromId(id: number | null | undefined): LeagueSlug | null {
   if (id == null) return null
@@ -71,5 +93,6 @@ export function leagueVar(
 ): string {
   if (!slug) return 'var(--muted, #888)'
   const token = LEAGUE_TOKEN[slug]
+  if (!token) return 'var(--muted, #888)'
   return `var(--league-${token}-${kind})`
 }

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { HOME_LEAGUE_TABS, LEAGUE_ID_TO_SLUG, leagueLogoUrl, leagueVar, slugFromId } from '@/lib/league-colors'
+import {
+  HOME_FIXTURE_LEAGUE_TABS,
+  HOME_LEAGUE_TABS,
+  LEAGUE_ID_TO_SLUG,
+  isPrimaryHomeFixtureLeague,
+  leagueLogoUrl,
+  leagueVar,
+  slugFromId,
+} from '@/lib/league-colors'
 
 describe('league-colors', () => {
   it('maps known league ids to slugs', () => {
@@ -28,5 +36,19 @@ describe('league-colors', () => {
   it('provides home tabs and API-Football logo URLs', () => {
     expect(HOME_LEAGUE_TABS.map((tab) => tab.id)).toEqual([null, 1, 39, 2, 3, 48, 45])
     expect(leagueLogoUrl(1)).toBe('https://media.api-sports.io/football/leagues/1.png')
+  })
+  it('adds an other tab for fixtures without treating it as a primary timeline league', () => {
+    expect(HOME_FIXTURE_LEAGUE_TABS.map((tab) => tab.id)).toEqual([
+      null,
+      1,
+      39,
+      2,
+      3,
+      48,
+      45,
+      'other',
+    ])
+    expect(isPrimaryHomeFixtureLeague(39)).toBe(true)
+    expect(isPrimaryHomeFixtureLeague(10)).toBe(false)
   })
 })

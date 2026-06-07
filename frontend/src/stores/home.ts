@@ -1,5 +1,9 @@
 import { defineStore } from 'pinia'
 import { homeApi } from '@/lib/api/home'
+import {
+  isPrimaryHomeFixtureLeague,
+  type FixtureLeagueFilterId,
+} from '@/lib/league-colors'
 import type {
   AsyncSlice,
   FixtureSummary,
@@ -23,6 +27,19 @@ export function hasHomeStandings(id: number): boolean {
 
 function newSlice<T>(): AsyncSlice<T> {
   return { status: 'idle', value: null, error: null, fetchedAt: null }
+}
+
+function filterFixtureTimeline(
+  items: FixtureSummary[],
+  leagueId: FixtureLeagueFilterId,
+): FixtureSummary[] {
+  if (leagueId === 'other') {
+    return items.filter((fixture) => !isPrimaryHomeFixtureLeague(fixture.league.external_id))
+  }
+  if (leagueId == null) {
+    return items.filter((fixture) => isPrimaryHomeFixtureLeague(fixture.league.external_id))
+  }
+  return items
 }
 
 export function todayKstYmd(): string {
@@ -61,7 +78,7 @@ export const useHomeStore = defineStore('home', {
     injuries: newSlice<Injury[]>(),
     fixtures: {
       filter: {
-        league_id: null as number | null,
+        league_id: null as FixtureLeagueFilterId,
         period: 'day' as Period,
         date: todayKstYmd(),
       },
@@ -110,13 +127,16 @@ export const useHomeStore = defineStore('home', {
     fetchInjuries() { return this._runSlice(this.injuries, async () => (await homeApi.injuries()).items) },
     fetchFixtures() {
       return this._runSlice(this.fixtures.data, async () =>
-        (
-          await homeApi.fixtures(
-            this.fixtures.filter.period,
-            this.fixtures.filter.league_id,
-            this.fixtures.filter.date,
-          )
-        ).items,
+        filterFixtureTimeline(
+          (
+            await homeApi.fixtures(
+              this.fixtures.filter.period,
+              typeof this.fixtures.filter.league_id === 'number' ? this.fixtures.filter.league_id : null,
+              this.fixtures.filter.date,
+            )
+          ).items,
+          this.fixtures.filter.league_id,
+        ),
       )
     },
     fetchStandings() {
@@ -141,7 +161,7 @@ export const useHomeStore = defineStore('home', {
         (await homeApi.topPlayers(this.topPlayers.league_id, this.topPlayers.metric)).rows,
       )
     },
-    setLeagueFilter(id: number | null) {
+    setLeagueFilter(id: FixtureLeagueFilterId) {
       this.fixtures.filter.league_id = id
       this.fetchFixtures()
     },

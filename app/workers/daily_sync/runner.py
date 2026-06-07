@@ -5,6 +5,7 @@ import json
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -14,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.config import database_engine_kwargs, get_settings, normalize_database_url
 from app.workers.daily_sync import LeagueSyncSpec, default_league_sync_specs
 from app.workers.daily_sync.api import ApiFootballClient
-from app.workers.daily_sync.mappers import parse_int, select_latest_two_actual_seasons
+from app.workers.daily_sync.mappers import parse_datetime, parse_int, select_latest_two_actual_seasons
 from app.workers.daily_sync.store import (
     StoreCounts,
     ensure_team_season_from_fixtures,
@@ -30,6 +31,8 @@ from app.workers.daily_sync.translation_seed import (
     PlayerTranslationSeedResult,
     import_player_translation_seed,
 )
+
+FIXTURE_SYNC_LOOKBACK_DAYS = 3
 
 
 class ProgressReporter(Protocol):
@@ -97,6 +100,41 @@ def _league_label(name: str, league_external_id: int) -> str:
 def _response_from_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
     response = payload.get("response")
     return response if isinstance(response, list) else []
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _fixture_kickoff_at(entry: dict[str, Any]) -> datetime | None:
+    fixture = entry.get("fixture") if isinstance(entry.get("fixture"), dict) else {}
+    kickoff = parse_datetime(fixture.get("date"))
+    if kickoff is None:
+        timestamp = parse_int(fixture.get("timestamp"))
+        if timestamp is not None:
+            kickoff = datetime.fromtimestamp(timestamp, timezone.utc)
+    if kickoff is not None and kickoff.tzinfo is None:
+        kickoff = kickoff.replace(tzinfo=timezone.utc)
+    return kickoff
+
+
+def _fixture_entries_in_sync_window(
+    entries: list[dict[str, Any]],
+    *,
+    now: datetime,
+    lookback_days: int = FIXTURE_SYNC_LOOKBACK_DAYS,
+) -> list[dict[str, Any]]:
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    cutoff = now - timedelta(days=lookback_days)
+    selected: list[dict[str, Any]] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        kickoff = _fixture_kickoff_at(entry)
+        if kickoff is None or kickoff >= cutoff:
+            selected.append(entry)
+    return selected
 
 
 @dataclass
@@ -311,8 +349,12 @@ def measure_league_sync_plan(
 
     _fetch_parallel_endpoints(client, endpoints, max_workers=max_workers)
 
+    sync_window_now = _utc_now()
     for season_plan in season_plans:
-        fixture_entries = season_plan.fixtures.response
+        fixture_entries = _fixture_entries_in_sync_window(
+            season_plan.fixtures.response,
+            now=sync_window_now,
+        )
         if fixture_limit is not None:
             fixture_entries = fixture_entries[:fixture_limit]
         season_plan.fixture_external_ids = [

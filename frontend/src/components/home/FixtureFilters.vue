@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useHomeStore } from '@/stores/home'
 import LeagueMark from '@/components/common/LeagueMark.vue'
-import { HOME_LEAGUE_TABS } from '@/lib/league-colors'
+import { HOME_FIXTURE_LEAGUE_TABS } from '@/lib/league-colors'
 import type { Period } from '@/types/home'
 
 const home = useHomeStore()
@@ -16,7 +16,7 @@ const periodToggles: { v: Period; label: string }[] = [
   <div class="filters">
     <div class="filters__row" role="tablist" aria-label="리그 필터">
       <button
-        v-for="t in HOME_LEAGUE_TABS"
+        v-for="t in HOME_FIXTURE_LEAGUE_TABS"
         :key="t.label"
         type="button"
         role="tab"
@@ -27,13 +27,14 @@ const periodToggles: { v: Period; label: string }[] = [
         @click="home.setLeagueFilter(t.id)"
       >
         <LeagueMark
-          v-if="t.id !== null"
+          v-if="typeof t.id === 'number'"
           :external-id="t.id"
           :slug="t.slug"
           :logo-url="t.logoUrl"
           :label="t.label"
           size="sm"
         />
+        <span v-else-if="t.id === 'other'" class="tab__mark">etc</span>
         <span class="tab__label">{{ t.label }}</span>
       </button>
     </div>
@@ -120,10 +121,28 @@ const periodToggles: { v: Period; label: string }[] = [
   line-height: 1;
   white-space: nowrap;
 }
+.tab__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgb(17 24 39 / 0.16);
+  border-radius: 999px;
+  color: var(--color-muted);
+  background: var(--color-bg);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
 .tab--active {
   background: var(--theme-primary, var(--color-fg));
   color: var(--theme-on-primary, var(--color-bg));
   border-color: transparent;
+}
+.tab--active .tab__mark {
+  color: var(--theme-primary, var(--color-fg));
+  background: var(--theme-on-primary, var(--color-bg));
 }
 .toggle--active {
   background: var(--color-fg);

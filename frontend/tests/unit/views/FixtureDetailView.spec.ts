@@ -1,8 +1,29 @@
-import { describe, it, expect } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import FixtureDetailView from '@/views/FixtureDetailView.vue'
+import match1000001 from '@/mocks/data/fixture-detail/match.1000001.json'
+import events1000001 from '@/mocks/data/fixture-detail/events.1000001.json'
+import lineups1000001 from '@/mocks/data/fixture-detail/lineups.1000001.json'
+
+function jsonResponse(body: unknown, init?: ResponseInit) {
+  return new Response(JSON.stringify(body), {
+    status: init?.status ?? 200,
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  })
+}
+
+function stubFixtureDetailFetch() {
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = new URL(String(input), 'http://localhost')
+    if (url.pathname === '/api/v1/fixtures/1000001') return jsonResponse(match1000001)
+    if (url.pathname === '/api/v1/fixtures/1000001/events') return jsonResponse(events1000001)
+    if (url.pathname === '/api/v1/fixtures/1000001/lineups') return jsonResponse(lineups1000001)
+    return jsonResponse({ error: 'unhandled test route' }, { status: 500 })
+  }))
+}
 
 function makeRouter() {
   return createRouter({
@@ -33,6 +54,10 @@ function makeRouter() {
 }
 
 describe('FixtureDetailView', () => {
+  beforeEach(() => {
+    stubFixtureDetailFetch()
+  })
+
   it('binds data-league to root once match loads', async () => {
     const router = makeRouter()
     router.push('/fixtures/1000001')

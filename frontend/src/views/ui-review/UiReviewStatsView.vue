@@ -24,10 +24,6 @@ const metrics: { key: MetricKey; label: string }[] = [
 
 const selectedLeagueId = computed(() => Number(selectedLeague.value || 39))
 const metricLabel = computed(() => metrics.find((item) => item.key === activeMetric.value)?.label ?? '수치')
-const selectedLeagueName = computed(() => {
-  const league = leagues.value.find((item) => String(item.external_id) === selectedLeague.value)
-  return leagueName(league ?? payload.value?.leaders[activeMetric.value]?.league ?? null)
-})
 const activeRows = computed<TopPlayerRow[]>(() => payload.value?.leaders[activeMetric.value]?.rows ?? [])
 const standingsRows = computed(() => payload.value?.standings.rows ?? [])
 const maxMetricValue = computed(() => Math.max(...activeRows.value.map((row) => row.metric_value), 1))
