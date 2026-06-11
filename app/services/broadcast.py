@@ -394,10 +394,118 @@ _OVERLAY_FIXTURE_SQL = text(
     """
 )
 
+_OVERLAY_GROUP_STANDINGS_SQL = text(
+    """
+    SELECT s.rank, s.played, s.win, s.draw, s.loss, s.goals_for,
+           s.goals_against, COALESCE(s.goals_diff, s.goals_for - s.goals_against) AS goal_diff,
+           s.points, s.group_name,
+           t.id AS team_id,
+           t.external_id AS team_external_id,
+           t.name AS team_name,
+           t.code AS team_code,
+           tt.name_ko AS team_name_ko,
+           tt.short_name_ko AS team_short_name_ko
+    FROM standings s
+    JOIN team t ON t.id = s.team_id
+    LEFT JOIN team_translation tt ON tt.team_id = t.id
+    WHERE s.league_id = (SELECT league_id FROM fixture WHERE external_id = :external_id)
+      AND s.season_year = (SELECT season_year FROM fixture WHERE external_id = :external_id)
+    ORDER BY s.group_name NULLS FIRST, s.rank ASC, s.id ASC
+    """
+)
+
 
 def _fixture_row(session: Session, external_id: int) -> dict[str, Any] | None:
     row = session.execute(_OVERLAY_FIXTURE_SQL, {"external_id": external_id}).mappings().first()
     return dict(row) if row is not None else None
+
+
+def _team_display_code(
+    row: dict[str, Any],
+    *,
+    fallback: str | None = None,
+) -> str:
+    short_name = row.get("short_name_ko") or row.get("short_name")
+    code = row.get("code") or row.get("team_code") or short_name
+    if isinstance(code, str):
+        trimmed = code.strip()
+        if trimmed:
+            return trimmed[:4].upper()
+
+    name = row.get("name")
+    if isinstance(name, str) and name.strip():
+        letters = "".join(ch for ch in name.upper() if ch.isalnum())
+        compact = letters[:3]
+        if compact:
+            return compact
+
+    if isinstance(fallback, str) and fallback.strip():
+        letters = "".join(ch for ch in fallback.upper() if ch.isalnum())
+        return (letters[:3] or "TBD")
+    return "TBD"
+
+
+def _group_standings_block(
+    session: Session,
+    row: dict[str, Any],
+    external_id: int,
+) -> dict[str, Any] | None:
+    if row.get("season_year") is None:
+        return None
+
+    rows = list(
+        session.execute(
+            _OVERLAY_GROUP_STANDINGS_SQL,
+            {"external_id": external_id},
+        ).mappings()
+    )
+    if not rows:
+        return None
+
+    home_id = row.get("home_external_id")
+    away_id = row.get("away_external_id")
+    home_groups = {
+        mapping["group_name"] for mapping in rows if mapping.get("team_external_id") == home_id and mapping.get("group_name") is not None
+    }
+    away_groups = {
+        mapping["group_name"] for mapping in rows if mapping.get("team_external_id") == away_id and mapping.get("group_name") is not None
+    }
+    shared = [group for group in home_groups.intersection(away_groups) if group is not None]
+    group_name = shared[0] if shared else None
+    if group_name is None:
+        return {
+            "group_name": None,
+            "rows": [],
+        }
+
+    target_rows = [mapping for mapping in rows if mapping.get("group_name") == group_name]
+    return {
+        "group_name": group_name,
+        "rows": [
+            {
+                "rank": int(mapping.get("rank") or 0),
+                "team_id": mapping.get("team_external_id"),
+                "team_name": mapping.get("team_name_ko") or mapping.get("team_name") or "Unknown",
+                "team_code": _team_display_code(
+                    {
+                        "code": mapping.get("team_code"),
+                        "short_name": mapping.get("team_short_name_ko"),
+                        "name": mapping.get("team_name"),
+                    },
+                    fallback=str(mapping.get("team_name") or "TEAM"),
+                ),
+                "played": int(mapping.get("played") or 0),
+                "win": int(mapping.get("win") or 0),
+                "draw": int(mapping.get("draw") or 0),
+                "loss": int(mapping.get("loss") or 0),
+                "goals_for": int(mapping.get("goals_for") or 0),
+                "goals_against": int(mapping.get("goals_against") or 0),
+                "goal_diff": int(mapping.get("goal_diff") or 0),
+                "points": int(mapping.get("points") or 0),
+            }
+            for mapping in target_rows
+        ],
+    }
 
 
 def _theme_slug(league_external_id: int | None, fallback_slug: str | None) -> str:
@@ -518,6 +626,24 @@ def _to_float(value: Any) -> float | None:
         return None
 
 
+def _coerce_external_team_id(value: Any) -> int | str | None:
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value) if value.is_integer() else str(int(value))
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+        try:
+            return int(value)
+        except ValueError:
+            return value
+    return None
+
+
 def _player_stats_map(players_payload: Any) -> dict[int, dict[str, Any]]:
     result: dict[int, dict[str, Any]] = {}
     if not isinstance(players_payload, list):
@@ -582,6 +708,24 @@ def _lineup_player_ids(lineups_payload: Any) -> set[int]:
     return ids
 
 
+def _lineup_coach_ids(lineups_payload: Any) -> set[int]:
+    ids: set[int] = set()
+    if not isinstance(lineups_payload, list):
+        return ids
+    for lineup in lineups_payload:
+        if not isinstance(lineup, dict):
+            continue
+        coach = lineup.get("coach") if isinstance(lineup.get("coach"), dict) else None
+        if isinstance(coach, dict):
+            coach_id = coach.get("id")
+            if coach_id is not None:
+                try:
+                    ids.add(int(coach_id))
+                except (TypeError, ValueError):
+                    pass
+    return ids
+
+
 def _player_translation_map(
     session: Session,
     player_ids: Iterable[int],
@@ -609,6 +753,34 @@ def _player_translation_map(
     }
 
 
+def _coach_translation_map(
+    session: Session,
+    coach_ids: Iterable[int],
+) -> dict[int, dict[str, str | None]]:
+    ids = sorted({int(coach_id) for coach_id in coach_ids if coach_id is not None})
+    if not ids:
+        return {}
+    rows = session.execute(
+        select(
+            Coach.external_id,
+            Coach.name,
+            CoachTranslation.name_ko,
+            CoachTranslation.short_name_ko,
+        )
+        .outerjoin(CoachTranslation, CoachTranslation.coach_id == Coach.id)
+        .where(Coach.external_id.in_(ids))
+    )
+    return {
+        int(row.external_id): {
+            "name": row.name,
+            "name_ko": row.name_ko,
+            "short_name_ko": row.short_name_ko,
+        }
+        for row in rows
+        if row.external_id is not None
+    }
+
+
 def _player_ref(
     external_id: int | None,
     name: str | None,
@@ -623,6 +795,25 @@ def _player_ref(
     return {
         "external_id": external_id,
         "name": source_name,
+        "name_ko": name_ko or source_name,
+        "short_name_ko": short_name_ko,
+    }
+
+
+def _coach_ref(
+    external_id: int | None,
+    name: str | None,
+    translations: dict[int, dict[str, str | None]],
+) -> dict[str, Any] | None:
+    if external_id is None and name is None:
+        return None
+    item = translations.get(int(external_id)) if external_id is not None else None
+    source_name = (item or {}).get("name") or name
+    name_ko = (item or {}).get("name_ko")
+    short_name_ko = (item or {}).get("short_name_ko") or name_ko or source_name
+    return {
+        "external_id": external_id,
+        "name": name_ko or source_name,
         "name_ko": name_ko or source_name,
         "short_name_ko": short_name_ko,
     }
@@ -708,6 +899,8 @@ def _empty_lineup(row: dict[str, Any], side: str) -> dict[str, Any]:
         "team_code": team["code"],
         "team_logo_url": team["logo_url"],
         "formation": None,
+        "coach": None,
+        "substitute_numbers": {},
         "players": [],
     }
 
@@ -719,25 +912,52 @@ def _lineups_block(
     players_payload: Any,
     events_payload: Any,
     translations: dict[int, dict[str, str | None]],
+    coach_translations: dict[int, dict[str, str | None]],
 ) -> list[dict[str, Any]]:
+    home_external_id = _coerce_external_team_id(row.get("home_external_id"))
+    away_external_id = _coerce_external_team_id(row.get("away_external_id"))
     by_team = {
-        row.get("home_external_id"): _empty_lineup(row, "home"),
-        row.get("away_external_id"): _empty_lineup(row, "away"),
+        home_external_id: _empty_lineup(row, "home"),
+        away_external_id: _empty_lineup(row, "away"),
     }
     if not isinstance(lineups_payload, list):
-        return [by_team[row.get("home_external_id")], by_team[row.get("away_external_id")]]
+        return [
+            by_team[home_external_id],
+            by_team[away_external_id],
+        ]
     player_stats = _player_stats_map(players_payload)
     event_counts = _event_stat_counts(events_payload)
     for lineup in lineups_payload:
         if not isinstance(lineup, dict):
             continue
         team = lineup.get("team") if isinstance(lineup.get("team"), dict) else {}
-        team_id = team.get("id")
+        team_id = _coerce_external_team_id(team.get("id"))
         target = by_team.get(team_id)
         if target is None:
             continue
         target["formation"] = lineup.get("formation")
-        target["players"] = [
+        coach = lineup.get("coach") if isinstance(lineup.get("coach"), dict) else None
+        if coach:
+            coach_ref = _coach_ref(coach.get("id"), coach.get("name"), coach_translations)
+            target["coach"] = {
+                "id": coach.get("id"),
+                "name": (coach_ref or {}).get("name_ko") or coach.get("name"),
+                "photo_url": coach.get("photo"),
+            }
+        substitute_numbers: dict[str, int] = {}
+        for item in lineup.get("substitutes") or []:
+            if not isinstance(item, dict):
+                continue
+            player_id = item.get("player")["id"] if isinstance(item.get("player"), dict) else None
+            player_number = item.get("player", {}).get("number") if isinstance(item.get("player"), dict) else None
+            if isinstance(player_id, int | str) and player_id is not None:
+                if isinstance(player_number, int | str):
+                    try:
+                        substitute_numbers[str(int(player_id))] = int(player_number)
+                    except (TypeError, ValueError):
+                        pass
+        target["substitute_numbers"] = substitute_numbers
+        players = [
             _lineup_player(
                 item,
                 player_stats=player_stats,
@@ -747,7 +967,12 @@ def _lineups_block(
             for item in lineup.get("startXI") or []
             if isinstance(item, dict)
         ]
-    return [by_team[row.get("home_external_id")], by_team[row.get("away_external_id")]]
+        if players:
+            target["players"] = players
+    return [
+        by_team.get(home_external_id, _empty_lineup(row, "home")),
+        by_team.get(away_external_id, _empty_lineup(row, "away")),
+    ]
 
 
 STAT_TYPE_MAP = {
@@ -755,23 +980,32 @@ STAT_TYPE_MAP = {
     "total shots": "shots_total",
     "shots on goal": "shots_on_goal",
     "shots on target": "shots_on_goal",
+    "shots total": "shots_total",
+    "fouls": "fouls",
+    "foul": "fouls",
+    "fouls committed": "fouls",
+    "fouls won": "fouls",
     "corner kicks": "corner_kicks",
     "passes %": "passes_pct",
+    "passes_accuracy": "passes_pct",
     "passes accurate %": "passes_pct",
     "passes accurate": "passes_pct",
     "offsides": "offsides",
     "yellow cards": "yellow_cards",
+    "yellow card": "yellow_cards",
     "red cards": "red_cards",
+    "red card": "red_cards",
 }
 STAT_LABELS_KO = {
     "possession": "점유율",
-    "shots_total": "슈팅",
+    "shots_total": "전체슈팅",
     "shots_on_goal": "유효슈팅",
     "corner_kicks": "코너킥",
-    "passes_pct": "패스 성공률",
+    "passes_pct": "패스성공률",
+    "fouls": "파울",
     "offsides": "오프사이드",
-    "yellow_cards": "경고",
-    "red_cards": "퇴장",
+    "yellow_cards": "옐로카드",
+    "red_cards": "레드카드",
 }
 STAT_ORDER = [
     "possession",
@@ -779,6 +1013,7 @@ STAT_ORDER = [
     "shots_on_goal",
     "corner_kicks",
     "passes_pct",
+    "fouls",
     "offsides",
     "yellow_cards",
     "red_cards",
@@ -814,15 +1049,16 @@ def _stat_pct(home: int | None, away: int | None, stat_type: str) -> tuple[int, 
 def _statistics_block(row: dict[str, Any], statistics_payload: Any) -> list[dict[str, Any]]:
     values: dict[str, dict[str, Any]] = {key: {"home": None, "away": None} for key in STAT_ORDER}
     side_by_team = {
-        row.get("home_external_id"): "home",
-        row.get("away_external_id"): "away",
+        _coerce_external_team_id(row.get("home_external_id")): "home",
+        _coerce_external_team_id(row.get("away_external_id")): "away",
     }
     if isinstance(statistics_payload, list):
         for team_entry in statistics_payload:
             if not isinstance(team_entry, dict):
                 continue
             team = team_entry.get("team") if isinstance(team_entry.get("team"), dict) else {}
-            side = side_by_team.get(team.get("id"))
+            team_id = _coerce_external_team_id(team.get("id"))
+            side = side_by_team.get(team_id)
             if side is None:
                 continue
             for stat in team_entry.get("statistics") or []:
@@ -831,6 +1067,18 @@ def _statistics_block(row: dict[str, Any], statistics_payload: Any) -> list[dict
                 stat_type = STAT_TYPE_MAP.get(str(stat.get("type") or "").lower())
                 if stat_type:
                     values[stat_type][side] = stat.get("value")
+    api_type_labels = {
+        "possession": "Ball Possession",
+        "shots_total": "Total Shots",
+        "shots_on_goal": "Shots on Goal",
+        "corner_kicks": "Corner Kicks",
+        "passes_pct": "Passes %",
+        "fouls": "Fouls",
+        "offsides": "Offsides",
+        "yellow_cards": "Yellow Cards",
+        "red_cards": "Red Cards",
+    }
+
     rows: list[dict[str, Any]] = []
     for stat_type in STAT_ORDER:
         raw_home = values[stat_type]["home"]
@@ -842,7 +1090,8 @@ def _statistics_block(row: dict[str, Any], statistics_payload: Any) -> list[dict
         home_pct, away_pct = _stat_pct(home, away, stat_type)
         rows.append(
             {
-                "type": stat_type,
+                "type": api_type_labels.get(stat_type, stat_type),
+                "type_key": stat_type,
                 "label_ko": STAT_LABELS_KO[stat_type],
                 "home": home,
                 "away": away,
@@ -899,8 +1148,8 @@ def _events_block(
     if not isinstance(events_payload, list):
         return []
     side_by_team = {
-        row.get("home_external_id"): "home",
-        row.get("away_external_id"): "away",
+        _coerce_external_team_id(row.get("home_external_id")): "home",
+        _coerce_external_team_id(row.get("away_external_id")): "away",
     }
     code_by_side = {"home": _team_code(row, "home"), "away": _team_code(row, "away")}
     logo_by_side = {
@@ -919,14 +1168,17 @@ def _events_block(
         player = event.get("player") if isinstance(event.get("player"), dict) else {}
         assist = event.get("assist") if isinstance(event.get("assist"), dict) else {}
         minute, extra = _event_time(event)
-        team_side = side_by_team.get(team.get("id"))
+        team_id = _coerce_external_team_id(team.get("id"))
+        team_side = side_by_team.get(team_id)
         event_player = _player_ref(player.get("id"), player.get("name"), translations)
         event_assist = _player_ref(assist.get("id"), assist.get("name"), translations)
+        in_player = event_assist if kind == "substitution" else None
+        out_player = event_player if kind == "substitution" else None
         result.append(
             {
                 "event_id": f"{row['external_id']}:{index}",
                 "kind": kind,
-                "team_external_id": team.get("id"),
+                "team_external_id": team_id,
                 "team_side": team_side,
                 "team_code": code_by_side.get(team_side),
                 "team_logo_url": logo_by_side.get(team_side),
@@ -936,10 +1188,10 @@ def _events_block(
                 "title_ko": _event_title(kind),
                 "detail_ko": event.get("detail") or (event_player or {}).get("short_name_ko"),
                 "score_label": score_label,
-                "player": event_player if kind != "substitution" else None,
-                "assist": event_assist if kind == "goal" else None,
-                "in_player": event_player if kind == "substitution" else None,
-                "out_player": event_assist if kind == "substitution" else None,
+                "player": event_player,
+                "assist": event_assist if kind in {"goal", "substitution"} else None,
+                "in_player": in_player,
+                "out_player": out_player,
                 "stat": None,
             }
         )
@@ -960,13 +1212,16 @@ def _assemble_overlay(
     lineups: Any,
     statistics: Any,
     players: Any,
+    standings: dict[str, Any] | None,
     league_slug: str | None,
     cache_hit: bool,
     interval_seconds: int,
     now_func: Callable[[], datetime],
 ) -> dict[str, Any]:
     player_ids = _lineup_player_ids(lineups) | _event_player_ids(events) | set(_player_stats_map(players))
-    translations = _player_translation_map(session, player_ids)
+    coach_ids = _lineup_coach_ids(lineups)
+    player_translations = _player_translation_map(session, player_ids)
+    coach_translations = _coach_translation_map(session, coach_ids)
     return {
         "fixture": _fixture_block(row, core=core, league_slug=league_slug),
         "lineups": _lineups_block(
@@ -974,10 +1229,12 @@ def _assemble_overlay(
             lineups,
             players_payload=players,
             events_payload=events,
-            translations=translations,
+            translations=player_translations,
+            coach_translations=coach_translations,
         ),
         "statistics": _statistics_block(row, statistics),
-        "events": _events_block(row, events, translations=translations),
+        "events": _events_block(row, events, translations=player_translations),
+        "standings": standings,
         "polling": {
             "interval_seconds": interval_seconds,
             "cache_hit": cache_hit,
@@ -1118,7 +1375,7 @@ class BroadcastOverlayService:
 
         row = _fixture_row(self.session, external_id)
         status_short = row.get("status_short") if row else None
-        use_api = status_short in LIVE_STATUSES or row is None
+        use_api = row is None or status_short not in FINISHED_STATUSES
 
         if use_api:
             upstream_failed = False
@@ -1153,6 +1410,7 @@ class BroadcastOverlayService:
                     else row.get("statistics")
                 ),
                 players=blocks["players"] if blocks["players"] is not None else row.get("players"),
+                standings=_group_standings_block(self.session, row, external_id),
                 league_slug=league_slug,
                 cache_hit=False,
                 interval_seconds=BROADCAST_OVERLAY_TTL_SECONDS,
@@ -1163,6 +1421,56 @@ class BroadcastOverlayService:
 
         if row is None:
             return None
+
+        live_blocks_for_non_live: dict[str, Any] | None = None
+        try:
+            live_blocks_for_non_live = self._live_blocks(external_id)
+        except (ApiFootballError, BroadcastApiFootballUnavailable):
+            live_blocks_for_non_live = None
+
+        if live_blocks_for_non_live:
+            row_events = (
+                live_blocks_for_non_live["events"]
+                if live_blocks_for_non_live["events"] is not None
+                else row.get("events")
+            )
+            row_lineups = (
+                live_blocks_for_non_live["lineups"]
+                if live_blocks_for_non_live["lineups"] is not None
+                else row.get("lineups")
+            )
+            row_statistics = (
+                live_blocks_for_non_live["statistics"]
+                if live_blocks_for_non_live["statistics"] is not None
+                else row.get("statistics")
+            )
+            row_players = (
+                live_blocks_for_non_live["players"]
+                if live_blocks_for_non_live["players"] is not None
+                else row.get("players")
+            )
+            if (
+                row_events
+                or row_lineups
+                or row_statistics
+                or row_players
+            ):
+                payload = _assemble_overlay(
+                    self.session,
+                    row,
+                    core=None,
+                    events=row_events or [],
+                    lineups=row_lineups or [],
+                    statistics=row_statistics or [],
+                    players=row_players or [],
+                    standings=_group_standings_block(self.session, row, external_id),
+                    league_slug=league_slug,
+                cache_hit=False,
+                interval_seconds=BROADCAST_OVERLAY_TTL_SECONDS,
+                now_func=self.now_func,
+            )
+            _cache_set(self.cache, overlay_key, payload, BROADCAST_OVERLAY_TTL_SECONDS)
+            return payload
 
         interval = (
             BROADCAST_FINISHED_POLL_SECONDS
@@ -1177,6 +1485,7 @@ class BroadcastOverlayService:
             lineups=row.get("lineups") or [],
             statistics=row.get("statistics") or [],
             players=row.get("players") or [],
+            standings=_group_standings_block(self.session, row, external_id),
             league_slug=league_slug,
             cache_hit=False,
             interval_seconds=interval,

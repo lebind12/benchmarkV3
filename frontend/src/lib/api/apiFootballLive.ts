@@ -107,6 +107,28 @@ type ApiFootballFixturePlayerItem = {
     statistics?: Array<{
       games?: {
         rating?: number | string | null
+        minutes?: number | string | null
+      }
+      shots?: {
+        total?: number | string | null
+        on?: number | string | null
+      }
+      passes?: {
+        total?: number | string | null
+        accuracy?: number | string | null
+        key?: number | string | null
+      }
+      fouls?: {
+        drawn?: number | string | null
+        committed?: number | string | null
+      }
+      cards?: {
+        yellow?: number | string | null
+        red?: number | string | null
+      }
+      goals?: {
+        total?: number | string | null
+        assists?: number | string | null
       }
     }>
   }>
@@ -163,7 +185,33 @@ export type ApiFootballBroadcastLineupPlayer = {
   grid?: string
   rating?: string
   photoUrl?: string
+  minutes?: number
+  shotsTotal?: number
+  shotsOnGoal?: number
+  passesTotal?: number
+  passesAccuracy?: number
+  foulsCommitted?: number
+  statGoals?: number
+  statAssists?: number
+  statYellowCards?: number
+  statRedCards?: number
 }
+
+type ApiFootballBroadcastLineupPlayerStat = Partial<
+  Pick<
+    ApiFootballBroadcastLineupPlayer,
+    | "minutes"
+    | "shotsTotal"
+    | "shotsOnGoal"
+    | "passesTotal"
+    | "passesAccuracy"
+    | "foulsCommitted"
+    | "statGoals"
+    | "statAssists"
+    | "statYellowCards"
+    | "statRedCards"
+  >
+>
 
 export type ApiFootballBroadcastCoach = {
   id?: number
@@ -190,6 +238,51 @@ export type ApiFootballBroadcastStat = {
   awayPct: number
 }
 
+export type ApiFootballBroadcastStandingRow = {
+  rank: number
+  team_id: number
+  team_name: string
+  team_code: string
+  played: number
+  win: number
+  draw: number
+  loss: number
+  goals_for: number
+  goals_against: number
+  goal_diff: number
+  points: number
+}
+
+export type ApiFootballBroadcastStandings = {
+  group_name: string
+  rows: ApiFootballBroadcastStandingRow[]
+}
+
+type ApiLeagueStandingsTeam = {
+  external_id: number
+  name: string
+  short_name_ko?: string | null
+  name_ko?: string | null
+}
+
+type ApiLeagueStandingsRow = {
+  rank: number
+  team: ApiLeagueStandingsTeam
+  played: number
+  win: number
+  draw: number
+  loss: number
+  goals_for: number
+  goals_against: number
+  goal_diff: number
+  points: number
+}
+
+type ApiLeagueStandingsResponse = {
+  group_name?: string | null
+  rows?: ApiLeagueStandingsRow[]
+}
+
 export type ApiFootballBroadcastSnapshot = {
   fixtureId: number
   leagueId?: number
@@ -211,8 +304,10 @@ export type ApiFootballBroadcastSnapshot = {
   addedTime: string
   status: string
   venue: string
+  standings?: ApiFootballBroadcastStandings
   lineups: ApiFootballBroadcastLineup[]
   playerRatings: Record<string, string>
+  playerStats?: Record<string, ApiFootballBroadcastLineupPlayerStat>
   stats: ApiFootballBroadcastStat[]
   events: ApiFootballBroadcastEvent[]
 }
@@ -583,6 +678,41 @@ function normalizeRating(value: number | string | null | undefined) {
   return Number.isFinite(parsed) ? parsed.toFixed(1) : undefined
 }
 
+function normalizePlayerStatNumber(value: number | string | null | undefined): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined
+  const parsed = Number.parseFloat(String(value))
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function buildPlayerStatMap(fixturePlayers: ApiFootballFixturePlayerItem[]) {
+  const statsById = new Map<number, ApiFootballBroadcastLineupPlayerStat>()
+
+  fixturePlayers.forEach((teamPlayers) => {
+    ;(teamPlayers.players ?? []).forEach((entry) => {
+      const id = entry.player?.id
+      const stat = entry.statistics?.[0]
+      const games = stat?.games
+
+      if (id === undefined) return
+
+      statsById.set(id, {
+        minutes: games ? normalizePlayerStatNumber(games.minutes) : undefined,
+        shotsTotal: normalizePlayerStatNumber(stat?.shots?.total),
+        shotsOnGoal: normalizePlayerStatNumber(stat?.shots?.on),
+        passesTotal: normalizePlayerStatNumber(stat?.passes?.total),
+        passesAccuracy: normalizePlayerStatNumber(stat?.passes?.accuracy),
+        foulsCommitted: normalizePlayerStatNumber(stat?.fouls?.committed),
+        statGoals: normalizePlayerStatNumber(stat?.goals?.total),
+        statAssists: normalizePlayerStatNumber(stat?.goals?.assists),
+        statYellowCards: normalizePlayerStatNumber(stat?.cards?.yellow),
+        statRedCards: normalizePlayerStatNumber(stat?.cards?.red),
+      })
+    })
+  })
+
+  return statsById
+}
+
 function buildPlayerRatingMap(fixturePlayers: ApiFootballFixturePlayerItem[]) {
   const ratings = new Map<number, string>()
   fixturePlayers.forEach((teamPlayers) => {
@@ -626,6 +756,7 @@ function refreshLineupRatings(
   lineups: ApiFootballBroadcastLineup[],
   playerRatings: Map<number, string>,
   playerPhotos = new Map<number, string>(),
+  playerStats = new Map<number, ApiFootballBroadcastLineupPlayerStat>(),
 ) {
   return lineups.map((lineup) => ({
     ...lineup,
@@ -633,6 +764,7 @@ function refreshLineupRatings(
       ...player,
       rating: player.id !== undefined ? playerRatings.get(player.id) ?? player.rating : player.rating,
       photoUrl: player.id !== undefined ? playerPhotos.get(player.id) ?? player.photoUrl : player.photoUrl,
+      ...((player.id !== undefined ? playerStats.get(player.id) : undefined) ?? {}),
     })),
   }))
 }
@@ -655,6 +787,7 @@ function normalizeLineups(
   lineups: ApiFootballLineupItem[],
   playerRatings: Map<number, string>,
   playerPhotos = new Map<number, string>(),
+  playerStats = new Map<number, ApiFootballBroadcastLineupPlayerStat>(),
 ): ApiFootballBroadcastLineup[] {
   const normalizeLineupPlayer = (
     entry: {
@@ -676,6 +809,7 @@ function normalizeLineups(
     grid: entry.player?.grid ?? undefined,
     rating: entry.player?.id !== undefined ? playerRatings.get(entry.player.id) : undefined,
     photoUrl: entry.player?.id !== undefined ? playerPhotos.get(entry.player.id) : undefined,
+    ...((entry.player?.id !== undefined ? playerStats.get(entry.player.id) : undefined) ?? {}),
   })
 
   const normalizeCoach = (
@@ -779,6 +913,7 @@ function normalizeSnapshot(
   const away = fixture.teams?.away?.name ?? '원정'
   const playerRatings = buildPlayerRatingMap(fixturePlayers)
   const playerPhotos = buildPlayerPhotoMap(fixturePlayers)
+  const playerStats = buildPlayerStatMap(fixturePlayers)
   const eventPlayerMeta = buildEventPlayerMetaMap(lineups, playerPhotos)
   const homeEnglishCode = compactCode(teamCodes.home ?? fixture.teams?.home?.code, 'Home')
   const awayEnglishCode = compactCode(teamCodes.away ?? fixture.teams?.away?.code, 'Away')
@@ -803,7 +938,10 @@ function normalizeSnapshot(
     addedTime: addedTimeFromFixture(fixture),
     status: statusFromFixture(fixture),
     venue: fixture.fixture?.venue?.name ?? '라이브 경기장',
-    lineups: normalizeLineups(lineups, playerRatings, playerPhotos),
+    lineups: normalizeLineups(lineups, playerRatings, playerPhotos, playerStats),
+    playerStats: Object.fromEntries(
+      Array.from(playerStats.entries()).map(([id, stat]) => [String(id), stat]),
+    ),
     playerRatings: Object.fromEntries(playerRatings),
     stats: normalizeStatistics(statistics),
     events: normalizeEvents(fixture, events, teamCodes, eventPlayerMeta),
@@ -1047,6 +1185,7 @@ export async function fetchApiFootballBroadcastTickSnapshot(
   }
   const playerRatings = mergePlayerRatingMap(previousSnapshot, fixturePlayers)
   const playerPhotos = buildPlayerPhotoMap(fixturePlayers)
+  const playerStats = buildPlayerStatMap(fixturePlayers)
   const eventPlayerMeta = buildEventPlayerMetaMapFromBroadcastLineups(previousSnapshot.lineups, playerPhotos)
   const tickSnapshot: ApiFootballBroadcastSnapshot = {
     ...previousSnapshot,
@@ -1065,7 +1204,10 @@ export async function fetchApiFootballBroadcastTickSnapshot(
     addedTime: addedTimeFromFixture(fixture),
     status: statusFromFixture(fixture),
     venue: fixture.fixture?.venue?.name ?? previousSnapshot.venue,
-    lineups: refreshLineupRatings(previousSnapshot.lineups, playerRatings, playerPhotos),
+    lineups: refreshLineupRatings(previousSnapshot.lineups, playerRatings, playerPhotos, playerStats),
+    playerStats: Object.fromEntries(
+      Array.from(playerStats.entries()).map(([id, stat]) => [String(id), stat]),
+    ),
     playerRatings: Object.fromEntries(playerRatings),
     stats: normalizeStatistics(statistics),
     events: normalizeEvents(fixture, events, teamCodes, eventPlayerMeta),
@@ -1104,6 +1246,43 @@ export async function fetchApiFootballBroadcastSnapshot(
   fixtureId: number,
 ): Promise<ApiFootballBroadcastSnapshot> {
   return fetchApiFootballBroadcastInitialSnapshot(fixtureId)
+}
+
+export async function fetchFixtureStandings(
+  fixtureId: number,
+): Promise<ApiFootballBroadcastStandings | null> {
+  const response = await fetch(apiUrl(`/api/v1/fixtures/${fixtureId}/league-standings`), {
+    headers: { Accept: 'application/json' },
+  })
+
+  if (!response.ok) {
+    return null
+  }
+
+  const payload = (await response.json()) as ApiLeagueStandingsResponse
+  const rows = payload.rows
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return null
+  }
+
+  return {
+    group_name: payload.group_name ?? '',
+    rows: rows.map((row) => ({
+      rank: row.rank ?? 0,
+      team_id: row.team?.external_id ?? 0,
+      team_name: row.team?.name_ko ?? row.team?.name ?? '',
+      team_code: row.team?.short_name_ko ?? row.team?.name_ko ?? row.team?.name ?? '',
+      played: row.played ?? 0,
+      win: row.win ?? 0,
+      draw: row.draw ?? 0,
+      loss: row.loss ?? 0,
+      goals_for: row.goals_for ?? 0,
+      goals_against: row.goals_against ?? 0,
+      goal_diff: row.goal_diff ?? 0,
+      points: row.points ?? 0,
+    })),
+  }
 }
 
 export async function fetchApiFootballFirstLiveFixture(): Promise<ApiFootballBroadcastSnapshot> {

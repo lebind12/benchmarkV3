@@ -4,6 +4,7 @@ import {
   API_FOOTBALL_LIVE_POLL_MS,
   fetchApiFootballBroadcastSnapshot,
   fetchApiFootballFirstLiveFixture,
+  fetchFixtureStandings,
   shouldUseApiFootballLive,
   type ApiFootballBroadcastCoach,
   type ApiFootballBroadcastEvent,
@@ -38,7 +39,13 @@ type Theme = {
   dark: string;
 };
 
-type BottomView = "lineup" | "attack" | "chance" | "control" | "discipline";
+type BottomView = "lineup" | "attack" | "chance" | "control" | "discipline" | "group";
+
+type BottomViewTab = {
+  id: BottomView;
+  label: string;
+  shortLabel: string;
+};
 
 type LineupPlayerView = {
   kind: "player";
@@ -50,7 +57,25 @@ type LineupPlayerView = {
   longName?: string;
   pos?: string;
   grid?: string;
+  rating?: string;
+  photoUrl?: string;
+  minutes?: number;
+  shotsTotal?: number;
+  shotsOnGoal?: number;
+  passesTotal?: number;
+  passesAccuracy?: number;
+  foulsCommitted?: number;
+  statGoals?: number;
+  statAssists?: number;
+  statYellowCards?: number;
+  statRedCards?: number;
   isSubstitutedIn: boolean;
+};
+
+type SelectedLineupPlayerView = LineupPlayerView & {
+  teamName: string;
+  teamCode: string;
+  teamId?: number;
 };
 
 type LineupCoachView = {
@@ -104,9 +129,35 @@ type StatViewConfig = {
   metrics: StatViewMetric[];
 };
 
+type GroupStandingsRowView = {
+  teamId?: number;
+  teamName: string;
+  teamCode: string;
+  rank: number;
+  played: number;
+  win: number;
+  draw: number;
+  loss: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDiff: number;
+  points: number;
+};
+
 const SUBSTITUTION_ANIMATION_MS = 8000;
 const SUBSTITUTION_LINEUP_APPLY_MS = 3000;
 const STAT_COUNT_ANIMATION_MS = 900;
+const bottomViewTabs: BottomViewTab[] = [
+  { id: "lineup", label: "라인업", shortLabel: "라인업" },
+  { id: "attack", label: "공격", shortLabel: "공격" },
+  { id: "chance", label: "찬스", shortLabel: "찬스" },
+  { id: "control", label: "운영", shortLabel: "운영" },
+  { id: "discipline", label: "징계", shortLabel: "징계" },
+  { id: "group", label: "조상황", shortLabel: "조 상황" },
+];
+type BottomViewTransitionDirection = "next" | "prev";
+
+const bottomViewTransitionDirection = ref<BottomViewTransitionDirection>("next");
 
 const searchParams = new URLSearchParams(window.location.search);
 const requestedFixtureId = readBroadcastFixtureId(searchParams);
@@ -211,6 +262,7 @@ const liveSnapshot = ref<ApiFootballBroadcastSnapshot | null>(null);
 const appliedSubstitutionIds = ref<Set<string>>(new Set());
 const activeSubstitutionAnimations = ref<SubstitutionAnimation[]>([]);
 const statAnimationProgress = ref(1);
+const selectedLineupPlayer = ref<SelectedLineupPlayerView | null>(null);
 const isAdminAllowed = ref(
   typeof localStorage !== "undefined" &&
     localStorage.getItem("mockRole") === "ADMIN",
@@ -248,15 +300,104 @@ const liveStateLabel = computed(() => {
 const currentLineups = computed<TeamLineupView[]>(() => {
   const snapshot = liveSnapshot.value;
   if (!snapshot) return [];
-  return snapshot.lineups
+  const playerStatLookup = buildLineupPlayerStatLookup(snapshot);
+
+  const lineups = snapshot.lineups
     .slice(0, 2)
     .map((lineup) =>
       applySubstitutionsToLineup(
         lineup,
         snapshot.events,
         appliedSubstitutionIds.value,
+        playerStatLookup,
       ),
     );
+
+  const homeId = snapshot.homeId;
+  const awayId = snapshot.awayId;
+  const homeCode = snapshot.homeCode;
+  const awayCode = snapshot.awayCode;
+  const homeName = snapshot.home;
+  const awayName = snapshot.away;
+
+  const normalize = (value?: string | number | null) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase();
+
+  const isTeamMatch = (
+    lineup: TeamLineupView,
+    teamId?: number | null,
+    teamCode?: string | null,
+    teamName?: string | null,
+  ) => {
+    if (
+      lineup.teamId !== undefined &&
+      teamId !== undefined &&
+      teamId !== null &&
+      lineup.teamId === teamId
+    )
+      return true;
+
+    const lineupCode = normalize(lineup.code);
+    const lineupName = normalize(lineup.name);
+    const normalizedCode = normalize(teamCode);
+    const normalizedName = normalize(teamName);
+
+    if (normalizedCode && lineupCode === normalizedCode) return true;
+    if (normalizedName && lineupName === normalizedName) return true;
+    if (normalizedCode && normalizedName) {
+      if (lineupCode && lineupName) {
+        if (
+          lineupCode.includes(normalizedCode) ||
+          lineupName.includes(normalizedName) ||
+          normalizedName.includes(lineupName)
+        ) {
+          return true;
+        }
+      }
+      if (normalizedCode.length > 3 && normalizedName.length > 0) {
+        if (normalizedName.includes(normalizedCode)) return true;
+      }
+    }
+    return false;
+  };
+
+  const homeLineup = lineups.find((lineup) =>
+    isTeamMatch(lineup, homeId, homeCode, homeName),
+  );
+  const awayLineup = lineups.find(
+    (lineup) =>
+      lineup !== homeLineup &&
+      isTeamMatch(lineup, awayId, awayCode, awayName),
+  );
+
+  const assigned = new Set<TeamLineupView>();
+  const ordered: TeamLineupView[] = [];
+  if (homeLineup) {
+    ordered.push(homeLineup);
+    assigned.add(homeLineup);
+  }
+  if (awayLineup) {
+    ordered.push(awayLineup);
+    assigned.add(awayLineup);
+  }
+  lineups
+    .filter((lineup) => !assigned.has(lineup))
+    .forEach((lineup) => ordered.push(lineup));
+
+  if (ordered.length < 2 && lineups.length === 2) {
+    lineups
+      .filter((lineup) => !assigned.has(lineup))
+      .forEach((lineup) => {
+        if (ordered.length < 2) {
+          ordered.push(lineup);
+          assigned.add(lineup);
+        }
+      });
+  }
+
+  return ordered;
 });
 
 const activeStatView = computed<StatViewConfig | null>(() => {
@@ -292,9 +433,230 @@ const activeStatView = computed<StatViewConfig | null>(() => {
       title: "징계/수비",
       metrics: compactStats(snapshot.stats, ["파울", "옐로카드", "레드카드"]),
     },
+    group: {
+      id: "group",
+      eyebrow: "GROUP",
+      title: "조 상황",
+      metrics: [],
+    },
   };
 
   return statGroups[activeBottomView.value];
+});
+
+const groupStandingsRows = computed<GroupStandingsRowView[]>(() => {
+  const rows = liveSnapshot.value?.standings?.rows;
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+
+  return rows
+    .map((row) => {
+      const raw = row as Record<string, unknown>;
+
+      const rank = Number(raw.rank);
+      const played = Number(raw.played);
+      const win = Number(raw.win);
+      const draw = Number(raw.draw);
+      const loss = Number(raw.loss);
+      const goalsFor = Number(
+        (raw.goals_for as string | number | undefined) ??
+          (raw.goalsFor as string | number | undefined),
+      );
+      const goalsAgainst = Number(
+        (raw.goals_against as string | number | undefined) ??
+          (raw.goalsAgainst as string | number | undefined),
+      );
+      const goalDiff = Number(
+        (raw.goal_diff as string | number | undefined) ??
+          (raw.goalDiff as string | number | undefined),
+      );
+      const points = Number(raw.points);
+      const teamId = Number(raw.team_id ?? raw.teamId);
+
+      return {
+        teamId: Number.isFinite(teamId) ? teamId : undefined,
+        teamName: ((raw.team_code ?? raw.teamCode ?? "-") as string),
+        teamCode: ((raw.team_code ?? raw.teamCode ?? "-") as string),
+        rank: Number.isFinite(rank) ? rank : 0,
+        played: Number.isFinite(played) ? played : 0,
+        win: Number.isFinite(win) ? win : 0,
+        draw: Number.isFinite(draw) ? draw : 0,
+        loss: Number.isFinite(loss) ? loss : 0,
+        goalsFor: Number.isFinite(goalsFor) ? goalsFor : 0,
+        goalsAgainst: Number.isFinite(goalsAgainst) ? goalsAgainst : 0,
+        goalDiff: Number.isFinite(goalDiff) ? goalDiff : 0,
+        points: Number.isFinite(points) ? points : 0,
+      };
+    })
+    .filter((row) => row.teamName || row.teamCode);
+});
+
+function normalizePlayerLookupValue(value?: string) {
+  return value?.trim().toLowerCase();
+}
+
+function buildLineupPlayerStatLookup(snapshot: ApiFootballBroadcastSnapshot | null) {
+  const map = new Map<number, Partial<ApiFootballBroadcastLineupPlayer>>();
+  if (!snapshot?.playerStats) return map;
+
+  Object.entries(snapshot.playerStats).forEach(([rawId, entry]) => {
+    const parsedId = Number.parseInt(rawId, 10);
+    if (Number.isSafeInteger(parsedId)) {
+      map.set(parsedId, entry);
+    }
+  });
+
+  return map;
+}
+
+function lineupPlayerLookupKeys(player: LineupPlayerView) {
+  const keys = new Set<string>();
+
+  if (player.id !== undefined) {
+    keys.add(`id:${player.id}`);
+    return keys;
+  }
+
+  const playerName = normalizePlayerLookupValue(player.name);
+  const playerLongName = normalizePlayerLookupValue(player.longName);
+  if (playerName) keys.add(`name:${playerName}`);
+  if (playerLongName) keys.add(`name:${playerLongName}`);
+  return keys;
+}
+
+function eventLookupKeys(event: ApiFootballBroadcastEvent) {
+  const keys = new Set<string>();
+  const playerName = normalizePlayerLookupValue(event.player);
+  const assistName = normalizePlayerLookupValue(event.assist);
+  const inName = normalizePlayerLookupValue(event.inPlayer);
+  const outName = normalizePlayerLookupValue(event.outPlayer);
+
+  if (event.playerId !== undefined) keys.add(`id:${event.playerId}`);
+  if (event.assistId !== undefined) keys.add(`id:${event.assistId}`);
+  if (playerName) keys.add(`name:${playerName}`);
+  if (assistName) keys.add(`name:${assistName}`);
+  if (inName) keys.add(`name:${inName}`);
+  if (outName) keys.add(`name:${outName}`);
+
+  return keys;
+}
+
+const lineupPlayerEventSummary = computed<Map<string, { redCards: number }>>(() => {
+  const snapshot = liveSnapshot.value;
+  const result = new Map<string, { redCards: number }>();
+
+  if (!snapshot) return result;
+
+  snapshot.events.forEach((event) => {
+    const isRedCard =
+      event.kind === "red-card" ||
+      (event.kind === "card" && event.detail === "Red Card");
+
+    if (!isRedCard) return;
+
+    const keys = eventLookupKeys(event);
+    keys.forEach((key) => {
+      const existing = result.get(key);
+      if (existing) {
+        existing.redCards += 1;
+        return;
+      }
+
+      result.set(key, { redCards: 1 });
+    });
+  });
+
+  return result;
+});
+
+function getPlayerRedCardCount(entry: LineupPlayerView) {
+  const keys = lineupPlayerLookupKeys(entry);
+  for (const key of keys) {
+    const summary = lineupPlayerEventSummary.value.get(key);
+    if (summary) return summary.redCards;
+  }
+  return 0;
+}
+
+const selectedLineupPlayerSummary = computed(() => {
+  const player = selectedLineupPlayer.value;
+  const snapshot = liveSnapshot.value;
+  if (!player || !snapshot) return null;
+
+  const summary = {
+    goals: 0,
+    assists: 0,
+    yellowCards: 0,
+    redCards: 0,
+    substitutions: 0,
+    minutes: player.minutes,
+    shotsTotal: player.shotsTotal,
+    shotsOnGoal: player.shotsOnGoal,
+    passes: player.passesTotal,
+    fouls: player.foulsCommitted,
+    statGoals: player.statGoals,
+    statAssists: player.statAssists,
+  };
+
+  snapshot.events.forEach((event) => {
+    const playerKeys = lineupPlayerLookupKeys(player);
+    const eventKeys = eventLookupKeys(event);
+    const isPlayer = [...playerKeys].some((key) => eventKeys.has(key));
+
+    if (!isPlayer) return;
+
+    if (event.kind === "goal" || event.kind === "own-goal") {
+      summary.goals += Number(event.playerId !== undefined ? player.id === event.playerId : event.player === player.name);
+      summary.assists += Number(event.assistId !== undefined ? player.id === event.assistId : event.assist === player.name);
+    }
+
+    if (event.kind === "yellow-card") summary.yellowCards += 1;
+    if (
+      event.kind === "red-card" ||
+      (event.kind === "card" && event.detail === "Red Card")
+    ) {
+      summary.redCards += 1;
+    }
+    if (event.kind === "substitution") summary.substitutions += 1;
+  });
+
+  if (summary.statGoals !== undefined) summary.goals = summary.statGoals;
+  if (summary.statAssists !== undefined) summary.assists = summary.statAssists;
+
+  return summary;
+});
+
+function formatStatValue(value?: number | null, unit?: string): string {
+  if (value === undefined || value === null) return '-';
+  return unit ? `${value}${unit}` : String(value);
+}
+
+function formatShotsLabel(shots?: number | null, shotsOnGoal?: number | null): string {
+  const value = formatStatValue(shots);
+  const onTarget = formatStatValue(shotsOnGoal);
+  return `${value}/${onTarget}`;
+}
+
+function formatPassValue(value?: number | null): string {
+  return formatStatValue(value);
+}
+
+function formatCardPair(yellow?: number | null, red?: number | null): string {
+  return `${formatStatValue(yellow)}/${formatStatValue(red)}`;
+}
+
+const selectedLineupPlayerDisplay = computed(() => {
+  const player = selectedLineupPlayer.value;
+  if (!player) return null;
+
+  const fullName = (player.longName ?? player.name ?? "").trim();
+  const shortName = (player.name ?? player.longName ?? "").trim();
+  const teamShortName = (player.teamCode ?? player.teamName ?? "").trim();
+
+  return {
+    fullName: fullName || shortName || "-",
+    shortName: shortName || fullName || "-",
+    teamShortName: teamShortName || "-",
+  };
 });
 
 function playerKey(player: ApiFootballBroadcastLineupPlayer, index: number) {
@@ -315,6 +677,18 @@ function toLineupPlayerView(
     longName: player.longName,
     pos: player.pos,
     grid: player.grid,
+    rating: player.rating,
+    photoUrl: player.photoUrl,
+    minutes: player.minutes,
+    shotsTotal: player.shotsTotal,
+    shotsOnGoal: player.shotsOnGoal,
+    passesTotal: player.passesTotal,
+    passesAccuracy: player.passesAccuracy,
+    foulsCommitted: player.foulsCommitted,
+    statGoals: player.statGoals,
+    statAssists: player.statAssists,
+    statYellowCards: player.statYellowCards,
+    statRedCards: player.statRedCards,
     isSubstitutedIn: false,
   };
 }
@@ -339,6 +713,7 @@ function applySubstitutionsToLineup(
   lineup: ApiFootballBroadcastLineup,
   events: ApiFootballBroadcastEvent[],
   appliedIds: Set<string>,
+  playerStats = new Map<number, Partial<ApiFootballBroadcastLineupPlayer>>(),
 ): TeamLineupView {
   const players = lineup.players.slice(0, 11).map(toLineupPlayerView);
   const substitutionEvents = events.filter(
@@ -364,6 +739,10 @@ function applySubstitutionsToLineup(
         ? lineup.substituteNumbers[String(inId)]
         : undefined) ??
       players[outIndex].number;
+    const inPlayer = inId !== undefined
+      ? lineup.players.find((candidate) => candidate.id === inId) ?? playerStats.get(inId)
+      : undefined;
+
     players[outIndex] = {
       kind: "player",
       key: inId !== undefined ? `player-${inId}` : `sub-${event.id}`,
@@ -374,10 +753,26 @@ function applySubstitutionsToLineup(
         event.inPlayerShortName ??
         event.inPlayer ??
         event.assist ??
+        inPlayer?.name ??
         "교체 선수",
-      longName: event.inPlayer ?? event.assist,
+      longName:
+        event.inPlayer ??
+        event.assist ??
+        inPlayer?.longName,
       pos: players[outIndex].pos,
       grid: players[outIndex].grid,
+      rating: inPlayer?.rating,
+      photoUrl: inPlayer?.photoUrl,
+      minutes: inPlayer?.minutes,
+      shotsTotal: inPlayer?.shotsTotal,
+      shotsOnGoal: inPlayer?.shotsOnGoal,
+      passesTotal: inPlayer?.passesTotal,
+      passesAccuracy: inPlayer?.passesAccuracy,
+      foulsCommitted: inPlayer?.foulsCommitted,
+      statGoals: inPlayer?.statGoals,
+      statAssists: inPlayer?.statAssists,
+      statYellowCards: inPlayer?.statYellowCards,
+      statRedCards: inPlayer?.statRedCards,
       isSubstitutedIn: true,
     };
   });
@@ -404,10 +799,12 @@ function findSubstitutionSlot(
   events: ApiFootballBroadcastEvent[],
   event: ApiFootballBroadcastEvent,
 ) {
+  const playerStatsLookup = buildLineupPlayerStatLookup(liveSnapshot.value);
   const baseLineup = applySubstitutionsToLineup(
     lineup,
     events,
     appliedSubstitutionIds.value,
+    playerStatsLookup,
   );
 
   return baseLineup.players.find((player) =>
@@ -505,7 +902,78 @@ function lineupEntryClass(entry: LineupEntryView) {
   return {
     [`lineup-entry--${entry.kind}`]: true,
     "lineup-player--sub-in": entry.kind === "player" && entry.isSubstitutedIn,
+    "lineup-player--sent-off":
+      entry.kind === "player" && getPlayerRedCardCount(entry) > 0,
   };
+}
+
+function isLineupPlayerEntry(
+  entry: LineupEntryView,
+): entry is LineupPlayerView {
+  return entry.kind === "player";
+}
+
+function openLineupPlayerProfile(
+  entry: LineupPlayerView,
+  lineup: TeamLineupView,
+) {
+  selectedLineupPlayer.value = {
+    ...entry,
+    teamName: lineup.name,
+    teamCode: lineup.code,
+    teamId: lineup.teamId,
+  };
+}
+
+function closeLineupPlayerProfile() {
+  selectedLineupPlayer.value = null;
+}
+
+function formatRatingValue(rating?: string): string {
+  if (typeof rating !== "string") return "";
+  const parsed = Number.parseFloat(rating);
+  return Number.isFinite(parsed) ? parsed.toFixed(1) : "";
+}
+
+function ratingColorStyle(rating?: string) {
+  const parsed = Number.parseFloat(rating ?? "");
+  if (!Number.isFinite(parsed)) return {};
+
+  const clamped = Math.min(10, Math.max(0, parsed));
+  const low = { r: 190, g: 12, b: 12 };
+  const high = { r: 12, g: 60, b: 215 };
+  const t =
+    clamped <= 6
+      ? 0
+      : clamped >= 8
+      ? 1
+      : (clamped - 6) / 2;
+  const mid = {
+    r: Math.round(low.r + (high.r - low.r) * t),
+    g: Math.round(low.g + (high.g - low.g) * t),
+    b: Math.round(low.b + (high.b - low.b) * t),
+  };
+
+  const start = `rgb(${Math.max(22, Math.round(mid.r * 0.76))}, ${Math.max(10, Math.round(mid.g * 0.78))}, ${Math.max(18, Math.round(mid.b * 0.76))})`;
+  const end = `rgb(${mid.r}, ${mid.g}, ${mid.b})`;
+  const border = `rgb(${Math.min(255, mid.r + 18)}, ${Math.min(255, mid.g + 18)}, ${Math.min(255, mid.b + 18)})`;
+
+  return {
+    backgroundImage: `linear-gradient(128deg, ${start} 0%, ${end} 100%)`,
+    borderColor: border,
+    boxShadow:
+      `0 0.12rem 0.32rem rgba(0, 0, 0, 0.42), inset 0 0 0 0.06rem ${border}`,
+    backgroundColor: end,
+    color: "#ffffff",
+  };
+}
+
+function ratingClass(rating?: string) {
+  const parsed = Number.parseFloat(rating ?? "");
+  if (!Number.isFinite(parsed)) return "rating-neutral";
+  if (parsed <= 6) return "rating-low";
+  if (parsed >= 8) return "rating-high";
+  return "rating-mid";
 }
 
 function findStat(stats: ApiFootballBroadcastStat[], label: string) {
@@ -613,13 +1081,20 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
 }
 
 function setBottomView(nextView: BottomView) {
-  if (nextView === "lineup") {
-    activeBottomView.value = "lineup";
+  if (nextView === activeBottomView.value) return;
+
+  const currentIndex = bottomViewTabs.findIndex(
+    (tab) => tab.id === activeBottomView.value,
+  );
+  const nextIndex = bottomViewTabs.findIndex((tab) => tab.id === nextView);
+  if (currentIndex === -1 || nextIndex === -1) {
+    activeBottomView.value = nextView;
     return;
   }
 
-  activeBottomView.value =
-    activeBottomView.value === nextView ? "lineup" : nextView;
+  bottomViewTransitionDirection.value =
+    nextIndex > currentIndex ? "next" : "prev";
+  activeBottomView.value = nextView;
 }
 
 function handleBottomViewKeyboard(event: KeyboardEvent) {
@@ -639,6 +1114,7 @@ function handleBottomViewKeyboard(event: KeyboardEvent) {
     c: "chance",
     v: "control",
     b: "discipline",
+    g: "group",
   };
   const nextView = shortcutViews[event.key.toLowerCase()];
 
@@ -658,10 +1134,16 @@ async function refreshApiFootballLive() {
   try {
     liveStatus.value = liveSnapshot.value ? "ready" : "loading";
     liveError.value = null;
-    liveSnapshot.value =
+    const snapshot =
       requestedFixtureId !== null
         ? await fetchApiFootballBroadcastSnapshot(requestedFixtureId)
         : await fetchApiFootballFirstLiveFixture();
+    const standings = await fetchFixtureStandings(snapshot.fixtureId).catch(() => null);
+
+    liveSnapshot.value = {
+      ...snapshot,
+      standings: standings ?? snapshot.standings,
+    };
     scheduleSubstitutionAnimations(liveSnapshot.value);
     liveStatus.value = "ready";
   } catch (error) {
@@ -718,20 +1200,7 @@ onBeforeUnmount(() => {
     data-testid="program-stage"
   >
     <section class="program-left" data-testid="program-left">
-      <section class="feed-surface" data-testid="program-feed-surface">
-        <div class="feed-visual" aria-hidden="true">
-          <div class="feed-grid">
-            <span class="feed-halfway"></span>
-            <span class="feed-circle"></span>
-            <span class="feed-box feed-box-left"></span>
-            <span class="feed-box feed-box-right"></span>
-            <span class="feed-runner feed-runner-a"></span>
-            <span class="feed-runner feed-runner-b"></span>
-            <span class="feed-runner feed-runner-c"></span>
-            <span class="feed-ball"></span>
-          </div>
-        </div>
-      </section>
+      <section class="feed-surface" data-testid="program-feed-surface"></section>
 
       <section
         class="bottom-program-panel"
@@ -739,233 +1208,509 @@ onBeforeUnmount(() => {
         :data-active-bottom-view="activeBottomView"
         aria-live="polite"
       >
-        <Transition name="bottom-view">
-          <div
-            v-if="!liveSnapshot"
-            key="live-empty"
-            class="program-live-state"
-            data-testid="program-live-empty"
-          >
-            <span>라이브 데이터</span>
-            <strong>{{ liveStateLabel }}</strong>
-          </div>
+        <div
+          v-if="!liveSnapshot"
+          class="program-live-state"
+          data-testid="program-live-empty"
+        >
+          <span>라이브 데이터</span>
+          <strong>{{ liveStateLabel }}</strong>
+        </div>
 
-          <div
-            v-else-if="activeBottomView === 'lineup'"
-            key="lineup"
-            class="lineup-board"
-            data-testid="program-lineup-view"
-          >
-            <article
-              v-for="lineup in currentLineups"
-              :key="lineup.teamId ?? lineup.code"
-              class="lineup-team"
-              data-testid="program-lineup-team"
+        <div
+          v-else
+          class="bottom-content-grid"
+          :data-transition-direction="bottomViewTransitionDirection"
+        >
+          <Transition name="bottom-view" mode="out-in">
+            <div
+              v-if="activeBottomView === 'lineup'"
+              key="lineup"
+              class="lineup-board"
+              data-testid="program-lineup-view"
             >
-              <header class="lineup-team-header">
-                <span>{{ lineup.code }}</span>
-                <strong>{{ lineup.name }}</strong>
-                <b>{{ lineup.shape }}</b>
-              </header>
-              <div class="lineup-mini-columns">
-                <ol
-                  v-for="(column, columnIndex) in splitLineupEntries(lineup)"
-                  :key="columnIndex"
-                  class="lineup-list"
-                >
-                  <li
-                    v-for="entry in column"
-                    :key="lineupEntryKey(entry)"
-                    class="lineup-entry"
-                    :class="lineupEntryClass(entry)"
-                    :data-testid="
-                      entry.kind === 'coach'
-                        ? 'program-lineup-coach'
-                        : 'program-lineup-player'
-                    "
-                    :data-sub-in="
-                      entry.kind === 'player' && entry.isSubstitutedIn
-                        ? 'true'
-                        : undefined
-                    "
+              <Transition name="bottom-view" mode="out-in">
+                <template v-if="selectedLineupPlayer">
+                  <aside
+                    :key="selectedLineupPlayer?.key ?? 'lineup-player-panel'"
+                    id="broadcast-player-detail-panel"
+                    class="player-detail-panel player-panel-state"
                   >
-                    <span class="lineup-entry-icon" aria-hidden="true">
-                      <svg viewBox="0 0 32 32" focusable="false">
-                        <path
-                          v-if="entry.kind === 'player'"
-                          d="M10 4 6 7 3 15l5 2 2-4v15h12V13l2 4 5-2-3-8-4-3-4 3h-4l-4-3Z"
-                        />
-                        <path
-                          v-else
-                          d="M16 4a5 5 0 0 1 5 5 5 5 0 0 1-2.6 4.4L22 16h4v12H6V16h4l3.6-2.6A5 5 0 0 1 11 9a5 5 0 0 1 5-5Zm-5.6 15L9 20.5V25h14v-4.5L21.6 19H19l-3 3-3-3h-2.6Z"
-                        />
-                      </svg>
-                    </span>
-                    <b>{{ entry.kind === "coach" ? "감독" : entry.number }}</b>
-                    <strong>{{ entry.name }}</strong>
-                    <i v-if="entry.kind === 'player' && entry.isSubstitutedIn"
-                      >IN</i
-                    >
-                    <div
-                      v-if="substitutionAnimationForEntry(lineup, entry)"
-                      class="lineup-substitution-animation"
-                      data-testid="program-lineup-substitution-animation"
-                    >
-                      <span class="substitution-out">
-                        <b>{{
-                          substitutionAnimationForEntry(lineup, entry)
-                            ?.outNumber
-                        }}</b>
-                        <strong>{{
-                          substitutionAnimationForEntry(lineup, entry)?.outName
-                        }}</strong>
-                        <i>OUT</i>
-                      </span>
-                      <span class="substitution-in">
-                        <b>{{
-                          substitutionAnimationForEntry(lineup, entry)?.inNumber
-                        }}</b>
-                        <strong>{{
-                          substitutionAnimationForEntry(lineup, entry)?.inName
-                        }}</strong>
-                        <i>IN</i>
-                      </span>
+                    <header class="player-detail-header">
+                      <button
+                        type="button"
+                        class="player-detail-close"
+                        @click="closeLineupPlayerProfile"
+                        aria-label="선수 상세 닫기"
+                      >
+                        닫기
+                      </button>
+                    </header>
+                    <div class="player-detail-content">
+                      <section class="player-detail-profile">
+                        <div class="player-detail-media">
+                          <div class="player-detail-identity">
+                            <div class="player-detail-photo-wrap">
+                              <img
+                                v-if="selectedLineupPlayer.photoUrl"
+                                class="player-detail-photo"
+                                :src="selectedLineupPlayer.photoUrl"
+                                :alt="`${selectedLineupPlayerDisplay?.fullName} 사진`"
+                              />
+                              <span v-else class="player-detail-photo-empty">
+                                {{ selectedLineupPlayer.number }}
+                              </span>
+                            </div>
+                            <span class="player-detail-number-plate">
+                              {{ selectedLineupPlayer.number }}
+                            </span>
+                            <span
+                              v-if="selectedLineupPlayer.rating"
+                              :class="`lineup-player-rating-text lineup-player-rating-text--${ratingClass(selectedLineupPlayer.rating)}`"
+                            >
+                              {{ formatRatingValue(selectedLineupPlayer.rating) }}
+                            </span>
+                            <span v-else class="lineup-player-rating-text lineup-player-rating-text--rating-neutral">
+                              -
+                            </span>
+                          </div>
+                          <div class="player-detail-name-block">
+                            <p class="player-detail-shortname">
+                              {{ selectedLineupPlayerDisplay?.shortName }}
+                            </p>
+                            <p class="player-detail-fullname">
+                              {{ selectedLineupPlayerDisplay?.fullName }}
+                            </p>
+                            <p class="player-detail-team">
+                              {{ selectedLineupPlayerDisplay?.teamShortName }}
+                            </p>
+                          </div>
+                        </div>
+                      </section>
+                      <section class="player-detail-stats">
+                        <dl>
+                          <div>
+                            <dt>출전시간</dt>
+                            <dd>{{ formatStatValue(selectedLineupPlayerSummary?.minutes, "'") }}</dd>
+                          </div>
+                          <div>
+                            <dt>슈팅(유효)</dt>
+                            <dd>{{
+                              formatShotsLabel(
+                                selectedLineupPlayerSummary?.shotsTotal,
+                                selectedLineupPlayerSummary?.shotsOnGoal,
+                              )
+                            }}</dd>
+                          </div>
+                          <div>
+                            <dt>패스</dt>
+                            <dd>{{ formatPassValue(selectedLineupPlayerSummary?.passes) }}</dd>
+                          </div>
+                          <div>
+                            <dt>득점</dt>
+                            <dd>{{ formatStatValue(selectedLineupPlayerSummary?.goals) }}</dd>
+                          </div>
+                          <div>
+                            <dt>어시스트</dt>
+                            <dd>{{ formatStatValue(selectedLineupPlayerSummary?.assists) }}</dd>
+                          </div>
+                          <div>
+                            <dt>파울</dt>
+                            <dd>{{ formatStatValue(selectedLineupPlayerSummary?.fouls) }}</dd>
+                          </div>
+                          <div>
+                            <dt>카드(옐로/레드)</dt>
+                            <dd>
+                              {{
+                                formatCardPair(
+                                  selectedLineupPlayerSummary?.yellowCards,
+                                  selectedLineupPlayerSummary?.redCards,
+                                )
+                              }}
+                            </dd>
+                          </div>
+                        </dl>
+                      </section>
                     </div>
-                  </li>
-                </ol>
-              </div>
-            </article>
-          </div>
-
-          <div
-            v-else
-            :key="`stats-${activeStatView?.id}`"
-            class="stats-board"
-            data-testid="program-stats-view"
-            :data-stats-view="activeStatView?.id"
-          >
-            <header class="stats-header">
-              <span>{{ activeStatView?.eyebrow }}</span>
-              <strong>{{ activeStatView?.title }}</strong>
-              <b>{{ liveSnapshot.homeCode }} / {{ liveSnapshot.awayCode }}</b>
-            </header>
-            <div v-if="activeStatView?.metrics.length" class="stats-grid">
-              <article
-                v-for="metric in activeStatView.metrics"
-                :key="metric.id"
-                class="stat-metric"
-                data-testid="program-stat-metric"
-                :data-graph="metric.graph"
-                :style="statGraphVars(metric)"
-              >
-                <span>{{ metric.label }}</span>
-                <div
-                  v-if="metric.graph === 'pie'"
-                  class="stat-graph stat-graph--pie"
-                  aria-hidden="true"
-                >
-                  <span
-                    class="stat-team-badge stat-team-badge--home"
-                    data-testid="program-stat-home-badge"
+                  </aside>
+                </template>
+                <template v-else>
+                  <div
+                    key="lineup-boards"
+                    class="lineup-board-content player-panel-state"
                   >
-                    <img
-                      v-if="liveSnapshot.homeLogoUrl"
-                      :src="liveSnapshot.homeLogoUrl"
-                      alt=""
-                    />
-                    <b v-else>{{ liveSnapshot.homeCode }}</b>
-                  </span>
-                  <ProgramPossessionPieChart
-                    :home-pct="animatedPercent(metric.homePct)"
-                    :away-pct="animatedPercent(metric.awayPct)"
-                  />
-                  <span
-                    class="stat-team-badge stat-team-badge--away"
-                    data-testid="program-stat-away-badge"
-                  >
-                    <img
-                      v-if="liveSnapshot.awayLogoUrl"
-                      :src="liveSnapshot.awayLogoUrl"
-                      alt=""
-                    />
-                    <b v-else>{{ liveSnapshot.awayCode }}</b>
-                  </span>
-                </div>
-                <div
-                  v-else-if="metric.graph === 'discipline'"
-                  class="stat-graph stat-graph--discipline"
-                  aria-hidden="true"
-                >
-                  <span
-                    class="stat-team-badge stat-team-badge--home"
-                    data-testid="program-stat-home-badge"
-                  >
-                    <img
-                      v-if="liveSnapshot.homeLogoUrl"
-                      :src="liveSnapshot.homeLogoUrl"
-                      alt=""
-                    />
-                    <b v-else>{{ liveSnapshot.homeCode }}</b>
-                  </span>
-                  <i></i>
-                  <b></b>
-                  <i></i>
-                  <span
-                    class="stat-team-badge stat-team-badge--away"
-                    data-testid="program-stat-away-badge"
-                  >
-                    <img
-                      v-if="liveSnapshot.awayLogoUrl"
-                      :src="liveSnapshot.awayLogoUrl"
-                      alt=""
-                    />
-                    <b v-else>{{ liveSnapshot.awayCode }}</b>
-                  </span>
-                </div>
-                <div
-                  v-else
-                  class="stat-graph stat-graph--bar"
-                  aria-hidden="true"
-                >
-                  <span
-                    class="stat-team-badge stat-team-badge--home"
-                    data-testid="program-stat-home-badge"
-                  >
-                    <img
-                      v-if="liveSnapshot.homeLogoUrl"
-                      :src="liveSnapshot.homeLogoUrl"
-                      alt=""
-                    />
-                    <b v-else>{{ liveSnapshot.homeCode }}</b>
-                  </span>
-                  <div>
-                    <i></i>
-                    <i></i>
+                    <article
+                      v-for="(lineup, lineupIndex) in currentLineups.slice(0, 2)"
+                      :key="lineup.teamId ?? lineup.code"
+                      class="lineup-team"
+                      :class="[
+                        lineupIndex === 0 ? 'lineup-team-home' : 'lineup-team-away',
+                      ]"
+                      data-testid="program-lineup-team"
+                    >
+                      <header class="lineup-team-header">
+                        <span>{{ lineup.code }}</span>
+                        <strong>{{ lineup.name }}</strong>
+                        <b>{{ lineup.shape }}</b>
+                      </header>
+                      <div class="lineup-mini-columns">
+                        <ol
+                          v-for="(column, columnIndex) in splitLineupEntries(lineup)"
+                          :key="columnIndex"
+                          class="lineup-list"
+                        >
+                          <li
+                            v-for="entry in column"
+                            :key="lineupEntryKey(entry)"
+                            class="lineup-entry"
+                            :class="lineupEntryClass(entry)"
+                            :data-testid="
+                              entry.kind === 'coach'
+                                ? 'program-lineup-coach'
+                                : 'program-lineup-player'
+                            "
+                            :data-sub-in="
+                              entry.kind === 'player' && entry.isSubstitutedIn
+                                ? 'true'
+                                : undefined
+                            "
+                            :tabindex="entry.kind === 'player' ? 0 : -1"
+                            role="button"
+                            :aria-label="
+                              entry.kind === 'player'
+                                ? `${entry.number}번 ${entry.name} 정보`
+                                : '감독'
+                            "
+                            aria-expanded="false"
+                            @click="
+                              entry.kind === 'player'
+                                ? openLineupPlayerProfile(entry, lineup)
+                                : undefined
+                            "
+                            @keydown="
+                              (event: KeyboardEvent) => {
+                                if (
+                                  entry.kind === 'player' &&
+                                  (event.key === 'Enter' || event.key === ' ')
+                                ) {
+                                  event.preventDefault()
+                                  openLineupPlayerProfile(entry, lineup)
+                                }
+                              }
+                            "
+                          >
+                            <span class="lineup-entry-icon" aria-hidden="true">
+                              <svg viewBox="0 0 32 32" focusable="false">
+                                <path
+                                  v-if="entry.kind === 'player'"
+                                  d="M10 4 6 7 3 15l5 2 2-4v15h12V13l2 4 5-2-3-8-4-3-4 3h-4l-4-3Z"
+                                />
+                                <path
+                                  v-else
+                                  d="M16 4a5 5 0 0 1 5 5 5 5 0 0 1-2.6 4.4L22 16h4v12H6V16h4l3.6-2.6A5 5 0 0 1 11 9a5 5 0 0 1 5-5Zm-5.6 15L9 20.5V25h14v-4.5L21.6 19H19l-3 3-3-3h-2.6Z"
+                                />
+                              </svg>
+                            </span>
+                            <b>{{ entry.kind === "coach" ? "감독" : entry.number }}</b>
+                            <strong>{{ entry.name }}</strong>
+                            <span
+                              v-if="isLineupPlayerEntry(entry)"
+                              class="lineup-entry-meta"
+                            >
+                              <span
+                                class="lineup-entry-meta-cell lineup-entry-card-cell"
+                              >
+                                <span
+                                  v-if="getPlayerRedCardCount(entry) > 0"
+                                  class="lineup-entry-card"
+                                  :data-red-cards="getPlayerRedCardCount(entry)"
+                                >
+                                  RED
+                                </span>
+                                <span v-else class="lineup-entry-meta-empty" aria-hidden="true">
+                                  -
+                                </span>
+                              </span>
+                              <span
+                                class="lineup-entry-meta-cell lineup-entry-in-cell"
+                              >
+                                <span
+                                  v-if="entry.kind === 'player' && entry.isSubstitutedIn"
+                                  class="lineup-entry-in"
+                                >
+                                  IN
+                                </span>
+                                <span v-else class="lineup-entry-meta-empty" aria-hidden="true">
+                                  -
+                                </span>
+                              </span>
+                              <span
+                                class="lineup-entry-meta-cell lineup-entry-rating-cell"
+                              >
+                                <span
+                                  v-if="entry.rating"
+                                  class="lineup-entry-rating"
+                                  :style="ratingColorStyle(entry.rating)"
+                                  :class="
+                                    `lineup-entry-rating--${ratingClass(entry.rating)}`
+                                  "
+                                >
+                                  {{ formatRatingValue(entry.rating) }}
+                                </span>
+                                <span v-else class="lineup-entry-meta-empty" aria-hidden="true">
+                                  -
+                                </span>
+                              </span>
+                            </span>
+                            <div
+                              v-if="substitutionAnimationForEntry(lineup, entry)"
+                              class="lineup-substitution-animation"
+                              data-testid="program-lineup-substitution-animation"
+                            >
+                              <span class="substitution-out">
+                                <b>{{
+                                  substitutionAnimationForEntry(lineup, entry)
+                                    ?.outNumber
+                                }}</b>
+                                <strong>{{
+                                  substitutionAnimationForEntry(lineup, entry)?.outName
+                                }}</strong>
+                                <i>OUT</i>
+                              </span>
+                              <span class="substitution-in">
+                                <b>{{
+                                  substitutionAnimationForEntry(lineup, entry)?.inNumber
+                                }}</b>
+                                <strong>{{
+                                  substitutionAnimationForEntry(lineup, entry)?.inName
+                                }}</strong>
+                                <i>IN</i>
+                              </span>
+                            </div>
+                          </li>
+                        </ol>
+                      </div>
+                    </article>
                   </div>
-                  <span
-                    class="stat-team-badge stat-team-badge--away"
-                    data-testid="program-stat-away-badge"
+                </template>
+              </Transition>
+            </div>
+            <div
+              v-else
+              :key="`stats-${activeStatView?.id}`"
+              class="stats-board"
+              data-testid="program-stats-view"
+              :data-stats-view="activeStatView?.id"
+            >
+              <header class="stats-header">
+                <span>{{ activeStatView?.eyebrow }}</span>
+                <strong>{{ activeStatView?.title }}</strong>
+                <b>{{ liveSnapshot.homeCode }} / {{ liveSnapshot.awayCode }}</b>
+              </header>
+              <div v-if="activeStatView?.metrics.length" class="stats-grid">
+                <article
+                  v-for="metric in activeStatView.metrics"
+                  :key="metric.id"
+                  class="stat-metric"
+                  data-testid="program-stat-metric"
+                  :data-graph="metric.graph"
+                  :style="statGraphVars(metric)"
+                >
+                  <span>{{ metric.label }}</span>
+                  <div
+                    v-if="metric.graph === 'pie'"
+                    class="stat-graph stat-graph--pie"
+                    aria-hidden="true"
                   >
-                    <img
-                      v-if="liveSnapshot.awayLogoUrl"
-                      :src="liveSnapshot.awayLogoUrl"
-                      alt=""
+                    <span
+                      class="stat-team-badge stat-team-badge--home"
+                      data-testid="program-stat-home-badge"
+                    >
+                      <img
+                        v-if="liveSnapshot.homeLogoUrl"
+                        :src="liveSnapshot.homeLogoUrl"
+                        alt=""
+                      />
+                      <b v-else>{{ liveSnapshot.homeCode }}</b>
+                    </span>
+                    <ProgramPossessionPieChart
+                      :home-pct="animatedPercent(metric.homePct)"
+                      :away-pct="animatedPercent(metric.awayPct)"
                     />
-                    <b v-else>{{ liveSnapshot.awayCode }}</b>
-                  </span>
-                </div>
-                <div class="stat-score">
-                  <b>{{ animatedStatValue(metric.home) }}</b>
-                  <strong>{{ metric.label }}</strong>
-                  <b>{{ animatedStatValue(metric.away) }}</b>
-                </div>
-              </article>
+                    <span
+                      class="stat-team-badge stat-team-badge--away"
+                      data-testid="program-stat-away-badge"
+                    >
+                      <img
+                        v-if="liveSnapshot.awayLogoUrl"
+                        :src="liveSnapshot.awayLogoUrl"
+                        alt=""
+                      />
+                      <b v-else>{{ liveSnapshot.awayCode }}</b>
+                    </span>
+                  </div>
+                  <div
+                    v-else-if="metric.graph === 'discipline'"
+                    class="stat-graph stat-graph--discipline"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class="stat-team-badge stat-team-badge--home"
+                      data-testid="program-stat-home-badge"
+                    >
+                      <img
+                        v-if="liveSnapshot.homeLogoUrl"
+                        :src="liveSnapshot.homeLogoUrl"
+                        alt=""
+                      />
+                      <b v-else>{{ liveSnapshot.homeCode }}</b>
+                    </span>
+                    <i></i>
+                    <b></b>
+                    <i></i>
+                    <span
+                      class="stat-team-badge stat-team-badge--away"
+                      data-testid="program-stat-away-badge"
+                    >
+                      <img
+                        v-if="liveSnapshot.awayLogoUrl"
+                        :src="liveSnapshot.awayLogoUrl"
+                        alt=""
+                      />
+                      <b v-else>{{ liveSnapshot.awayCode }}</b>
+                    </span>
+                  </div>
+                  <div
+                    v-else
+                    class="stat-graph stat-graph--bar"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class="stat-team-badge stat-team-badge--home"
+                      data-testid="program-stat-home-badge"
+                    >
+                      <img
+                        v-if="liveSnapshot.homeLogoUrl"
+                        :src="liveSnapshot.homeLogoUrl"
+                        alt=""
+                      />
+                      <b v-else>{{ liveSnapshot.homeCode }}</b>
+                    </span>
+                    <div>
+                      <i></i>
+                      <i></i>
+                    </div>
+                    <span
+                      class="stat-team-badge stat-team-badge--away"
+                      data-testid="program-stat-away-badge"
+                    >
+                      <img
+                        v-if="liveSnapshot.awayLogoUrl"
+                        :src="liveSnapshot.awayLogoUrl"
+                        alt=""
+                      />
+                      <b v-else>{{ liveSnapshot.awayCode }}</b>
+                    </span>
+                  </div>
+                  <div class="stat-score">
+                    <b>{{ animatedStatValue(metric.home) }}</b>
+                    <strong>{{ metric.label }}</strong>
+                    <b>{{ animatedStatValue(metric.away) }}</b>
+                  </div>
+                </article>
+              </div>
+              <div
+                v-else-if="activeStatView?.id === 'group'"
+                class="group-standings"
+                data-testid="program-group-standings"
+              >
+                <template v-if="groupStandingsRows.length">
+                  <div class="group-standings-table-wrap">
+                    <table class="group-standings-table">
+                      <colgroup>
+                        <col class="group-standings-col-rank" />
+                        <col class="group-standings-col-team" />
+                        <col class="group-standings-col-stat" />
+                        <col class="group-standings-col-stat" />
+                        <col class="group-standings-col-stat" />
+                        <col class="group-standings-col-stat" />
+                        <col class="group-standings-col-stat" />
+                        <col class="group-standings-col-stat" />
+                        <col class="group-standings-col-stat" />
+                        <col class="group-standings-col-stat" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>순위</th>
+                          <th>팀</th>
+                          <th>경기</th>
+                          <th>승</th>
+                          <th>무</th>
+                          <th>패</th>
+                          <th>득점</th>
+                          <th>실점</th>
+                          <th>득실차</th>
+                          <th>승점</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="row in groupStandingsRows"
+                          :key="
+                            row.teamId ?? `${row.teamCode}-${row.rank}`
+                          "
+                          :data-team-id="row.teamId"
+                        >
+                          <td>{{ row.rank }}</td>
+                          <td>
+                            <span class="group-standings-team-code">{{
+                              row.teamCode
+                            }}</span>
+                          </td>
+                          <td>{{ row.played }}</td>
+                          <td>{{ row.win }}</td>
+                          <td>{{ row.draw }}</td>
+                          <td>{{ row.loss }}</td>
+                          <td>{{ row.goalsFor }}</td>
+                          <td>{{ row.goalsAgainst }}</td>
+                          <td>{{ row.goalDiff }}</td>
+                          <td>{{ row.points }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="stats-empty" data-testid="program-stats-empty">
+                    <span>조 상황 데이터가 없습니다</span>
+                  </div>
+                </template>
+              </div>
+              <div v-else class="stats-empty" data-testid="program-stats-empty">
+                <span>표시할 스탯이 없습니다</span>
+              </div>
             </div>
-            <div v-else class="stats-empty" data-testid="program-stats-empty">
-              <span>표시할 스탯이 없습니다</span>
-            </div>
-          </div>
-        </Transition>
+          </Transition>
+          <aside
+            class="lineup-control-panel"
+            role="tablist"
+            aria-label="하단 판넬 버튼"
+          >
+            <button
+              v-for="tab in bottomViewTabs"
+              :key="`lineup-control-${tab.id}`"
+              type="button"
+              class="lineup-control-button"
+              :class="{ active: activeBottomView === tab.id }"
+              role="tab"
+              :aria-selected="activeBottomView === tab.id"
+              :data-tab-id="tab.id"
+              @click="setBottomView(tab.id)"
+            >
+              {{ tab.shortLabel }}
+            </button>
+          </aside>
+        </div>
       </section>
     </section>
 
@@ -995,6 +1740,7 @@ onBeforeUnmount(() => {
   </main>
 </template>
 
+
 <style scoped>
 *,
 *::before,
@@ -1007,13 +1753,7 @@ onBeforeUnmount(() => {
   height: 100vh;
   display: flex;
   overflow: hidden;
-  background:
-    radial-gradient(
-      circle at 23% 18%,
-      color-mix(in srgb, var(--program-accent) 18%, transparent),
-      transparent 28%
-    ),
-    linear-gradient(135deg, #05070d 0%, #0b1020 54%, var(--program-dark) 100%);
+  background: #00b140;
   color: var(--program-text);
   font-family:
     "Avenir Next Condensed", "DIN Condensed", "Pretendard", system-ui,
@@ -1052,7 +1792,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   height: 100%;
   display: grid;
-  grid-template-rows: 78% 22%;
+  grid-template-rows: 75% 25%;
   overflow: hidden;
 }
 
@@ -1061,8 +1801,10 @@ onBeforeUnmount(() => {
   min-width: 0;
   height: 100%;
   display: grid;
-  grid-template-rows: 78% 22%;
-  background: #00b140;
+  grid-template-rows: 75% 25%;
+  background: #00b140 !important;
+  isolation: isolate;
+  position: relative;
 }
 
 .feed-surface {
@@ -1070,15 +1812,12 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: var(--program-field);
-  border-right: 0.12rem solid
-    color-mix(in srgb, var(--program-line) 42%, #000000);
-  border-bottom: 0.16rem solid var(--program-accent-alt);
+  background: #00b140;
 }
 
 .feed-visual {
   position: absolute;
-  inset: 1.1%;
+  inset: 0.72%;
   overflow: hidden;
   background:
     linear-gradient(
@@ -1105,7 +1844,7 @@ onBeforeUnmount(() => {
 
 .feed-grid {
   position: absolute;
-  inset: 4%;
+  inset: 3.2%;
   border: 0.12rem solid color-mix(in srgb, var(--program-line) 62%, #ffffff);
 }
 
@@ -1190,7 +1929,7 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  padding: 0.86rem 1.05rem 0.8rem;
+  padding: 0.55rem 0.88rem 0.5rem;
   background: linear-gradient(
     90deg,
     #050505 0%,
@@ -1224,6 +1963,18 @@ onBeforeUnmount(() => {
   );
 }
 
+.bottom-content-grid {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.72rem;
+  align-items: stretch;
+  overflow: hidden;
+}
+
 .program-live-state,
 .lineup-board,
 .stats-board {
@@ -1235,8 +1986,8 @@ onBeforeUnmount(() => {
 .bottom-view-enter-active {
   z-index: 4;
   transition:
-    opacity 240ms ease,
-    transform 240ms cubic-bezier(0.2, 0.78, 0.22, 1);
+    opacity 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bottom-view-leave-active {
@@ -1245,18 +1996,33 @@ onBeforeUnmount(() => {
   inset: 0;
   pointer-events: none;
   transition:
-    opacity 180ms ease,
-    transform 180ms cubic-bezier(0.2, 0.78, 0.22, 1);
+    opacity 190ms cubic-bezier(0.32, 0, 0.67, 0),
+    transform 190ms cubic-bezier(0.32, 0, 0.67, 0);
+}
+
+.bottom-view-leave-from,
+.bottom-view-enter-to,
+.bottom-view-leave-to {
+  position: absolute;
+  inset: 0;
 }
 
 .bottom-view-enter-from {
   opacity: 0;
-  transform: translateY(16%);
+  transform: translateX(12px);
 }
 
 .bottom-view-leave-to {
-  opacity: 0.28;
-  transform: translateY(4%);
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
+.bottom-content-grid[data-transition-direction="prev"] .bottom-view-enter-from {
+  transform: translateX(-12px);
+}
+
+.bottom-content-grid[data-transition-direction="prev"] .bottom-view-leave-to {
+  transform: translateX(12px);
 }
 
 .program-live-state {
@@ -1282,10 +2048,25 @@ onBeforeUnmount(() => {
 }
 
 .lineup-board {
+  height: 100%;
   min-height: 0;
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+.player-panel-state {
+  position: absolute;
+  inset: 0;
+}
+
+.lineup-board-content {
+  min-height: 0;
+  height: 100%;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: stretch;
 }
 
 .lineup-team {
@@ -1294,9 +2075,18 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 0.45rem;
+  height: 100%;
   padding: 0.3rem 0.78rem 0.42rem;
   border: 0.08rem solid rgba(245, 241, 232, 0.24);
   background: rgba(245, 241, 232, 0.06);
+}
+
+.lineup-team-home {
+  grid-column: 1 / 2;
+}
+
+.lineup-team-away {
+  grid-column: 2 / 3;
 }
 
 .lineup-team-header {
@@ -1349,7 +2139,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1.42rem 2.8ch minmax(0, 1fr) auto;
+  grid-template-columns: 1.42rem 2.8ch minmax(0, 1fr) 7.15rem;
   align-items: center;
   gap: 0.34rem;
   padding: 0 0.34rem;
@@ -1360,10 +2150,60 @@ onBeforeUnmount(() => {
   contain: paint;
 }
 
+.lineup-entry--player {
+  cursor: pointer;
+  padding-right: 0;
+}
+
+.lineup-entry--player:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.lineup-entry--player:focus-visible {
+  outline: 0.08rem solid rgba(201, 151, 43, 0.92);
+  outline-offset: 0.04rem;
+}
+
 .lineup-player--sub-in,
 .lineup-entry[data-sub-in="true"] {
   border-left-color: #c9972b;
   background: rgba(201, 151, 43, 0.16);
+}
+
+.lineup-player--sent-off {
+  border-left-color: rgba(255, 0, 60, 0.58);
+  background:
+    linear-gradient(90deg, rgba(70, 0, 14, 0.52), rgba(0, 0, 0, 0.28)),
+    rgba(0, 0, 0, 0.2);
+}
+
+.lineup-player--sent-off:hover {
+  background: rgba(70, 0, 14, 0.28);
+}
+
+.lineup-player--sent-off .lineup-entry-icon,
+.lineup-player--sent-off > b,
+.lineup-player--sent-off .lineup-entry-rating,
+.lineup-player--sent-off .lineup-entry-in {
+  opacity: 0.46;
+  filter: grayscale(0.8) saturate(0.6);
+}
+
+.lineup-player--sent-off > strong {
+  color: #ffffff;
+  font-weight: 900;
+  opacity: 1;
+  text-shadow: 0 0.08rem 0.18rem rgba(0, 0, 0, 0.78);
+}
+
+.lineup-player--sent-off .lineup-entry-card {
+  min-width: 1.8rem;
+  border-color: rgba(255, 214, 221, 0.92);
+  background: rgba(255, 0, 60, 0.5);
+  color: #ffffff;
+  font-weight: 950;
+  opacity: 1;
+  box-shadow: 0 0 0.38rem rgba(255, 0, 60, 0.42);
 }
 
 .lineup-entry--coach {
@@ -1397,13 +2237,14 @@ onBeforeUnmount(() => {
   z-index: 1;
   color: #c9972b;
   font-size: clamp(0.74rem, 0.78vw, 1rem);
-  font-weight: 950;
+  font-weight: 650;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .lineup-entry--coach b {
   font-size: clamp(0.62rem, 0.68vw, 0.82rem);
+  font-weight: 650;
   white-space: nowrap;
 }
 
@@ -1414,7 +2255,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   color: #ffffff;
   font-size: clamp(0.78rem, 0.88vw, 1.08rem);
-  font-weight: 900;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1430,6 +2271,529 @@ onBeforeUnmount(() => {
   font-size: 0.62rem;
   font-style: normal;
   font-weight: 950;
+}
+
+.lineup-entry-rating {
+  justify-self: end;
+  min-width: 2.05rem;
+  max-width: 2.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  line-height: 1;
+  border-radius: 0.34rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  border: 0.08rem solid transparent;
+  box-shadow:
+    0 0.12rem 0.32rem rgba(0, 0, 0, 0.35),
+    inset 0 0 0 0.06rem rgba(255, 255, 255, 0.2);
+  transform: translateY(-0.02rem);
+}
+
+.lineup-player-rating-text {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 0.34rem;
+  font-size: clamp(1.24rem, 1.9vw, 1.72rem);
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0;
+  border: 0.08rem solid rgba(245, 241, 232, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0)),
+    rgba(5, 5, 5, 0.72);
+  box-shadow:
+    inset 0 0 0 0.08rem rgba(255, 255, 255, 0.08),
+    0 0.24rem 0.7rem rgba(0, 0, 0, 0.38);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+
+.lineup-player-rating-text--rating-low {
+  color: #ffd0d7;
+}
+
+.lineup-player-rating-text--rating-high {
+  color: #d8ecff;
+}
+
+.lineup-player-rating-text--rating-mid {
+  color: #f6e1a8;
+}
+
+.lineup-player-rating-text--rating-neutral {
+  color: #f2f2f2;
+}
+
+.lineup-entry-rating--rating-low {
+  background: rgba(200, 16, 46, 0.34);
+  color: #ffd0d7;
+  border-color: rgba(255, 208, 215, 0.88);
+}
+
+.lineup-entry-rating--rating-high {
+  background: rgba(0, 132, 255, 0.34);
+  color: #d8ecff;
+  border-color: rgba(216, 236, 255, 0.9);
+}
+
+.lineup-entry-rating--rating-mid {
+  background: rgba(255, 241, 232, 0.36);
+  color: #f6e1a8;
+  border-color: rgba(246, 225, 168, 0.84);
+}
+
+.lineup-entry-rating--rating-neutral {
+  background: rgba(255, 255, 255, 0.32);
+  color: #f2f2f2;
+  border-color: rgba(255, 255, 255, 0.82);
+}
+
+.lineup-entry-meta {
+  justify-self: end;
+  width: 100%;
+  max-width: 7.15rem;
+  display: grid;
+  grid-template-columns: 2.2rem 2.2rem 1.75rem;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.18rem;
+  justify-items: center;
+}
+
+.lineup-entry-meta-cell {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lineup-entry-card-cell {
+  justify-content: center;
+}
+
+.lineup-entry-rating-cell {
+  justify-content: center;
+}
+
+.lineup-entry-in-cell {
+  justify-content: center;
+}
+
+.lineup-entry-meta-empty {
+  visibility: hidden;
+  display: inline-flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+.lineup-entry-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.55rem;
+  border-radius: 0.34rem;
+  border: 0.08rem solid rgba(255, 0, 60, 0.78);
+  background: rgba(255, 0, 60, 0.16);
+  color: #ffd6dd;
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.lineup-entry-in {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  border-radius: 0.34rem;
+  border: 0.08rem solid rgba(0, 132, 255, 0.74);
+  background: rgba(0, 132, 255, 0.2);
+  color: #d9ecff;
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.lineup-control-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-self: stretch;
+  justify-content: stretch;
+  height: 100%;
+  width: max-content;
+  min-width: max-content;
+  max-width: max-content;
+  padding: 0.26rem 0;
+  padding-inline: 0;
+  overflow: hidden;
+  align-items: stretch;
+  flex: 0 0 auto;
+}
+
+.lineup-control-button {
+  appearance: none;
+  border: 0.08rem solid rgba(246, 225, 168, 0.58);
+  min-height: 0;
+  padding: 0.34rem 0.24rem;
+  width: 100%;
+  height: auto;
+  flex: 1 1 0;
+  background: rgba(5, 5, 5, 0.74);
+  color: #f6e1a8;
+  border-radius: 0.42rem;
+  font-size: 0.74rem;
+  font-weight: 900;
+  white-space: nowrap;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.lineup-control-button:hover,
+.lineup-control-button:focus-visible {
+  border-color: #f6e1a8;
+  background: rgba(201, 151, 43, 0.36);
+  color: #ffffff;
+}
+
+.lineup-control-button.active {
+  color: #ffffff;
+  border-color: #f5f1e8;
+  background: linear-gradient(
+    180deg,
+    rgba(201, 151, 43, 0.34),
+    rgba(5, 5, 5, 0.86)
+  );
+}
+
+.player-detail-panel {
+  grid-column: 1 / -1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    #050505 0%,
+    #111111 34%,
+    #051b41 74%,
+    #030915 100%
+  );
+  border: 0.08rem solid rgba(201, 151, 43, 0.5);
+  padding: 0.7rem 0.86rem;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  z-index: 3;
+  box-shadow:
+    inset 0 0 0 0.08rem rgba(255, 255, 255, 0.06),
+    0 0.3rem 1rem rgba(0, 0, 0, 0.55);
+}
+
+.player-detail-header {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.58rem;
+  z-index: 6;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.player-detail-content {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(20rem, 0.88fr) minmax(0, 2.12fr);
+  gap: 0.72rem;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.player-detail-profile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(245, 241, 232, 0.12), rgba(5, 5, 5, 0)),
+    rgba(5, 5, 5, 0.36);
+  border: 0.08rem solid rgba(245, 241, 232, 0.2);
+  padding: 0.52rem;
+  isolation: isolate;
+}
+
+.player-detail-profile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(201, 151, 43, 0.16), transparent 38%),
+    repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.08) 0 0.08rem,
+      transparent 0.08rem 0.56rem
+    );
+  opacity: 0.48;
+}
+
+.player-detail-photo-wrap {
+  grid-area: photo;
+  position: relative;
+  box-sizing: border-box;
+  place-self: stretch;
+  width: 8.25rem;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  border-radius: 0.2rem;
+  border: 0.08rem solid rgba(246, 225, 168, 0.62);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(246, 225, 168, 0.18), transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.32)),
+    rgba(0, 0, 0, 0.34);
+  flex: 0 0 auto;
+  box-shadow:
+    inset 0 0 0 0.08rem rgba(255, 255, 255, 0.08),
+    0 0.28rem 0.85rem rgba(0, 0, 0, 0.42);
+}
+
+.player-detail-photo-wrap::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 38%;
+  background: linear-gradient(180deg, transparent, rgba(5, 5, 5, 0.68));
+  pointer-events: none;
+}
+
+.player-detail-media {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 8.25rem minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas:
+    "identity meta";
+  gap: 0.62rem;
+  align-items: stretch;
+  height: 100%;
+}
+
+.player-detail-identity {
+  grid-area: identity;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas:
+    "photo";
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.player-detail-identity > .lineup-player-rating-text {
+  position: absolute;
+  right: 0.34rem;
+  bottom: 0.34rem;
+  z-index: 3;
+  width: auto;
+  min-width: 3.6rem;
+  height: 2.46rem;
+}
+
+.player-detail-number-plate {
+  position: absolute;
+  left: 0.34rem;
+  top: 0.34rem;
+  z-index: 3;
+  min-width: 3.05rem;
+  height: 2.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.08rem solid rgba(201, 151, 43, 0.78);
+  background:
+    linear-gradient(180deg, rgba(201, 151, 43, 0.22), rgba(5, 5, 5, 0.84)),
+    rgba(201, 151, 43, 0.16);
+  color: #f6e1a8;
+  font-size: 1.72rem;
+  font-weight: 950;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    inset 0 0 0 0.08rem rgba(255, 255, 255, 0.12),
+    0 0.24rem 0.7rem rgba(0, 0, 0, 0.34);
+}
+
+.player-detail-name-block {
+  grid-area: meta;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.34rem;
+  padding: 0.2rem 0.2rem 0.16rem 0;
+}
+
+.player-detail-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 18%;
+  filter: saturate(1.04) contrast(1.04);
+}
+
+.player-detail-photo-empty {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #f6e1a8;
+  font-size: clamp(3rem, 5vw, 5.4rem);
+  font-weight: 950;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.player-detail-fullname {
+  margin: 0;
+  color: rgba(245, 241, 232, 0.76);
+  font-size: clamp(0.78rem, 1vw, 1.08rem);
+  font-weight: 700;
+  line-height: 1.08;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-detail-shortname {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(1.28rem, 2vw, 2.24rem);
+  font-weight: 950;
+  line-height: 1.02;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-detail-team {
+  margin: 0;
+  width: fit-content;
+  min-width: 4.2rem;
+  padding: 0.18rem 0.5rem;
+  border: 0.08rem solid rgba(201, 151, 43, 0.58);
+  background: rgba(201, 151, 43, 0.16);
+  color: #f6e1a8;
+  font-size: 0.82rem;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+}
+
+.player-detail-stats {
+  min-width: 0;
+  min-height: 0;
+  padding-right: 2.95rem;
+  box-sizing: border-box;
+}
+
+.player-detail-stats dl {
+  margin: 0;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 0.34rem;
+}
+
+.player-detail-stats dt,
+.player-detail-stats dd {
+  margin: 0;
+}
+
+.player-detail-stats dt {
+  color: #f6e1a8;
+  font-size: 0.94rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+.player-detail-stats dd {
+  color: #ffffff;
+  font-size: clamp(1.58rem, 2.35vw, 2.25rem);
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.player-detail-stats > dl > div {
+  min-width: 0;
+  padding: 0.46rem 0.58rem;
+  background:
+    linear-gradient(180deg, rgba(245, 241, 232, 0.1), rgba(245, 241, 232, 0.04)),
+    rgba(5, 5, 5, 0.26);
+  border: 0.08rem solid rgba(245, 241, 232, 0.18);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  align-items: center;
+  gap: 0.08rem 0.48rem;
+  overflow: hidden;
+}
+
+.player-detail-close {
+  position: relative;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0.08rem solid rgba(245, 241, 232, 0.45);
+  background: rgba(5, 5, 5, 0.72);
+  color: #f5f1e8;
+  border-radius: 50%;
+  padding: 0;
+  font-size: 0;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.player-detail-close::before,
+.player-detail-close::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1rem;
+  height: 0.1rem;
+  background: currentColor;
+  transform-origin: center;
+}
+
+.player-detail-close::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.player-detail-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 .lineup-substitution-animation {
@@ -1609,9 +2973,12 @@ onBeforeUnmount(() => {
 
 .stats-board {
   display: grid;
+  height: 100%;
+  min-height: 0;
   grid-template-columns: 18rem 1fr;
   align-items: stretch;
   gap: 1rem;
+  position: relative;
 }
 
 .stats-header {
@@ -1876,6 +3243,98 @@ onBeforeUnmount(() => {
   font-weight: 950;
 }
 
+.group-standings {
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  gap: 0.54rem;
+  align-items: center;
+  align-content: center;
+}
+
+.group-standings-table-wrap {
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.group-standings-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 0.24rem;
+  color: #ffffff;
+  font-size: 1rem;
+  table-layout: fixed;
+}
+
+.group-standings-col-rank {
+  width: 14%;
+}
+
+.group-standings-col-team {
+  width: 22%;
+}
+
+.group-standings-col-stat {
+  width: 8%;
+}
+
+.group-standings-table thead th {
+  text-align: left;
+  color: #c9972b;
+  font-size: 0.92rem;
+  font-weight: 950;
+  padding: 0 0.42rem 0.3rem;
+}
+
+.group-standings-table th:nth-child(n + 3),
+.group-standings-table td:nth-child(n + 3) {
+  text-align: center;
+}
+
+.group-standings-table tbody td {
+  padding: 0.38rem 0.42rem;
+  background: rgba(245, 241, 232, 0.08);
+  color: #f6e1a8;
+  font-weight: 950;
+  border-top: 0.08rem solid rgba(0, 0, 0, 0.15);
+  line-height: 1.2;
+}
+
+.group-standings-table tbody tr td:first-child {
+  border-top-left-radius: 0.34rem;
+  border-bottom-left-radius: 0.34rem;
+}
+
+.group-standings-table tbody tr td:last-child {
+  border-top-right-radius: 0.34rem;
+  border-bottom-right-radius: 0.34rem;
+}
+
+.group-standings-table tbody td:first-child {
+  color: #ffffff;
+}
+
+.group-standings-team-code {
+  display: block;
+  color: #c9972b;
+  font-size: 0.88rem;
+  font-weight: 950;
+  margin-bottom: 0.02rem;
+}
+
+.group-standings-team-name {
+  display: block;
+  color: #f6e1a8;
+  font-size: 0.96rem;
+  font-weight: 950;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @keyframes stat-card-in {
   0% {
     opacity: 0;
@@ -1907,12 +3366,12 @@ onBeforeUnmount(() => {
 .chat-slot {
   height: 100%;
   min-height: 0;
-  background: #00b140;
+  background: #00b140 !important;
 }
 
 .character-slot {
   height: 100%;
   min-height: 0;
-  background: #00b140;
+  background: #00b140 !important;
 }
 </style>

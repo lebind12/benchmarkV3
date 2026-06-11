@@ -826,6 +826,7 @@ def get_league_standings(session: Session, external_id: int) -> dict[str, Any]:
                 SELECT s.rank, s.played, s.win, s.draw, s.loss, s.goals_for,
                        s.goals_against, COALESCE(s.goals_diff, s.goals_for - s.goals_against) AS goal_diff,
                        s.points, s.group_name,
+                       t.id AS team_id,
                        t.external_id AS team_external_id, t.slug AS team_slug,
                        t.name AS team_name, t.logo_url AS team_logo_url,
                        tt.name_ko AS team_name_ko, tt.short_name_ko AS team_short_name_ko
@@ -850,6 +851,7 @@ def get_league_standings(session: Session, external_id: int) -> dict[str, Any]:
         rows = [r for r in rows if r["group_name"] == group_name]
     elif any(r["group_name"] is not None for r in rows):
         rows = [r for r in rows if r["group_name"] is None]
+
     return {
         "league": _league_ref(fixture),
         "season": fixture["season_year"],
