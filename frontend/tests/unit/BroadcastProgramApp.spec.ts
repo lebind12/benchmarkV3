@@ -2,30 +2,6 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('chart.js', () => {
-  class MockChart {
-    static register = vi.fn()
-
-    data: { datasets: Array<{ backgroundColor?: unknown; data?: number[]; rotation?: number }> }
-    options: unknown
-
-    constructor(_canvas: HTMLCanvasElement, config: { data: MockChart['data']; options: unknown }) {
-      this.data = config.data
-      this.options = config.options
-    }
-
-    update = vi.fn()
-    destroy = vi.fn()
-  }
-
-  return {
-    ArcElement: {},
-    Chart: MockChart,
-    DoughnutController: {},
-    PieController: {},
-  }
-})
-
 function jsonResponse(body: unknown): Response {
   return {
     ok: true,
@@ -39,19 +15,59 @@ function setSearch(search: string) {
   window.history.pushState({}, '', `/broadcast-program.html${search}`)
 }
 
+function lineupPlayers(team: 'home' | 'away') {
+  const home = [
+    ['Kim Seung-Gyu', 1],
+    ['Kim Min-Jae', 4],
+    ['Lee Jae-Sung', 10],
+    ['Son Heung-Min', 7],
+    ['Hwang Hee-Chan', 11],
+    ['Cho Gue-Sung', 9],
+    ['Lee Kang-In', 18],
+    ['Jung Woo-Young', 5],
+    ['Hwang In-Beom', 6],
+    ['Kim Jin-Su', 3],
+    ['Kim Moon-Hwan', 2],
+  ] as const
+  const away = [
+    ['Alisson', 1],
+    ['Marquinhos', 4],
+    ['Thiago Silva', 3],
+    ['Casemiro', 5],
+    ['Neymar', 10],
+    ['Raphinha', 11],
+    ['Vinicius Junior', 20],
+    ['Richarlison', 9],
+    ['Lucas Paqueta', 8],
+    ['Danilo', 2],
+    ['Alex Sandro', 6],
+  ] as const
+
+  return (team === 'home' ? home : away).map(([name, number], index) => ({
+    player: {
+      id: team === 'home' ? 100 + index : 200 + index,
+      name,
+      number,
+      pos: index === 0 ? 'G' : index < 4 ? 'D' : index < 8 ? 'M' : 'F',
+      grid: `${Math.floor(index / 4) + 1}:${(index % 4) + 1}`,
+    },
+  }))
+}
+
 function defaultFixtureEvents() {
   return [
     {
-      time: { elapsed: 58 },
+      time: { elapsed: 67 },
       team: { id: 10, name: 'Korea Republic', code: 'KOR' },
-      player: { id: 7, name: 'Son Heung-Min' },
-      type: 'Goal',
-      detail: 'Normal Goal',
+      player: { id: 106, name: 'Lee Kang-In' },
+      assist: { id: 111, name: 'Hong Hyun-Seok' },
+      type: 'subst',
+      detail: 'Substitution',
     },
     {
-      time: { elapsed: 61 },
+      time: { elapsed: 70 },
       team: { id: 20, name: 'Brazil', code: 'BRA' },
-      player: { id: 9, name: 'Neymar' },
+      player: { id: 204, name: 'Neymar' },
       type: 'Card',
       detail: 'Yellow Card',
     },
@@ -73,29 +89,24 @@ function stubApiFootballFetch() {
           20: { name_ko: '브라질', short_name_ko: '브라질' },
         },
         players: {
-          7: { name_ko: '손흥민', short_name_ko: '손흥민' },
-          9: { name_ko: '네이마르 주니오르', short_name_ko: '네이마르' },
-          11: { name_ko: '하피냐', short_name_ko: '하피냐' },
+          100: { name_ko: '김승규', short_name_ko: '김승규' },
+          101: { name_ko: '김민재', short_name_ko: '김민재' },
+          102: { name_ko: '이재성', short_name_ko: '이재성' },
+          103: { name_ko: '손흥민', short_name_ko: '손흥민' },
+          104: { name_ko: '황희찬', short_name_ko: '황희찬' },
+          105: { name_ko: '조규성', short_name_ko: '조규성' },
+          106: { name_ko: '이강인', short_name_ko: '이강인' },
+          107: { name_ko: '정우영', short_name_ko: '정우영' },
+          108: { name_ko: '황인범', short_name_ko: '황인범' },
+          109: { name_ko: '김진수', short_name_ko: '김진수' },
+          110: { name_ko: '김문환', short_name_ko: '김문환' },
+          111: { name_ko: '홍현석', short_name_ko: '홍현석' },
+          204: { name_ko: '네이마르 주니오르', short_name_ko: '네이마르' },
         },
-        coaches: {},
-      })
-    }
-
-    if (url.pathname === '/fixtures' && url.searchParams.get('live') === 'all') {
-      return jsonResponse({
-        response: [{
-          fixture: {
-            id: 260506,
-            status: { short: '2H', elapsed: 63, extra: 2 },
-            venue: { name: 'Live Stadium' },
-          },
-          league: { id: 1, name: 'FIFA World Cup', season: 2026 },
-          teams: {
-            home: { id: 10, name: 'Korea Republic', code: 'KOR' },
-            away: { id: 20, name: 'Brazil', code: 'BRA' },
-          },
-          goals: { home: 1, away: 1 },
-        }],
+        coaches: {
+          1000: { name_ko: '홍명보', short_name_ko: '홍명보' },
+          2000: { name_ko: '카를로 안첼로티', short_name_ko: '안첼로티' },
+        },
       })
     }
 
@@ -104,13 +115,13 @@ function stubApiFootballFetch() {
         response: [{
           fixture: {
             id: Number(url.searchParams.get('id')),
-            status: { short: '2H', elapsed: 63, extra: 2 },
+            status: { short: '2H', elapsed: 72, extra: 2 },
             venue: { name: 'Live Stadium' },
           },
           league: { id: 1, name: 'FIFA World Cup', season: 2026 },
           teams: {
-            home: { id: 10, name: 'Korea Republic', code: 'KOR' },
-            away: { id: 20, name: 'Brazil', code: 'BRA' },
+            home: { id: 10, name: 'Korea Republic', code: 'KOR', logo: 'https://example.com/korea.png' },
+            away: { id: 20, name: 'Brazil', code: 'BRA', logo: 'https://example.com/brazil.png' },
           },
           goals: { home: 1, away: 1 },
         }],
@@ -118,9 +129,7 @@ function stubApiFootballFetch() {
     }
 
     if (url.pathname === '/fixtures/events') {
-      return jsonResponse({
-        response: fixtureEvents,
-      })
+      return jsonResponse({ response: fixtureEvents })
     }
 
     if (url.pathname === '/fixtures/lineups') {
@@ -128,19 +137,18 @@ function stubApiFootballFetch() {
         response: [
           {
             team: { id: 10, name: 'Korea Republic', code: 'KOR' },
+            coach: { id: 1000, name: 'Hong Myung-Bo' },
             formation: '4-2-3-1',
-            startXI: [
-              { player: { id: 7, name: 'Son Heung-Min', number: 7, pos: 'F', grid: '1:1' } },
+            startXI: lineupPlayers('home'),
+            substitutes: [
+              { player: { id: 111, name: 'Hong Hyun-Seok', number: 17 } },
             ],
-            substitutes: [],
           },
           {
             team: { id: 20, name: 'Brazil', code: 'BRA' },
+            coach: { id: 2000, name: 'Carlo Ancelotti' },
             formation: '4-3-3',
-            startXI: [
-              { player: { id: 9, name: 'Neymar', number: 10, pos: 'F', grid: '1:1' } },
-              { player: { id: 11, name: 'Raphinha', number: 11, pos: 'F', grid: '1:2' } },
-            ],
+            startXI: lineupPlayers('away'),
             substitutes: [],
           },
         ],
@@ -157,6 +165,8 @@ function stubApiFootballFetch() {
               { type: 'Total Shots', value: 11 },
               { type: 'Shots on Goal', value: 5 },
               { type: 'Corner Kicks', value: 6 },
+              { type: 'Offsides', value: 2 },
+              { type: 'Passes %', value: '86%' },
               { type: 'Yellow Cards', value: 1 },
               { type: 'Red Cards', value: 0 },
               { type: 'Fouls', value: 8 },
@@ -169,6 +179,8 @@ function stubApiFootballFetch() {
               { type: 'Total Shots', value: 8 },
               { type: 'Shots on Goal', value: 3 },
               { type: 'Corner Kicks', value: 4 },
+              { type: 'Offsides', value: 1 },
+              { type: 'Passes %', value: '79%' },
               { type: 'Yellow Cards', value: 3 },
               { type: 'Red Cards', value: 1 },
               { type: 'Fouls', value: 12 },
@@ -179,51 +191,18 @@ function stubApiFootballFetch() {
     }
 
     if (url.pathname === '/fixtures/players') {
-      return jsonResponse({
-        response: [
-          {
-            team: { id: 10, name: 'Korea Republic', code: 'KOR' },
-            players: [
-              {
-                player: {
-                  id: 7,
-                  name: 'Son Heung-Min',
-                  photo: 'https://media.api-sports.io/football/players/186.png',
-                },
-                statistics: [{ games: { rating: '8.6' } }],
-              },
-            ],
-          },
-          {
-            team: { id: 20, name: 'Brazil', code: 'BRA' },
-            players: [
-              {
-                player: {
-                  id: 9,
-                  name: 'Neymar',
-                  photo: 'https://media.api-sports.io/football/players/276.png',
-                },
-                statistics: [{ games: { rating: '7.7' } }],
-              },
-              {
-                player: {
-                  id: 11,
-                  name: 'Raphinha',
-                  photo: 'https://media.api-sports.io/football/players/538.png',
-                },
-                statistics: [{ games: { rating: '8.1' } }],
-              },
-            ],
-          },
-        ],
-      })
+      return jsonResponse({ response: [] })
+    }
+
+    if (url.pathname === '/teams') {
+      return jsonResponse({ response: [] })
     }
 
     throw new Error(`unexpected url ${url}`)
   }))
 }
 
-async function mountProgram(search = '') {
+async function mountProgram(search = '?fixtureId=260506&league=world-cup-2026') {
   vi.resetModules()
   localStorage.setItem('mockRole', 'ADMIN')
   fixtureEvents = defaultFixtureEvents()
@@ -231,7 +210,7 @@ async function mountProgram(search = '') {
   setSearch(search)
 
   const { default: BroadcastProgramApp } = await import('@/BroadcastProgramApp.vue')
-  const wrapper = mount(BroadcastProgramApp)
+  const wrapper = mount(BroadcastProgramApp, { attachTo: document.body })
   await flushPromises()
   await nextTick()
   await flushPromises()
@@ -246,261 +225,130 @@ describe('BroadcastProgramApp', () => {
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
     vi.resetModules()
+    document.body.innerHTML = ''
   })
 
-  it('renders the 78/22 program regions without mock cards before live data', async () => {
-    vi.resetModules()
-    localStorage.setItem('mockRole', 'ADMIN')
-    setSearch('')
-    const { default: BroadcastProgramApp } = await import('@/BroadcastProgramApp.vue')
-    const wrapper = mount(BroadcastProgramApp)
+  it('renders the program shell with a lineup bottom panel and no carousel cards', async () => {
+    const wrapper = await mountProgram()
 
     expect(wrapper.get('[data-testid=program-stage]').attributes('data-league')).toBe(
       'world-cup-2026',
     )
-    expect(wrapper.get('[data-testid=program-bottom-carousel]').attributes('data-carousel-interval-ms')).toBe(
-      '7000',
-    )
-    expect(wrapper.get('[data-testid=program-bottom-carousel]').attributes('data-event-insert-index')).toBe(
-      '1',
+    expect(wrapper.get('[data-testid=program-stage]').attributes('data-active-bottom-view')).toBe(
+      'lineup',
     )
     expect(wrapper.get('[data-testid=program-left]').exists()).toBe(true)
     expect(wrapper.get('[data-testid=program-feed-surface]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid=program-live-empty]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-testid=program-info-card]')).toHaveLength(0)
+    expect(wrapper.get('[data-testid=program-bottom-panel]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid=program-bottom-carousel]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid=program-info-card]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid=program-event-splash-image]').exists()).toBe(false)
     expect(wrapper.get('[data-testid=program-chat-slot]').exists()).toBe(true)
     expect(wrapper.get('[data-testid=program-character-slot]').exists()).toBe(true)
     expect(wrapper.find('[data-testid=program-scorebug]').exists()).toBe(false)
     expect(wrapper.find('[data-testid=program-lower-third]').exists()).toBe(false)
   })
 
-  it('uses fixtureId query params and queues initial events with the World Cup image banner first', async () => {
-    const wrapper = await mountProgram('?fixtureId=260506&league=world-cup-2026')
-
-    expect(wrapper.get('[data-testid=program-stage]').attributes('data-league')).toBe(
-      'world-cup-2026',
-    )
-    expect(wrapper.text()).toContain('대한민국')
-    const cards = wrapper.findAll('[data-testid=program-info-card]')
-    expect(cards.map((card) => card.attributes('data-card-id'))).toEqual([
-      'worldcup-kickoff-banner',
-      '58-0-Goal-Normal_Goal-10-7-assist-splash',
-      '58-0-Goal-Normal_Goal-10-7-assist',
-      '61-0-Card-Yellow_Card-20-9-assist-splash',
-      '61-0-Card-Yellow_Card-20-9-assist',
-      'live-banner',
-      'match-stats-intro',
-      'possession-stat',
-      'attack-stats',
-      'discipline-stats',
-      'top-rated-player',
-    ])
-    expect(wrapper.get('[data-testid=program-image-banner]').attributes('src')).toContain(
-      'worldcup-kickoff-2026-banner',
-    )
-    expect(cards[7].attributes('data-card-kind')).toBe('possession-stat')
-    expect(cards[8].attributes('data-card-kind')).toBe('metric-group')
-    expect(cards[9].attributes('data-card-kind')).toBe('metric-group')
-    expect(cards[10].attributes('data-card-kind')).toBe('player-rating')
-    expect(cards.filter((card) => card.attributes('data-event-type') === 'goal')).toHaveLength(2)
-    expect(cards.filter((card) => card.attributes('data-event-type') === 'card')).toHaveLength(2)
-    expect(
-      cards.find((card) => card.attributes('data-card-id') === '61-0-Card-Yellow_Card-20-9-assist')?.text(),
-    ).toContain('네이마르 주니오르')
-    expect(wrapper.findAll('[data-testid=program-info-card-clone]')).toHaveLength(1)
-    expect(wrapper.get('[data-testid=program-info-card-clone]').attributes('data-card-id')).toBe(
-      'worldcup-kickoff-banner',
-    )
-  })
-
-  it('advances upward every 7 seconds and rotates the live queue after the transition', async () => {
+  it('renders both current XIs and applies substitution events to the lineup only', async () => {
     vi.useFakeTimers()
-    const wrapper = await mountProgram('?fixtureId=260506&league=world-cup-2026')
+    const wrapper = await mountProgram()
+    const players = wrapper.findAll('[data-testid=program-lineup-player]')
+    const lineupView = wrapper.get('[data-testid=program-lineup-view]')
 
-    const track = wrapper.get('[data-testid=program-info-track]')
-    expect(track.attributes('style')).toContain('translateY(-0%)')
+    expect(wrapper.findAll('[data-testid=program-lineup-team]')).toHaveLength(2)
+    expect(players).toHaveLength(22)
+    expect(wrapper.findAll('[data-testid=program-lineup-coach]')).toHaveLength(2)
+    expect(wrapper.findAll('[data-testid=program-lineup-substitution-animation]')).toHaveLength(1)
+    expect(lineupView.text()).toContain('이강인')
+    expect(lineupView.text()).toContain('홍현석')
+    expect(lineupView.text()).toContain('홍명보')
+    expect(lineupView.text()).toContain('안첼로티')
+    expect(wrapper.text()).not.toContain('선수 교체')
+    expect(wrapper.text()).not.toContain('네이마르 주니오르')
 
-    vi.advanceTimersByTime(6999)
+    vi.advanceTimersByTime(3000)
     await nextTick()
-    expect(track.attributes('style')).toContain('translateY(-0%)')
 
-    vi.advanceTimersByTime(1)
+    expect(wrapper.find('[data-testid=program-lineup-substitution-animation]').exists()).toBe(true)
+    const substitutedInPlayer = wrapper.get('[data-testid=program-lineup-player][data-sub-in="true"]')
+    expect(substitutedInPlayer.text()).toContain('홍현석')
+    expect(substitutedInPlayer.text()).toContain('IN')
+
+    vi.advanceTimersByTime(5000)
     await nextTick()
-    expect(track.attributes('style')).toContain('translateY(-100%)')
 
-    await track.trigger('transitionend', { propertyName: 'transform' })
-    await nextTick()
-
-    expect(wrapper.findAll('[data-testid=program-info-card]')[0].attributes('data-card-id')).toBe(
-      '58-0-Goal-Normal_Goal-10-7-assist-splash',
-    )
-    expect(track.attributes('style')).toContain('translateY(-0%)')
+    expect(wrapper.find('[data-testid=program-lineup-substitution-animation]').exists()).toBe(false)
+    expect(lineupView.text()).toContain('홍현석')
+    expect(lineupView.text()).not.toContain('이강인')
   })
 
-  it('queues every event splash in demoEvents=all mode without API polling', async () => {
-    const wrapper = await mountProgram('?league=world-cup-2026&demoEvents=all')
-    const cards = wrapper.findAll('[data-testid=program-info-card]')
+  it('toggles stats shortcuts back to lineup', async () => {
+    const wrapper = await mountProgram()
+    const stage = wrapper.get('[data-testid=program-stage]')
 
-    expect(cards.map((card) => card.attributes('data-card-id'))).toEqual([
-      'worldcup-kickoff-banner',
-      'demo-goal-splash',
-      'demo-goal',
-      'demo-own-goal-splash',
-      'demo-own-goal',
-      'demo-substitution-splash',
-      'demo-substitution',
-      'demo-yellow-card-splash',
-      'demo-yellow-card',
-      'demo-red-card-splash',
-      'demo-red-card',
-      'demo-var-splash',
-      'demo-var',
-      'live-banner',
-      'match-stats-intro',
-      'possession-stat',
-      'attack-stats',
-      'discipline-stats',
-      'top-rated-player',
-    ])
-    expect(
-      cards
-        .filter((card) => card.attributes('data-card-kind') === 'event-splash')
-        .map((card) => card.attributes('data-event-splash-type')),
-    ).toEqual([
-      'goal',
-      'own-goal',
-      'substitution',
-      'yellow-card',
-      'red-card',
-      'var',
-    ])
-    expect(cards.find((card) => card.attributes('data-card-id') === 'demo-var')?.text()).not.toContain(
-      '#--',
-    )
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true }))
+    await nextTick()
+    expect(stage.attributes('data-active-bottom-view')).toBe('attack')
+    expect(wrapper.get('[data-testid=program-stats-view]').attributes('data-stats-view')).toBe('attack')
+    expect(wrapper.text()).toContain('공격 지표')
+    expect(wrapper.text()).toContain('점유율')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true }))
+    await nextTick()
+    expect(stage.attributes('data-active-bottom-view')).toBe('lineup')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }))
+    await nextTick()
+    expect(stage.attributes('data-active-bottom-view')).toBe('chance')
+    expect(wrapper.text()).toContain('찬스 지표')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true }))
+    await nextTick()
+    expect(stage.attributes('data-active-bottom-view')).toBe('control')
+    expect(wrapper.text()).toContain('경기 운영')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true }))
+    await nextTick()
+    expect(stage.attributes('data-active-bottom-view')).toBe('discipline')
+    expect(wrapper.text()).toContain('징계/수비')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }))
+    await nextTick()
+    expect(stage.attributes('data-active-bottom-view')).toBe('lineup')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true }))
+    await nextTick()
+    expect(stage.attributes('data-active-bottom-view')).toBe('discipline')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await nextTick()
+    expect(stage.attributes('data-active-bottom-view')).toBe('lineup')
   })
 
-  it('stops auto rotation and uses i/k keys in demoEvents=all mode', async () => {
-    vi.useFakeTimers()
-    const wrapper = await mountProgram('?league=world-cup-2026&demoEvents=all')
-    const track = wrapper.get('[data-testid=program-info-track]')
+  it('ignores bottom view shortcuts from editable elements', async () => {
+    const wrapper = await mountProgram()
+    const input = document.createElement('input')
+    document.body.append(input)
 
-    expect(wrapper.findAll('[data-testid=program-info-card]')[0].attributes('data-card-id')).toBe(
-      'worldcup-kickoff-banner',
-    )
-    expect(track.attributes('style')).toContain('translateY(-0%)')
-
-    vi.advanceTimersByTime(7000)
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true }))
     await nextTick()
 
-    expect(wrapper.findAll('[data-testid=program-info-card]')[0].attributes('data-card-id')).toBe(
-      'worldcup-kickoff-banner',
-    )
-    expect(track.attributes('style')).toContain('translateY(-0%)')
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k' }))
-    await nextTick()
-    expect(wrapper.findAll('[data-testid=program-info-card]')[0].attributes('data-card-id')).toBe(
-      'demo-goal-splash',
-    )
-    expect(track.attributes('style')).toContain('translateY(-0%)')
-    expect(track.attributes('style')).toContain('transition: none')
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'i' }))
-    await nextTick()
-    expect(wrapper.findAll('[data-testid=program-info-card]')[0].attributes('data-card-id')).toBe(
-      'worldcup-kickoff-banner',
-    )
-    expect(track.attributes('style')).toContain('translateY(-0%)')
+    expect(wrapper.get('[data-testid=program-stage]').attributes('data-active-bottom-view')).toBe('lineup')
+    input.remove()
   })
 
-  it('inserts multiple new live events after the current card and removes each after display', async () => {
-    vi.useFakeTimers()
-    const wrapper = await mountProgram('?fixtureId=260506&league=world-cup-2026')
-    const track = wrapper.get('[data-testid=program-info-track]')
+  it('shows a stable empty state when live mode is unavailable', async () => {
+    vi.resetModules()
+    localStorage.setItem('mockRole', 'ADMIN')
+    vi.stubGlobal('fetch', vi.fn())
+    setSearch('')
 
-    fixtureEvents = [
-      ...defaultFixtureEvents(),
-      {
-        time: { elapsed: 64 },
-        team: { id: 10, name: 'Korea Republic', code: 'KOR' },
-        player: { id: 7, name: 'Son Heung-Min' },
-        type: 'Goal',
-        detail: 'Normal Goal',
-      },
-      {
-        time: { elapsed: 66 },
-        team: { id: 20, name: 'Brazil', code: 'BRA' },
-        player: { id: 9, name: 'Neymar' },
-        type: 'Card',
-        detail: 'Yellow Card',
-      },
-    ]
-
-    vi.advanceTimersByTime(10_000)
+    const { default: BroadcastProgramApp } = await import('@/BroadcastProgramApp.vue')
+    const wrapper = mount(BroadcastProgramApp)
     await flushPromises()
-    await nextTick()
-    await track.trigger('transitionend', { propertyName: 'transform' })
-    await nextTick()
 
-    expect(wrapper.findAll('[data-testid=program-info-card]').map((card) => card.attributes('data-card-id'))).toEqual([
-      '58-0-Goal-Normal_Goal-10-7-assist-splash',
-      '64-0-Goal-Normal_Goal-10-7-assist-splash',
-      '64-0-Goal-Normal_Goal-10-7-assist',
-      '66-0-Card-Yellow_Card-20-9-assist-splash',
-      '66-0-Card-Yellow_Card-20-9-assist',
-      '58-0-Goal-Normal_Goal-10-7-assist',
-      '61-0-Card-Yellow_Card-20-9-assist-splash',
-      '61-0-Card-Yellow_Card-20-9-assist',
-      'live-banner',
-      'match-stats-intro',
-      'possession-stat',
-      'attack-stats',
-      'discipline-stats',
-      'top-rated-player',
-      'worldcup-kickoff-banner',
-    ])
-    const insertedCards = wrapper.findAll('[data-testid=program-info-card]')
-    expect(insertedCards[1].attributes('data-card-kind')).toBe('event-splash')
-    expect(insertedCards[1].attributes('data-event-splash-type')).toBe('goal')
-    expect(insertedCards[1].get('[data-testid=program-event-splash-image]').attributes('src')).toContain(
-      'event-goal',
+    expect(wrapper.get('[data-testid=program-live-empty]').text()).toContain(
+      'API-Football 라이브 모드가 설정되지 않았습니다',
     )
-    expect(insertedCards[3].attributes('data-card-kind')).toBe('event-splash')
-    expect(insertedCards[3].attributes('data-event-splash-type')).toBe('yellow-card')
-    expect(insertedCards[3].get('[data-testid=program-event-splash-image]').attributes('src')).toContain(
-      'event-yellow-card',
-    )
-
-    vi.advanceTimersByTime(7000)
-    await nextTick()
-    await track.trigger('transitionend', { propertyName: 'transform' })
-    await nextTick()
-
-    expect(wrapper.findAll('[data-testid=program-info-card]')[0].attributes('data-card-id')).toBe(
-      '64-0-Goal-Normal_Goal-10-7-assist-splash',
-    )
-
-    vi.advanceTimersByTime(7000)
-    await nextTick()
-    await track.trigger('transitionend', { propertyName: 'transform' })
-    await nextTick()
-
-    expect(wrapper.findAll('[data-testid=program-info-card]')[0].attributes('data-card-id')).toBe(
-      '64-0-Goal-Normal_Goal-10-7-assist',
-    )
-    expect(wrapper.findAll('[data-testid=program-info-card]').map((card) => card.attributes('data-card-id'))).not.toContain(
-      '64-0-Goal-Normal_Goal-10-7-assist-splash',
-    )
-
-    vi.advanceTimersByTime(7000)
-    await nextTick()
-    await track.trigger('transitionend', { propertyName: 'transform' })
-    await nextTick()
-
-    const cardIdsAfterGoalDisplay = wrapper
-      .findAll('[data-testid=program-info-card]')
-      .map((card) => card.attributes('data-card-id'))
-    expect(cardIdsAfterGoalDisplay[0]).toBe('66-0-Card-Yellow_Card-20-9-assist-splash')
-    expect(cardIdsAfterGoalDisplay).not.toContain('64-0-Goal-Normal_Goal-10-7-assist')
   })
 })

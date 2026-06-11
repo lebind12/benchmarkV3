@@ -279,10 +279,10 @@ onBeforeUnmount(() => {
   gap: 0.35rem;
   min-height: 2rem;
   padding: 0 0.7rem;
-  border: 1px solid var(--theme-primary);
+  border: 1px solid color-mix(in srgb, var(--theme-primary) 46%, var(--color-border));
   border-radius: 999px;
-  background: var(--theme-primary);
-  color: var(--theme-on-primary);
+  background: color-mix(in srgb, var(--theme-primary) 10%, var(--color-bg));
+  color: var(--color-fg);
   cursor: pointer;
   font-size: 0.75rem;
   font-weight: 700;
@@ -293,8 +293,8 @@ onBeforeUnmount(() => {
 }
 .match-header__broadcast-button:hover,
 .match-header__broadcast-button:focus-visible {
-  background: var(--theme-accent);
-  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-primary) 16%, var(--color-bg));
+  border-color: var(--theme-primary);
   outline: none;
 }
 .broadcast-picker {

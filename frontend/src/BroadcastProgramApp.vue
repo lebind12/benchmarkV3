@@ -1,27 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import eventGoalSplashUrl from "@/assets/generated/broadcast-events/event-goal-wide.png?url";
-import eventOwnGoalSplashUrl from "@/assets/generated/broadcast-events/event-own-goal-wide.png?url";
-import eventRedCardSplashUrl from "@/assets/generated/broadcast-events/event-red-card-wide.png?url";
-import eventSubstitutionSplashUrl from "@/assets/generated/broadcast-events/event-substitution-wide.png?url";
-import eventVarSplashUrl from "@/assets/generated/broadcast-events/event-var-wide.png?url";
-import eventYellowCardSplashUrl from "@/assets/generated/broadcast-events/event-yellow-card-wide.png?url";
-import matchStatsIntroUrl from "@/assets/generated/broadcast-program/match-stats-intro.png?url";
-import brazilFlagUrl from "@/assets/broadcast/flags/br.svg?url";
-import koreaFlagUrl from "@/assets/broadcast/flags/kr.svg?url";
-import worldCupKickoffBannerUrl from "@/assets/generated/broadcast-program/worldcup-kickoff-2026-banner5.png?url";
-import PossessionPieChart from "@/components/broadcast/PossessionPieChart.vue";
 import {
   API_FOOTBALL_LIVE_POLL_MS,
   fetchApiFootballBroadcastSnapshot,
   fetchApiFootballFirstLiveFixture,
   shouldUseApiFootballLive,
+  type ApiFootballBroadcastCoach,
   type ApiFootballBroadcastEvent,
+  type ApiFootballBroadcastLineup,
   type ApiFootballBroadcastLineupPlayer,
   type ApiFootballBroadcastSnapshot,
   type ApiFootballBroadcastStat,
 } from "@/lib/api/apiFootballLive";
 import { readBroadcastFixtureId } from "@/lib/broadcastQuery";
+import ProgramPossessionPieChart from "@/components/broadcast/ProgramPossessionPieChart.vue";
 
 type LeagueSlug =
   | "premier-league"
@@ -46,130 +38,79 @@ type Theme = {
   dark: string;
 };
 
-type ProgramEventType =
-  | "goal"
-  | "own-goal"
-  | "card"
-  | "var"
-  | "substitution";
+type BottomView = "lineup" | "attack" | "chance" | "control" | "discipline";
 
-type EventSplashType =
-  | "goal"
-  | "own-goal"
-  | "substitution"
-  | "yellow-card"
-  | "red-card"
-  | "var";
+type LineupPlayerView = {
+  kind: "player";
+  key: string;
+  slotIndex: number;
+  id?: number;
+  number: number;
+  name: string;
+  longName?: string;
+  pos?: string;
+  grid?: string;
+  isSubstitutedIn: boolean;
+};
 
-type StatMetric = {
+type LineupCoachView = {
+  kind: "coach";
+  key: string;
+  id?: number;
+  name: string;
+  longName?: string;
+};
+
+type LineupEntryView = LineupPlayerView | LineupCoachView;
+
+type SubstitutionAnimation = {
+  id: string;
+  teamId?: number;
+  slotIndex: number;
+  outName: string;
+  outNumber?: number;
+  inName: string;
+  inNumber?: number;
+};
+
+type SubstitutionAnimationTimers = {
+  apply: number;
+  finish: number;
+};
+
+type TeamLineupView = {
+  teamId?: number;
+  name: string;
+  code: string;
+  shape: string;
+  coach: LineupCoachView;
+  players: LineupPlayerView[];
+};
+
+type StatViewMetric = {
   id: string;
   label: string;
   home: string;
   away: string;
   homePct: number;
   awayPct: number;
+  graph: "pie" | "bar" | "discipline";
 };
 
-type TopRatedPlayer = {
-  name: string;
-  teamCode: string;
-  no: number;
-  rating: string;
-  photoUrl?: string;
-};
-
-type InfoCard = {
-  id: string;
-  kind:
-    | "banner"
-    | "image-banner"
-    | "event-splash"
-    | "possession-stat"
-    | "metric-group"
-    | "player-rating"
-    | "stat"
-    | "event"
-    | "player"
-    | "tactic";
+type StatViewConfig = {
+  id: Exclude<BottomView, "lineup">;
   eyebrow: string;
   title: string;
-  detail: string;
-  leftValue?: string;
-  rightValue?: string;
-  label?: string;
-  imageUrl?: string;
-  eventType?: ProgramEventType;
-  eventSplashType?: EventSplashType;
-  eventPlayerName?: string;
-  eventPlayerNumber?: number;
-  eventPlayerImageUrl?: string;
-  eventTeamLogoUrl?: string;
-  substitutionOutName?: string;
-  substitutionOutNumber?: number;
-  substitutionOutImageUrl?: string;
-  substitutionInName?: string;
-  substitutionInNumber?: number;
-  substitutionInImageUrl?: string;
-  homeCode?: string;
-  awayCode?: string;
-  homePct?: number;
-  awayPct?: number;
-  metrics?: StatMetric[];
-  metricTheme?: "attack" | "discipline";
-  playerName?: string;
-  playerTeamCode?: string;
-  playerNumber?: number;
-  playerRating?: string;
-  playerImageUrl?: string;
+  metrics: StatViewMetric[];
 };
 
-type EventInfoCard = InfoCard & {
-  kind: "event";
-  eventType: ProgramEventType;
-  eventSplashType: EventSplashType;
-  sequence: number;
-};
+const SUBSTITUTION_ANIMATION_MS = 8000;
+const SUBSTITUTION_LINEUP_APPLY_MS = 3000;
+const STAT_COUNT_ANIMATION_MS = 900;
 
-type EventSplashCard = InfoCard & {
-  kind: "event-splash";
-  eventType: ProgramEventType;
-  eventSplashType: EventSplashType;
-  imageUrl: string;
-  sequence: number;
-};
-
-type EventDisplayCard = EventInfoCard | EventSplashCard;
-
-type CarouselInfoCard = InfoCard & {
-  carouselKey: string;
-  isClone: boolean;
-};
-
-type ProgramMatch = {
-  fixtureId: number;
-  home: string;
-  away: string;
-  homeCode: string;
-  awayCode: string;
-  score: string;
-  clock: string;
-  status: string;
-  baseInfoCards: InfoCard[];
-  eventCards: EventInfoCard[];
-};
-
-const CAROUSEL_INTERVAL_MS = 7000;
-const LATEST_EVENT_INSERT_INDEX = 1;
-const POSSESSION_ANIMATION_MS = 900;
-const PLAYER_RATING_ANIMATION_MS = 900;
-const eventSplashImageUrls: Record<EventSplashType, string> = {
-  goal: eventGoalSplashUrl,
-  "own-goal": eventOwnGoalSplashUrl,
-  substitution: eventSubstitutionSplashUrl,
-  "yellow-card": eventYellowCardSplashUrl,
-  "red-card": eventRedCardSplashUrl,
-  var: eventVarSplashUrl,
-};
+const searchParams = new URLSearchParams(window.location.search);
+const requestedFixtureId = readBroadcastFixtureId(searchParams);
+const requestedLeague = searchParams.get("league") as LeagueSlug | null;
 
 const themes: Record<LeagueSlug, Theme> = {
   "premier-league": {
@@ -258,119 +199,31 @@ const themes: Record<LeagueSlug, Theme> = {
   },
 };
 
-function isEventInfoCard(card: InfoCard): card is EventInfoCard {
-  return card.kind === "event";
-}
-
-function isEventDisplayCard(card: InfoCard): card is EventDisplayCard {
-  return isEventInfoCard(card) || card.kind === "event-splash";
-}
-
-function sortEventCards(eventCards: EventInfoCard[]) {
-  return [...eventCards].sort((a, b) => a.sequence - b.sequence);
-}
-
-function insertEventCardsAfterCurrent(
-  queue: InfoCard[],
-  eventCards: EventDisplayCard[],
-): InfoCard[] {
-  if (eventCards.length === 0) {
-    return queue;
-  }
-
-  const incomingIds = new Set(eventCards.map((card) => card.id));
-  const queueWithoutDuplicates = queue.filter(
-    (card) => !incomingIds.has(card.id),
-  );
-  const insertIndex = Math.min(
-    LATEST_EVENT_INSERT_INDEX,
-    queueWithoutDuplicates.length,
-  );
-
-  return [
-    ...queueWithoutDuplicates.slice(0, insertIndex),
-    ...eventCards,
-    ...queueWithoutDuplicates.slice(insertIndex),
-  ];
-}
-
-const searchParams = new URLSearchParams(
-  typeof window === "undefined" ? "" : window.location.search,
-);
-const requestedFixtureId = readBroadcastFixtureId(searchParams);
-const requestedLeague = searchParams.get("league") as LeagueSlug | null;
-const demoEventsMode = searchParams.get("demoEvents") === "all";
 const selectedLeague =
   requestedLeague && Object.hasOwn(themes, requestedLeague)
     ? requestedLeague
     : "world-cup-2026";
 
-const activeCardIndex = ref(0);
-const carouselTransitionEnabled = ref(true);
-const baseInfoCards = ref<InfoCard[]>([]);
-const carouselQueue = ref<InfoCard[]>([]);
-const previousEventCards = ref<EventInfoCard[]>([]);
-const animatedPossession = ref({
-  cardId: "",
-  homePct: 0,
-  awayPct: 0,
-});
-const animatedPlayerRating = ref({
-  cardId: "",
-  value: 0,
-});
+const activeBottomView = ref<BottomView>("lineup");
 const liveStatus = ref<"loading" | "ready" | "error">("loading");
 const liveError = ref<string | null>(null);
-let carouselTimer: number | undefined;
+const liveSnapshot = ref<ApiFootballBroadcastSnapshot | null>(null);
+const appliedSubstitutionIds = ref<Set<string>>(new Set());
+const activeSubstitutionAnimations = ref<SubstitutionAnimation[]>([]);
+const statAnimationProgress = ref(1);
+const isAdminAllowed = ref(
+  typeof localStorage !== "undefined" &&
+    localStorage.getItem("mockRole") === "ADMIN",
+);
+
 let livePollingTimer: number | undefined;
-let activeFixtureId: number | null = null;
-let pendingBaseInfoCards: InfoCard[] | null = null;
-let pendingEventCards: EventDisplayCard[] = [];
-let possessionAnimationFrame: number | undefined;
-let playerRatingAnimationFrame: number | undefined;
-const seenEventIds = new Set<string>();
+let statAnimationFrame: number | undefined;
+const substitutionAnimationTimers = new Map<
+  string,
+  SubstitutionAnimationTimers
+>();
 
 const theme = computed(() => themes[selectedLeague]);
-const liveStateLabel = computed(() => {
-  if (liveStatus.value === "loading")
-    return "API-Football 라이브 데이터 로딩 중";
-  if (liveStatus.value === "error")
-    return liveError.value ?? "API-Football 라이브 데이터 사용 불가";
-  return "API-Football 라이브 데이터";
-});
-const isAdminAllowed = ref(
-  typeof localStorage !== "undefined" && localStorage.getItem("mockRole") === "ADMIN",
-);
-const carouselCards = computed<CarouselInfoCard[]>(() => {
-  const cards = carouselQueue.value;
-  const realCards = cards.map((card, index) => ({
-    ...card,
-    carouselKey: `real-${index}-${card.id}`,
-    isClone: false,
-  }));
-
-  if (realCards.length <= 1) {
-    return realCards;
-  }
-
-  return [
-    ...realCards,
-    {
-      ...cards[0],
-      carouselKey: `clone-${cards[0].id}`,
-      isClone: true,
-    },
-  ];
-});
-const activeVisibleCard = computed(
-  () => carouselQueue.value[activeCardIndex.value],
-);
-const activeVisibleCardKind = computed(
-  () => activeVisibleCard.value?.kind ?? "empty",
-);
-const possessionHomeColor = computed(() =>
-  selectedLeague === "world-cup-2026" ? "#1677FF" : theme.value.accentAlt,
-);
 const themeVars = computed<Record<string, string>>(() => ({
   "--program-panel": theme.value.panel,
   "--program-panel-alt": theme.value.panelAlt,
@@ -381,300 +234,418 @@ const themeVars = computed<Record<string, string>>(() => ({
   "--program-muted": theme.value.muted,
   "--program-accent": theme.value.accent,
   "--program-accent-alt": theme.value.accentAlt,
-  "--program-possession-home": possessionHomeColor.value,
   "--program-dark": theme.value.dark,
 }));
-const infoTrackStyle = computed<Record<string, string>>(() => {
-  const style = {
-    transform: `translateY(-${activeCardIndex.value * 100}%)`,
-  };
 
-  if (!carouselTransitionEnabled.value || demoEventsMode) {
-    return {
-      ...style,
-      transition: "none",
-    };
-  }
-
-  return style;
+const liveStateLabel = computed(() => {
+  if (liveStatus.value === "loading")
+    return "API-Football 라이브 데이터 로딩 중";
+  if (liveStatus.value === "error")
+    return liveError.value ?? "API-Football 라이브 데이터 사용 불가";
+  return "API-Football 라이브 데이터";
 });
 
-function handleInfoTrackTransitionEnd(event: TransitionEvent) {
-  if (event.propertyName !== "transform") {
-    return;
-  }
+const currentLineups = computed<TeamLineupView[]>(() => {
+  const snapshot = liveSnapshot.value;
+  if (!snapshot) return [];
+  return snapshot.lineups
+    .slice(0, 2)
+    .map((lineup) =>
+      applySubstitutionsToLineup(
+        lineup,
+        snapshot.events,
+        appliedSubstitutionIds.value,
+      ),
+    );
+});
 
-  if (activeCardIndex.value !== 1 || carouselQueue.value.length <= 1) {
-    return;
-  }
+const activeStatView = computed<StatViewConfig | null>(() => {
+  if (activeBottomView.value === "lineup" || !liveSnapshot.value) return null;
 
-  const finishedCard = carouselQueue.value[0];
-  const remainingCards = carouselQueue.value.slice(1);
-  carouselTransitionEnabled.value = false;
-  if (!demoEventsMode && isEventDisplayCard(finishedCard)) {
-    carouselQueue.value =
-      remainingCards.length > 0 ? remainingCards : [...baseInfoCards.value];
-  } else {
-    carouselQueue.value = [...remainingCards, finishedCard];
-  }
-  activeCardIndex.value = 0;
-  applyDeferredCarouselUpdates();
+  const snapshot = liveSnapshot.value;
+  const statGroups: Record<Exclude<BottomView, "lineup">, StatViewConfig> = {
+    attack: {
+      id: "attack",
+      eyebrow: "ATTACK",
+      title: "공격 지표",
+      metrics: compactStats(snapshot.stats, ["점유율", "전체슈팅", "유효슈팅"]),
+    },
+    chance: {
+      id: "chance",
+      eyebrow: "CHANCE",
+      title: "찬스 지표",
+      metrics: compactStats(snapshot.stats, [
+        "코너킥",
+        "오프사이드",
+        "전체슈팅",
+      ]),
+    },
+    control: {
+      id: "control",
+      eyebrow: "CONTROL",
+      title: "경기 운영",
+      metrics: compactStats(snapshot.stats, ["패스성공률", "점유율"]),
+    },
+    discipline: {
+      id: "discipline",
+      eyebrow: "DISCIPLINE",
+      title: "징계/수비",
+      metrics: compactStats(snapshot.stats, ["파울", "옐로카드", "레드카드"]),
+    },
+  };
 
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      carouselTransitionEnabled.value = true;
-    });
+  return statGroups[activeBottomView.value];
+});
+
+function playerKey(player: ApiFootballBroadcastLineupPlayer, index: number) {
+  return player.id !== undefined ? `player-${player.id}` : `slot-${index}`;
+}
+
+function toLineupPlayerView(
+  player: ApiFootballBroadcastLineupPlayer,
+  index: number,
+): LineupPlayerView {
+  return {
+    kind: "player",
+    key: playerKey(player, index),
+    slotIndex: index,
+    id: player.id,
+    number: player.no,
+    name: player.name,
+    longName: player.longName,
+    pos: player.pos,
+    grid: player.grid,
+    isSubstitutedIn: false,
+  };
+}
+
+function toLineupCoachView(
+  coach: ApiFootballBroadcastCoach | undefined,
+  teamId: number | undefined,
+): LineupCoachView {
+  return {
+    kind: "coach",
+    key:
+      coach?.id !== undefined
+        ? `coach-${coach.id}`
+        : `coach-${teamId ?? "unknown"}`,
+    id: coach?.id,
+    name: coach?.name ?? "감독 미정",
+    longName: coach?.longName,
+  };
+}
+
+function applySubstitutionsToLineup(
+  lineup: ApiFootballBroadcastLineup,
+  events: ApiFootballBroadcastEvent[],
+  appliedIds: Set<string>,
+): TeamLineupView {
+  const players = lineup.players.slice(0, 11).map(toLineupPlayerView);
+  const substitutionEvents = events.filter(
+    (event) =>
+      event.kind === "substitution" &&
+      event.teamId === lineup.teamId &&
+      appliedIds.has(event.id),
+  );
+
+  substitutionEvents.forEach((event) => {
+    const outIndex = players.findIndex((player) =>
+      event.playerId !== undefined
+        ? player.id === event.playerId
+        : player.name === event.outPlayer ||
+          player.longName === event.outPlayer,
+    );
+    if (outIndex < 0) return;
+
+    const inId = event.assistId;
+    const inNumber =
+      event.inPlayerNumber ??
+      (inId !== undefined
+        ? lineup.substituteNumbers[String(inId)]
+        : undefined) ??
+      players[outIndex].number;
+    players[outIndex] = {
+      kind: "player",
+      key: inId !== undefined ? `player-${inId}` : `sub-${event.id}`,
+      slotIndex: players[outIndex].slotIndex,
+      id: inId,
+      number: inNumber,
+      name:
+        event.inPlayerShortName ??
+        event.inPlayer ??
+        event.assist ??
+        "교체 선수",
+      longName: event.inPlayer ?? event.assist,
+      pos: players[outIndex].pos,
+      grid: players[outIndex].grid,
+      isSubstitutedIn: true,
+    };
   });
+
+  return {
+    teamId: lineup.teamId,
+    name: lineup.name,
+    code: lineup.code,
+    shape: lineup.shape,
+    coach: toLineupCoachView(lineup.coach, lineup.teamId),
+    players,
+  };
 }
 
-function manualNextBanner() {
-  if (!demoEventsMode || carouselQueue.value.length <= 1) {
-    return;
-  }
-
-  carouselQueue.value = [
-    ...carouselQueue.value.slice(1),
-    carouselQueue.value[0],
+function splitLineupEntries(lineup: TeamLineupView): LineupEntryView[][] {
+  return [
+    lineup.players.slice(0, 6),
+    [...lineup.players.slice(6, 11), lineup.coach],
   ];
-  activeCardIndex.value = 0;
 }
 
-function manualPreviousBanner() {
-  if (!demoEventsMode || carouselQueue.value.length <= 1) {
-    return;
-  }
+function findSubstitutionSlot(
+  lineup: ApiFootballBroadcastLineup,
+  events: ApiFootballBroadcastEvent[],
+  event: ApiFootballBroadcastEvent,
+) {
+  const baseLineup = applySubstitutionsToLineup(
+    lineup,
+    events,
+    appliedSubstitutionIds.value,
+  );
 
-  const previousCard = carouselQueue.value.at(-1);
-  if (!previousCard) {
-    return;
-  }
-
-  carouselQueue.value = [
-    previousCard,
-    ...carouselQueue.value.slice(0, carouselQueue.value.length - 1),
-  ];
-  activeCardIndex.value = 0;
+  return baseLineup.players.find((player) =>
+    event.playerId !== undefined
+      ? player.id === event.playerId
+      : player.name === event.outPlayer || player.longName === event.outPlayer,
+  );
 }
 
-function handleDemoKeyboard(event: KeyboardEvent) {
-  if (!demoEventsMode) {
-    return;
-  }
-
-  const key = event.key.toLowerCase();
-
-  if (key === "k") {
-    event.preventDefault();
-    manualNextBanner();
-    return;
-  }
-
-  if (key === "i") {
-    event.preventDefault();
-    manualPreviousBanner();
-  }
-}
-
-onMounted(() => {
-  if (!isAdminAllowed.value) return;
-
-  if (demoEventsMode) {
-    loadDemoEventQueue();
-    window.addEventListener("keydown", handleDemoKeyboard);
-  } else {
-    void refreshApiFootballLive();
-  }
-
-  if (!demoEventsMode && shouldUseApiFootballLive()) {
-    livePollingTimer = window.setInterval(() => {
-      void refreshApiFootballLive();
-    }, API_FOOTBALL_LIVE_POLL_MS);
-  }
-
-  if (!demoEventsMode) {
-    carouselTimer = window.setInterval(() => {
-      if (carouselQueue.value.length <= 1 || activeCardIndex.value !== 0) {
+function scheduleSubstitutionAnimations(
+  snapshot: ApiFootballBroadcastSnapshot,
+) {
+  snapshot.events
+    .filter((event) => event.kind === "substitution")
+    .forEach((event) => {
+      if (
+        appliedSubstitutionIds.value.has(event.id) ||
+        substitutionAnimationTimers.has(event.id)
+      ) {
         return;
       }
 
-      activeCardIndex.value = 1;
-    }, CAROUSEL_INTERVAL_MS);
-  }
-});
+      const lineup = snapshot.lineups.find(
+        (candidate) => candidate.teamId === event.teamId,
+      );
+      if (!lineup) return;
 
-onBeforeUnmount(() => {
-  if (demoEventsMode) {
-    window.removeEventListener("keydown", handleDemoKeyboard);
-  }
-  if (carouselTimer !== undefined) {
-    window.clearInterval(carouselTimer);
-  }
-  if (livePollingTimer !== undefined) {
-    window.clearInterval(livePollingTimer);
-  }
-  cancelPossessionAnimation();
-  cancelPlayerRatingAnimation();
-});
+      const outPlayer = findSubstitutionSlot(lineup, snapshot.events, event);
+      if (!outPlayer) return;
 
-watch(
-  () => activeVisibleCard.value,
-  (card) => {
-    if (card?.kind === "possession-stat") {
-      cancelPlayerRatingAnimation();
-      animatedPlayerRating.value = {
-        cardId: "",
-        value: 0,
+      const inId = event.assistId;
+      const inNumber =
+        event.inPlayerNumber ??
+        (inId !== undefined
+          ? lineup.substituteNumbers[String(inId)]
+          : undefined);
+      const animation: SubstitutionAnimation = {
+        id: event.id,
+        teamId: lineup.teamId,
+        slotIndex: outPlayer.slotIndex,
+        outName: outPlayer.name,
+        outNumber: outPlayer.number,
+        inName:
+          event.inPlayerShortName ??
+          event.inPlayer ??
+          event.assist ??
+          "교체 선수",
+        inNumber,
       };
-      startPossessionAnimation(card);
-      return;
-    }
 
-    cancelPossessionAnimation();
-    animatedPossession.value = {
-      cardId: "",
-      homePct: 0,
-      awayPct: 0,
-    };
+      activeSubstitutionAnimations.value = [
+        ...activeSubstitutionAnimations.value,
+        animation,
+      ];
 
-    if (card?.kind === "player-rating") {
-      startPlayerRatingAnimation(card);
-      return;
-    }
+      const applyTimer = window.setTimeout(() => {
+        appliedSubstitutionIds.value = new Set([
+          ...appliedSubstitutionIds.value,
+          event.id,
+        ]);
+      }, SUBSTITUTION_LINEUP_APPLY_MS);
 
-    cancelPlayerRatingAnimation();
-    animatedPlayerRating.value = {
-      cardId: "",
-      value: 0,
-    };
-  },
-);
-
-function clampPct(value: number | undefined) {
-  if (value === undefined || !Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.min(100, value));
+      const finishTimer = window.setTimeout(() => {
+        activeSubstitutionAnimations.value =
+          activeSubstitutionAnimations.value.filter(
+            (item) => item.id !== event.id,
+          );
+        substitutionAnimationTimers.delete(event.id);
+      }, SUBSTITUTION_ANIMATION_MS);
+      substitutionAnimationTimers.set(event.id, {
+        apply: applyTimer,
+        finish: finishTimer,
+      });
+    });
 }
 
-function possessionValue(card: InfoCard, side: "home" | "away") {
-  const target = side === "home" ? card.homePct : card.awayPct;
-  if (animatedPossession.value.cardId !== card.id) {
-    return clampPct(target);
-  }
+function substitutionAnimationForEntry(
+  lineup: TeamLineupView,
+  entry: LineupEntryView,
+) {
+  if (entry.kind !== "player") return undefined;
 
-  return side === "home"
-    ? animatedPossession.value.homePct
-    : animatedPossession.value.awayPct;
+  return activeSubstitutionAnimations.value.find(
+    (animation) =>
+      animation.teamId === lineup.teamId &&
+      animation.slotIndex === entry.slotIndex,
+  );
 }
 
-function possessionPercentLabel(card: InfoCard, side: "home" | "away") {
-  return `${Math.round(possessionValue(card, side))}%`;
+function lineupEntryKey(entry: LineupEntryView) {
+  return entry.kind === "player" ? `slot-${entry.slotIndex}` : entry.key;
 }
 
-function cancelPossessionAnimation() {
-  if (possessionAnimationFrame !== undefined) {
-    window.cancelAnimationFrame(possessionAnimationFrame);
-    possessionAnimationFrame = undefined;
-  }
-}
-
-function startPossessionAnimation(card: InfoCard) {
-  cancelPossessionAnimation();
-  const homeTarget = clampPct(card.homePct);
-  const awayTarget = clampPct(card.awayPct);
-  const startedAt = window.performance.now();
-
-  animatedPossession.value = {
-    cardId: card.id,
-    homePct: 0,
-    awayPct: 0,
+function lineupEntryClass(entry: LineupEntryView) {
+  return {
+    [`lineup-entry--${entry.kind}`]: true,
+    "lineup-player--sub-in": entry.kind === "player" && entry.isSubstitutedIn,
   };
+}
+
+function findStat(stats: ApiFootballBroadcastStat[], label: string) {
+  return stats.find((stat) => stat.label === label);
+}
+
+function compactStats(
+  stats: ApiFootballBroadcastStat[],
+  labels: string[],
+): StatViewMetric[] {
+  const seen = new Set<string>();
+  return labels.flatMap((label) => {
+    if (seen.has(label)) return [];
+    const stat = findStat(stats, label);
+    if (!stat) return [];
+    seen.add(label);
+    return [
+      {
+        id: stat.label,
+        label: stat.label,
+        home: stat.home,
+        away: stat.away,
+        homePct: stat.homePct,
+        awayPct: stat.awayPct,
+        graph: statGraphType(stat.label),
+      },
+    ];
+  });
+}
+
+function statGraphType(label: string): StatViewMetric["graph"] {
+  if (label === "점유율") return "pie";
+  if (label === "옐로카드" || label === "레드카드") return "discipline";
+  return "bar";
+}
+
+function animatedPercent(value: number) {
+  return Math.max(0, Math.min(100, value * statAnimationProgress.value));
+}
+
+function animatedStatValue(value: string) {
+  const match = value.match(/^(\d+(?:\.\d+)?)(.*)$/);
+  if (!match) return value;
+
+  const rawValue = Number(match[1]);
+  const suffix = match[2] ?? "";
+  const animatedValue = rawValue * statAnimationProgress.value;
+  const hasDecimal = match[1].includes(".");
+  const formattedValue = hasDecimal
+    ? animatedValue.toFixed(1)
+    : String(Math.round(animatedValue));
+  return `${formattedValue}${suffix}`;
+}
+
+function statGraphVars(metric: StatViewMetric) {
+  const homePct = animatedPercent(metric.homePct);
+  const awayPct = animatedPercent(metric.awayPct);
+  return {
+    "--stat-home-pct": `${homePct}%`,
+    "--stat-away-pct": `${awayPct}%`,
+    "--stat-pie-angle": `${homePct * 3.6}deg`,
+  };
+}
+
+function startStatAnimation() {
+  if (statAnimationFrame !== undefined) {
+    window.cancelAnimationFrame(statAnimationFrame);
+  }
+
+  if (activeBottomView.value === "lineup") {
+    statAnimationProgress.value = 1;
+    statAnimationFrame = undefined;
+    return;
+  }
+
+  const startedAt = window.performance.now();
+  statAnimationProgress.value = 0;
 
   const tick = (now: number) => {
-    const progress = Math.min(
-      1,
-      (now - startedAt) / POSSESSION_ANIMATION_MS,
-    );
-    const easedProgress = 1 - (1 - progress) ** 3;
-
-    animatedPossession.value = {
-      cardId: card.id,
-      homePct: homeTarget * easedProgress,
-      awayPct: awayTarget * easedProgress,
-    };
+    const elapsed = now - startedAt;
+    const progress = Math.min(1, elapsed / STAT_COUNT_ANIMATION_MS);
+    statAnimationProgress.value = 1 - Math.pow(1 - progress, 3);
 
     if (progress < 1) {
-      possessionAnimationFrame = window.requestAnimationFrame(tick);
+      statAnimationFrame = window.requestAnimationFrame(tick);
       return;
     }
 
-    animatedPossession.value = {
-      cardId: card.id,
-      homePct: homeTarget,
-      awayPct: awayTarget,
-    };
-    possessionAnimationFrame = undefined;
+    statAnimationFrame = undefined;
   };
 
-  possessionAnimationFrame = window.requestAnimationFrame(tick);
+  statAnimationFrame = window.requestAnimationFrame(tick);
 }
 
-function playerRatingTarget(card: InfoCard) {
-  const parsed = Number.parseFloat(card.playerRating ?? "");
-  return Number.isFinite(parsed) ? parsed : 0;
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+
+  const tagName = target.tagName.toLowerCase();
+  return (
+    tagName === "input" ||
+    tagName === "select" ||
+    tagName === "textarea" ||
+    target.isContentEditable
+  );
 }
 
-function playerRatingLabel(card: InfoCard) {
-  if (animatedPlayerRating.value.cardId !== card.id) {
-    return playerRatingTarget(card).toFixed(1);
+function setBottomView(nextView: BottomView) {
+  if (nextView === "lineup") {
+    activeBottomView.value = "lineup";
+    return;
   }
 
-  return animatedPlayerRating.value.value.toFixed(1);
+  activeBottomView.value =
+    activeBottomView.value === nextView ? "lineup" : nextView;
 }
 
-function cancelPlayerRatingAnimation() {
-  if (playerRatingAnimationFrame !== undefined) {
-    window.cancelAnimationFrame(playerRatingAnimationFrame);
-    playerRatingAnimationFrame = undefined;
+function handleBottomViewKeyboard(event: KeyboardEvent) {
+  if (isEditableKeyboardTarget(event.target)) return;
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    setBottomView("lineup");
+    return;
   }
-}
 
-function startPlayerRatingAnimation(card: InfoCard) {
-  cancelPlayerRatingAnimation();
-  const target = playerRatingTarget(card);
-  const startedAt = window.performance.now();
+  if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
 
-  animatedPlayerRating.value = {
-    cardId: card.id,
-    value: 0,
+  const shortcutViews: Partial<Record<string, BottomView>> = {
+    z: "lineup",
+    x: "attack",
+    c: "chance",
+    v: "control",
+    b: "discipline",
   };
+  const nextView = shortcutViews[event.key.toLowerCase()];
 
-  const tick = (now: number) => {
-    const progress = Math.min(
-      1,
-      (now - startedAt) / PLAYER_RATING_ANIMATION_MS,
-    );
-    const easedProgress = 1 - (1 - progress) ** 3;
+  if (!nextView) return;
 
-    animatedPlayerRating.value = {
-      cardId: card.id,
-      value: target * easedProgress,
-    };
-
-    if (progress < 1) {
-      playerRatingAnimationFrame = window.requestAnimationFrame(tick);
-      return;
-    }
-
-    animatedPlayerRating.value = {
-      cardId: card.id,
-      value: target,
-    };
-    playerRatingAnimationFrame = undefined;
-  };
-
-  playerRatingAnimationFrame = window.requestAnimationFrame(tick);
+  event.preventDefault();
+  setBottomView(nextView);
 }
 
 async function refreshApiFootballLive() {
@@ -685,14 +656,13 @@ async function refreshApiFootballLive() {
   }
 
   try {
-    liveStatus.value = carouselQueue.value.length > 0 ? "ready" : "loading";
+    liveStatus.value = liveSnapshot.value ? "ready" : "loading";
     liveError.value = null;
-    const snapshot =
+    liveSnapshot.value =
       requestedFixtureId !== null
         ? await fetchApiFootballBroadcastSnapshot(requestedFixtureId)
         : await fetchApiFootballFirstLiveFixture();
-    const liveMatch = createProgramMatchFromSnapshot(snapshot);
-    syncCarouselFromLiveMatch(liveMatch);
+    scheduleSubstitutionAnimations(liveSnapshot.value);
     liveStatus.value = "ready";
   } catch (error) {
     liveStatus.value = "error";
@@ -704,678 +674,38 @@ async function refreshApiFootballLive() {
   }
 }
 
-function syncCarouselFromLiveMatch(liveMatch: ProgramMatch) {
-  const sortedEventCards = sortEventCards(liveMatch.eventCards);
+onMounted(() => {
+  if (!isAdminAllowed.value) return;
 
-  if (activeFixtureId !== liveMatch.fixtureId) {
-    resetCarouselForFixture(
-      liveMatch.fixtureId,
-      liveMatch.baseInfoCards,
-      sortedEventCards,
-    );
-    return;
+  window.addEventListener("keydown", handleBottomViewKeyboard);
+  void refreshApiFootballLive();
+
+  if (shouldUseApiFootballLive()) {
+    livePollingTimer = window.setInterval(() => {
+      void refreshApiFootballLive();
+    }, API_FOOTBALL_LIVE_POLL_MS);
   }
+});
 
-  syncBaseInfoCards(liveMatch.baseInfoCards);
-  syncLiveEventCards(sortedEventCards);
-  flushPendingEventCards();
-}
+watch(
+  () => activeBottomView.value,
+  () => startStatAnimation(),
+);
 
-function resetCarouselForFixture(
-  fixtureId: number,
-  nextBaseInfoCards: InfoCard[],
-  nextEventCards: EventInfoCard[],
-) {
-  activeFixtureId = fixtureId;
-  pendingBaseInfoCards = null;
-  pendingEventCards = [];
-  baseInfoCards.value = nextBaseInfoCards;
-  carouselQueue.value = insertEventCardsAfterCurrent(
-    [...nextBaseInfoCards],
-    nextEventCards.flatMap(createEventDisplayCards),
-  );
-  previousEventCards.value = nextEventCards;
-  activeCardIndex.value = 0;
-  seenEventIds.clear();
-  nextEventCards.forEach((eventCard) => seenEventIds.add(eventCard.id));
-}
-
-function syncBaseInfoCards(nextBaseInfoCards: InfoCard[]) {
-  baseInfoCards.value = nextBaseInfoCards;
-  if (activeCardIndex.value !== 0 && carouselQueue.value.length > 1) {
-    pendingBaseInfoCards = nextBaseInfoCards;
-    return;
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", handleBottomViewKeyboard);
+  if (livePollingTimer !== undefined) {
+    window.clearInterval(livePollingTimer);
   }
-
-  applyBaseInfoCards(nextBaseInfoCards);
-}
-
-function applyBaseInfoCards(nextBaseInfoCards: InfoCard[]) {
-  if (carouselQueue.value.length === 0) {
-    carouselQueue.value = [...nextBaseInfoCards];
-    return;
+  if (statAnimationFrame !== undefined) {
+    window.cancelAnimationFrame(statAnimationFrame);
   }
-
-  const nextBaseById = new Map(
-    nextBaseInfoCards.map((card) => [card.id, card]),
-  );
-  const retainedCards = carouselQueue.value.flatMap((card) => {
-    if (isEventDisplayCard(card)) {
-      return [card];
-    }
-
-    const nextCard = nextBaseById.get(card.id);
-    return nextCard ? [nextCard] : [];
+  substitutionAnimationTimers.forEach((timers) => {
+    window.clearTimeout(timers.apply);
+    window.clearTimeout(timers.finish);
   });
-  const retainedBaseIds = new Set(
-    retainedCards
-      .filter((card) => !isEventDisplayCard(card))
-      .map((card) => card.id),
-  );
-  const missingBaseCards = nextBaseInfoCards.filter(
-    (card) => !retainedBaseIds.has(card.id),
-  );
-
-  carouselQueue.value = [...retainedCards, ...missingBaseCards];
-}
-
-function syncLiveEventCards(nextEventCards: EventInfoCard[]) {
-  const newEventCards = nextEventCards.filter(
-    (eventCard) => !seenEventIds.has(eventCard.id),
-  );
-  previousEventCards.value = nextEventCards;
-
-  if (newEventCards.length === 0) {
-    return;
-  }
-
-  newEventCards.forEach((eventCard) => seenEventIds.add(eventCard.id));
-  pendingEventCards = [
-    ...pendingEventCards,
-    ...newEventCards.flatMap(createEventDisplayCards),
-  ];
-}
-
-function flushPendingEventCards() {
-  if (pendingEventCards.length === 0 || activeCardIndex.value !== 0) {
-    return;
-  }
-
-  if (carouselQueue.value.length === 0) {
-    carouselQueue.value = [...baseInfoCards.value];
-  }
-
-  carouselQueue.value = insertEventCardsAfterCurrent(
-    carouselQueue.value,
-    pendingEventCards,
-  );
-  pendingEventCards = [];
-}
-
-function applyDeferredCarouselUpdates() {
-  if (pendingBaseInfoCards) {
-    const nextBaseInfoCards = pendingBaseInfoCards;
-    pendingBaseInfoCards = null;
-    applyBaseInfoCards(nextBaseInfoCards);
-  }
-
-  flushPendingEventCards();
-}
-
-function pickStat(stats: ApiFootballBroadcastStat[], label: string) {
-  return stats.find((stat) => stat.label === label);
-}
-
-function statMetric(stat: ApiFootballBroadcastStat): StatMetric {
-  return {
-    id: stat.label,
-    label: stat.label,
-    home: stat.home,
-    away: stat.away,
-    homePct: stat.homePct,
-    awayPct: stat.awayPct,
-  };
-}
-
-function compactMetrics(
-  stats: Array<ApiFootballBroadcastStat | undefined>,
-): StatMetric[] {
-  return stats
-    .filter((stat): stat is ApiFootballBroadcastStat => stat !== undefined)
-    .map((stat) => statMetric(stat));
-}
-
-function topRatedPlayerFromSnapshot(
-  snapshot: ApiFootballBroadcastSnapshot,
-): TopRatedPlayer | null {
-  const players = snapshot.lineups.flatMap((lineup) =>
-    lineup.players.map((player: ApiFootballBroadcastLineupPlayer) => ({
-      player,
-      teamCode: lineup.code,
-      ratingValue: Number.parseFloat(player.rating ?? ""),
-    })),
-  );
-  const [topPlayer] = players
-    .filter((entry) => Number.isFinite(entry.ratingValue))
-    .sort((a, b) => b.ratingValue - a.ratingValue);
-
-  if (!topPlayer) {
-    return null;
-  }
-
-  return {
-    name: topPlayer.player.longName ?? topPlayer.player.name,
-    teamCode: topPlayer.teamCode,
-    no: topPlayer.player.no,
-    rating: topPlayer.player.rating ?? topPlayer.ratingValue.toFixed(1),
-    photoUrl: topPlayer.player.photoUrl,
-  };
-}
-
-function loadDemoEventQueue() {
-  const baseMatch = createProgramMatchFromSnapshot(
-    createDemoBroadcastSnapshot([]),
-  );
-  const eventMatch = createProgramMatchFromSnapshot(
-    createDemoBroadcastSnapshot(createDemoBroadcastEvents()),
-  );
-
-  liveError.value = null;
-  liveStatus.value = "ready";
-  resetCarouselForFixture(baseMatch.fixtureId, baseMatch.baseInfoCards, []);
-  syncLiveEventCards(sortEventCards(eventMatch.eventCards));
-  flushPendingEventCards();
-}
-
-function createDemoBroadcastSnapshot(
-  events: ApiFootballBroadcastEvent[],
-): ApiFootballBroadcastSnapshot {
-  return {
-    fixtureId: 20260525,
-    leagueId: 1,
-    leagueName: "FIFA 월드컵 2026",
-    leagueShortName: "월드컵",
-    season: 2026,
-    home: "대한민국",
-    away: "브라질",
-    homeId: 10,
-    awayId: 20,
-    homeCode: "KOR",
-    awayCode: "BRA",
-    homeEnglishCode: "KOR",
-    awayEnglishCode: "BRA",
-    homeLogoUrl: koreaFlagUrl,
-    awayLogoUrl: brazilFlagUrl,
-    score: "2-1",
-    clock: "72'",
-    addedTime: "",
-    status: "후반 72분",
-    venue: "Broadcast Demo Stadium",
-    lineups: [
-      {
-        teamId: 10,
-        name: "대한민국",
-        code: "KOR",
-        shape: "4-2-3-1",
-        substituteNumbers: {},
-        players: [
-          {
-            id: 7,
-            no: 7,
-            name: "손흥민",
-            pos: "FW",
-            rating: "8.7",
-            photoUrl: "https://media.api-sports.io/football/players/186.png",
-          },
-          {
-            id: 18,
-            no: 18,
-            name: "이강인",
-            pos: "MF",
-            rating: "7.1",
-            photoUrl: "https://media.api-sports.io/football/players/27843.png",
-          },
-          {
-            id: 11,
-            no: 11,
-            name: "황희찬",
-            pos: "FW",
-            rating: "7.4",
-            photoUrl: "https://media.api-sports.io/football/players/2480.png",
-          },
-        ],
-      },
-      {
-        teamId: 20,
-        name: "브라질",
-        code: "BRA",
-        shape: "4-3-3",
-        substituteNumbers: {},
-        players: [
-          {
-            id: 9,
-            no: 10,
-            name: "네이마르",
-            pos: "FW",
-            rating: "7.9",
-            photoUrl: "https://media.api-sports.io/football/players/276.png",
-          },
-          {
-            id: 4,
-            no: 4,
-            name: "마르키뉴스",
-            pos: "DF",
-            rating: "6.8",
-            photoUrl: "https://media.api-sports.io/football/players/305.png",
-          },
-        ],
-      },
-    ],
-    playerRatings: {
-      7: "8.7",
-      9: "7.9",
-    },
-    stats: [
-      {
-        label: "점유율",
-        home: "58%",
-        away: "42%",
-        homePct: 58,
-        awayPct: 42,
-      },
-      {
-        label: "전체슈팅",
-        home: "13",
-        away: "9",
-        homePct: 59,
-        awayPct: 41,
-      },
-      {
-        label: "유효슈팅",
-        home: "6",
-        away: "4",
-        homePct: 60,
-        awayPct: 40,
-      },
-      {
-        label: "코너킥",
-        home: "7",
-        away: "4",
-        homePct: 64,
-        awayPct: 36,
-      },
-      {
-        label: "레드카드",
-        home: "0",
-        away: "1",
-        homePct: 0,
-        awayPct: 100,
-      },
-      {
-        label: "옐로카드",
-        home: "1",
-        away: "3",
-        homePct: 25,
-        awayPct: 75,
-      },
-      {
-        label: "파울",
-        home: "8",
-        away: "13",
-        homePct: 38,
-        awayPct: 62,
-      },
-    ],
-    events,
-  };
-}
-
-function createDemoBroadcastEvents(): ApiFootballBroadcastEvent[] {
-  return [
-    {
-      id: "demo-goal",
-      kind: "goal",
-      teamId: 10,
-      teamCode: "KOR",
-      opponentCode: "BRA",
-      minute: "64'",
-      title: "득점",
-      detail: "손흥민 · 필드골",
-      playerId: 7,
-      player: "손흥민",
-      playerNumber: 7,
-      playerPhotoUrl: "https://media.api-sports.io/football/players/186.png",
-      teamLogoUrl: koreaFlagUrl,
-      score: "2-1",
-    },
-    {
-      id: "demo-own-goal",
-      kind: "own-goal",
-      teamId: 20,
-      teamCode: "BRA",
-      opponentCode: "KOR",
-      minute: "66'",
-      title: "자책골",
-      detail: "마르키뉴스 · 자책골",
-      playerId: 4,
-      player: "마르키뉴스",
-      playerNumber: 4,
-      playerPhotoUrl: "https://media.api-sports.io/football/players/305.png",
-      teamLogoUrl: brazilFlagUrl,
-      score: "2-2",
-    },
-    {
-      id: "demo-substitution",
-      kind: "substitution",
-      teamId: 10,
-      teamCode: "KOR",
-      opponentCode: "BRA",
-      minute: "67'",
-      title: "선수 교체",
-      detail: "이강인 OUT · 황희찬 IN",
-      playerId: 18,
-      player: "이강인",
-      assistId: 11,
-      assist: "황희찬",
-      outPlayer: "이강인",
-      outPlayerNumber: 18,
-      outPlayerPhotoUrl: "https://media.api-sports.io/football/players/27843.png",
-      inPlayer: "황희찬",
-      inPlayerNumber: 11,
-      inPlayerPhotoUrl: "https://media.api-sports.io/football/players/2480.png",
-      teamLogoUrl: koreaFlagUrl,
-    },
-    {
-      id: "demo-yellow-card",
-      kind: "yellow-card",
-      teamId: 20,
-      teamCode: "BRA",
-      opponentCode: "KOR",
-      minute: "69'",
-      title: "경고",
-      detail: "네이마르 · 옐로카드",
-      playerId: 9,
-      player: "네이마르",
-      playerNumber: 10,
-      playerPhotoUrl: "https://media.api-sports.io/football/players/276.png",
-      teamLogoUrl: brazilFlagUrl,
-    },
-    {
-      id: "demo-red-card",
-      kind: "red-card",
-      teamId: 20,
-      teamCode: "BRA",
-      opponentCode: "KOR",
-      minute: "71'",
-      title: "퇴장",
-      detail: "수비수 · 레드카드",
-      playerId: 4,
-      player: "마르키뉴스",
-      playerNumber: 4,
-      playerPhotoUrl: "https://media.api-sports.io/football/players/305.png",
-      teamLogoUrl: brazilFlagUrl,
-    },
-    {
-      id: "demo-var",
-      kind: "var",
-      teamId: 10,
-      teamCode: "KOR",
-      opponentCode: "BRA",
-      minute: "74'",
-      title: "VAR 판독",
-      detail: "득점 여부 확인",
-    },
-  ];
-}
-
-function createProgramMatchFromSnapshot(
-  snapshot: ApiFootballBroadcastSnapshot,
-): ProgramMatch {
-  const possession = pickStat(snapshot.stats, "점유율");
-  const shots = pickStat(snapshot.stats, "전체슈팅");
-  const shotsOnGoal = pickStat(snapshot.stats, "유효슈팅");
-  const corners = pickStat(snapshot.stats, "코너킥");
-  const redCards = pickStat(snapshot.stats, "레드카드");
-  const yellowCards = pickStat(snapshot.stats, "옐로카드");
-  const fouls = pickStat(snapshot.stats, "파울");
-  const attackMetrics = compactMetrics([shots, shotsOnGoal, corners]);
-  const disciplineMetrics = compactMetrics([redCards, yellowCards, fouls]);
-  const topRatedPlayer = topRatedPlayerFromSnapshot(snapshot);
-  const statInfoCards: InfoCard[] = [];
-  const baseInfoCards: InfoCard[] = [
-    {
-      id: "worldcup-kickoff-banner",
-      kind: "image-banner",
-      eyebrow: "FIFA 월드컵 2026",
-      title: "북중미 월드컵",
-      detail: "개막을 향한 카운트다운",
-      label: "KICKOFF 2026",
-      imageUrl: worldCupKickoffBannerUrl,
-    },
-    {
-      id: "live-banner",
-      kind: "banner",
-      eyebrow: snapshot.leagueName,
-      title: `${snapshot.home} vs ${snapshot.away}`,
-      detail: snapshot.venue,
-      leftValue: snapshot.homeCode,
-      rightValue: snapshot.awayCode,
-      label: `${snapshot.homeCode} / ${snapshot.awayCode}`,
-    },
-  ];
-
-  if (possession) {
-    statInfoCards.push({
-      id: "possession-stat",
-      kind: "possession-stat",
-      eyebrow: "경기 주도권",
-      title: "점유율",
-      detail: `${snapshot.clock} 기준 라이브 점유율`,
-      leftValue: possession.home,
-      rightValue: possession.away,
-      label: `${snapshot.homeCode} / ${snapshot.awayCode}`,
-      homeCode: snapshot.homeCode,
-      awayCode: snapshot.awayCode,
-      homePct: possession.homePct,
-      awayPct: possession.awayPct,
-    });
-  }
-
-  if (attackMetrics.length > 0) {
-    statInfoCards.push({
-      id: "attack-stats",
-      kind: "metric-group",
-      eyebrow: "공격 지표",
-      title: "슈팅 · 유효슈팅 · 코너킥",
-      detail: `${snapshot.homeCode} / ${snapshot.awayCode}`,
-      label: "ATTACK",
-      homeCode: snapshot.homeCode,
-      awayCode: snapshot.awayCode,
-      metricTheme: "attack",
-      metrics: attackMetrics,
-    });
-  }
-
-  if (disciplineMetrics.length > 0) {
-    statInfoCards.push({
-      id: "discipline-stats",
-      kind: "metric-group",
-      eyebrow: "징계 지표",
-      title: "레드카드 · 옐로카드 · 파울",
-      detail: `${snapshot.homeCode} / ${snapshot.awayCode}`,
-      label: "DISCIPLINE",
-      homeCode: snapshot.homeCode,
-      awayCode: snapshot.awayCode,
-      metricTheme: "discipline",
-      metrics: disciplineMetrics,
-    });
-  }
-
-  if (topRatedPlayer) {
-    statInfoCards.push({
-      id: "top-rated-player",
-      kind: "player-rating",
-      eyebrow: "플레이어 포커스",
-      title: "최고 평점 선수",
-      detail: topRatedPlayer.name,
-      label: "TOP RATED",
-      playerName: topRatedPlayer.name,
-      playerTeamCode: topRatedPlayer.teamCode,
-      playerNumber: topRatedPlayer.no,
-      playerRating: topRatedPlayer.rating,
-      playerImageUrl: topRatedPlayer.photoUrl,
-    });
-  }
-
-  if (statInfoCards.length > 0) {
-    baseInfoCards.push(
-      {
-        id: "match-stats-intro",
-        kind: "image-banner",
-        eyebrow: "주요 경기 기록",
-        title: "주요 경기 기록",
-        detail: "라이브 지표 소개",
-        label: "MATCH STATS",
-        imageUrl: matchStatsIntroUrl,
-      },
-      ...statInfoCards,
-    );
-  }
-
-  return {
-    fixtureId: snapshot.fixtureId,
-    home: snapshot.home,
-    away: snapshot.away,
-    homeCode: snapshot.homeCode,
-    awayCode: snapshot.awayCode,
-    score: snapshot.score,
-    clock: snapshot.clock,
-    status: snapshot.status,
-    baseInfoCards,
-    eventCards: snapshot.events.map((event, index) => ({
-      id: event.id,
-      kind: "event",
-      eventType: programEventType(event),
-      eventSplashType: eventSplashType(event),
-      sequence: index + 1,
-      eyebrow: event.minute,
-      title: event.title,
-      detail: [event.player, event.detail].filter(Boolean).join(" · "),
-      leftValue: eventLeftValue(event, snapshot.score),
-      rightValue: eventRightValue(event),
-      label: event.teamCode,
-      eventPlayerName: event.player,
-      eventPlayerNumber: event.kind === "var" ? undefined : event.playerNumber,
-      eventPlayerImageUrl: event.playerPhotoUrl,
-      eventTeamLogoUrl:
-        event.teamLogoUrl ??
-        (event.teamId === snapshot.homeId
-          ? snapshot.homeLogoUrl
-          : event.teamId === snapshot.awayId
-            ? snapshot.awayLogoUrl
-            : undefined),
-      substitutionOutName:
-        event.outPlayer ?? event.player,
-      substitutionOutNumber: event.outPlayerNumber ?? event.playerNumber,
-      substitutionOutImageUrl: event.outPlayerPhotoUrl ?? event.playerPhotoUrl,
-      substitutionInName:
-        event.inPlayer ?? event.assist,
-      substitutionInNumber: event.inPlayerNumber ?? event.assistNumber,
-      substitutionInImageUrl: event.inPlayerPhotoUrl ?? event.assistPhotoUrl,
-    })),
-  };
-}
-
-function createEventDisplayCards(eventCard: EventInfoCard): EventDisplayCard[] {
-  return [createEventSplashCard(eventCard), eventCard];
-}
-
-function createEventSplashCard(eventCard: EventInfoCard): EventSplashCard {
-  return {
-    id: `${eventCard.id}-splash`,
-    kind: "event-splash",
-    eventType: eventCard.eventType,
-    eventSplashType: eventCard.eventSplashType,
-    sequence: eventCard.sequence,
-    eyebrow: eventCard.eyebrow,
-    title: eventCard.title,
-    detail: eventCard.detail,
-    leftValue: eventCard.leftValue,
-    rightValue: eventCard.rightValue,
-    label: eventCard.label,
-    eventPlayerName: eventCard.eventPlayerName,
-    eventPlayerNumber: eventCard.eventPlayerNumber,
-    eventPlayerImageUrl: eventCard.eventPlayerImageUrl,
-    eventTeamLogoUrl: eventCard.eventTeamLogoUrl,
-    substitutionOutName: eventCard.substitutionOutName,
-    substitutionOutNumber: eventCard.substitutionOutNumber,
-    substitutionOutImageUrl: eventCard.substitutionOutImageUrl,
-    substitutionInName: eventCard.substitutionInName,
-    substitutionInNumber: eventCard.substitutionInNumber,
-    substitutionInImageUrl: eventCard.substitutionInImageUrl,
-    imageUrl: eventSplashImageUrls[eventCard.eventSplashType],
-  };
-}
-
-function programEventType(
-  event: ApiFootballBroadcastEvent,
-): EventInfoCard["eventType"] {
-  switch (event.kind) {
-    case "goal":
-      return "goal";
-    case "own-goal":
-      return "own-goal";
-    case "yellow-card":
-    case "red-card":
-    case "card":
-      return "card";
-    case "var":
-      return "var";
-    case "substitution":
-      return "substitution";
-  }
-}
-
-function eventSplashType(event: ApiFootballBroadcastEvent): EventSplashType {
-  switch (event.kind) {
-    case "goal":
-      return "goal";
-    case "own-goal":
-      return "own-goal";
-    case "substitution":
-      return "substitution";
-    case "yellow-card":
-    case "card":
-      return "yellow-card";
-    case "red-card":
-      return "red-card";
-    case "var":
-      return "var";
-  }
-}
-
-function eventLeftValue(event: ApiFootballBroadcastEvent, score: string) {
-  if (event.kind === "goal" || event.kind === "own-goal")
-    return event.score ?? score;
-  if (event.kind === "yellow-card") return "경고";
-  if (event.kind === "red-card") return "퇴장";
-  if (event.kind === "var") return "VAR";
-  if (event.kind === "substitution") return "교체";
-  return "라이브";
-}
-
-function eventRightValue(event: ApiFootballBroadcastEvent) {
-  if (event.kind === "substitution") return "투입";
-  return event.teamCode;
-}
-
-function playerInitial(name: string | undefined) {
-  return name?.trim().slice(0, 1) || "?";
-}
-
-function playerNumberLabel(number: number | undefined) {
-  return number === undefined ? "#--" : `#${number}`;
-}
+  substitutionAnimationTimers.clear();
+});
 </script>
 
 <template>
@@ -1383,6 +713,7 @@ function playerNumberLabel(number: number | undefined) {
     v-if="isAdminAllowed"
     class="program-stage"
     :data-league="theme.slug"
+    :data-active-bottom-view="activeBottomView"
     :style="themeVars"
     data-testid="program-stage"
   >
@@ -1403,275 +734,238 @@ function playerNumberLabel(number: number | undefined) {
       </section>
 
       <section
-        class="bottom-info-carousel"
-        data-testid="program-bottom-carousel"
-        :data-active-card-kind="activeVisibleCardKind"
-        :data-carousel-interval-ms="CAROUSEL_INTERVAL_MS"
-        :data-event-insert-index="LATEST_EVENT_INSERT_INDEX"
+        class="bottom-program-panel"
+        data-testid="program-bottom-panel"
+        :data-active-bottom-view="activeBottomView"
         aria-live="polite"
       >
-        <div class="carousel-window">
+        <Transition name="bottom-view">
           <div
-            v-if="carouselCards.length === 0"
+            v-if="!liveSnapshot"
+            key="live-empty"
             class="program-live-state"
             data-testid="program-live-empty"
           >
             <span>라이브 데이터</span>
             <strong>{{ liveStateLabel }}</strong>
           </div>
+
           <div
-            v-else
-            class="carousel-track"
-            :style="infoTrackStyle"
-            data-testid="program-info-track"
-            @transitionend="handleInfoTrackTransitionEnd"
+            v-else-if="activeBottomView === 'lineup'"
+            key="lineup"
+            class="lineup-board"
+            data-testid="program-lineup-view"
           >
             <article
-              v-for="(card, cardIndex) in carouselCards"
-              :key="card.carouselKey"
-              :class="[
-                'info-card',
-                `info-card--${card.kind}`,
-                card.eventType ? `info-card--event-${card.eventType}` : '',
-                card.metricTheme
-                  ? `info-card--metric-${card.metricTheme}`
-                  : '',
-                { 'info-card--active': cardIndex === activeCardIndex },
-                { 'info-card--clone': card.isClone },
-              ]"
-              :data-card-id="card.id"
-              :data-card-kind="card.kind"
-              :data-carousel-clone="card.isClone ? 'true' : 'false'"
-              :data-event-type="card.eventType"
-              :data-event-splash-type="card.eventSplashType"
-              :data-testid="
-                card.isClone ? 'program-info-card-clone' : 'program-info-card'
-              "
-              :aria-hidden="card.isClone ? 'true' : undefined"
+              v-for="lineup in currentLineups"
+              :key="lineup.teamId ?? lineup.code"
+              class="lineup-team"
+              data-testid="program-lineup-team"
             >
-              <template
-                v-if="
-                  card.kind === 'image-banner' || card.kind === 'event-splash'
-                "
-              >
-                <img
-                  class="program-image-banner"
-                  :src="card.imageUrl"
-                  :alt="card.title"
-                  :data-testid="
-                    card.kind === 'event-splash'
-                      ? 'program-event-splash-image'
-                      : 'program-image-banner'
-                  "
-                />
-              </template>
-
-              <template v-else-if="card.kind === 'possession-stat'">
-                <div class="broadcast-stat-copy">
-                  <span>{{ card.eyebrow }}</span>
-                  <strong>{{ card.title }}</strong>
-                  <p>
-                    {{ card.homeCode }}
-                    {{ possessionPercentLabel(card, "home") }} ·
-                    {{ card.awayCode }}
-                    {{ possessionPercentLabel(card, "away") }}
-                  </p>
-                </div>
-                <div class="possession-chart" aria-hidden="true">
-                  <div class="possession-side possession-side-home">
-                    <span>{{ card.homeCode }}</span>
-                    <strong>{{ possessionPercentLabel(card, "home") }}</strong>
-                  </div>
-                  <PossessionPieChart
-                    class="possession-pie"
-                    :home-pct="possessionValue(card, 'home')"
-                    :away-pct="possessionValue(card, 'away')"
-                    :home-color="possessionHomeColor"
-                    :away-color="theme.accent"
-                  />
-                  <div class="possession-side possession-side-away">
-                    <strong>{{ possessionPercentLabel(card, "away") }}</strong>
-                    <span>{{ card.awayCode }}</span>
-                  </div>
-                </div>
-              </template>
-
-              <template v-else-if="card.kind === 'metric-group'">
-                <div class="broadcast-stat-copy">
-                  <span>{{ card.eyebrow }}</span>
-                  <strong>{{ card.title }}</strong>
-                  <p>{{ card.detail }}</p>
-                </div>
-                <div class="metric-grid" aria-hidden="true">
-                  <div
-                    v-for="metric in card.metrics"
-                    :key="metric.id"
-                    class="metric-cell"
+              <header class="lineup-team-header">
+                <span>{{ lineup.code }}</span>
+                <strong>{{ lineup.name }}</strong>
+                <b>{{ lineup.shape }}</b>
+              </header>
+              <div class="lineup-mini-columns">
+                <ol
+                  v-for="(column, columnIndex) in splitLineupEntries(lineup)"
+                  :key="columnIndex"
+                  class="lineup-list"
+                >
+                  <li
+                    v-for="entry in column"
+                    :key="lineupEntryKey(entry)"
+                    class="lineup-entry"
+                    :class="lineupEntryClass(entry)"
+                    :data-testid="
+                      entry.kind === 'coach'
+                        ? 'program-lineup-coach'
+                        : 'program-lineup-player'
+                    "
+                    :data-sub-in="
+                      entry.kind === 'player' && entry.isSubstitutedIn
+                        ? 'true'
+                        : undefined
+                    "
                   >
-                    <span class="metric-label">{{ metric.label }}</span>
-                    <div class="metric-bars">
-                      <div class="metric-bar metric-bar-home">
-                        <span :style="{ '--bar-height': `${metric.homePct}%` }"></span>
-                      </div>
-                      <div class="metric-bar metric-bar-away">
-                        <span :style="{ '--bar-height': `${metric.awayPct}%` }"></span>
-                      </div>
+                    <span class="lineup-entry-icon" aria-hidden="true">
+                      <svg viewBox="0 0 32 32" focusable="false">
+                        <path
+                          v-if="entry.kind === 'player'"
+                          d="M10 4 6 7 3 15l5 2 2-4v15h12V13l2 4 5-2-3-8-4-3-4 3h-4l-4-3Z"
+                        />
+                        <path
+                          v-else
+                          d="M16 4a5 5 0 0 1 5 5 5 5 0 0 1-2.6 4.4L22 16h4v12H6V16h4l3.6-2.6A5 5 0 0 1 11 9a5 5 0 0 1 5-5Zm-5.6 15L9 20.5V25h14v-4.5L21.6 19H19l-3 3-3-3h-2.6Z"
+                        />
+                      </svg>
+                    </span>
+                    <b>{{ entry.kind === "coach" ? "감독" : entry.number }}</b>
+                    <strong>{{ entry.name }}</strong>
+                    <i v-if="entry.kind === 'player' && entry.isSubstitutedIn"
+                      >IN</i
+                    >
+                    <div
+                      v-if="substitutionAnimationForEntry(lineup, entry)"
+                      class="lineup-substitution-animation"
+                      data-testid="program-lineup-substitution-animation"
+                    >
+                      <span class="substitution-out">
+                        <b>{{
+                          substitutionAnimationForEntry(lineup, entry)
+                            ?.outNumber
+                        }}</b>
+                        <strong>{{
+                          substitutionAnimationForEntry(lineup, entry)?.outName
+                        }}</strong>
+                        <i>OUT</i>
+                      </span>
+                      <span class="substitution-in">
+                        <b>{{
+                          substitutionAnimationForEntry(lineup, entry)?.inNumber
+                        }}</b>
+                        <strong>{{
+                          substitutionAnimationForEntry(lineup, entry)?.inName
+                        }}</strong>
+                        <i>IN</i>
+                      </span>
                     </div>
-                    <strong class="metric-score">
-                      <b>{{ metric.home }}</b>
-                      <i></i>
-                      <b>{{ metric.away }}</b>
-                    </strong>
-                  </div>
-                </div>
-              </template>
-
-              <template v-else-if="card.kind === 'player-rating'">
-                <div class="player-rating-portrait">
-                  <img
-                    v-if="card.playerImageUrl"
-                    :src="card.playerImageUrl"
-                    :alt="card.playerName"
-                  />
-                  <span v-else>{{ card.playerName?.slice(0, 1) }}</span>
-                </div>
-                <div class="broadcast-stat-copy">
-                  <span>{{ card.eyebrow }}</span>
-                  <strong>{{ card.playerName }}</strong>
-                  <p>{{ card.title }}</p>
-                </div>
-                <div class="player-rating-meta">
-                  <span>{{ card.playerTeamCode }}</span>
-                  <b>No. {{ card.playerNumber }}</b>
-                  <strong>{{ playerRatingLabel(card) }}</strong>
-                  <i>현재 평점</i>
-                </div>
-              </template>
-
-              <template v-else-if="card.kind === 'banner'">
-                <div class="host-map-line" aria-hidden="true">
-                  <span>VAN</span><span>TOR</span><span>NYC</span
-                  ><span>DAL</span><span>MEX</span>
-                </div>
-                <div class="host-map-copy">
-                  <b>{{ card.eyebrow }}</b>
-                  <strong>{{ card.title }}</strong>
-                  <p>{{ card.detail }}</p>
-                </div>
-              </template>
-
-              <template v-else-if="card.kind === 'stat'">
-                <div class="stat-seal">WC<br />26</div>
-                <div class="stat-copy">
-                  <span>{{ card.eyebrow }}</span>
-                  <strong>{{ card.title }}</strong>
-                  <p>{{ card.detail }}</p>
-                </div>
-                <div class="stat-values">
-                  <b>{{ card.leftValue }}</b>
-                  <i>{{ card.label }}</i>
-                  <b>{{ card.rightValue }}</b>
-                </div>
-              </template>
-
-              <template
-                v-else-if="
-                  card.kind === 'event' && card.eventType === 'substitution'
-                "
-              >
-                <figure class="event-player event-player--out">
-                  <img
-                    v-if="card.substitutionOutImageUrl"
-                    :src="card.substitutionOutImageUrl"
-                    :alt="card.substitutionOutName"
-                  />
-                  <span v-else>{{
-                    playerInitial(card.substitutionOutName)
-                  }}</span>
-                </figure>
-                <div class="substitution-copy">
-                  <span>{{ card.eyebrow }} · {{ card.label }}</span>
-                  <div class="substitution-row substitution-row--out">
-                    <strong>{{
-                      card.substitutionOutName ?? card.eventPlayerName
-                    }}</strong>
-                    <b>{{ playerNumberLabel(card.substitutionOutNumber) }}</b>
-                    <i aria-hidden="true">↓</i>
-                  </div>
-                  <div class="substitution-row substitution-row--in">
-                    <strong>{{ card.substitutionInName }}</strong>
-                    <b>{{ playerNumberLabel(card.substitutionInNumber) }}</b>
-                    <i aria-hidden="true">↑</i>
-                  </div>
-                </div>
-                <figure class="event-player event-player--in">
-                  <img
-                    v-if="card.substitutionInImageUrl"
-                    :src="card.substitutionInImageUrl"
-                    :alt="card.substitutionInName"
-                  />
-                  <span v-else>{{ playerInitial(card.substitutionInName) }}</span>
-                </figure>
-              </template>
-
-              <template v-else-if="card.kind === 'event'">
-                <figure class="event-player event-player--primary">
-                  <img
-                    v-if="card.eventPlayerImageUrl"
-                    :src="card.eventPlayerImageUrl"
-                    :alt="card.eventPlayerName"
-                  />
-                  <span v-else>{{ playerInitial(card.eventPlayerName) }}</span>
-                </figure>
-                <div class="event-copy">
-                  <span>{{ card.eyebrow }} · {{ card.label }}</span>
-                  <strong>{{ card.title }}</strong>
-                  <p>
-                    {{ card.eventPlayerName ?? card.detail }}
-                    <b v-if="card.eventPlayerNumber !== undefined">{{
-                      playerNumberLabel(card.eventPlayerNumber)
-                    }}</b>
-                  </p>
-                </div>
-                <figure class="event-team-mark">
-                  <img
-                    v-if="card.eventTeamLogoUrl"
-                    :src="card.eventTeamLogoUrl"
-                    :alt="card.label"
-                  />
-                  <span v-else>{{ card.label }}</span>
-                </figure>
-              </template>
-
-              <template v-else-if="card.kind === 'player'">
-                <div class="medal-marker">1</div>
-                <div class="medal-copy">
-                  <span>{{ card.eyebrow }}</span>
-                  <strong>{{ card.title }}</strong>
-                  <p>{{ card.detail }}</p>
-                </div>
-                <div class="medal-rating">{{ card.leftValue }}</div>
-              </template>
-
-              <template v-else>
-                <header class="info-card-kicker">
-                  <span>{{ card.eyebrow }}</span>
-                  <b>{{ card.label }}</b>
-                </header>
-                <div class="info-card-main">
-                  <strong class="info-value">{{ card.leftValue }}</strong>
-                  <div class="info-copy">
-                    <span>{{ card.title }}</span>
-                    <p>{{ card.detail }}</p>
-                  </div>
-                  <strong class="info-value info-value-away">{{
-                    card.rightValue
-                  }}</strong>
-                </div>
-              </template>
+                  </li>
+                </ol>
+              </div>
             </article>
           </div>
-        </div>
+
+          <div
+            v-else
+            :key="`stats-${activeStatView?.id}`"
+            class="stats-board"
+            data-testid="program-stats-view"
+            :data-stats-view="activeStatView?.id"
+          >
+            <header class="stats-header">
+              <span>{{ activeStatView?.eyebrow }}</span>
+              <strong>{{ activeStatView?.title }}</strong>
+              <b>{{ liveSnapshot.homeCode }} / {{ liveSnapshot.awayCode }}</b>
+            </header>
+            <div v-if="activeStatView?.metrics.length" class="stats-grid">
+              <article
+                v-for="metric in activeStatView.metrics"
+                :key="metric.id"
+                class="stat-metric"
+                data-testid="program-stat-metric"
+                :data-graph="metric.graph"
+                :style="statGraphVars(metric)"
+              >
+                <span>{{ metric.label }}</span>
+                <div
+                  v-if="metric.graph === 'pie'"
+                  class="stat-graph stat-graph--pie"
+                  aria-hidden="true"
+                >
+                  <span
+                    class="stat-team-badge stat-team-badge--home"
+                    data-testid="program-stat-home-badge"
+                  >
+                    <img
+                      v-if="liveSnapshot.homeLogoUrl"
+                      :src="liveSnapshot.homeLogoUrl"
+                      alt=""
+                    />
+                    <b v-else>{{ liveSnapshot.homeCode }}</b>
+                  </span>
+                  <ProgramPossessionPieChart
+                    :home-pct="animatedPercent(metric.homePct)"
+                    :away-pct="animatedPercent(metric.awayPct)"
+                  />
+                  <span
+                    class="stat-team-badge stat-team-badge--away"
+                    data-testid="program-stat-away-badge"
+                  >
+                    <img
+                      v-if="liveSnapshot.awayLogoUrl"
+                      :src="liveSnapshot.awayLogoUrl"
+                      alt=""
+                    />
+                    <b v-else>{{ liveSnapshot.awayCode }}</b>
+                  </span>
+                </div>
+                <div
+                  v-else-if="metric.graph === 'discipline'"
+                  class="stat-graph stat-graph--discipline"
+                  aria-hidden="true"
+                >
+                  <span
+                    class="stat-team-badge stat-team-badge--home"
+                    data-testid="program-stat-home-badge"
+                  >
+                    <img
+                      v-if="liveSnapshot.homeLogoUrl"
+                      :src="liveSnapshot.homeLogoUrl"
+                      alt=""
+                    />
+                    <b v-else>{{ liveSnapshot.homeCode }}</b>
+                  </span>
+                  <i></i>
+                  <b></b>
+                  <i></i>
+                  <span
+                    class="stat-team-badge stat-team-badge--away"
+                    data-testid="program-stat-away-badge"
+                  >
+                    <img
+                      v-if="liveSnapshot.awayLogoUrl"
+                      :src="liveSnapshot.awayLogoUrl"
+                      alt=""
+                    />
+                    <b v-else>{{ liveSnapshot.awayCode }}</b>
+                  </span>
+                </div>
+                <div
+                  v-else
+                  class="stat-graph stat-graph--bar"
+                  aria-hidden="true"
+                >
+                  <span
+                    class="stat-team-badge stat-team-badge--home"
+                    data-testid="program-stat-home-badge"
+                  >
+                    <img
+                      v-if="liveSnapshot.homeLogoUrl"
+                      :src="liveSnapshot.homeLogoUrl"
+                      alt=""
+                    />
+                    <b v-else>{{ liveSnapshot.homeCode }}</b>
+                  </span>
+                  <div>
+                    <i></i>
+                    <i></i>
+                  </div>
+                  <span
+                    class="stat-team-badge stat-team-badge--away"
+                    data-testid="program-stat-away-badge"
+                  >
+                    <img
+                      v-if="liveSnapshot.awayLogoUrl"
+                      :src="liveSnapshot.awayLogoUrl"
+                      alt=""
+                    />
+                    <b v-else>{{ liveSnapshot.awayCode }}</b>
+                  </span>
+                </div>
+                <div class="stat-score">
+                  <b>{{ animatedStatValue(metric.home) }}</b>
+                  <strong>{{ metric.label }}</strong>
+                  <b>{{ animatedStatValue(metric.away) }}</b>
+                </div>
+              </article>
+            </div>
+            <div v-else class="stats-empty" data-testid="program-stats-empty">
+              <span>표시할 스탯이 없습니다</span>
+            </div>
+          </div>
+        </Transition>
       </section>
     </section>
 
@@ -1688,7 +982,12 @@ function playerNumberLabel(number: number | undefined) {
       ></section>
     </aside>
   </main>
-  <main v-else class="program-stage program-stage--locked" data-testid="program-locked">
+
+  <main
+    v-else
+    class="program-stage program-stage--locked"
+    data-testid="program-locked"
+  >
     <section class="program-locked-panel">
       <strong>권한이 필요합니다</strong>
       <span>방송용 페이지는 ADMIN 전용입니다.</span>
@@ -1752,22 +1051,23 @@ function playerNumberLabel(number: number | undefined) {
   flex: 0 0 78%;
   min-width: 0;
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 78% 22%;
+  overflow: hidden;
 }
 
 .program-right {
   flex: 0 0 22%;
   min-width: 0;
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 78% 22%;
   background: #00b140;
 }
 
 .feed-surface {
   position: relative;
-  flex: 0 0 78%;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   background: var(--program-field);
@@ -1885,62 +1185,86 @@ function playerNumberLabel(number: number | undefined) {
   box-shadow: 0 0 0 0.14rem #000000;
 }
 
-.bottom-info-carousel {
+.bottom-program-panel {
   position: relative;
-  flex: 0 0 22%;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
+  padding: 0.86rem 1.05rem 0.8rem;
   background: linear-gradient(
     90deg,
-    var(--program-dark),
-    color-mix(in srgb, var(--program-panel) 78%, #000000)
+    #050505 0%,
+    #111111 34%,
+    #051b41 74%,
+    #030915 100%
   );
-  border-right: 0.12rem solid
-    color-mix(in srgb, var(--program-line) 38%, #000000);
+  border-top: 0.18rem solid #c9972b;
+  border-right: 0.12rem solid #c9972b;
+  box-shadow:
+    inset 0 1rem 2.4rem rgba(255, 255, 255, 0.05),
+    inset 0 -1.6rem 3rem rgba(0, 0, 0, 0.45);
   isolation: isolate;
 }
 
-.bottom-info-carousel::before {
+.bottom-program-panel::before {
   content: "";
   position: absolute;
   z-index: 1;
   top: 0;
   left: 0;
   right: 0;
-  height: 0.42rem;
+  height: 0.48rem;
   background: linear-gradient(
     90deg,
-    var(--program-accent) 0 18%,
-    var(--program-panel-alt) 18% 48%,
-    var(--program-accent-alt) 48% 78%,
-    var(--program-line) 78% 100%
+    #c8102e 0 16%,
+    #f5f1e8 16% 30%,
+    #c9972b 30% 56%,
+    #003478 56% 80%,
+    #c8102e 80% 100%
   );
 }
 
-.bottom-info-carousel[data-active-card-kind="event-splash"] {
-  border-right-color: transparent;
-}
-
-.bottom-info-carousel[data-active-card-kind="event-splash"]::before {
-  opacity: 0;
-}
-
-.carousel-window {
+.program-live-state,
+.lineup-board,
+.stats-board {
   position: relative;
   z-index: 2;
-  width: 100%;
   height: 100%;
-  overflow: hidden;
+}
+
+.bottom-view-enter-active {
+  z-index: 4;
+  transition:
+    opacity 240ms ease,
+    transform 240ms cubic-bezier(0.2, 0.78, 0.22, 1);
+}
+
+.bottom-view-leave-active {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    transform 180ms cubic-bezier(0.2, 0.78, 0.22, 1);
+}
+
+.bottom-view-enter-from {
+  opacity: 0;
+  transform: translateY(16%);
+}
+
+.bottom-view-leave-to {
+  opacity: 0.28;
+  transform: translateY(4%);
 }
 
 .program-live-state {
-  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  color: var(--program-text);
   text-align: center;
 }
 
@@ -1952,1074 +1276,643 @@ function playerNumberLabel(number: number | undefined) {
 
 .program-live-state strong {
   max-width: 72%;
+  color: var(--program-text);
   font-size: 1.2rem;
   line-height: 1.2;
 }
 
-.carousel-track {
-  width: 100%;
-  height: 100%;
-  transition: transform 620ms cubic-bezier(0.22, 0.82, 0.2, 1);
-}
-
-.info-card {
-  position: relative;
-  height: 100%;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 1.45% 2.2% 1.15%;
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--program-accent) 18%, transparent),
-      transparent 30%
-    ),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--program-panel) 90%, #000000),
-      var(--program-dark)
-    );
-  border-top: 0.08rem solid color-mix(in srgb, var(--program-line) 42%, #ffffff);
-  isolation: isolate;
-}
-
-.info-card--event {
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--program-accent) 38%, transparent),
-      transparent 34%
-    ),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--program-panel-alt) 24%, var(--program-dark)),
-      var(--program-dark)
-    );
-}
-
-.info-card--event .info-card-kicker span,
-.info-card--event .info-value-away {
-  color: var(--program-panel-alt);
-}
-
-.info-card--event .info-value {
-  color: var(--program-line);
-}
-
-.info-card--image-banner {
-  padding: 0;
-  background: #061b57;
-}
-
-.info-card--event-splash {
-  padding: 0;
-  background: #000000;
-  border-top: 0;
-}
-
-.program-image-banner {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-  object-position: center;
-}
-
-.info-card--event-splash .program-image-banner {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 100%;
-  height: auto;
-  object-fit: initial;
-  background: #000000;
-  transform: translate(-50%, -50%);
-}
-
-.info-card--banner,
-.info-card--possession-stat,
-.info-card--metric-group,
-.info-card--player-rating,
-.info-card--stat,
-.info-card--player,
-.info-card--event-goal,
-.info-card--event-own-goal,
-.info-card--event-card,
-.info-card--event-substitution,
-.info-card--event-var {
-  flex-direction: row;
-  align-items: center;
-  gap: 1.4rem;
-  padding: 1.3% 2.2%;
-}
-
-.host-map-line,
-.stat-seal,
-.goal-orbit,
-.mesh-badge,
-.medal-marker,
-.event-player,
-.event-copy,
-.event-team-mark,
-.substitution-copy,
-.broadcast-stat-copy,
-.possession-chart,
-.metric-grid,
-.player-rating-portrait,
-.player-rating-meta,
-.stat-copy,
-.host-map-copy,
-.goal-copy,
-.mesh-copy,
-.medal-copy,
-.stat-values,
-.goal-score,
-.mesh-value,
-.medal-rating {
-  position: relative;
-  z-index: 2;
-}
-
-.host-map-line {
-  flex: 0 0 40%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 0.8rem;
-}
-
-.host-map-line::before {
-  content: "";
-  position: absolute;
-  left: 3.2rem;
-  right: 3.2rem;
-  top: 50%;
-  height: 0.12rem;
-  background: var(--program-panel-alt);
-  transform: translateY(-50%);
-}
-
-.host-map-line span {
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 3.35rem;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--program-line);
-  color: var(--program-dark);
-  font-size: 0.78rem;
-  font-weight: 950;
-}
-
-.host-map-copy,
-.broadcast-stat-copy,
-.stat-copy,
-.goal-copy,
-.mesh-copy,
-.medal-copy {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.host-map-copy b,
-.broadcast-stat-copy span,
-.stat-copy span,
-.goal-copy span,
-.mesh-copy span,
-.medal-copy span {
-  display: block;
-  color: var(--program-panel-alt);
-  font-size: 1rem;
-  font-weight: 950;
-}
-
-.host-map-copy strong,
-.broadcast-stat-copy strong,
-.stat-copy strong,
-.goal-copy strong,
-.mesh-copy strong,
-.medal-copy strong {
-  display: block;
-  margin-top: 0.1rem;
-  color: var(--program-text);
-  font-size: clamp(1.8rem, 2.65vw, 3.7rem);
-  font-weight: 950;
-  line-height: 0.92;
-}
-
-.host-map-copy p,
-.broadcast-stat-copy p,
-.stat-copy p,
-.goal-copy p,
-.mesh-copy p,
-.medal-copy p {
-  margin: 0.45rem 0 0;
-  color: var(--program-muted);
-  font-size: clamp(0.95rem, 1.12vw, 1.35rem);
-  font-weight: 850;
-  line-height: 1.2;
-}
-
-.info-card--possession-stat,
-.info-card--metric-group,
-.info-card--player-rating {
-  background:
-    radial-gradient(
-      circle at 5% 50%,
-      rgba(201, 151, 43, 0.32),
-      transparent 19%
-    ),
-    linear-gradient(
-      90deg,
-      rgba(0, 52, 120, 0.32),
-      transparent 38%,
-      rgba(245, 241, 232, 0.1)
-    ),
-    linear-gradient(180deg, #101010 0%, #050505 100%);
-}
-
-.broadcast-stat-copy {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.info-card--possession-stat .broadcast-stat-copy {
-  flex: 0 1 27%;
-  max-width: 29%;
-}
-
-.possession-chart {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: clamp(0.85rem, 1.25vw, 1.45rem);
-}
-
-.possession-side {
-  flex: 0 0 clamp(10rem, 11.6vw, 13.75rem);
-  display: grid;
-  align-items: center;
-  column-gap: clamp(0.55rem, 0.72vw, 0.9rem);
-  color: var(--program-text);
-  font-weight: 950;
-}
-
-.possession-side-home {
-  grid-template-columns: minmax(3.2rem, max-content) minmax(6.2rem, 1fr);
-  justify-items: end;
-}
-
-.possession-side-away {
-  grid-template-columns: minmax(6.2rem, 1fr) minmax(3.2rem, max-content);
-  justify-items: start;
-}
-
-.possession-side span {
-  font-size: clamp(1.18rem, 1.42vw, 1.78rem);
-  line-height: 1;
-}
-
-.possession-side-home span {
-  color: var(--program-possession-home);
-}
-
-.possession-side-away span {
-  color: var(--program-accent);
-}
-
-.possession-side strong {
-  color: var(--program-text);
-  width: 100%;
-  font-size: clamp(1.85rem, 2.28vw, 3.25rem);
-  font-variant-numeric: tabular-nums;
-  line-height: 0.9;
-  text-align: center;
-}
-
-.possession-pie {
-  flex: 0 0 auto;
-  width: min(8.1rem, 35%);
-  aspect-ratio: 1;
-}
-
-.metric-grid {
-  flex: 0 0 45%;
-  height: 100%;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
-}
-
-.metric-cell {
-  min-width: 0;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  align-items: center;
-  gap: 0.42rem;
-  padding: 0.25rem 1rem;
-}
-
-.metric-cell + .metric-cell {
-  border-left: 0.14rem solid rgba(255, 255, 255, 0.92);
-}
-
-.metric-label {
-  color: var(--program-panel-alt);
-  font-size: clamp(0.78rem, 0.86vw, 1rem);
-  font-weight: 950;
-  white-space: nowrap;
-  text-align: center;
-}
-
-.metric-bars {
-  height: 4.9rem;
+.lineup-board {
   min-height: 0;
-  display: flex;
-  align-items: end;
-  justify-content: center;
-  gap: 0.42rem;
-}
-
-.metric-bar {
-  width: 1.1rem;
-  height: 100%;
-  display: flex;
-  align-items: end;
-  background: rgba(255, 255, 255, 0.16);
-  overflow: hidden;
-}
-
-.metric-bar span {
-  width: 100%;
-  height: var(--bar-height);
-  min-height: 0.28rem;
-  display: block;
-  transform: scaleY(0);
-  transform-origin: bottom;
-}
-
-.metric-bar-home span {
-  background: linear-gradient(180deg, var(--program-line), var(--program-accent));
-}
-
-.metric-bar-away span {
-  background: linear-gradient(
-    180deg,
-    var(--program-panel-alt),
-    var(--program-accent-alt)
-  );
-}
-
-.info-card--active .metric-bar span {
-  animation: bar-rise 760ms cubic-bezier(0.18, 0.78, 0.2, 1) forwards;
-}
-
-.metric-score {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.lineup-team {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 0.45rem;
+  padding: 0.3rem 0.78rem 0.42rem;
+  border: 0.08rem solid rgba(245, 241, 232, 0.24);
+  background: rgba(245, 241, 232, 0.06);
+}
+
+.lineup-team-header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.38rem;
-  color: var(--program-text);
-  font-size: clamp(1.15rem, 1.35vw, 1.65rem);
-  font-weight: 950;
-  line-height: 1;
+  gap: 0.62rem;
 }
 
-.metric-score b {
-  text-align: center;
-}
-
-.metric-score i {
-  width: 0.12rem;
-  height: 1.2rem;
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.info-card--metric-discipline .metric-bar-home span {
-  background: linear-gradient(180deg, #f5f1e8, #c9972b);
-}
-
-.info-card--metric-discipline .metric-bar-away span {
-  background: linear-gradient(180deg, #ff6f7d, #c8102e);
-}
-
-.player-rating-portrait {
-  flex: 0 0 auto;
-  width: 7.2rem;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 50%;
-  background:
-    linear-gradient(#050505, #050505) padding-box,
-    conic-gradient(
-        from 210deg,
-        var(--program-panel-alt),
-        var(--program-line),
-        var(--program-accent),
-        var(--program-panel-alt)
-      )
-      border-box;
-  border: 0.26rem solid transparent;
-  box-shadow: 0 0 1.4rem rgba(201, 151, 43, 0.42);
-}
-
-.player-rating-portrait img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-.player-rating-portrait span {
-  color: var(--program-panel-alt);
-  font-size: 3rem;
-  font-weight: 950;
-}
-
-.player-rating-meta {
-  flex: 0 0 34%;
-  display: grid;
-  grid-template-columns: repeat(3, auto);
-  align-items: baseline;
-  justify-content: end;
-  gap: 0.26rem 1.05rem;
-  color: var(--program-text);
-  text-align: right;
-}
-
-.player-rating-meta span,
-.player-rating-meta b,
-.player-rating-meta strong {
-  color: var(--program-text);
-  font-size: clamp(2.1rem, 2.85vw, 4rem);
-  font-weight: 950;
-  line-height: 0.85;
-  white-space: nowrap;
-}
-
-.player-rating-meta strong {
-  color: var(--program-panel-alt);
-  min-width: 2.9ch;
-}
-
-.player-rating-meta i {
-  grid-column: 1 / -1;
-  justify-self: end;
-  color: var(--program-muted);
-  font-size: 0.9rem;
-  font-style: normal;
-  font-weight: 950;
-  letter-spacing: 0;
-}
-
-@keyframes bar-rise {
-  from {
-    transform: scaleY(0);
-  }
-
-  to {
-    transform: scaleY(1);
-  }
-}
-
-.stat-seal {
-  flex: 0 0 auto;
-  width: 6.8rem;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background:
-    radial-gradient(
-      circle at 34% 25%,
-      rgba(255, 255, 255, 0.72),
-      transparent 24%
-    ),
-    linear-gradient(
-      135deg,
-      var(--program-line),
-      var(--program-panel-alt) 48%,
-      #7b4d11
-    );
-  color: var(--program-dark);
-  font-size: 1.75rem;
-  font-weight: 950;
-  line-height: 0.88;
-  text-align: center;
-  box-shadow:
-    0 0 0 0.28rem var(--program-dark),
-    0 0 0 0.44rem var(--program-accent);
-}
-
-.stat-values {
-  flex: 0 0 26%;
-  display: grid;
-  grid-template-columns: auto auto auto;
-  align-items: center;
-  justify-content: end;
-  gap: 0.75rem;
-}
-
-.stat-values b {
-  color: var(--program-text);
-  font-size: clamp(2.5rem, 3.5vw, 4.9rem);
-  font-weight: 950;
-  line-height: 0.9;
-}
-
-.stat-values i {
-  color: var(--program-panel-alt);
-  font-size: 0.9rem;
-  font-style: normal;
+.lineup-team-header span,
+.lineup-team-header b {
+  color: #c9972b;
+  font-size: clamp(0.72rem, 0.78vw, 0.98rem);
   font-weight: 950;
   white-space: nowrap;
 }
 
-.goal-orbit {
-  flex: 0 0 auto;
-  width: 6.8rem;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border: 0.14rem dashed var(--program-panel-alt);
-  border-radius: 50%;
-}
-
-.goal-orbit img {
-  width: 3.9rem;
-  display: block;
-}
-
-.goal-orbit span {
-  position: absolute;
-  width: 0.9rem;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--program-accent);
-  transform: translate(2.5rem, -2.55rem);
-}
-
-.goal-score,
-.mesh-value,
-.medal-rating {
-  flex: 0 0 auto;
-  color: var(--program-panel-alt);
-  font-size: clamp(2.6rem, 3.6vw, 5rem);
-  font-weight: 950;
-  line-height: 0.9;
-  text-align: right;
-}
-
-.info-card--event-card,
-.info-card--event-substitution,
-.info-card--event-var {
-  background:
-    linear-gradient(
-      45deg,
-      rgba(245, 241, 232, 0.12) 0 0.08rem,
-      transparent 0.08rem 1.2rem
-    ),
-    linear-gradient(
-      -45deg,
-      rgba(245, 241, 232, 0.1) 0 0.08rem,
-      transparent 0.08rem 1.2rem
-    ),
-    linear-gradient(
-      90deg,
-      rgba(200, 16, 46, 0.22),
-      transparent 34%,
-      rgba(201, 151, 43, 0.2)
-    ),
-    var(--program-dark);
-}
-
-.event-player {
-  flex: 0 0 clamp(5.2rem, 6.2vw, 7.35rem);
-  height: clamp(5.2rem, 6.2vw, 7.35rem);
-  margin: 0;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 50%;
-  background:
-    linear-gradient(#050505, #050505) padding-box,
-    conic-gradient(
-        from 210deg,
-        var(--program-panel-alt),
-        var(--program-line),
-        var(--program-accent),
-        var(--program-panel-alt)
-      )
-      border-box;
-  border: 0.26rem solid transparent;
-  box-shadow: 0 0 1.4rem rgba(201, 151, 43, 0.42);
-}
-
-.event-player img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.event-player span {
-  color: var(--program-panel-alt);
-  font-size: clamp(2rem, 2.35vw, 3rem);
-  font-weight: 950;
-}
-
-.event-player--out {
-  box-shadow:
-    0 0 1.4rem rgba(201, 151, 43, 0.42),
-    0 0 1.25rem rgba(200, 16, 46, 0.32);
-}
-
-.event-player--in {
-  box-shadow:
-    0 0 1.4rem rgba(201, 151, 43, 0.42),
-    0 0 1.25rem rgba(33, 196, 111, 0.32);
-}
-
-.event-copy,
-.substitution-copy {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.event-copy span,
-.substitution-copy > span {
-  display: block;
-  color: var(--program-panel-alt);
-  font-size: clamp(0.9rem, 1vw, 1.16rem);
-  font-weight: 950;
-}
-
-.event-copy strong {
-  display: block;
-  margin-top: 0.12rem;
-  color: var(--program-text);
-  font-size: clamp(1.85rem, 2.65vw, 3.65rem);
-  font-weight: 950;
-  line-height: 0.92;
-}
-
-.event-copy p {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 0.42rem 0 0;
-  color: var(--program-muted);
-  font-size: clamp(1rem, 1.2vw, 1.45rem);
-  font-weight: 900;
-  line-height: 1;
-}
-
-.event-copy p b {
-  padding: 0.18rem 0.52rem;
-  background: rgba(245, 241, 232, 0.12);
-  color: var(--program-text);
-  font-size: 0.92em;
-}
-
-.event-team-mark {
-  flex: 0 0 clamp(4.8rem, 5.3vw, 6.35rem);
-  height: clamp(4.8rem, 5.3vw, 6.35rem);
-  margin: 0;
-  display: grid;
-  place-items: center;
-  padding: 0.46rem;
-  overflow: hidden;
-  border-radius: 0.72rem;
-  background:
-    linear-gradient(#ffffff, #ffffff) padding-box,
-    conic-gradient(
-        from 210deg,
-        var(--program-panel-alt),
-        var(--program-line),
-        var(--program-accent),
-        var(--program-panel-alt)
-      )
-      border-box;
-  border: 0.22rem solid transparent;
-  box-shadow: 0 0 1.25rem rgba(201, 151, 43, 0.36);
-}
-
-.event-team-mark img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.event-team-mark span {
-  color: #050505;
-  font-size: clamp(0.95rem, 1vw, 1.2rem);
-  font-weight: 950;
-}
-
-.substitution-copy {
-  display: grid;
-  grid-template-rows: auto 1fr 1fr;
-  gap: 0.32rem;
-}
-
-.substitution-row {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 0.72rem;
-  padding: 0.32rem 0.78rem;
-  background: rgba(245, 241, 232, 0.08);
-}
-
-.substitution-row strong {
+.lineup-team-header strong {
   min-width: 0;
   overflow: hidden;
-  color: var(--program-text);
-  font-size: clamp(1.25rem, 1.65vw, 2.25rem);
+  color: #ffffff;
+  font-size: clamp(0.88rem, 1vw, 1.28rem);
   font-weight: 950;
-  line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.substitution-row b {
-  color: rgba(245, 241, 232, 0.82);
-  font-size: clamp(0.9rem, 1vw, 1.2rem);
-  font-weight: 950;
-}
-
-.substitution-row i {
-  width: 2rem;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  font-size: clamp(1.25rem, 1.5vw, 1.9rem);
-  font-style: normal;
-  font-weight: 950;
-  line-height: 1;
-}
-
-.substitution-row--out {
-  border-left: 0.28rem solid #c8102e;
-}
-
-.substitution-row--out i {
-  color: #ff405f;
-}
-
-.substitution-row--in {
-  border-left: 0.28rem solid #21c46f;
-}
-
-.substitution-row--in i {
-  color: #37ef8f;
-}
-
-.mesh-badge {
-  flex: 0 0 6.8rem;
-  height: 5.7rem;
-  display: grid;
-  place-items: center;
-  background: var(--program-accent);
-  border: 0.12rem solid var(--program-line);
-  color: var(--program-text);
-  font-size: 2.2rem;
-  font-weight: 950;
-}
-
-.medal-marker {
-  flex: 0 0 auto;
-  width: 6.8rem;
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 35% 25%,
-    #ffffff,
-    var(--program-panel-alt) 42%,
-    #5e3709
-  );
-  color: var(--program-dark);
-  font-size: 3.1rem;
-  font-weight: 950;
-}
-
-.medal-rating {
-  padding: 0.85rem 1.05rem;
-  background: var(--program-panel-alt);
-  color: var(--program-dark);
-  border-radius: 0.3rem;
-}
-
-.info-card-kicker {
-  flex: 0 0 26%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--program-muted);
-  font-weight: 950;
-}
-
-.info-card-kicker span {
-  color: var(--program-accent-alt);
-  font-size: 1.05rem;
-}
-
-.info-card-kicker b {
-  padding: 0.25rem 0.8rem;
-  background: var(--program-dark);
-  border: 0.08rem solid var(--program-accent-alt);
-  border-radius: 999rem;
-  color: var(--program-text);
-  font-size: 0.9rem;
-}
-
-.info-card-main {
-  flex: 1 1 auto;
+.lineup-mini-columns {
   min-height: 0;
   display: grid;
-  grid-template-columns: 20% 1fr 20%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.48rem;
+}
+
+.lineup-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  gap: 0.18rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lineup-entry {
+  position: relative;
+  z-index: 0;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1.42rem 2.8ch minmax(0, 1fr) auto;
   align-items: center;
-  gap: 1.3rem;
+  gap: 0.34rem;
+  padding: 0 0.34rem;
+  background: rgba(0, 0, 0, 0.24);
+  border-left: 0.16rem solid rgba(245, 241, 232, 0.36);
+  overflow: hidden;
+  isolation: isolate;
+  contain: paint;
 }
 
-.info-value {
-  color: var(--program-text);
-  font-size: clamp(2.8rem, 4.2vw, 5.6rem);
+.lineup-player--sub-in,
+.lineup-entry[data-sub-in="true"] {
+  border-left-color: #c9972b;
+  background: rgba(201, 151, 43, 0.16);
+}
+
+.lineup-entry--coach {
+  grid-template-columns: 1.42rem 4ch minmax(0, 1fr) auto;
+  border-left-color: rgba(245, 241, 232, 0.62);
+  background: rgba(245, 241, 232, 0.12);
+}
+
+.lineup-entry-icon {
+  position: relative;
+  z-index: 1;
+  width: 1.18rem;
+  height: 1.18rem;
+  display: grid;
+  place-items: center;
+}
+
+.lineup-entry-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: #f5f1e8;
+}
+
+.lineup-entry--coach .lineup-entry-icon svg {
+  fill: #c9972b;
+}
+
+.lineup-entry b {
+  position: relative;
+  z-index: 1;
+  color: #c9972b;
+  font-size: clamp(0.74rem, 0.78vw, 1rem);
   font-weight: 950;
-  line-height: 0.9;
-  text-align: left;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-.info-value-away {
-  color: var(--program-accent-alt);
+.lineup-entry--coach b {
+  font-size: clamp(0.62rem, 0.68vw, 0.82rem);
+  white-space: nowrap;
+}
+
+.lineup-entry strong {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: clamp(0.78rem, 0.88vw, 1.08rem);
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lineup-entry--coach strong {
+  color: #f6e1a8;
+}
+
+.lineup-entry i {
+  position: relative;
+  z-index: 1;
+  color: #f6e1a8;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.lineup-substitution-animation {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: block;
+  border-left: 0.16rem solid #c9972b;
+  box-shadow:
+    inset 0 0 0 0.08rem rgba(245, 241, 232, 0.18),
+    0 0 1.2rem rgba(201, 151, 43, 0.35);
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
+.lineup-substitution-animation span {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 2.8ch minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0 0.42rem;
+}
+
+.lineup-substitution-animation b {
+  color: #f5f1e8;
+  font-size: clamp(0.68rem, 0.72vw, 0.92rem);
+  font-weight: 950;
   text-align: right;
 }
 
-.info-copy {
+.lineup-substitution-animation strong {
   min-width: 0;
-}
-
-.info-copy span {
-  display: block;
-  color: var(--program-text);
-  font-size: clamp(1.8rem, 2.4vw, 3.6rem);
+  overflow: hidden;
+  color: #ffffff;
+  font-size: clamp(0.72rem, 0.82vw, 1.02rem);
   font-weight: 950;
-  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.info-copy p {
-  max-width: 100%;
-  margin: 0.55rem 0 0;
-  color: var(--program-muted);
-  font-size: clamp(1rem, 1.25vw, 1.5rem);
-  font-weight: 800;
-  line-height: 1.25;
+.lineup-substitution-animation i {
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.substitution-out {
+  z-index: 30;
+  background:
+    linear-gradient(90deg, rgba(200, 16, 46, 0.84), rgba(5, 5, 5, 0.96)),
+    #050505;
+  animation: substitution-out 8000ms cubic-bezier(0.2, 0.78, 0.22, 1) forwards;
+}
+
+.substitution-out > * {
+  animation: substitution-out-person 8000ms cubic-bezier(0.2, 0.78, 0.22, 1)
+    forwards;
+}
+
+.substitution-out i {
+  color: #ffced6;
+}
+
+.substitution-in {
+  z-index: 40;
+  background:
+    linear-gradient(90deg, rgba(201, 151, 43, 0.84), rgba(5, 5, 5, 0.96)),
+    #050505;
+  animation: substitution-in 8000ms cubic-bezier(0.2, 0.78, 0.22, 1) forwards;
+}
+
+.substitution-in > * {
+  animation: substitution-in-person 8000ms cubic-bezier(0.2, 0.78, 0.22, 1)
+    forwards;
+}
+
+.substitution-in i {
+  color: #f6e1a8;
+}
+
+@keyframes substitution-out {
+  0% {
+    opacity: 1;
+    transform: translateY(-100%);
+  }
+
+  3.75% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  55% {
+    opacity: 1;
+    transform: translateY(-100%);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes substitution-out-person {
+  0%,
+  3% {
+    opacity: 0;
+    transform: translateX(42%);
+  }
+
+  8% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  42% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+    transform: translateX(-10%);
+  }
+}
+
+@keyframes substitution-in {
+  0%,
+  37.5% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+
+  41.25% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  95% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(100%);
+  }
+}
+
+@keyframes substitution-in-person {
+  0%,
+  42% {
+    opacity: 0;
+    transform: translateX(-42%);
+  }
+
+  48% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  95%,
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.stats-board {
+  display: grid;
+  grid-template-columns: 18rem 1fr;
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.stats-header {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.18rem;
+}
+
+.stats-header span {
+  color: #c9972b;
+  font-size: 0.98rem;
+  font-weight: 950;
+}
+
+.stats-header strong {
+  color: #ffffff;
+  font-size: clamp(1.55rem, 2.1vw, 2.9rem);
+  font-weight: 950;
+  line-height: 0.98;
+}
+
+.stats-header b {
+  color: #f6e1a8;
+  font-size: 0.95rem;
+  font-weight: 950;
+}
+
+.stats-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.stat-metric {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(3.2rem, 1fr) auto;
+  gap: 0.48rem;
+  padding: 0.64rem 0.74rem;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(245, 241, 232, 0.12), rgba(5, 5, 5, 0.12)),
+    rgba(245, 241, 232, 0.08);
+  border: 0.08rem solid rgba(245, 241, 232, 0.2);
+  animation: stat-card-in 620ms cubic-bezier(0.2, 0.78, 0.22, 1) both;
+}
+
+.stat-metric:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.stat-metric:nth-child(3) {
+  animation-delay: 160ms;
+}
+
+.stat-metric::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 0 32%,
+    rgba(255, 255, 255, 0.2) 46%,
+    transparent 62% 100%
+  );
+  opacity: 0;
+  transform: translateX(-100%);
+  animation: stat-card-sheen 920ms ease-out both;
+  animation-delay: 140ms;
+}
+
+.stat-metric > span {
+  position: relative;
+  z-index: 1;
+  color: #c9972b;
+  font-size: 0.86rem;
+  font-weight: 950;
+  text-align: center;
+}
+
+.stat-graph {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.stat-graph--bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: 2.9rem minmax(0, 1fr);
+  align-items: stretch;
+  column-gap: 0.78rem;
+  row-gap: 0.42rem;
+}
+
+.stat-graph--bar > div {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 0.78rem;
+}
+
+.stat-graph--bar i {
+  display: flex;
+  align-items: end;
+  align-self: end;
+  height: 100%;
+  min-height: 4.2rem;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 0.05rem rgba(255, 255, 255, 0.18);
+}
+
+.stat-graph--bar i::before {
+  content: "";
+  display: block;
+  width: 100%;
+}
+
+.stat-graph--bar i:first-child::before {
+  height: var(--stat-home-pct);
+  background: #f5f1e8;
+}
+
+.stat-graph--bar i:last-child::before {
+  height: var(--stat-away-pct);
+  background: #c8102e;
+}
+
+.stat-graph--pie {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.52fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
+  gap: 0.58rem;
+}
+
+.stat-graph--discipline {
+  display: grid;
+  grid-template-columns: 1fr 0.28rem 1fr;
+  grid-template-rows: 2.9rem minmax(0, 1fr);
+  align-items: end;
+  column-gap: 0.68rem;
+  row-gap: 0.42rem;
+  padding: 0 0.1rem;
+}
+
+.stat-graph--discipline i {
+  align-self: end;
+  min-height: 0.32rem;
+  display: block;
+  width: 100%;
+  box-shadow: inset 0 0 0 0.06rem rgba(255, 255, 255, 0.22);
+}
+
+.stat-graph--discipline i:first-of-type {
+  grid-column: 1;
+  grid-row: 2;
+  height: var(--stat-home-pct);
+  background: #f5f1e8;
+}
+
+.stat-graph--discipline i:last-of-type {
+  grid-column: 3;
+  grid-row: 2;
+  height: var(--stat-away-pct);
+  background: #c8102e;
+}
+
+.stat-graph--discipline > b {
+  grid-column: 2;
+  grid-row: 2;
+  width: 100%;
+  height: 92%;
+  background: rgba(201, 151, 43, 0.56);
+}
+
+.stat-team-badge {
+  width: 2.9rem;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: rgba(5, 5, 5, 0.58);
+  box-shadow:
+    inset 0 0 0 0.07rem rgba(245, 241, 232, 0.28),
+    0 0 0.62rem rgba(0, 0, 0, 0.34);
+}
+
+.stat-team-badge img {
+  width: 76%;
+  height: 76%;
+  object-fit: contain;
+}
+
+.stat-team-badge b {
+  color: #f5f1e8;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.stat-team-badge--home {
+  justify-self: center;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.stat-team-badge--away {
+  justify-self: center;
+  grid-column: -2;
+  grid-row: 1;
+}
+
+.stat-graph--pie .stat-team-badge {
+  width: 3.35rem;
+}
+
+.stat-graph--pie .program-possession-chart {
+  grid-column: 2;
+  grid-row: 1;
+  height: 100%;
+}
+
+.stat-score {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.46rem;
+}
+
+.stat-score b {
+  color: #ffffff;
+  font-size: clamp(1.8rem, 2.3vw, 3.15rem);
+  font-weight: 950;
+  line-height: 0.95;
+  text-align: center;
+}
+
+.stat-score strong {
+  color: rgba(245, 241, 232, 0.72);
+  font-size: 0.68rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.stats-empty {
+  display: grid;
+  place-items: center;
+  color: #f6e1a8;
+  font-weight: 950;
+}
+
+@keyframes stat-card-in {
+  0% {
+    opacity: 0;
+    transform: translateY(18%) scale(0.96);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes stat-card-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  35% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(120%);
+  }
 }
 
 .chat-slot {
-  flex: 0 0 78%;
+  height: 100%;
   min-height: 0;
   background: #00b140;
 }
 
 .character-slot {
-  flex: 0 0 22%;
+  height: 100%;
   min-height: 0;
   background: #00b140;
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card {
-  border-color: color-mix(in srgb, var(--program-panel-alt) 80%, #ffffff);
-}
-
-.program-stage[data-league="world-cup-2026"] .bottom-info-carousel {
-  background: linear-gradient(
-    90deg,
-    #050505 0%,
-    #111111 34%,
-    #051b41 74%,
-    #030915 100%
-  );
-  border-top: 0.18rem solid #c9972b;
-  border-right-color: #c9972b;
-  box-shadow:
-    inset 0 1rem 2.4rem rgba(255, 255, 255, 0.05),
-    inset 0 -1.6rem 3rem rgba(0, 0, 0, 0.45);
-}
-
-.program-stage[data-league="world-cup-2026"] .bottom-info-carousel::before {
-  height: 0.56rem;
-  background: linear-gradient(
-    90deg,
-    #c8102e 0 16%,
-    #f5f1e8 16% 30%,
-    #c9972b 30% 56%,
-    #003478 56% 80%,
-    #c8102e 80% 100%
-  );
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card {
-  background:
-    linear-gradient(
-      90deg,
-      rgba(200, 16, 46, 0.26),
-      transparent 27%,
-      rgba(0, 52, 120, 0.3)
-    ),
-    linear-gradient(180deg, #151515 0%, #050505 100%);
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card--possession-stat,
-.program-stage[data-league="world-cup-2026"] .info-card--metric-group,
-.program-stage[data-league="world-cup-2026"] .info-card--player-rating {
-  background:
-    radial-gradient(
-      circle at 7% 50%,
-      rgba(201, 151, 43, 0.34),
-      transparent 20%
-    ),
-    linear-gradient(
-      90deg,
-      rgba(0, 52, 120, 0.34),
-      transparent 38%,
-      rgba(245, 241, 232, 0.1)
-    ),
-    linear-gradient(180deg, #101010 0%, #050505 100%);
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card--event-splash {
-  background: #000000;
-  border-top: 0;
-}
-
-.program-stage[data-league="world-cup-2026"]
-  .bottom-info-carousel[data-active-card-kind="event-splash"] {
-  border-top-color: transparent;
-  border-right-color: transparent;
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card--event {
-  background:
-    linear-gradient(
-      90deg,
-      rgba(200, 16, 46, 0.42),
-      transparent 36%,
-      rgba(201, 151, 43, 0.28)
-    ),
-    linear-gradient(180deg, #1b0a0e 0%, #050505 100%);
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card--banner {
-  background:
-    radial-gradient(
-      circle at 18% 64%,
-      rgba(200, 16, 46, 0.28),
-      transparent 25%
-    ),
-    linear-gradient(105deg, #050505 0%, #111111 48%, #1b1408 100%);
-}
-
-.program-stage[data-league="world-cup-2026"] .host-map-line::before {
-  background: #c9972b;
-}
-
-.program-stage[data-league="world-cup-2026"] .host-map-line span {
-  background: #f5f1e8;
-  color: #050505;
-  box-shadow: 0 0 0 0.2rem #c9972b;
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card--stat {
-  background:
-    linear-gradient(
-      90deg,
-      rgba(200, 16, 46, 0.2),
-      transparent 20%,
-      rgba(201, 151, 43, 0.18) 72%,
-      rgba(245, 241, 232, 0.08)
-    ),
-    linear-gradient(180deg, #17140d 0%, #050505 100%);
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card--player {
-  background:
-    radial-gradient(
-      circle at 8% 50%,
-      rgba(201, 151, 43, 0.34),
-      transparent 20%
-    ),
-    linear-gradient(90deg, #050505, #17110a 52%, #050505);
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card--event-goal {
-  background:
-    radial-gradient(
-      circle at 13% 50%,
-      rgba(245, 241, 232, 0.18),
-      transparent 18%
-    ),
-    linear-gradient(90deg, #1a0b10, #050505 48%, #111111);
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card--event-own-goal {
-  background:
-    radial-gradient(
-      circle at 13% 50%,
-      rgba(245, 241, 232, 0.16),
-      transparent 18%
-    ),
-    linear-gradient(90deg, #05142d, #050505 48%, #24120b);
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card--event-card,
-.program-stage[data-league="world-cup-2026"] .info-card--event-substitution,
-.program-stage[data-league="world-cup-2026"] .info-card--event-var {
-  background:
-    linear-gradient(
-      45deg,
-      rgba(245, 241, 232, 0.12) 0 0.08rem,
-      transparent 0.08rem 1.2rem
-    ),
-    linear-gradient(
-      -45deg,
-      rgba(245, 241, 232, 0.1) 0 0.08rem,
-      transparent 0.08rem 1.2rem
-    ),
-    linear-gradient(
-      90deg,
-      rgba(200, 16, 46, 0.28),
-      transparent 34%,
-      rgba(201, 151, 43, 0.24)
-    ),
-    #070707;
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card-kicker span {
-  color: #c9972b;
-}
-
-.program-stage[data-league="world-cup-2026"] .info-card-kicker b {
-  background: #050505;
-  border-color: #c9972b;
-}
-
-.program-stage[data-league="world-cup-2026"] .info-value-away {
-  color: #f6e1a8;
-}
-
-.program-stage[data-league="world-cup-2026"]
-  .info-card--event
-  .info-value-away {
-  color: #c9972b;
 }
 </style>

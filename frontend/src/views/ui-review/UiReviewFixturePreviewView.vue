@@ -732,8 +732,8 @@ onBeforeUnmount(() => {
   border: 1px solid color-mix(in srgb, var(--color-primary) 38%, var(--color-border));
   border-radius: 999px;
   padding: 0 13px;
-  color: #fff;
-  background: color-mix(in srgb, var(--color-primary) 88%, #111827);
+  color: var(--color-fg);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg));
   cursor: pointer;
   font-family: inherit;
   font-size: 12px;
@@ -745,6 +745,7 @@ onBeforeUnmount(() => {
 .streaming-button:hover,
 .streaming-button:focus-visible {
   border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 16%, var(--color-bg));
   outline: none;
   transform: translateY(-1px);
 }

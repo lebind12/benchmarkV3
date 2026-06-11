@@ -65,6 +65,11 @@ type ApiFootballEventItem = {
 
 type ApiFootballLineupItem = {
   team?: ApiFootballTeamRef
+  coach?: {
+    id?: number
+    name?: string | null
+    photo?: string | null
+  }
   formation?: string | null
   startXI?: Array<{
     player?: {
@@ -160,11 +165,19 @@ export type ApiFootballBroadcastLineupPlayer = {
   photoUrl?: string
 }
 
+export type ApiFootballBroadcastCoach = {
+  id?: number
+  name: string
+  longName?: string
+  photoUrl?: string
+}
+
 export type ApiFootballBroadcastLineup = {
   teamId?: number
   name: string
   code: string
   shape: string
+  coach?: ApiFootballBroadcastCoach
   players: ApiFootballBroadcastLineupPlayer[]
   substituteNumbers: Record<string, number>
 }
@@ -665,11 +678,25 @@ function normalizeLineups(
     photoUrl: entry.player?.id !== undefined ? playerPhotos.get(entry.player.id) : undefined,
   })
 
+  const normalizeCoach = (
+    coach: ApiFootballLineupItem['coach'],
+  ): ApiFootballBroadcastCoach | undefined => {
+    if (!coach?.name) return undefined
+
+    return {
+      id: coach.id,
+      name: coach.name,
+      longName: coach.name,
+      photoUrl: coach.photo ?? undefined,
+    }
+  }
+
   return lineups.map((lineup) => ({
     teamId: lineup.team?.id,
     name: lineup.team?.name ?? '미정 팀',
     code: compactCode(lineup.team?.code),
     shape: lineup.formation ?? '4-3-3',
+    coach: normalizeCoach(lineup.coach),
     players: (lineup.startXI ?? []).slice(0, 11).map(normalizeLineupPlayer),
     substituteNumbers: buildSubstituteNumberMap(lineup.substitutes),
   }))
@@ -826,6 +853,7 @@ async function fetchBroadcastTranslations(
   snapshot: ApiFootballBroadcastSnapshot,
 ): Promise<BroadcastTranslationResponse | null> {
   const lineupPlayers = snapshot.lineups.flatMap((lineup) => lineup.players)
+  const lineupCoaches = snapshot.lineups.flatMap((lineup) => lineup.coach ? [lineup.coach] : [])
   const playerIds = uniqueNumbers([
     ...lineupPlayers.map((player) => player.id),
     ...snapshot.events.flatMap((event) => [event.playerId, event.assistId]),
@@ -847,8 +875,8 @@ async function fetchBroadcastTranslations(
         ...lineupPlayers.map((player) => player.name),
         ...snapshot.events.flatMap((event) => [event.player, event.assist, event.inPlayer, event.outPlayer]),
       ]),
-      coach_ids: [],
-      coach_names: [],
+      coach_ids: uniqueNumbers(lineupCoaches.map((coach) => coach.id)),
+      coach_names: uniqueNames(lineupCoaches.map((coach) => coach.name)),
     }),
   })
 
@@ -876,10 +904,29 @@ async function applyBroadcastTranslations(
   const playerNameTranslations = translations?.player_names
   const leagueTranslations = translations?.leagues
   const leagueNameTranslations = translations?.league_names
+  const coachTranslations = translations?.coaches
+  const coachNameTranslations = translations?.coach_names
   const translatedLineups = snapshot.lineups.map((lineup) => ({
     ...lineup,
     name: translatedName(teamTranslations, lineup.teamId, teamNameTranslations, lineup.name),
     code: translatedShortName(teamTranslations, lineup.teamId, teamNameTranslations, lineup.name),
+    coach: lineup.coach
+      ? {
+          ...lineup.coach,
+          longName: translatedName(
+            coachTranslations,
+            lineup.coach.id,
+            coachNameTranslations,
+            lineup.coach.longName ?? lineup.coach.name,
+          ),
+          name: translatedShortName(
+            coachTranslations,
+            lineup.coach.id,
+            coachNameTranslations,
+            lineup.coach.name,
+          ),
+        }
+      : undefined,
     players: lineup.players.map((player) => ({
       ...player,
       longName: translatedName(playerTranslations, player.id, playerNameTranslations, player.longName ?? player.name),
