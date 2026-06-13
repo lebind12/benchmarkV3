@@ -201,6 +201,7 @@ type ApiFootballBroadcastLineupPlayerStat = Partial<
   Pick<
     ApiFootballBroadcastLineupPlayer,
     | "minutes"
+    | "rating"
     | "shotsTotal"
     | "shotsOnGoal"
     | "passesTotal"
@@ -697,6 +698,7 @@ function buildPlayerStatMap(fixturePlayers: ApiFootballFixturePlayerItem[]) {
 
       statsById.set(id, {
         minutes: games ? normalizePlayerStatNumber(games.minutes) : undefined,
+        rating: games ? normalizeRating(games.rating) : undefined,
         shotsTotal: normalizePlayerStatNumber(stat?.shots?.total),
         shotsOnGoal: normalizePlayerStatNumber(stat?.shots?.on),
         passesTotal: normalizePlayerStatNumber(stat?.passes?.total),
@@ -838,9 +840,17 @@ function normalizeLineups(
 
 const statTypeMap = new Map([
   ['Ball Possession', '점유율'],
+  ['expected_goals', 'xG'],
+  ['Expected Goals', 'xG'],
   ['Total Shots', '전체슈팅'],
   ['Shots on Goal', '유효슈팅'],
+  ['Shots insidebox', '박스안슈팅'],
+  ['Shots outsidebox', '박스밖슈팅'],
+  ['Blocked Shots', '블록슈팅'],
+  ['Goalkeeper Saves', '세이브'],
   ['Corner Kicks', '코너킥'],
+  ['Total passes', '전체패스'],
+  ['Passes accurate', '패스성공'],
   ['Passes %', '패스성공률'],
   ['Yellow Cards', '옐로카드'],
   ['Red Cards', '레드카드'],

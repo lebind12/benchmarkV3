@@ -409,28 +409,24 @@ const activeStatView = computed<StatViewConfig | null>(() => {
       id: "attack",
       eyebrow: "ATTACK",
       title: "공격 지표",
-      metrics: compactStats(snapshot.stats, ["점유율", "전체슈팅", "유효슈팅"]),
+      metrics: compactStats(snapshot.stats, ["xG", "유효슈팅", "슈팅정확도"]),
     },
     chance: {
       id: "chance",
       eyebrow: "CHANCE",
       title: "찬스 지표",
-      metrics: compactStats(snapshot.stats, [
-        "코너킥",
-        "오프사이드",
-        "전체슈팅",
-      ]),
+      metrics: compactStats(snapshot.stats, ["전체슈팅", "박스안슈팅", "코너킥"]),
     },
     control: {
       id: "control",
       eyebrow: "CONTROL",
       title: "경기 운영",
-      metrics: compactStats(snapshot.stats, ["패스성공률", "점유율"]),
+      metrics: compactStats(snapshot.stats, ["점유율", "패스성공률", "오프사이드"]),
     },
     discipline: {
       id: "discipline",
       eyebrow: "DISCIPLINE",
-      title: "징계/수비",
+      title: "징계 지표",
       metrics: compactStats(snapshot.stats, ["파울", "옐로카드", "레드카드"]),
     },
     group: {
@@ -489,6 +485,35 @@ const groupStandingsRows = computed<GroupStandingsRowView[]>(() => {
     })
     .filter((row) => row.teamName || row.teamCode);
 });
+
+function isUsableStandingsPayload(
+  standings: NonNullable<ApiFootballBroadcastSnapshot["standings"]> | null | undefined,
+): standings is NonNullable<ApiFootballBroadcastSnapshot["standings"]> {
+  const rows = standings?.rows;
+  if (!Array.isArray(rows) || rows.length === 0) return false;
+
+  return rows.some((row) => {
+    const played = Number(row.played);
+    const win = Number(row.win);
+    const draw = Number(row.draw);
+    const loss = Number(row.loss);
+    const goalsFor = Number(row.goals_for);
+    const goalsAgainst = Number(row.goals_against);
+    const points = Number(row.points);
+
+    return [played, win, draw, loss, goalsFor, goalsAgainst, points].some(
+      (value) => Number.isFinite(value) && value > 0,
+    );
+  });
+}
+
+function stableStandingsPayload(
+  next: ApiFootballBroadcastSnapshot["standings"] | null | undefined,
+  previous: ApiFootballBroadcastSnapshot["standings"] | null | undefined,
+) {
+  if (isUsableStandingsPayload(next)) return next;
+  return previous ?? next ?? undefined;
+}
 
 function normalizePlayerLookupValue(value?: string) {
   return value?.trim().toLowerCase();
@@ -987,21 +1012,85 @@ function compactStats(
   const seen = new Set<string>();
   return labels.flatMap((label) => {
     if (seen.has(label)) return [];
-    const stat = findStat(stats, label);
+    const stat = statMetricForLabel(stats, label);
     if (!stat) return [];
     seen.add(label);
-    return [
-      {
-        id: stat.label,
-        label: stat.label,
-        home: stat.home,
-        away: stat.away,
-        homePct: stat.homePct,
-        awayPct: stat.awayPct,
-        graph: statGraphType(stat.label),
-      },
-    ];
+    return [stat];
   });
+}
+
+function statMetricForLabel(
+  stats: ApiFootballBroadcastStat[],
+  label: string,
+): StatViewMetric | null {
+  if (label === "슈팅정확도") return shootingAccuracyMetric(stats);
+
+  const stat = findStat(stats, label);
+  if (!stat) return null;
+
+  return {
+    id: stat.label,
+    label: stat.label,
+    home: stat.home,
+    away: stat.away,
+    homePct: stat.homePct,
+    awayPct: stat.awayPct,
+    graph: statGraphType(stat.label),
+  };
+}
+
+function numericStatValue(
+  stats: ApiFootballBroadcastStat[],
+  label: string,
+  side: "home" | "away",
+): number | null {
+  const stat = findStat(stats, label);
+  if (!stat) return null;
+
+  const parsed = Number.parseFloat(stat[side].replace("%", ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function metricPctPair(home: number, away: number) {
+  const homeValue = Math.max(0, home);
+  const awayValue = Math.max(0, away);
+  const total = homeValue + awayValue;
+  if (total <= 0) return { homePct: 50, awayPct: 50 };
+
+  return {
+    homePct: (homeValue / total) * 100,
+    awayPct: (awayValue / total) * 100,
+  };
+}
+
+function shootingAccuracyMetric(
+  stats: ApiFootballBroadcastStat[],
+): StatViewMetric | null {
+  const homeShots = numericStatValue(stats, "전체슈팅", "home");
+  const awayShots = numericStatValue(stats, "전체슈팅", "away");
+  const homeOnTarget = numericStatValue(stats, "유효슈팅", "home");
+  const awayOnTarget = numericStatValue(stats, "유효슈팅", "away");
+  if (
+    homeShots === null ||
+    awayShots === null ||
+    homeOnTarget === null ||
+    awayOnTarget === null
+  )
+    return null;
+
+  const homeAccuracy = homeShots > 0 ? (homeOnTarget / homeShots) * 100 : 0;
+  const awayAccuracy = awayShots > 0 ? (awayOnTarget / awayShots) * 100 : 0;
+  const pct = metricPctPair(homeAccuracy, awayAccuracy);
+
+  return {
+    id: "shooting-accuracy",
+    label: "슈팅정확도",
+    home: `${Math.round(homeAccuracy)}%`,
+    away: `${Math.round(awayAccuracy)}%`,
+    homePct: pct.homePct,
+    awayPct: pct.awayPct,
+    graph: "bar",
+  };
 }
 
 function statGraphType(label: string): StatViewMetric["graph"] {
@@ -1140,9 +1229,13 @@ async function refreshApiFootballLive() {
         : await fetchApiFootballFirstLiveFixture();
     const standings = await fetchFixtureStandings(snapshot.fixtureId).catch(() => null);
 
+    const previousStandings = liveSnapshot.value?.standings;
     liveSnapshot.value = {
       ...snapshot,
-      standings: standings ?? snapshot.standings,
+      standings: stableStandingsPayload(
+        standings ?? snapshot.standings,
+        previousStandings,
+      ),
     };
     scheduleSubstitutionAnimations(liveSnapshot.value);
     liveStatus.value = "ready";
