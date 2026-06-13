@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/apiFootballLive";
 import { readBroadcastFixtureId } from "@/lib/broadcastQuery";
 import ProgramPossessionPieChart from "@/components/broadcast/ProgramPossessionPieChart.vue";
+import goalSoccerBallUrl from "@/assets/broadcast/goal-soccer-ball.svg?url";
 
 type LeagueSlug =
   | "premier-league"
@@ -565,33 +566,77 @@ function eventLookupKeys(event: ApiFootballBroadcastEvent) {
   return keys;
 }
 
-const lineupPlayerEventSummary = computed<Map<string, { redCards: number }>>(() => {
+function eventScorerLookupKeys(event: ApiFootballBroadcastEvent) {
+  const keys = new Set<string>();
+  const playerName = normalizePlayerLookupValue(event.player);
+
+  if (event.playerId !== undefined) keys.add(`id:${event.playerId}`);
+  if (playerName) keys.add(`name:${playerName}`);
+
+  return keys;
+}
+
+const lineupPlayerEventSummary = computed<Map<string, { goals: number; yellowCards: number; redCards: number }>>(() => {
   const snapshot = liveSnapshot.value;
-  const result = new Map<string, { redCards: number }>();
+  const result = new Map<string, { goals: number; yellowCards: number; redCards: number }>();
 
   if (!snapshot) return result;
 
   snapshot.events.forEach((event) => {
+    const isGoal = event.kind === "goal";
+    const isYellowCard = event.kind === "yellow-card";
     const isRedCard =
       event.kind === "red-card" ||
       (event.kind === "card" && event.detail === "Red Card");
 
-    if (!isRedCard) return;
+    if (!isGoal && !isYellowCard && !isRedCard) return;
 
-    const keys = eventLookupKeys(event);
+    const keys = isGoal ? eventScorerLookupKeys(event) : eventLookupKeys(event);
     keys.forEach((key) => {
       const existing = result.get(key);
       if (existing) {
-        existing.redCards += 1;
+        if (isGoal) existing.goals += 1;
+        if (isYellowCard) existing.yellowCards += 1;
+        if (isRedCard) existing.redCards += 1;
         return;
       }
 
-      result.set(key, { redCards: 1 });
+      result.set(key, {
+        goals: isGoal ? 1 : 0,
+        yellowCards: isYellowCard ? 1 : 0,
+        redCards: isRedCard ? 1 : 0,
+      });
     });
   });
 
   return result;
 });
+
+function getPlayerGoalCount(entry: LineupPlayerView) {
+  if (entry.statGoals !== undefined && entry.statGoals > 0) return entry.statGoals;
+
+  const keys = lineupPlayerLookupKeys(entry);
+  for (const key of keys) {
+    const summary = lineupPlayerEventSummary.value.get(key);
+    if (summary) return summary.goals;
+  }
+  return 0;
+}
+
+function getPlayerYellowCardCount(entry: LineupPlayerView) {
+  const keys = lineupPlayerLookupKeys(entry);
+  for (const key of keys) {
+    const summary = lineupPlayerEventSummary.value.get(key);
+    if (summary) return summary.yellowCards;
+  }
+  return 0;
+}
+
+function playerCardLabel(entry: LineupPlayerView) {
+  if (getPlayerRedCardCount(entry) > 0) return "RED";
+  if (getPlayerYellowCardCount(entry) > 0) return "YEL";
+  return "";
+}
 
 function getPlayerRedCardCount(entry: LineupPlayerView) {
   const keys = lineupPlayerLookupKeys(entry);
@@ -1511,27 +1556,29 @@ onBeforeUnmount(() => {
                               class="lineup-entry-meta"
                             >
                               <span
-                                class="lineup-entry-meta-cell lineup-entry-card-cell"
+                                class="lineup-entry-meta-cell lineup-entry-goal-cell"
                               >
                                 <span
-                                  v-if="getPlayerRedCardCount(entry) > 0"
-                                  class="lineup-entry-card"
-                                  :data-red-cards="getPlayerRedCardCount(entry)"
+                                  v-if="getPlayerGoalCount(entry) > 0"
+                                  class="lineup-entry-goal"
+                                  :data-goals="getPlayerGoalCount(entry)"
                                 >
-                                  RED
+                                  <img :src="goalSoccerBallUrl" alt="" aria-hidden="true" />
+                                  <b v-if="getPlayerGoalCount(entry) > 1">{{ getPlayerGoalCount(entry) }}</b>
                                 </span>
                                 <span v-else class="lineup-entry-meta-empty" aria-hidden="true">
                                   -
                                 </span>
                               </span>
                               <span
-                                class="lineup-entry-meta-cell lineup-entry-in-cell"
+                                class="lineup-entry-meta-cell lineup-entry-card-cell"
                               >
                                 <span
-                                  v-if="entry.kind === 'player' && entry.isSubstitutedIn"
-                                  class="lineup-entry-in"
+                                  v-if="playerCardLabel(entry)"
+                                  class="lineup-entry-card"
+                                  :data-card="playerCardLabel(entry)"
                                 >
-                                  IN
+                                  {{ playerCardLabel(entry) }}
                                 </span>
                                 <span v-else class="lineup-entry-meta-empty" aria-hidden="true">
                                   -
@@ -2277,7 +2324,7 @@ onBeforeUnmount(() => {
 .lineup-player--sent-off .lineup-entry-icon,
 .lineup-player--sent-off > b,
 .lineup-player--sent-off .lineup-entry-rating,
-.lineup-player--sent-off .lineup-entry-in {
+.lineup-player--sent-off .lineup-entry-goal {
   opacity: 0.46;
   filter: grayscale(0.8) saturate(0.6);
 }
@@ -2471,11 +2518,11 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
-.lineup-entry-rating-cell {
+.lineup-entry-goal-cell {
   justify-content: center;
 }
 
-.lineup-entry-in-cell {
+.lineup-entry-rating-cell {
   justify-content: center;
 }
 
@@ -2493,26 +2540,48 @@ onBeforeUnmount(() => {
   justify-content: center;
   min-width: 1.55rem;
   border-radius: 0.34rem;
-  border: 0.08rem solid rgba(255, 0, 60, 0.78);
-  background: rgba(255, 0, 60, 0.16);
-  color: #ffd6dd;
+  border: 0.08rem solid rgba(255, 214, 74, 0.86);
+  background: rgba(255, 214, 74, 0.24);
+  color: #fff3a3;
   font-size: 0.58rem;
   font-weight: 650;
   letter-spacing: 0;
 }
 
-.lineup-entry-in {
+.lineup-entry-card[data-card="RED"] {
+  border-color: rgba(255, 0, 60, 0.78);
+  background: rgba(255, 0, 60, 0.16);
+  color: #ffd6dd;
+}
+
+.lineup-entry-goal {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 1.5rem;
+  height: 1.18rem;
+  gap: 0.08rem;
   border-radius: 0.34rem;
-  border: 0.08rem solid rgba(0, 132, 255, 0.74);
-  background: rgba(0, 132, 255, 0.2);
-  color: #d9ecff;
+  border: 0.08rem solid rgba(245, 241, 232, 0.86);
+  background:
+    linear-gradient(135deg, rgba(245, 241, 232, 0.32), rgba(201, 151, 43, 0.18)),
+    rgba(5, 5, 5, 0.34);
+  color: #ffffff;
   font-size: 0.58rem;
   font-weight: 650;
   letter-spacing: 0;
+}
+
+.lineup-entry-goal img {
+  width: 0.72rem;
+  height: 0.72rem;
+  object-fit: contain;
+}
+
+.lineup-entry-goal b {
+  font-size: 0.58rem;
+  line-height: 1;
+  color: #ffffff;
 }
 
 .lineup-control-panel {
