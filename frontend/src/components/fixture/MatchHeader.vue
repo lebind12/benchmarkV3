@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { MonitorPlay, UsersRound, X } from 'lucide-vue-next'
+import { FileText, MonitorPlay, UsersRound, X } from 'lucide-vue-next'
 import type { MatchDetail } from '@/types/fixtureDetail'
 import GoalHistoryInline from './GoalHistoryInline.vue'
 
@@ -119,6 +119,16 @@ onBeforeUnmount(() => {
 <template>
   <header class="match-header" data-testid="match-header">
     <div class="match-header__actions">
+      <button
+        v-if="canOpenBroadcast"
+        type="button"
+        class="match-header__broadcast-button match-header__preview-button"
+        data-testid="match-preview-trigger"
+        :aria-label="`${homeName} 대 ${awayName} 경기 프리뷰 열기`"
+      >
+        <FileText :size="16" aria-hidden="true" />
+        <span>경기 프리뷰</span>
+      </button>
       <button
         v-if="canOpenBroadcast"
         type="button"
@@ -271,6 +281,7 @@ onBeforeUnmount(() => {
   top: 0.75rem;
   right: 1rem;
   display: flex;
+  gap: 0.5rem;
   justify-content: flex-end;
 }
 .match-header__broadcast-button {
@@ -296,6 +307,16 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--theme-primary) 16%, var(--color-bg));
   border-color: var(--theme-primary);
   outline: none;
+}
+.match-header__preview-button {
+  background: color-mix(in srgb, var(--theme-accent) 10%, var(--color-bg));
+  border-color: color-mix(in srgb, var(--theme-accent) 46%, var(--color-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 18%, var(--color-bg));
+}
+.match-header__preview-button:hover,
+.match-header__preview-button:focus-visible {
+  background: color-mix(in srgb, var(--theme-accent) 16%, var(--color-bg));
+  border-color: var(--theme-accent);
 }
 .broadcast-picker {
   position: fixed;

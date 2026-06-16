@@ -118,6 +118,19 @@ type ApiFootballFixturePlayerItem = {
         accuracy?: number | string | null
         key?: number | string | null
       }
+      tackles?: {
+        total?: number | string | null
+        blocks?: number | string | null
+        interceptions?: number | string | null
+      }
+      duels?: {
+        total?: number | string | null
+        won?: number | string | null
+      }
+      dribbles?: {
+        attempts?: number | string | null
+        success?: number | string | null
+      }
       fouls?: {
         drawn?: number | string | null
         committed?: number | string | null
@@ -129,6 +142,8 @@ type ApiFootballFixturePlayerItem = {
       goals?: {
         total?: number | string | null
         assists?: number | string | null
+        saves?: number | string | null
+        conceded?: number | string | null
       }
     }>
   }>
@@ -189,12 +204,29 @@ export type ApiFootballBroadcastLineupPlayer = {
   shotsTotal?: number
   shotsOnGoal?: number
   passesTotal?: number
-  passesAccuracy?: number
+  passesAccurate?: number
+  passesAccuracyPct?: number
+  keyPasses?: number
   foulsCommitted?: number
   statGoals?: number
   statAssists?: number
+  saves?: number
+  goalsConceded?: number
+  tacklesTotal?: number
+  blocks?: number
+  interceptions?: number
+  duelsTotal?: number
+  duelsWon?: number
+  dribblesAttempts?: number
+  dribblesSuccess?: number
   statYellowCards?: number
   statRedCards?: number
+  eventSummary?: {
+    goals: number
+    yellowCards: number
+    redCards: number
+    cardLabel: string
+  }
 }
 
 type ApiFootballBroadcastLineupPlayerStat = Partial<
@@ -205,10 +237,21 @@ type ApiFootballBroadcastLineupPlayerStat = Partial<
     | "shotsTotal"
     | "shotsOnGoal"
     | "passesTotal"
-    | "passesAccuracy"
+    | "passesAccurate"
+    | "passesAccuracyPct"
+    | "keyPasses"
     | "foulsCommitted"
     | "statGoals"
     | "statAssists"
+    | "saves"
+    | "goalsConceded"
+    | "tacklesTotal"
+    | "blocks"
+    | "interceptions"
+    | "duelsTotal"
+    | "duelsWon"
+    | "dribblesAttempts"
+    | "dribblesSuccess"
     | "statYellowCards"
     | "statRedCards"
   >
@@ -232,6 +275,7 @@ export type ApiFootballBroadcastLineup = {
 }
 
 export type ApiFootballBroadcastStat = {
+  id?: string
   label: string
   home: string
   away: string
@@ -257,6 +301,30 @@ export type ApiFootballBroadcastStandingRow = {
 export type ApiFootballBroadcastStandings = {
   group_name: string
   rows: ApiFootballBroadcastStandingRow[]
+}
+
+export type ApiFootballBroadcastMomentum = {
+  available: boolean
+  home: number
+  away: number
+  trend: 'home' | 'away' | 'balanced' | 'unavailable'
+  intensity: 'low' | 'medium' | 'high'
+  dominance?: 'low' | 'medium' | 'high'
+  tempo?: 'low' | 'medium' | 'high'
+  activity?: number
+  reasons: string[]
+  history?: Array<{
+    elapsed?: number | null
+    extra?: number | null
+    minuteKey?: number | null
+    displayMinute?: string | null
+    value: number
+    home?: number
+    away?: number
+    activity?: number
+    dominance?: number
+  }>
+  updatedAt: string
 }
 
 type ApiLeagueStandingsTeam = {
@@ -304,13 +372,41 @@ export type ApiFootballBroadcastSnapshot = {
   clock: string
   addedTime: string
   status: string
+  kickoffAt?: string | null
   venue: string
   standings?: ApiFootballBroadcastStandings
   lineups: ApiFootballBroadcastLineup[]
   playerRatings: Record<string, string>
   playerStats?: Record<string, ApiFootballBroadcastLineupPlayerStat>
   stats: ApiFootballBroadcastStat[]
+  programStats?: Record<string, ApiFootballBroadcastStat[]>
   events: ApiFootballBroadcastEvent[]
+  momentum?: ApiFootballBroadcastMomentum
+}
+
+export type ApiFootballAiReviewResponse = {
+  available: boolean
+  reason?: string
+  minimumMinute?: number
+  currentMaxMinute?: number | null
+  message?: string
+  cached?: boolean
+  reviewBasis?: {
+    status?: string | null
+    clock?: string | null
+    minute?: number | null
+    phase?: string | null
+    phaseLabel?: string | null
+    matchClockLabel?: string | null
+    generatedAt?: string | null
+  }
+  commentary?: {
+    headline?: string
+    oneLineSummary?: string
+    mainCommentary?: string
+    limitations?: string[]
+    [key: string]: unknown
+  }
 }
 
 type BroadcastTranslationValue = {
@@ -349,7 +445,28 @@ export const API_FOOTBALL_LINEUPS_REFRESH_MS = Number.parseInt(
 )
 
 export function shouldUseApiFootballLive(): boolean {
-  return import.meta.env.VITE_BROADCAST_USE_API_FOOTBALL === 'true' || Boolean(API_FOOTBALL_KEY)
+  return true
+}
+
+function broadcastProgramHeaders() {
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (typeof localStorage !== 'undefined') {
+    const mockRole = localStorage.getItem('mockRole')
+    if (mockRole) headers['X-Mock-Role'] = mockRole
+  }
+  return headers
+}
+
+async function fetchBroadcastProgramSnapshot(path: string): Promise<ApiFootballBroadcastSnapshot> {
+  const response = await fetch(apiUrl(path), {
+    headers: broadcastProgramHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`방송 프로그램 스냅샷 요청 실패: ${response.status}`)
+  }
+
+  return (await response.json()) as ApiFootballBroadcastSnapshot
 }
 
 function requireApiFootballKey(): string {
@@ -695,17 +812,34 @@ function buildPlayerStatMap(fixturePlayers: ApiFootballFixturePlayerItem[]) {
       const games = stat?.games
 
       if (id === undefined) return
+      const passesTotal = normalizePlayerStatNumber(stat?.passes?.total)
+      const passesAccurate = normalizePlayerStatNumber(stat?.passes?.accuracy)
+      const passesAccuracyPct =
+        passesTotal !== undefined && passesTotal > 0 && passesAccurate !== undefined
+          ? Math.round((passesAccurate / passesTotal) * 100)
+          : undefined
 
       statsById.set(id, {
         minutes: games ? normalizePlayerStatNumber(games.minutes) : undefined,
         rating: games ? normalizeRating(games.rating) : undefined,
         shotsTotal: normalizePlayerStatNumber(stat?.shots?.total),
         shotsOnGoal: normalizePlayerStatNumber(stat?.shots?.on),
-        passesTotal: normalizePlayerStatNumber(stat?.passes?.total),
-        passesAccuracy: normalizePlayerStatNumber(stat?.passes?.accuracy),
+        passesTotal,
+        passesAccurate,
+        passesAccuracyPct,
+        keyPasses: normalizePlayerStatNumber(stat?.passes?.key),
         foulsCommitted: normalizePlayerStatNumber(stat?.fouls?.committed),
         statGoals: normalizePlayerStatNumber(stat?.goals?.total),
         statAssists: normalizePlayerStatNumber(stat?.goals?.assists),
+        saves: normalizePlayerStatNumber(stat?.goals?.saves),
+        goalsConceded: normalizePlayerStatNumber(stat?.goals?.conceded),
+        tacklesTotal: normalizePlayerStatNumber(stat?.tackles?.total),
+        blocks: normalizePlayerStatNumber(stat?.tackles?.blocks),
+        interceptions: normalizePlayerStatNumber(stat?.tackles?.interceptions),
+        duelsTotal: normalizePlayerStatNumber(stat?.duels?.total),
+        duelsWon: normalizePlayerStatNumber(stat?.duels?.won),
+        dribblesAttempts: normalizePlayerStatNumber(stat?.dribbles?.attempts),
+        dribblesSuccess: normalizePlayerStatNumber(stat?.dribbles?.success),
         statYellowCards: normalizePlayerStatNumber(stat?.cards?.yellow),
         statRedCards: normalizePlayerStatNumber(stat?.cards?.red),
       })
@@ -1255,7 +1389,27 @@ export async function fetchApiFootballBroadcastLineupsSnapshot(
 export async function fetchApiFootballBroadcastSnapshot(
   fixtureId: number,
 ): Promise<ApiFootballBroadcastSnapshot> {
-  return fetchApiFootballBroadcastInitialSnapshot(fixtureId)
+  return fetchBroadcastProgramSnapshot(`/api/v1/broadcast/fixtures/${fixtureId}/program-snapshot`)
+}
+
+export async function fetchApiFootballAiReview(
+  fixtureId: number,
+  options: { forceRefresh?: boolean } = {},
+): Promise<ApiFootballAiReviewResponse> {
+  const response = await fetch(apiUrl(`/api/v1/broadcast/fixtures/${fixtureId}/ai-review`), {
+    method: 'POST',
+    headers: {
+      ...broadcastProgramHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ forceRefresh: options.forceRefresh === true }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`AI 경기리뷰 요청 실패: ${response.status}`)
+  }
+
+  return (await response.json()) as ApiFootballAiReviewResponse
 }
 
 export async function fetchFixtureStandings(
@@ -1296,10 +1450,5 @@ export async function fetchFixtureStandings(
 }
 
 export async function fetchApiFootballFirstLiveFixture(): Promise<ApiFootballBroadcastSnapshot> {
-  const [fixture] = await apiFootballGet<ApiFootballFixtureItem>('/fixtures', { live: 'all' })
-  if (!fixture?.fixture?.id) {
-    throw new Error('현재 사용 가능한 API-Football 라이브 경기가 없습니다')
-  }
-
-  return fetchApiFootballBroadcastInitialSnapshot(fixture.fixture.id)
+  return fetchBroadcastProgramSnapshot('/api/v1/broadcast/program-snapshot/first-live')
 }

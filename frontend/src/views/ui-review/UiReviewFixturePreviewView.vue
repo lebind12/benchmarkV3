@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Activity, CalendarDays, MapPin, MonitorPlay, Shield, Swords, Trophy, UsersRound, X } from 'lucide-vue-next'
+import { Activity, CalendarDays, FileText, MapPin, MonitorPlay, RefreshCw, Shield, Swords, Trophy, UsersRound, X } from 'lucide-vue-next'
 import {
+  createMatchPreview,
   getLeagueStandings,
   getLineups,
   getMatch,
@@ -40,6 +41,9 @@ const standings = ref<LeagueStandingsPayload | null>(null)
 const status = ref<'idle' | 'loading' | 'ok' | 'error'>('idle')
 const error = ref<string | null>(null)
 const isBroadcastPickerOpen = ref(false)
+const isMatchPreviewOpen = ref(false)
+const matchPreviewMarkdown = ref('')
+const matchPreviewStatus = ref<'idle' | 'loading' | 'ok' | 'error'>('idle')
 
 const externalId = computed(() => Number(route.params.externalId))
 const highlightedRows = computed(() => {
@@ -109,6 +113,7 @@ const broadcastQuery = computed(() => {
 })
 const watchTogetherHref = computed(() => `/broadcast.html?${broadcastQuery.value}`)
 const programHref = computed(() => `/broadcast-program.html?${broadcastQuery.value}`)
+const renderedMatchPreviewMarkdown = computed(() => renderMarkdown(matchPreviewMarkdown.value))
 
 function kstDate(iso: string): string {
   return new Intl.DateTimeFormat('ko-KR', {
@@ -121,6 +126,161 @@ function kstDate(iso: string): string {
 
 function displayScore(value: number | null): string {
   return value == null ? '-' : String(value)
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function sanitizeHref(value: string): string {
+  const trimmed = value.trim()
+  if (/^(https?:\/\/|mailto:)/i.test(trimmed)) return escapeHtml(trimmed)
+  return '#'
+}
+
+function renderInlineMarkdown(value: string): string {
+  const codeSegments: string[] = []
+  let html = escapeHtml(value).replace(/`([^`]+)`/g, (_, code: string) => {
+    codeSegments.push(`<code>${code}</code>`)
+    return `@@CODE${codeSegments.length - 1}@@`
+  })
+
+  html = html
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label: string, href: string) =>
+      `<a href="${sanitizeHref(href)}" target="_blank" rel="noopener noreferrer">${label}</a>`,
+    )
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+    .replace(/(^|[\s(])_([^_\n]+)_/g, '$1<em>$2</em>')
+
+  codeSegments.forEach((segment, index) => {
+    html = html.replaceAll(`@@CODE${index}@@`, segment)
+  })
+  return html
+}
+
+function renderMarkdown(markdown: string): string {
+  const lines = markdown.replace(/\r\n/g, '\n').split('\n')
+  const html: string[] = []
+  let paragraph: string[] = []
+  let listType: 'ul' | 'ol' | null = null
+  let inCode = false
+  let codeLines: string[] = []
+
+  function flushParagraph() {
+    if (paragraph.length === 0) return
+    html.push(`<p>${renderInlineMarkdown(paragraph.join(' '))}</p>`)
+    paragraph = []
+  }
+
+  function closeList() {
+    if (!listType) return
+    html.push(`</${listType}>`)
+    listType = null
+  }
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const rawLine = lines[index]
+    const line = rawLine.trim()
+
+    if (line.startsWith('```')) {
+      flushParagraph()
+      closeList()
+      if (inCode) {
+        html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`)
+        codeLines = []
+        inCode = false
+      } else {
+        inCode = true
+      }
+      continue
+    }
+
+    if (inCode) {
+      codeLines.push(rawLine)
+      continue
+    }
+
+    if (!line) {
+      flushParagraph()
+      closeList()
+      continue
+    }
+
+    if (/^\|.+\|$/.test(line) && /^\|[\s:|-]+\|$/.test(lines[index + 1]?.trim() ?? '')) {
+      flushParagraph()
+      closeList()
+      const headers = line.slice(1, -1).split('|').map((cell) => cell.trim())
+      index += 1
+      const rows: string[][] = []
+      while (/^\|.+\|$/.test(lines[index + 1]?.trim() ?? '')) {
+        index += 1
+        rows.push(lines[index].trim().slice(1, -1).split('|').map((cell) => cell.trim()))
+      }
+      html.push('<table><thead><tr>')
+      headers.forEach((cell) => html.push(`<th>${renderInlineMarkdown(cell)}</th>`))
+      html.push('</tr></thead><tbody>')
+      rows.forEach((row) => {
+        html.push('<tr>')
+        row.forEach((cell) => html.push(`<td>${renderInlineMarkdown(cell)}</td>`))
+        html.push('</tr>')
+      })
+      html.push('</tbody></table>')
+      continue
+    }
+
+    const heading = line.match(/^(#{1,4})\s+(.+)$/)
+    if (heading) {
+      flushParagraph()
+      closeList()
+      const level = Math.min(heading[1].length + 1, 4)
+      html.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`)
+      continue
+    }
+
+    if (/^---+$/.test(line)) {
+      flushParagraph()
+      closeList()
+      html.push('<hr>')
+      continue
+    }
+
+    const quote = line.match(/^>\s?(.+)$/)
+    if (quote) {
+      flushParagraph()
+      closeList()
+      html.push(`<blockquote>${renderInlineMarkdown(quote[1])}</blockquote>`)
+      continue
+    }
+
+    const unordered = line.match(/^[-*]\s+(.+)$/)
+    const ordered = line.match(/^\d+\.\s+(.+)$/)
+    if (unordered || ordered) {
+      flushParagraph()
+      const nextType = unordered ? 'ul' : 'ol'
+      if (listType !== nextType) {
+        closeList()
+        html.push(`<${nextType}>`)
+        listType = nextType
+      }
+      html.push(`<li>${renderInlineMarkdown((unordered ?? ordered)?.[1] ?? '')}</li>`)
+      continue
+    }
+
+    closeList()
+    paragraph.push(line)
+  }
+
+  if (inCode) html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`)
+  flushParagraph()
+  closeList()
+  return html.join('')
 }
 
 function statPair(key: keyof TeamStat): { home: number | null; away: number | null } {
@@ -309,8 +469,39 @@ function closeBroadcastPicker() {
   isBroadcastPickerOpen.value = false
 }
 
+function openMatchPreview() {
+  if (!canOpenBroadcast.value) return
+  isMatchPreviewOpen.value = true
+}
+
+function closeMatchPreview() {
+  isMatchPreviewOpen.value = false
+}
+
+async function generateMatchPreview() {
+  if (!match.value || matchPreviewStatus.value === 'loading') return
+  matchPreviewStatus.value = 'loading'
+  try {
+    const response = await createMatchPreview(match.value.external_id)
+    matchPreviewMarkdown.value = response.markdown
+    matchPreviewStatus.value = 'ok'
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '경기 프리뷰 생성에 실패했습니다.'
+    matchPreviewMarkdown.value = [
+      '## 프리뷰 생성 실패',
+      '',
+      '경기 프리뷰를 생성하지 못했습니다.',
+      '',
+      `- 오류: \`${message.replaceAll('`', "'")}\``,
+    ].join('\n')
+    matchPreviewStatus.value = 'error'
+  }
+}
+
 function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') closeBroadcastPicker()
+  if (event.key !== 'Escape') return
+  closeBroadcastPicker()
+  closeMatchPreview()
 }
 
 async function loadFixture() {
@@ -323,6 +514,8 @@ async function loadFixture() {
   matchupInsights.value = null
   statistics.value = null
   standings.value = null
+  matchPreviewMarkdown.value = ''
+  matchPreviewStatus.value = 'idle'
 
   try {
     match.value = await getMatch(externalId.value)
@@ -355,7 +548,16 @@ onMounted(() => {
 
 watch(isBroadcastPickerOpen, (isOpen) => {
   if (typeof window === 'undefined') return
-  if (isOpen) {
+  if (isOpen || isMatchPreviewOpen.value) {
+    window.addEventListener('keydown', onKeydown)
+    return
+  }
+  window.removeEventListener('keydown', onKeydown)
+})
+
+watch(isMatchPreviewOpen, (isOpen) => {
+  if (typeof window === 'undefined') return
+  if (isOpen || isBroadcastPickerOpen.value) {
     window.addEventListener('keydown', onKeydown)
     return
   }
@@ -382,17 +584,30 @@ onBeforeUnmount(() => {
 
     <template v-else-if="match">
       <header class="match-hero">
-        <button
-          v-if="canOpenBroadcast"
-          type="button"
-          class="streaming-button"
-          :aria-expanded="isBroadcastPickerOpen"
-          aria-controls="ui-review-broadcast-picker"
-          @click="openBroadcastPicker"
-        >
-          <MonitorPlay :size="16" aria-hidden="true" />
-          <span>스트리밍</span>
-        </button>
+        <div v-if="canOpenBroadcast" class="match-hero__actions">
+          <button
+            type="button"
+            class="streaming-button streaming-button--preview"
+            data-testid="match-preview-trigger"
+            :aria-expanded="isMatchPreviewOpen"
+            aria-controls="match-preview-modal"
+            :aria-label="`${teamName(match.home)} 대 ${teamName(match.away)} 경기 프리뷰 열기`"
+            @click="openMatchPreview"
+          >
+            <FileText :size="16" aria-hidden="true" />
+            <span>경기 프리뷰</span>
+          </button>
+          <button
+            type="button"
+            class="streaming-button"
+            :aria-expanded="isBroadcastPickerOpen"
+            aria-controls="ui-review-broadcast-picker"
+            @click="openBroadcastPicker"
+          >
+            <MonitorPlay :size="16" aria-hidden="true" />
+            <span>스트리밍</span>
+          </button>
+        </div>
         <div class="team-block">
           <img v-if="match.home.logo_url" :src="match.home.logo_url" :alt="teamName(match.home)" />
           <strong>{{ teamName(match.home) }}</strong>
@@ -415,6 +630,69 @@ onBeforeUnmount(() => {
           <strong>{{ teamName(match.away) }}</strong>
         </div>
       </header>
+
+      <div
+        v-if="isMatchPreviewOpen"
+        class="match-preview-modal"
+        role="presentation"
+        @click.self="closeMatchPreview"
+      >
+        <section
+          id="match-preview-modal"
+          class="match-preview-modal__panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="match-preview-modal-title"
+        >
+          <header class="match-preview-modal__header">
+            <div class="match-preview-modal__title">
+              <p>AI MATCH PREVIEW</p>
+              <h2 id="match-preview-modal-title">경기 프리뷰</h2>
+              <span>경기 정보와 수집 데이터를 바탕으로 프리뷰를 생성합니다.</span>
+            </div>
+            <div class="match-preview-modal__actions">
+              <button
+                type="button"
+                aria-label="경기 프리뷰 새로고침"
+                :disabled="matchPreviewStatus === 'loading'"
+                @click="generateMatchPreview"
+              >
+                <RefreshCw
+                  :size="18"
+                  :class="{ 'match-preview-modal__spinner': matchPreviewStatus === 'loading' }"
+                  aria-hidden="true"
+                />
+              </button>
+              <button type="button" aria-label="닫기" @click="closeMatchPreview">
+                <X :size="18" aria-hidden="true" />
+              </button>
+            </div>
+          </header>
+          <div class="match-preview-modal__content">
+            <div class="match-preview-modal__canvas">
+              <article
+                v-if="matchPreviewMarkdown.trim()"
+                class="match-preview-markdown"
+                v-html="renderedMatchPreviewMarkdown"
+              />
+              <button
+                v-else
+                type="button"
+                class="match-preview-modal__generate"
+                :disabled="matchPreviewStatus === 'loading'"
+                @click="generateMatchPreview"
+              >
+                <RefreshCw
+                  :size="18"
+                  :class="{ 'match-preview-modal__spinner': matchPreviewStatus === 'loading' }"
+                  aria-hidden="true"
+                />
+                <span>{{ matchPreviewStatus === 'loading' ? '생성 중' : '프리뷰 생성' }}</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
 
       <div
         v-if="isBroadcastPickerOpen"
@@ -721,10 +999,16 @@ onBeforeUnmount(() => {
   padding: 18px 16px;
 }
 
-.streaming-button {
+.match-hero__actions {
   position: absolute;
   top: 12px;
   right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.streaming-button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -742,10 +1026,404 @@ onBeforeUnmount(() => {
   box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 24%, transparent);
 }
 
+.streaming-button--preview {
+  border-color: color-mix(in srgb, var(--color-accent) 42%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
 .streaming-button:hover,
 .streaming-button:focus-visible {
   border-color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 16%, var(--color-bg));
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.streaming-button--preview:hover,
+.streaming-button--preview:focus-visible {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-bg));
+}
+
+.match-preview-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 82;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--color-accent) 8%, transparent), transparent 32rem),
+    rgba(2, 6, 23, 0.86);
+  backdrop-filter: blur(2px);
+}
+
+.match-preview-modal__panel {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(980px, calc(100vw - 40px));
+  min-height: min(640px, calc(100vh - 64px));
+  max-height: calc(100vh - 64px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, #fff 42%, var(--color-accent) 30%);
+  border-radius: 8px;
+  color: var(--color-fg);
+  background: var(--color-card);
+  box-shadow:
+    0 34px 110px rgba(15, 23, 42, 0.48),
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.74),
+    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+
+.match-preview-modal__panel::before,
+.match-preview-modal__panel::after {
+  position: absolute;
+  content: '';
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.match-preview-modal__panel::before {
+  inset: -7px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: transparent;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.32),
+    0 18px 36px rgba(2, 6, 23, 0.24);
+}
+
+.match-preview-modal__panel::after {
+  inset: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.36),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.18);
+}
+
+.match-preview-modal__header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent 58%),
+    var(--color-bg);
+}
+
+.match-preview-modal__title {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.match-preview-modal__title p,
+.match-preview-modal__title h2,
+.match-preview-modal__title span {
+  margin: 0;
+}
+
+.match-preview-modal__title p {
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.match-preview-modal__title h2 {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.match-preview-modal__title span {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.match-preview-modal__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.match-preview-modal__actions button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-fg);
+  background: var(--color-card);
+  cursor: pointer;
+}
+
+.match-preview-modal__actions button:disabled,
+.match-preview-modal__generate:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.match-preview-modal__actions button:hover,
+.match-preview-modal__actions button:focus-visible {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-bg));
+  outline: none;
+}
+
+.match-preview-modal__actions button:disabled:hover,
+.match-preview-modal__generate:disabled:hover {
+  transform: none;
+}
+
+.match-preview-modal__spinner {
+  animation: match-preview-spin 900ms linear infinite;
+}
+
+@keyframes match-preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.match-preview-modal__content {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  max-height: calc(100vh - 196px);
+  overflow: hidden;
+  padding: 18px;
+  background: var(--color-card);
+}
+
+.match-preview-modal__canvas {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 100%;
+  max-height: calc(100vh - 232px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, #fff 34%, var(--color-accent) 22%);
+  border-radius: 8px;
+  background: var(--color-bg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 10%, transparent),
+    0 18px 42px rgba(2, 6, 23, 0.2);
+}
+
+.match-preview-modal__canvas::before,
+.match-preview-modal__canvas::after {
+  position: absolute;
+  content: '';
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.match-preview-modal__canvas::before {
+  inset: -6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.2),
+    0 14px 32px rgba(2, 6, 23, 0.18);
+}
+
+.match-preview-modal__canvas::after {
+  inset: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.18);
+}
+
+.match-preview-markdown {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  max-height: calc(100vh - 234px);
+  overflow: auto;
+  padding: 26px 28px;
+  color: var(--color-fg);
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 1.72;
+}
+
+.match-preview-markdown :deep(h2),
+.match-preview-markdown :deep(h3),
+.match-preview-markdown :deep(h4) {
+  margin: 1.35rem 0 0.55rem;
+  color: var(--color-fg);
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.match-preview-markdown :deep(h2:first-child),
+.match-preview-markdown :deep(h3:first-child),
+.match-preview-markdown :deep(h4:first-child),
+.match-preview-markdown :deep(p:first-child) {
+  margin-top: 0;
+}
+
+.match-preview-markdown :deep(h2) {
+  font-size: 22px;
+  color: color-mix(in srgb, var(--color-accent) 74%, var(--color-fg));
+}
+
+.match-preview-markdown :deep(h3) {
+  font-size: 18px;
+  color: color-mix(in srgb, var(--color-primary) 70%, var(--color-fg));
+}
+
+.match-preview-markdown :deep(h4) {
+  font-size: 15px;
+}
+
+.match-preview-markdown :deep(p) {
+  margin: 0 0 0.9rem;
+  color: var(--color-muted);
+}
+
+.match-preview-markdown :deep(strong) {
+  color: color-mix(in srgb, var(--color-accent) 82%, var(--color-fg));
+  font-weight: 950;
+}
+
+.match-preview-markdown :deep(em) {
+  color: color-mix(in srgb, var(--color-primary) 70%, var(--color-muted));
+  font-style: normal;
+  font-weight: 750;
+}
+
+.match-preview-markdown :deep(ul),
+.match-preview-markdown :deep(ol) {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.4rem 0 1rem;
+  padding-left: 1.35rem;
+}
+
+.match-preview-markdown :deep(li::marker) {
+  color: var(--color-accent);
+  font-weight: 950;
+}
+
+.match-preview-markdown :deep(li) {
+  color: var(--color-muted);
+}
+
+.match-preview-markdown :deep(blockquote) {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-card));
+  color: var(--color-muted);
+}
+
+.match-preview-markdown :deep(code) {
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  padding: 0.08rem 0.35rem;
+  background: var(--color-card);
+  color: color-mix(in srgb, var(--color-accent) 76%, var(--color-fg));
+  font-size: 0.9em;
+  font-weight: 750;
+}
+
+.match-preview-markdown :deep(pre) {
+  overflow: auto;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-card);
+}
+
+.match-preview-markdown :deep(pre code) {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.match-preview-markdown :deep(a) {
+  color: var(--color-accent);
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.match-preview-markdown :deep(hr) {
+  margin: 1.2rem 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.match-preview-markdown :deep(table) {
+  width: 100%;
+  margin: 1rem 0;
+  border-collapse: collapse;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.match-preview-markdown :deep(th),
+.match-preview-markdown :deep(td) {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.match-preview-markdown :deep(th) {
+  background: var(--color-card);
+  color: color-mix(in srgb, var(--color-primary) 72%, var(--color-fg));
+  font-weight: 950;
+}
+
+.match-preview-markdown :deep(td) {
+  color: var(--color-muted);
+}
+
+.match-preview-modal__generate {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+  border-radius: 999px;
+  color: var(--color-fg);
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg));
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.match-preview-modal__generate:hover,
+.match-preview-modal__generate:focus-visible {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-bg));
   outline: none;
   transform: translateY(-1px);
 }

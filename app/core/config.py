@@ -7,9 +7,28 @@ checked in — see ``.env.example``.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _local_dotenv_values(keys: set[str]) -> dict[str, str]:
+    """Read selected local .env values so stale shell exports do not override them."""
+    path = Path(".env")
+    if not path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if key in keys:
+            values[key] = value.strip().strip('"').strip("'")
+    return values
 
 
 class Settings(BaseSettings):
@@ -86,9 +105,37 @@ class Settings(BaseSettings):
     # --- Cache / session helpers ------------------------------------------
     upstash_redis_rest_url: str | None = Field(default=None)
     upstash_redis_rest_token: str | None = Field(default=None)
+    upstash_redis_key_prefix: str = Field(
+        default="",
+        description="Optional Redis key namespace prefix. Use local:/prod: to isolate environments.",
+    )
 
     # --- OpenAI (translation-filler) --------------------------------------
     openai_api_key: str | None = Field(default=None)
+
+    # --- Vertex AI (broadcast AI commentary) -------------------------------
+    google_cloud_project: str | None = Field(default=None)
+    google_cloud_location: str = Field(default="global")
+    vertex_ai_model: str = Field(default="gemini-3.1-pro-preview")
+    google_application_credentials_json: str | None = Field(default=None)
+
+    def model_post_init(self, __context: object) -> None:
+        vertex_env = _local_dotenv_values(
+            {
+                "GOOGLE_CLOUD_PROJECT",
+                "GOOGLE_CLOUD_LOCATION",
+                "VERTEX_AI_MODEL",
+                "GOOGLE_APPLICATION_CREDENTIALS_JSON",
+            }
+        )
+        if vertex_env.get("GOOGLE_CLOUD_PROJECT"):
+            self.google_cloud_project = vertex_env["GOOGLE_CLOUD_PROJECT"]
+        if vertex_env.get("GOOGLE_CLOUD_LOCATION"):
+            self.google_cloud_location = vertex_env["GOOGLE_CLOUD_LOCATION"]
+        if vertex_env.get("VERTEX_AI_MODEL"):
+            self.vertex_ai_model = vertex_env["VERTEX_AI_MODEL"]
+        if vertex_env.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
+            self.google_application_credentials_json = vertex_env["GOOGLE_APPLICATION_CREDENTIALS_JSON"]
 
     # --- Web clients -------------------------------------------------------
     cors_allow_origins: str = Field(

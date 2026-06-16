@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app import db
 from app.services import broadcast as broadcast_service
+from app.services import broadcast_program as broadcast_program_service
 from app.services.broadcast import ALLOWED_BROADCAST_LEAGUE_SLUGS
 
 
@@ -29,6 +30,10 @@ DbSession = Annotated[Session, Depends(db.get_db_session)]
 class BroadcastCurrentUser:
     role: str
     user_id: int | str | None = None
+
+
+class BroadcastAiReviewRequest(BaseModel):
+    forceRefresh: bool = Field(default=False)
 
 
 def _b64url_decode(value: str) -> bytes:
@@ -78,7 +83,7 @@ def get_broadcast_current_user(
     )
 
     if not authorization or not authorization.lower().startswith("bearer "):
-        if normalized_mock_role in ("ADMIN", "STREAMER"):
+        if normalized_mock_role == "ADMIN":
             return BroadcastCurrentUser(role=normalized_mock_role, user_id="mock")
         raise HTTPException(status_code=401, detail="not_authenticated")
 
@@ -112,6 +117,21 @@ def get_broadcast_overlay_service(
 
 
 BroadcastOverlayService = Annotated[Any, Depends(get_broadcast_overlay_service)]
+
+
+def get_broadcast_program_snapshot_service(
+    session: DbSession,
+    api_client: Annotated[Any, Depends(get_broadcast_api_football_client)],
+    cache: Annotated[Any, Depends(get_broadcast_cache)],
+):
+    return broadcast_program_service.BroadcastProgramSnapshotService(
+        session,
+        api_client=api_client,
+        cache=cache,
+    )
+
+
+BroadcastProgramSnapshotService = Annotated[Any, Depends(get_broadcast_program_snapshot_service)]
 
 
 class BroadcastTranslationRequest(BaseModel):
@@ -150,7 +170,7 @@ def broadcast_fixture_overlay(
     if league_slug is not None and league_slug not in ALLOWED_BROADCAST_LEAGUE_SLUGS:
         raise HTTPException(status_code=422, detail="unsupported league_slug")
     role = getattr(current_user, "role", None)
-    if role not in ("ADMIN", "STREAMER"):
+    if role != "ADMIN":
         raise HTTPException(status_code=403, detail="forbidden")
     try:
         payload = service.get_overlay(
@@ -163,3 +183,92 @@ def broadcast_fixture_overlay(
     if payload is None:
         raise HTTPException(status_code=404, detail="fixture_not_found")
     return payload
+
+
+@router.get("/program-snapshot/first-live")
+def broadcast_first_live_program_snapshot(
+    current_user: Annotated[Any, Depends(get_broadcast_current_user)],
+    service: BroadcastProgramSnapshotService,
+    league_slug: str | None = Query(default=None),
+):
+    if league_slug is not None and league_slug not in ALLOWED_BROADCAST_LEAGUE_SLUGS:
+        raise HTTPException(status_code=422, detail="unsupported league_slug")
+    role = getattr(current_user, "role", None)
+    if role != "ADMIN":
+        raise HTTPException(status_code=403, detail="forbidden")
+    try:
+        payload = service.get_first_live_snapshot(league_slug=league_slug)
+    except broadcast_service.BroadcastOverlayError:
+        raise HTTPException(status_code=502, detail="broadcast_upstream_unavailable")
+    if payload is None:
+        raise HTTPException(status_code=404, detail="fixture_not_found")
+    return payload
+
+
+@router.get("/fixtures/{external_id}/program-snapshot")
+def broadcast_fixture_program_snapshot(
+    external_id: int,
+    current_user: Annotated[Any, Depends(get_broadcast_current_user)],
+    service: BroadcastProgramSnapshotService,
+    league_slug: str | None = Query(default=None),
+):
+    if league_slug is not None and league_slug not in ALLOWED_BROADCAST_LEAGUE_SLUGS:
+        raise HTTPException(status_code=422, detail="unsupported league_slug")
+    role = getattr(current_user, "role", None)
+    if role != "ADMIN":
+        raise HTTPException(status_code=403, detail="forbidden")
+    try:
+        payload = service.get_snapshot(external_id, league_slug=league_slug)
+    except broadcast_service.BroadcastOverlayError:
+        raise HTTPException(status_code=502, detail="broadcast_upstream_unavailable")
+    if payload is None:
+        raise HTTPException(status_code=404, detail="fixture_not_found")
+    return payload
+
+
+@router.post("/fixtures/{external_id}/ai-review")
+def broadcast_fixture_ai_review(
+    external_id: int,
+    current_user: Annotated[Any, Depends(get_broadcast_current_user)],
+    service: BroadcastProgramSnapshotService,
+    league_slug: str | None = Query(default=None),
+    request: BroadcastAiReviewRequest | None = None,
+):
+    if league_slug is not None and league_slug not in ALLOWED_BROADCAST_LEAGUE_SLUGS:
+        raise HTTPException(status_code=422, detail="unsupported league_slug")
+    role = getattr(current_user, "role", None)
+    if role != "ADMIN":
+        raise HTTPException(status_code=403, detail="forbidden")
+    try:
+        return service.generate_ai_review(
+            external_id,
+            league_slug=league_slug,
+            force_refresh=bool(request.forceRefresh) if request else False,
+        )
+    except broadcast_service.BroadcastOverlayError as exc:
+        if str(exc) == "fixture_not_found":
+            raise HTTPException(status_code=404, detail="fixture_not_found") from exc
+        raise HTTPException(status_code=502, detail="broadcast_upstream_unavailable") from exc
+
+
+@router.post("/fixtures/{external_id}/match-preview")
+def broadcast_fixture_match_preview(
+    external_id: int,
+    current_user: Annotated[Any, Depends(get_broadcast_current_user)],
+    service: BroadcastProgramSnapshotService,
+    league_slug: str | None = Query(default=None),
+):
+    if league_slug is not None and league_slug not in ALLOWED_BROADCAST_LEAGUE_SLUGS:
+        raise HTTPException(status_code=422, detail="unsupported league_slug")
+    role = getattr(current_user, "role", None)
+    if role != "ADMIN":
+        raise HTTPException(status_code=403, detail="forbidden")
+    try:
+        return service.generate_match_preview(
+            external_id,
+            league_slug=league_slug,
+        )
+    except broadcast_service.BroadcastOverlayError as exc:
+        if str(exc) == "fixture_not_found":
+            raise HTTPException(status_code=404, detail="fixture_not_found") from exc
+        raise HTTPException(status_code=502, detail="broadcast_upstream_unavailable") from exc

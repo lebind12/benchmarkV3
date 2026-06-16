@@ -10,6 +10,14 @@ import type {
 } from '@/types/fixtureDetail'
 import { apiUrl } from '@/lib/api/base'
 
+export interface MatchPreviewResponse {
+  available: boolean
+  markdown: string
+  generatedAt: string
+  fixtureId: number
+  reason?: string | null
+}
+
 export class NotFoundError extends Error {
   constructor(public externalId: number) {
     super(`fixture ${externalId} not found`)
@@ -27,6 +35,18 @@ async function getJson<T>(externalId: number, path: string): Promise<T> {
   if (res.status === 404) throw new NotFoundError(externalId)
   if (!res.ok) throw new ServerError(externalId)
   return (await res.json()) as T
+}
+
+function adminHeaders(): HeadersInit {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  }
+  if (typeof localStorage !== 'undefined') {
+    const mockRole = localStorage.getItem('mockRole')
+    if (mockRole) headers['X-Mock-Role'] = mockRole
+  }
+  return headers
 }
 
 export function getMatch(externalId: number): Promise<MatchDetail> {
@@ -73,4 +93,15 @@ export async function getLeagueStandings(
   externalId: number,
 ): Promise<LeagueStandingsPayload> {
   return getJson<LeagueStandingsPayload>(externalId, `/api/v1/fixtures/${externalId}/league-standings`)
+}
+
+export async function createMatchPreview(externalId: number): Promise<MatchPreviewResponse> {
+  const res = await fetch(apiUrl(`/api/v1/broadcast/fixtures/${externalId}/match-preview`), {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: '{}',
+  })
+  if (res.status === 404) throw new NotFoundError(externalId)
+  if (!res.ok) throw new ServerError(externalId)
+  return (await res.json()) as MatchPreviewResponse
 }

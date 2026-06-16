@@ -255,6 +255,9 @@ class BroadcastApiFootballLiveClient:
         rows = self._response("/fixtures", id=external_id)
         return rows[0] if rows else None
 
+    def get_live_fixtures(self) -> list[dict[str, Any]]:
+        return self._response("/fixtures", live="all")
+
     def get_events(self, external_id: int) -> list[dict[str, Any]]:
         return self._response("/fixtures/events", fixture=external_id)
 
@@ -273,6 +276,7 @@ class UnavailableBroadcastApiFootballClient:
         raise BroadcastApiFootballUnavailable("api_football_not_configured")
 
     get_fixture = _raise
+    get_live_fixtures = _raise
     get_events = _raise
     get_lineups = _raise
     get_statistics = _raise
@@ -286,29 +290,46 @@ class NoopBroadcastCache:
     def set_json(self, _key: str, _value: Any, ttl_seconds: int | None = None) -> None:
         return None
 
+    def acquire_lock(self, _key: str, ttl_seconds: int) -> bool:
+        return False
+
 
 class UpstashRestBroadcastCache:
     """Small Upstash REST cache adapter with the fake-cache test interface."""
 
-    def __init__(self, rest_url: str, token: str, timeout: float = 3.0) -> None:
+    def __init__(self, rest_url: str, token: str, timeout: float = 3.0, key_prefix: str = "") -> None:
         self._url = rest_url.rstrip("/")
+        self._key_prefix = key_prefix
         self._client = httpx.Client(
             headers={"Authorization": f"Bearer {token}"},
             timeout=timeout,
         )
 
+    def _key(self, key: str) -> str:
+        if not self._key_prefix:
+            return key
+        if self._key_prefix.endswith(":"):
+            return f"{self._key_prefix}{key}"
+        return f"{self._key_prefix}:{key}"
+
     def get_json(self, key: str) -> Any:
-        response = self._client.get(f"{self._url}/get/{quote(key, safe='')}")
+        response = self._client.get(f"{self._url}/get/{quote(self._key(key), safe='')}")
         response.raise_for_status()
         value = response.json().get("result")
         return _decode_cache_value(value)
 
     def set_json(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
-        encoded_key = quote(key, safe="")
-        encoded_value = quote(json.dumps(value, separators=(",", ":")), safe="")
-        suffix = f"?EX={ttl_seconds}" if ttl_seconds is not None else ""
-        response = self._client.post(f"{self._url}/set/{encoded_key}/{encoded_value}{suffix}")
+        command: list[Any] = ["SET", self._key(key), json.dumps(value, separators=(",", ":"))]
+        if ttl_seconds is not None:
+            command.extend(["EX", ttl_seconds])
+        response = self._client.post(self._url, json=command)
         response.raise_for_status()
+
+    def acquire_lock(self, key: str, ttl_seconds: int) -> bool:
+        command: list[Any] = ["SET", self._key(key), "1", "NX", "EX", ttl_seconds]
+        response = self._client.post(self._url, json=command)
+        response.raise_for_status()
+        return response.json().get("result") == "OK"
 
 
 @lru_cache(maxsize=1)
@@ -332,6 +353,7 @@ def make_broadcast_cache() -> Any:
         return UpstashRestBroadcastCache(
             settings.upstash_redis_rest_url,
             settings.upstash_redis_rest_token,
+            key_prefix=settings.upstash_redis_key_prefix,
         )
     return NoopBroadcastCache()
 

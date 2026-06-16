@@ -34,9 +34,21 @@ API_FOOTBALL_REQUESTS_PER_MINUTE=300
 # --- Upstash Redis (refresh token rotation / blacklist) ---
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
+# Required when sharing one Upstash Redis across environments.
+# Local dev must use local:, production must use prod:.
+UPSTASH_REDIS_KEY_PREFIX=local:
 
 # --- OpenAI (translation-filler / news-translator) ---
 OPENAI_API_KEY=
+
+# --- Vertex AI (broadcast AI commentary) ---
+GOOGLE_CLOUD_PROJECT=
+GOOGLE_CLOUD_LOCATION=global
+VERTEX_AI_MODEL=gemini-3.1-pro-preview
+# Optional for local/prod runtime when using a service account JSON secret.
+# Put the full JSON object as one env value. The app writes it to a temp file
+# and points GOOGLE_APPLICATION_CREDENTIALS there before google.auth.default().
+GOOGLE_APPLICATION_CREDENTIALS_JSON=
 
 # --- Frontend local dev ---
 # false/empty = call FastAPI through Vite proxy. true = use MSW mock handlers.

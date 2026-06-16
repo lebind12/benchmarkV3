@@ -2,10 +2,11 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import {
   API_FOOTBALL_LIVE_POLL_MS,
+  fetchApiFootballAiReview,
   fetchApiFootballBroadcastSnapshot,
   fetchApiFootballFirstLiveFixture,
-  fetchFixtureStandings,
   shouldUseApiFootballLive,
+  type ApiFootballAiReviewResponse,
   type ApiFootballBroadcastCoach,
   type ApiFootballBroadcastEvent,
   type ApiFootballBroadcastLineup,
@@ -14,6 +15,7 @@ import {
   type ApiFootballBroadcastStat,
 } from "@/lib/api/apiFootballLive";
 import { readBroadcastFixtureId } from "@/lib/broadcastQuery";
+import ProgramMomentumLineChart from "@/components/broadcast/ProgramMomentumLineChart.vue";
 import ProgramPossessionPieChart from "@/components/broadcast/ProgramPossessionPieChart.vue";
 import goalSoccerBallUrl from "@/assets/broadcast/goal-soccer-ball.svg?url";
 
@@ -64,12 +66,29 @@ type LineupPlayerView = {
   shotsTotal?: number;
   shotsOnGoal?: number;
   passesTotal?: number;
-  passesAccuracy?: number;
+  passesAccurate?: number;
+  passesAccuracyPct?: number;
+  keyPasses?: number;
   foulsCommitted?: number;
   statGoals?: number;
   statAssists?: number;
+  saves?: number;
+  goalsConceded?: number;
+  tacklesTotal?: number;
+  blocks?: number;
+  interceptions?: number;
+  duelsTotal?: number;
+  duelsWon?: number;
+  dribblesAttempts?: number;
+  dribblesSuccess?: number;
   statYellowCards?: number;
   statRedCards?: number;
+  eventSummary?: {
+    goals: number;
+    yellowCards: number;
+    redCards: number;
+    cardLabel: string;
+  };
   isSubstitutedIn: boolean;
 };
 
@@ -264,6 +283,11 @@ const appliedSubstitutionIds = ref<Set<string>>(new Set());
 const activeSubstitutionAnimations = ref<SubstitutionAnimation[]>([]);
 const statAnimationProgress = ref(1);
 const selectedLineupPlayer = ref<SelectedLineupPlayerView | null>(null);
+const isMomentumPanelOpen = ref(false);
+const isAiReviewPanelOpen = ref(false);
+const aiReviewStatus = ref<"idle" | "loading" | "ready" | "error">("idle");
+const aiReviewResult = ref<ApiFootballAiReviewResponse | null>(null);
+const aiReviewError = ref("");
 const isAdminAllowed = ref(
   typeof localStorage !== "undefined" &&
     localStorage.getItem("mockRole") === "ADMIN",
@@ -405,6 +429,26 @@ const activeStatView = computed<StatViewConfig | null>(() => {
   if (activeBottomView.value === "lineup" || !liveSnapshot.value) return null;
 
   const snapshot = liveSnapshot.value;
+  const backendProgramStats = snapshot.programStats?.[activeBottomView.value];
+  if (backendProgramStats) {
+    return {
+      id: activeBottomView.value,
+      eyebrow: activeBottomView.value.toUpperCase(),
+      title: {
+        attack: "공격 지표",
+        chance: "찬스 지표",
+        control: "경기 운영",
+        discipline: "징계 지표",
+        group: "조 상황",
+      }[activeBottomView.value],
+      metrics: backendProgramStats.map((metric) => ({
+        ...metric,
+        id: metric.id ?? metric.label,
+        graph: statGraphType(metric.label),
+      })),
+    };
+  }
+
   const statGroups: Record<Exclude<BottomView, "lineup">, StatViewConfig> = {
     attack: {
       id: "attack",
@@ -486,6 +530,124 @@ const groupStandingsRows = computed<GroupStandingsRowView[]>(() => {
     })
     .filter((row) => row.teamName || row.teamCode);
 });
+
+const momentumView = computed(() => {
+  const snapshot = liveSnapshot.value;
+  const momentum = snapshot?.momentum;
+  const kickoffTime = snapshot?.kickoffAt ? Date.parse(snapshot.kickoffAt) : Number.NaN;
+  const isFutureFixture = Number.isFinite(kickoffTime) && kickoffTime > Date.now();
+  if (!snapshot || !momentum) {
+    return {
+      available: false,
+      home: 50,
+      away: 50,
+      title: "",
+      detail: "",
+      homeLabel: snapshot?.homeCode ?? "HOME",
+      awayLabel: snapshot?.awayCode ?? "AWAY",
+      trend: "unavailable",
+      history: [],
+      emptyMessage: "아직 이 경기의 모멘텀 데이터가 없습니다",
+    };
+  }
+
+  if (!momentum.available) {
+    const detail = momentum.reasons[0] ?? "아직 이 경기의 모멘텀 데이터가 없습니다";
+    const noMomentumData = detail.includes("모멘텀 데이터");
+    return {
+      available: false,
+      home: 50,
+      away: 50,
+      title: isFutureFixture ? "" : noMomentumData ? "모멘텀 데이터 없음" : "중계되지 않은 경기",
+      detail: isFutureFixture ? "" : detail,
+      homeLabel: snapshot.homeCode,
+      awayLabel: snapshot.awayCode,
+      trend: "unavailable",
+      history: [],
+      emptyMessage: isFutureFixture ? "" : detail,
+    };
+  }
+
+  const trendLabel =
+    momentum.trend === "home"
+      ? `${snapshot.homeCode} 흐름`
+      : momentum.trend === "away"
+        ? `${snapshot.awayCode} 흐름`
+        : "균형 흐름";
+  return {
+    available: true,
+    home: momentum.home,
+    away: momentum.away,
+    title: trendLabel,
+    detail: momentum.reasons.slice(0, 2).join(" · ") || "최근 2분 변화량 기준",
+    homeLabel: snapshot.homeCode,
+    awayLabel: snapshot.awayCode,
+    trend: momentum.trend,
+    history: momentum.history ?? [],
+    emptyMessage: "",
+  };
+});
+
+const momentumChartPoints = computed(() =>
+  momentumView.value.history.length
+    ? momentumView.value.history
+    : [{ elapsed: null, value: 0 }],
+);
+
+const aiReviewHydration = computed(() => {
+  const history = liveSnapshot.value?.momentum?.history ?? [];
+  const maxMinute = history.reduce((max, point) => {
+    const minute =
+      typeof point.minuteKey === "number"
+        ? point.minuteKey
+        : typeof point.elapsed === "number"
+          ? point.elapsed + (typeof point.extra === "number" ? Math.max(0, point.extra) : 0)
+          : null;
+    return typeof minute === "number" ? Math.max(max, minute) : max;
+  }, 0);
+  return {
+    ready: maxMinute >= 23,
+    maxMinute,
+    message:
+      maxMinute >= 23
+        ? "AI 경기리뷰 생성 가능"
+        : `23분 모멘텀 데이터 수집 후 활성화 (${maxMinute || 0}/23)`,
+  };
+});
+
+const aiReviewButtonDisabled = computed(
+  () => !liveSnapshot.value || !aiReviewHydration.value.ready || aiReviewStatus.value === "loading",
+);
+
+const aiReviewBasisLabel = computed(() => {
+  const basis = aiReviewResult.value?.reviewBasis;
+  if (!basis) return "";
+  const matchClock =
+    basis.matchClockLabel ||
+    (basis.clock ? `경기시각 ${basis.clock} 기준` : typeof basis.minute === "number" ? `${basis.minute}분 기준` : "");
+  const phase = basis.phaseLabel || basis.status || "";
+  const cacheLabel = aiReviewResult.value?.cached ? "캐시" : "생성";
+  const parts = [matchClock, phase, cacheLabel].filter(Boolean);
+  return parts.join(" · ");
+});
+
+async function requestAiReview(forceRefresh = false) {
+  const fixtureId = liveSnapshot.value?.fixtureId;
+  if (!fixtureId || aiReviewButtonDisabled.value) return;
+  isMomentumPanelOpen.value = false;
+  isAiReviewPanelOpen.value = true;
+  aiReviewStatus.value = "loading";
+  aiReviewError.value = "";
+  try {
+    const result = await fetchApiFootballAiReview(fixtureId, { forceRefresh });
+    aiReviewResult.value = result;
+    aiReviewStatus.value = result.available ? "ready" : "error";
+    aiReviewError.value = result.available ? "" : result.message ?? "AI 경기리뷰를 아직 생성할 수 없습니다.";
+  } catch (error) {
+    aiReviewStatus.value = "error";
+    aiReviewError.value = (error as Error).message;
+  }
+}
 
 function isUsableStandingsPayload(
   standings: NonNullable<ApiFootballBroadcastSnapshot["standings"]> | null | undefined,
@@ -613,6 +775,7 @@ const lineupPlayerEventSummary = computed<Map<string, { goals: number; yellowCar
 });
 
 function getPlayerGoalCount(entry: LineupPlayerView) {
+  if (entry.eventSummary) return entry.eventSummary.goals;
   if (entry.statGoals !== undefined && entry.statGoals > 0) return entry.statGoals;
 
   const keys = lineupPlayerLookupKeys(entry);
@@ -624,6 +787,7 @@ function getPlayerGoalCount(entry: LineupPlayerView) {
 }
 
 function getPlayerYellowCardCount(entry: LineupPlayerView) {
+  if (entry.eventSummary) return entry.eventSummary.yellowCards;
   const keys = lineupPlayerLookupKeys(entry);
   for (const key of keys) {
     const summary = lineupPlayerEventSummary.value.get(key);
@@ -633,12 +797,14 @@ function getPlayerYellowCardCount(entry: LineupPlayerView) {
 }
 
 function playerCardLabel(entry: LineupPlayerView) {
+  if (entry.eventSummary) return entry.eventSummary.cardLabel;
   if (getPlayerRedCardCount(entry) > 0) return "RED";
   if (getPlayerYellowCardCount(entry) > 0) return "YEL";
   return "";
 }
 
 function getPlayerRedCardCount(entry: LineupPlayerView) {
+  if (entry.eventSummary) return entry.eventSummary.redCards;
   const keys = lineupPlayerLookupKeys(entry);
   for (const key of keys) {
     const summary = lineupPlayerEventSummary.value.get(key);
@@ -662,9 +828,21 @@ const selectedLineupPlayerSummary = computed(() => {
     shotsTotal: player.shotsTotal,
     shotsOnGoal: player.shotsOnGoal,
     passes: player.passesTotal,
+    passesAccurate: player.passesAccurate,
+    passesAccuracyPct: player.passesAccuracyPct,
+    keyPasses: player.keyPasses,
     fouls: player.foulsCommitted,
     statGoals: player.statGoals,
     statAssists: player.statAssists,
+    saves: player.saves,
+    goalsConceded: player.goalsConceded,
+    tacklesTotal: player.tacklesTotal,
+    blocks: player.blocks,
+    interceptions: player.interceptions,
+    duelsTotal: player.duelsTotal,
+    duelsWon: player.duelsWon,
+    dribblesAttempts: player.dribblesAttempts,
+    dribblesSuccess: player.dribblesSuccess,
   };
 
   snapshot.events.forEach((event) => {
@@ -696,7 +874,7 @@ const selectedLineupPlayerSummary = computed(() => {
 });
 
 function formatStatValue(value?: number | null, unit?: string): string {
-  if (value === undefined || value === null) return '-';
+  if (value === undefined || value === null) return unit ? `0${unit}` : "0";
   return unit ? `${value}${unit}` : String(value);
 }
 
@@ -706,13 +884,79 @@ function formatShotsLabel(shots?: number | null, shotsOnGoal?: number | null): s
   return `${value}/${onTarget}`;
 }
 
-function formatPassValue(value?: number | null): string {
-  return formatStatValue(value);
+function formatPassValue(accurate?: number | null, total?: number | null): string {
+  return `${formatStatValue(accurate)}/${formatStatValue(total)}`;
 }
 
 function formatCardPair(yellow?: number | null, red?: number | null): string {
   return `${formatStatValue(yellow)}/${formatStatValue(red)}`;
 }
+
+function formatPairValue(left?: number | null, right?: number | null): string {
+  return `${formatStatValue(left)}/${formatStatValue(right)}`;
+}
+
+function formatPercentValue(value?: number | null): string {
+  return formatStatValue(value, "%");
+}
+
+const selectedLineupPlayerStats = computed(() => {
+  const player = selectedLineupPlayer.value;
+  const summary = selectedLineupPlayerSummary.value;
+  if (!player || !summary) return [];
+
+  const common = [
+    { label: "출전시간", value: formatStatValue(summary.minutes, "'") },
+    { label: "평점", value: player.rating ? formatRatingValue(player.rating) : "0" },
+  ];
+  const cards = { label: "카드", value: formatCardPair(summary.yellowCards, summary.redCards) };
+  const pos = (player.pos ?? "").toUpperCase();
+
+  if (pos === "G") {
+    return [
+      ...common,
+      { label: "세이브", value: formatStatValue(summary.saves) },
+      { label: "실점", value: formatStatValue(summary.goalsConceded) },
+      { label: "패스", value: formatPassValue(summary.passesAccurate, summary.passes) },
+      { label: "패스성공률", value: formatPercentValue(summary.passesAccuracyPct) },
+      cards,
+    ];
+  }
+
+  if (pos === "D") {
+    return [
+      ...common,
+      { label: "태클", value: formatStatValue(summary.tacklesTotal) },
+      { label: "인터셉트", value: formatStatValue(summary.interceptions) },
+      { label: "블록", value: formatStatValue(summary.blocks) },
+      { label: "경합", value: formatPairValue(summary.duelsWon, summary.duelsTotal) },
+      { label: "패스성공률", value: formatPercentValue(summary.passesAccuracyPct) },
+      cards,
+    ];
+  }
+
+  if (pos === "M") {
+    return [
+      ...common,
+      { label: "패스", value: formatPassValue(summary.passesAccurate, summary.passes) },
+      { label: "패스성공률", value: formatPercentValue(summary.passesAccuracyPct) },
+      { label: "키패스", value: formatStatValue(summary.keyPasses) },
+      { label: "경합", value: formatPairValue(summary.duelsWon, summary.duelsTotal) },
+      { label: "슈팅(유효)", value: formatShotsLabel(summary.shotsTotal, summary.shotsOnGoal) },
+      cards,
+    ];
+  }
+
+  return [
+    ...common,
+    { label: "득점", value: formatStatValue(summary.goals) },
+    { label: "어시스트", value: formatStatValue(summary.assists) },
+    { label: "슈팅(유효)", value: formatShotsLabel(summary.shotsTotal, summary.shotsOnGoal) },
+    { label: "드리블", value: formatPairValue(summary.dribblesSuccess, summary.dribblesAttempts) },
+    { label: "패스성공률", value: formatPercentValue(summary.passesAccuracyPct) },
+    cards,
+  ];
+});
 
 const selectedLineupPlayerDisplay = computed(() => {
   const player = selectedLineupPlayer.value;
@@ -753,12 +997,24 @@ function toLineupPlayerView(
     shotsTotal: player.shotsTotal,
     shotsOnGoal: player.shotsOnGoal,
     passesTotal: player.passesTotal,
-    passesAccuracy: player.passesAccuracy,
+    passesAccurate: player.passesAccurate,
+    passesAccuracyPct: player.passesAccuracyPct,
+    keyPasses: player.keyPasses,
     foulsCommitted: player.foulsCommitted,
     statGoals: player.statGoals,
     statAssists: player.statAssists,
+    saves: player.saves,
+    goalsConceded: player.goalsConceded,
+    tacklesTotal: player.tacklesTotal,
+    blocks: player.blocks,
+    interceptions: player.interceptions,
+    duelsTotal: player.duelsTotal,
+    duelsWon: player.duelsWon,
+    dribblesAttempts: player.dribblesAttempts,
+    dribblesSuccess: player.dribblesSuccess,
     statYellowCards: player.statYellowCards,
     statRedCards: player.statRedCards,
+    eventSummary: player.eventSummary,
     isSubstitutedIn: false,
   };
 }
@@ -794,12 +1050,12 @@ function applySubstitutionsToLineup(
   );
 
   substitutionEvents.forEach((event) => {
-    const outIndex = players.findIndex((player) =>
-      event.playerId !== undefined
-        ? player.id === event.playerId
-        : player.name === event.outPlayer ||
-          player.longName === event.outPlayer,
-    );
+    const outPlayer =
+      findDirectSubstitutionOutPlayer(players, event) ??
+      findMinuteFallbackSubstitutionOutPlayer(players, events, event);
+    const outIndex = outPlayer
+      ? players.findIndex((player) => player.slotIndex === outPlayer.slotIndex)
+      : -1;
     if (outIndex < 0) return;
 
     const inId = event.assistId;
@@ -837,12 +1093,24 @@ function applySubstitutionsToLineup(
       shotsTotal: inPlayer?.shotsTotal,
       shotsOnGoal: inPlayer?.shotsOnGoal,
       passesTotal: inPlayer?.passesTotal,
-      passesAccuracy: inPlayer?.passesAccuracy,
+      passesAccurate: inPlayer?.passesAccurate,
+      passesAccuracyPct: inPlayer?.passesAccuracyPct,
+      keyPasses: inPlayer?.keyPasses,
       foulsCommitted: inPlayer?.foulsCommitted,
       statGoals: inPlayer?.statGoals,
       statAssists: inPlayer?.statAssists,
+      saves: inPlayer?.saves,
+      goalsConceded: inPlayer?.goalsConceded,
+      tacklesTotal: inPlayer?.tacklesTotal,
+      blocks: inPlayer?.blocks,
+      interceptions: inPlayer?.interceptions,
+      duelsTotal: inPlayer?.duelsTotal,
+      duelsWon: inPlayer?.duelsWon,
+      dribblesAttempts: inPlayer?.dribblesAttempts,
+      dribblesSuccess: inPlayer?.dribblesSuccess,
       statYellowCards: inPlayer?.statYellowCards,
       statRedCards: inPlayer?.statRedCards,
+      eventSummary: inPlayer?.eventSummary,
       isSubstitutedIn: true,
     };
   });
@@ -855,6 +1123,54 @@ function applySubstitutionsToLineup(
     coach: toLineupCoachView(lineup.coach, lineup.teamId),
     players,
   };
+}
+
+function eventElapsedMinute(event: ApiFootballBroadcastEvent) {
+  const match = event.minute.match(/^(\d+)/);
+  return match ? Number(match[1]) : undefined;
+}
+
+function findDirectSubstitutionOutPlayer(
+  players: LineupPlayerView[],
+  event: ApiFootballBroadcastEvent,
+) {
+  return players.find((player) =>
+    event.playerId !== undefined
+      ? player.id === event.playerId
+      : player.name === event.outPlayer || player.longName === event.outPlayer,
+  );
+}
+
+function findMinuteFallbackSubstitutionOutPlayer(
+  players: LineupPlayerView[],
+  events: ApiFootballBroadcastEvent[],
+  event: ApiFootballBroadcastEvent,
+) {
+  const minute = eventElapsedMinute(event);
+  if (minute === undefined) return undefined;
+
+  const occupiedSlots = new Set<number>();
+  events
+    .filter(
+      (candidate) =>
+        candidate.id !== event.id &&
+        candidate.kind === "substitution" &&
+        candidate.teamId === event.teamId &&
+        eventElapsedMinute(candidate) === minute,
+    )
+    .forEach((candidate) => {
+      const matched = findDirectSubstitutionOutPlayer(players, candidate);
+      if (matched) occupiedSlots.add(matched.slotIndex);
+    });
+
+  const minuteCandidates = players.filter(
+    (player) =>
+      player.minutes !== undefined &&
+      Math.trunc(player.minutes) === minute &&
+      !occupiedSlots.has(player.slotIndex),
+  );
+
+  return minuteCandidates.length === 1 ? minuteCandidates[0] : undefined;
 }
 
 function splitLineupEntries(lineup: TeamLineupView): LineupEntryView[][] {
@@ -877,10 +1193,13 @@ function findSubstitutionSlot(
     playerStatsLookup,
   );
 
-  return baseLineup.players.find((player) =>
-    event.playerId !== undefined
-      ? player.id === event.playerId
-      : player.name === event.outPlayer || player.longName === event.outPlayer,
+  const directMatch = findDirectSubstitutionOutPlayer(baseLineup.players, event);
+  if (directMatch) return directMatch;
+
+  return findMinuteFallbackSubstitutionOutPlayer(
+    baseLineup.players,
+    events,
+    event,
   );
 }
 
@@ -1216,6 +1535,8 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
 
 function setBottomView(nextView: BottomView) {
   if (nextView === activeBottomView.value) return;
+  isMomentumPanelOpen.value = false;
+  isAiReviewPanelOpen.value = false;
 
   const currentIndex = bottomViewTabs.findIndex(
     (tab) => tab.id === activeBottomView.value,
@@ -1230,6 +1551,16 @@ function setBottomView(nextView: BottomView) {
     nextIndex > currentIndex ? "next" : "prev";
   activeBottomView.value = nextView;
 }
+
+watch(
+  () => liveSnapshot.value?.fixtureId,
+  () => {
+    isAiReviewPanelOpen.value = false;
+    aiReviewStatus.value = "idle";
+    aiReviewResult.value = null;
+    aiReviewError.value = "";
+  },
+);
 
 function handleBottomViewKeyboard(event: KeyboardEvent) {
   if (isEditableKeyboardTarget(event.target)) return;
@@ -1272,13 +1603,11 @@ async function refreshApiFootballLive() {
       requestedFixtureId !== null
         ? await fetchApiFootballBroadcastSnapshot(requestedFixtureId)
         : await fetchApiFootballFirstLiveFixture();
-    const standings = await fetchFixtureStandings(snapshot.fixtureId).catch(() => null);
-
     const previousStandings = liveSnapshot.value?.standings;
     liveSnapshot.value = {
       ...snapshot,
       standings: stableStandingsPayload(
-        standings ?? snapshot.standings,
+        snapshot.standings,
         previousStandings,
       ),
     };
@@ -1409,7 +1738,7 @@ onBeforeUnmount(() => {
                               {{ formatRatingValue(selectedLineupPlayer.rating) }}
                             </span>
                             <span v-else class="lineup-player-rating-text lineup-player-rating-text--rating-neutral">
-                              -
+                              0
                             </span>
                           </div>
                           <div class="player-detail-name-block">
@@ -1427,45 +1756,12 @@ onBeforeUnmount(() => {
                       </section>
                       <section class="player-detail-stats">
                         <dl>
-                          <div>
-                            <dt>출전시간</dt>
-                            <dd>{{ formatStatValue(selectedLineupPlayerSummary?.minutes, "'") }}</dd>
-                          </div>
-                          <div>
-                            <dt>슈팅(유효)</dt>
-                            <dd>{{
-                              formatShotsLabel(
-                                selectedLineupPlayerSummary?.shotsTotal,
-                                selectedLineupPlayerSummary?.shotsOnGoal,
-                              )
-                            }}</dd>
-                          </div>
-                          <div>
-                            <dt>패스</dt>
-                            <dd>{{ formatPassValue(selectedLineupPlayerSummary?.passes) }}</dd>
-                          </div>
-                          <div>
-                            <dt>득점</dt>
-                            <dd>{{ formatStatValue(selectedLineupPlayerSummary?.goals) }}</dd>
-                          </div>
-                          <div>
-                            <dt>어시스트</dt>
-                            <dd>{{ formatStatValue(selectedLineupPlayerSummary?.assists) }}</dd>
-                          </div>
-                          <div>
-                            <dt>파울</dt>
-                            <dd>{{ formatStatValue(selectedLineupPlayerSummary?.fouls) }}</dd>
-                          </div>
-                          <div>
-                            <dt>카드(옐로/레드)</dt>
-                            <dd>
-                              {{
-                                formatCardPair(
-                                  selectedLineupPlayerSummary?.yellowCards,
-                                  selectedLineupPlayerSummary?.redCards,
-                                )
-                              }}
-                            </dd>
+                          <div
+                            v-for="stat in selectedLineupPlayerStats"
+                            :key="stat.label"
+                          >
+                            <dt>{{ stat.label }}</dt>
+                            <dd>{{ stat.value }}</dd>
                           </div>
                         </dl>
                       </section>
@@ -1646,7 +1942,142 @@ onBeforeUnmount(() => {
                 <span>{{ activeStatView?.eyebrow }}</span>
                 <strong>{{ activeStatView?.title }}</strong>
                 <b>{{ liveSnapshot.homeCode }} / {{ liveSnapshot.awayCode }}</b>
+                <div v-if="activeStatView?.id === 'attack'" class="stats-action-row">
+                  <button
+                    type="button"
+                    class="momentum-open-button"
+                    :class="{ 'momentum-open-button--active': isMomentumPanelOpen }"
+                    data-testid="program-momentum-open"
+                    @click="isAiReviewPanelOpen = false; isMomentumPanelOpen = !isMomentumPanelOpen"
+                  >
+                    모멘텀
+                  </button>
+                  <button
+                    type="button"
+                    class="ai-review-open-button"
+                    :class="{ 'ai-review-open-button--active': isAiReviewPanelOpen }"
+                    :disabled="aiReviewButtonDisabled"
+                    :title="aiReviewHydration.message"
+                    data-testid="program-ai-review-open"
+                    @click="requestAiReview()"
+                  >
+                    AI 리뷰
+                  </button>
+                </div>
               </header>
+              <aside
+                v-if="activeStatView?.id === 'attack' && isMomentumPanelOpen"
+                class="momentum-panel"
+                :class="{ 'momentum-panel--unavailable': !momentumView.available }"
+                data-testid="program-momentum-panel"
+              >
+                <header>
+                  <span>LIVE MOMENTUM</span>
+                  <div class="momentum-title-row">
+                    <strong>{{ momentumView.title }}</strong>
+                    <button
+                      type="button"
+                      class="momentum-info-button"
+                      aria-label="모멘텀 계산식 설명"
+                    >
+                      i
+                      <span class="momentum-info-popover" role="tooltip">
+                        <b>모멘텀 계산식</b>
+                        <em>최근 변화량 12개 샘플을 가중 평균합니다.</em>
+                        <small>득점 +8, xG +16, 슈팅 +0.8, 유효슈팅 +2, 박스 안 슈팅 +1.2, 코너킥 +1, 위험 이벤트 +3을 최근 샘플 가중치로 합산합니다.</small>
+                        <small>xG가 없으면 슈팅 +1.2, 유효슈팅 +3, 박스 안 슈팅 +2로 대체해 기회 품질을 추정합니다.</small>
+                        <small>패스 성공은 +0.02씩 최대 +2까지만 반영하고, 상대 경고 +0.4, 우리 경고 -0.3을 적용합니다.</small>
+                        <small>현재 퇴장 수는 상대 퇴장당 +2.5, 우리 퇴장당 -2.5로 지속 보정합니다.</small>
+                        <small>최종 점수는 양 팀 모두 기본값 12를 더한 뒤 비율화하며, 이 값은 승률이나 점유율이 아닙니다.</small>
+                      </span>
+                    </button>
+                  </div>
+                  <div v-if="momentumView.available" class="momentum-summary-row">
+                    <b class="momentum-score momentum-score--home">
+                      <span>{{ momentumView.homeLabel }}</span>
+                      <strong>{{ momentumView.home }}</strong>
+                    </b>
+                    <small>{{ momentumView.detail }}</small>
+                    <b class="momentum-score momentum-score--away">
+                      <strong>{{ momentumView.away }}</strong>
+                      <span>{{ momentumView.awayLabel }}</span>
+                    </b>
+                  </div>
+                  <div v-else class="momentum-empty-message">
+                    {{ momentumView.emptyMessage || "아직 이 경기의 모멘텀 데이터가 없습니다" }}
+                  </div>
+                  <button
+                    type="button"
+                    class="momentum-close-button"
+                    aria-label="모멘텀 패널 닫기"
+                    @click="isMomentumPanelOpen = false"
+                  >
+                    닫기
+                  </button>
+                </header>
+                <div v-if="momentumView.available" class="momentum-panel-chart">
+                  <ProgramMomentumLineChart :points="momentumChartPoints" />
+                </div>
+              </aside>
+              <aside
+                v-if="activeStatView?.id === 'attack' && isAiReviewPanelOpen"
+                class="ai-review-panel"
+                data-testid="program-ai-review-panel"
+              >
+                <header>
+                  <span>AI MATCH REVIEW</span>
+                  <i
+                    v-if="aiReviewStatus === 'loading'"
+                    class="ai-review-spinner"
+                    aria-hidden="true"
+                  ></i>
+                  <strong>
+                    {{
+                      aiReviewStatus === "loading"
+                        ? "생성 중"
+                        : aiReviewResult?.commentary?.headline || "AI 경기리뷰"
+                    }}
+                  </strong>
+                  <small v-if="aiReviewBasisLabel" class="ai-review-basis">
+                    {{ aiReviewBasisLabel }}
+                  </small>
+                  <div class="ai-review-header-actions">
+                    <button
+                      type="button"
+                      class="ai-review-refresh-button"
+                      :disabled="aiReviewButtonDisabled"
+                      aria-label="AI 경기리뷰 새로고침"
+                      data-testid="program-ai-review-refresh"
+                      @click="requestAiReview(true)"
+                    >
+                      새로고침
+                    </button>
+                    <button
+                      type="button"
+                      class="momentum-close-button"
+                      aria-label="AI 경기리뷰 패널 닫기"
+                      @click="isAiReviewPanelOpen = false"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                </header>
+                <div class="ai-review-body">
+                  <p v-if="aiReviewStatus === 'loading'" class="ai-review-muted">
+                    경기 데이터와 모멘텀 변화량을 정리하고 있습니다.
+                  </p>
+                  <template v-else-if="aiReviewStatus === 'ready' && aiReviewResult?.commentary">
+                    <strong>{{ aiReviewResult.commentary.oneLineSummary }}</strong>
+                    <p>{{ aiReviewResult.commentary.mainCommentary }}</p>
+                    <small v-if="aiReviewResult.commentary.limitations?.length">
+                      {{ aiReviewResult.commentary.limitations.join(" · ") }}
+                    </small>
+                  </template>
+                  <p v-else class="ai-review-muted">
+                    {{ aiReviewError || aiReviewHydration.message }}
+                  </p>
+                </div>
+              </aside>
               <div v-if="activeStatView?.metrics.length" class="stats-grid">
                 <article
                   v-for="metric in activeStatView.metrics"
@@ -3168,6 +3599,402 @@ onBeforeUnmount(() => {
   color: #f6e1a8;
   font-size: 0.95rem;
   font-weight: 950;
+}
+
+.stats-action-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.76rem;
+}
+
+.momentum-open-button,
+.ai-review-open-button {
+  width: fit-content;
+  border: 0.08rem solid rgba(201, 151, 43, 0.7);
+  background:
+    linear-gradient(145deg, rgba(201, 151, 43, 0.28), rgba(5, 5, 5, 0.72)),
+    #050505;
+  color: #f6e1a8;
+  padding: 0.44rem 0.78rem;
+  font-size: 0.78rem;
+  font-weight: 950;
+  cursor: pointer;
+  letter-spacing: 0;
+}
+
+.momentum-open-button--active,
+.momentum-open-button:hover,
+.momentum-open-button:focus-visible,
+.ai-review-open-button--active,
+.ai-review-open-button:hover:not(:disabled),
+.ai-review-open-button:focus-visible:not(:disabled) {
+  background: #c9972b;
+  color: #050505;
+}
+
+.ai-review-open-button:disabled {
+  border-color: #4e493d;
+  background: #111111;
+  color: #736b5b;
+  cursor: not-allowed;
+}
+
+.momentum-panel {
+  position: absolute;
+  z-index: 100;
+  inset: 0.2rem 0.2rem 0.2rem 19rem;
+  padding: 1rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.76rem;
+  border: 0.1rem solid #c9972b;
+  background-color: #050505;
+  background-image: none;
+  box-shadow: 0 1rem 2.4rem #000000;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.momentum-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-color: #050505;
+  background-image: none;
+}
+
+.momentum-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.momentum-panel header {
+  display: grid;
+  grid-template-columns: auto minmax(0, auto) minmax(14rem, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.momentum-panel header {
+  z-index: 6;
+}
+
+.momentum-panel header span {
+  color: #c9972b;
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.momentum-title-row {
+  position: relative;
+  z-index: 7;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.46rem;
+}
+
+.momentum-panel header strong {
+  color: #ffffff;
+  font-size: 1.42rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.momentum-close-button {
+  border: 0.08rem solid #f5f1e8;
+  background: #050505;
+  color: #f5f1e8;
+  padding: 0.32rem 0.58rem;
+  font-size: 0.68rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.momentum-info-button {
+  position: relative;
+  z-index: 8;
+  width: 1.02rem;
+  height: 1.02rem;
+  display: inline-grid;
+  place-items: center;
+  border: 0.08rem solid #c9972b;
+  border-radius: 999px;
+  background: #050505;
+  color: #c9972b;
+  font-size: 0.62rem;
+  font-weight: 950;
+  line-height: 1;
+  cursor: help;
+}
+
+.momentum-info-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.42rem);
+  z-index: 20;
+  width: min(42rem, calc(100vw - 35rem));
+  padding: 0.78rem 0.88rem;
+  display: grid;
+  gap: 0.34rem;
+  border: 0.08rem solid #c9972b;
+  background: #050505;
+  color: #f5f1e8;
+  box-shadow: 0 0.8rem 1.8rem #000000;
+  opacity: 0;
+  overflow: visible;
+  pointer-events: none;
+  text-align: left;
+  transform: translateY(-0.2rem);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.momentum-info-popover b {
+  color: #c9972b;
+  font-size: 0.72rem;
+  font-style: normal;
+  letter-spacing: 0.08em;
+}
+
+.momentum-info-popover em,
+.momentum-info-popover small {
+  color: #f5f1e8;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.42;
+}
+
+.momentum-info-popover small {
+  color: #cfc8b7;
+}
+
+.momentum-info-button:hover .momentum-info-popover,
+.momentum-info-button:focus-visible .momentum-info-popover {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.momentum-panel-chart {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.5rem;
+  border: 0.08rem solid #51452d;
+  background-color: #0b0b0b;
+  background-image: none;
+  opacity: 1;
+}
+
+.momentum-score {
+  min-width: 5.8rem;
+  padding: 0.28rem 0.52rem;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.34rem;
+  border: 0.08rem solid currentColor;
+  background: #050505;
+  line-height: 1;
+}
+
+.momentum-score span {
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.momentum-score strong {
+  font-size: 1.18rem;
+  font-weight: 950;
+}
+
+.momentum-score--home {
+  justify-content: flex-start;
+  color: #d8a21f;
+  box-shadow: inset 0 0 0 0.08rem rgba(216, 162, 31, 0.18);
+}
+
+.momentum-score--away {
+  justify-content: flex-end;
+  color: #58a6ff;
+  box-shadow: inset 0 0 0 0.08rem rgba(88, 166, 255, 0.18);
+}
+
+.momentum-summary-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.52rem;
+  color: #f5f1e8;
+  font-weight: 950;
+}
+
+.momentum-summary-row small {
+  min-width: 0;
+  overflow: hidden;
+  color: #c9bfa9;
+  font-size: 0.78rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.momentum-empty-message {
+  position: relative;
+  z-index: 1;
+  min-height: 4.5rem;
+  display: grid;
+  place-items: center;
+  padding: 0.8rem 1rem;
+  border: 0.08rem solid #51452d;
+  background: #0b0b0b;
+  color: #d8d1c2;
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.momentum-panel--unavailable {
+  opacity: 0.84;
+}
+
+.ai-review-panel {
+  position: absolute;
+  z-index: 110;
+  inset: 0.2rem 0.2rem 0.2rem 19rem;
+  padding: 1rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.76rem;
+  border: 0.1rem solid #58a6ff;
+  background: #050505;
+  box-shadow: 0 1rem 2.4rem #000000;
+  overflow: hidden;
+}
+
+.ai-review-panel header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.4rem 0.8rem;
+  align-items: start;
+}
+
+.ai-review-panel header span {
+  grid-column: 1 / span 2;
+  color: #58a6ff;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.ai-review-panel header strong {
+  min-width: 0;
+  grid-column: 2;
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.ai-review-spinner {
+  grid-column: 1;
+  grid-row: 2;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-top: 0.08rem;
+  border: 0.12rem solid rgba(88, 166, 255, 0.22);
+  border-top-color: #58a6ff;
+  border-radius: 999px;
+  animation: ai-review-spin 0.72s linear infinite;
+}
+
+@keyframes ai-review-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ai-review-basis {
+  min-width: 0;
+  grid-column: 2;
+  color: #9fbedc;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.ai-review-header-actions {
+  grid-column: 3;
+  grid-row: 1 / span 3;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.ai-review-refresh-button {
+  border: 0.08rem solid #58a6ff;
+  background: #07131f;
+  color: #d8ebff;
+  padding: 0.32rem 0.58rem;
+  font-size: 0.68rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.ai-review-refresh-button:hover:not(:disabled),
+.ai-review-refresh-button:focus-visible:not(:disabled) {
+  background: #58a6ff;
+  color: #050505;
+}
+
+.ai-review-refresh-button:disabled {
+  border-color: #334253;
+  background: #111111;
+  color: #667386;
+  cursor: not-allowed;
+}
+
+.ai-review-body {
+  min-height: 0;
+  padding: 0.9rem;
+  border: 0.08rem solid #324963;
+  background: #0b0b0b;
+  color: #f3efe5;
+  overflow: auto;
+}
+
+.ai-review-body strong {
+  display: block;
+  color: #f6e1a8;
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+.ai-review-body p {
+  margin: 0.72rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.ai-review-body small {
+  display: block;
+  margin-top: 0.72rem;
+  color: #9f9889;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.ai-review-muted {
+  color: #c9bfa9;
 }
 
 .stats-grid {
