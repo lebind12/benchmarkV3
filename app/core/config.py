@@ -116,7 +116,7 @@ class Settings(BaseSettings):
     # --- Vertex AI (broadcast AI commentary) -------------------------------
     google_cloud_project: str | None = Field(default=None)
     google_cloud_location: str = Field(default="global")
-    vertex_ai_model: str = Field(default="gemini-3.1-pro-preview")
+    vertex_ai_model: str = Field(default="gemini-3.5-flash")
     google_application_credentials_json: str | None = Field(default=None)
 
     def model_post_init(self, __context: object) -> None:

@@ -19,6 +19,15 @@ deny = [
 ask = [
   "Bash(rm -r:*)",
   "Bash(git push --force:*)",
+  "Bash(koyeb deploy:*)",
+  "Bash(koyeb services update:*)",
+  "Bash(koyeb service update:*)",
+  "Bash(koyeb services redeploy:*)",
+  "Bash(koyeb service redeploy:*)",
+  "Bash(vercel deploy:*)",
+  "Bash(vercel env add:*)",
+  "Bash(vercel env rm:*)",
+  "Bash(vercel env remove:*)",
 ]
 
 [safety.sandbox]

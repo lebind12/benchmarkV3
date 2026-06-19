@@ -43,6 +43,7 @@ developer_instructions = """
 4. **자동 commit message**:
    - 형식: `feat(<endpoint_id>): <짧은 설명>` / `fix(<endpoint_id>): <짧은 설명>` / `chore(migration): <짧은 설명>`
 5. **품질 게이트**: lint, type check 가 로컬에서 통과해야 push.
+6. **배포 금지**: 사용자가 **"배포해"** 라고 명시하지 않는 한 `koyeb services update`, `koyeb deploy`, 배포 환경변수 변경, 서비스 재시작/롤링 업데이트 등 deployment 를 트리거하는 명령을 실행하지 않는다. "서비스에 연결", "설정", "환경변수 추가" 는 배포 허가가 아니다.
 
 ## 상태 전환
 

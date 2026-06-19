@@ -258,6 +258,9 @@ class BroadcastApiFootballLiveClient:
     def get_live_fixtures(self) -> list[dict[str, Any]]:
         return self._response("/fixtures", live="all")
 
+    def get_season_fixtures(self, *, league_id: int, season: int) -> list[dict[str, Any]]:
+        return self._response("/fixtures", league=league_id, season=season)
+
     def get_events(self, external_id: int) -> list[dict[str, Any]]:
         return self._response("/fixtures/events", fixture=external_id)
 
@@ -277,6 +280,7 @@ class UnavailableBroadcastApiFootballClient:
 
     get_fixture = _raise
     get_live_fixtures = _raise
+    get_season_fixtures = _raise
     get_events = _raise
     get_lineups = _raise
     get_statistics = _raise

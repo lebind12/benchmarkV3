@@ -69,6 +69,10 @@ LIVE_BLOCK_TTLS = {
     "lineups": 300,
 }
 AI_REVIEW_TTL_SECONDS = 3600
+LIVE_GROUP_STANDINGS_TTL_SECONDS = 10
+LIVE_GROUP_STANDINGS_STATUSES = {"1H", "HT", "2H", "ET", "BT", "P", "LIVE"}
+LIVE_GROUP_FINAL_STATUSES = {"FT", "AET", "PEN"}
+LIVE_GROUP_RELEVANT_STATUSES = LIVE_GROUP_STANDINGS_STATUSES | LIVE_GROUP_FINAL_STATUSES
 
 
 def _no_momentum_payload(now_func: Callable[[], datetime]) -> dict[str, Any]:
@@ -93,6 +97,10 @@ def _now_iso(now_func: Callable[[], datetime]) -> str:
 
 def _ai_review_cache_key(fixture_id: int) -> str:
     return f"broadcast:fixture:{fixture_id}:ai-review"
+
+
+def _live_group_standings_cache_key(fixture_id: int) -> str:
+    return f"broadcast:fixture:{fixture_id}:live-group-standings:v3"
 
 
 def _is_ai_review_cache_stale(cached: dict[str, Any], current_minute: Any, *, max_age_minutes: int = 5) -> bool:
@@ -197,6 +205,25 @@ def _compact_code(value: Any, fallback: str = "") -> str:
 def _score_from_fixture(fixture: dict[str, Any]) -> str:
     goals = fixture.get("goals") if isinstance(fixture.get("goals"), dict) else {}
     return f"{goals.get('home') or 0} : {goals.get('away') or 0}"
+
+
+def _goals_from_fixture(fixture: dict[str, Any]) -> tuple[int | None, int | None]:
+    goals = fixture.get("goals") if isinstance(fixture.get("goals"), dict) else {}
+    home = _to_int(goals.get("home"))
+    away = _to_int(goals.get("away"))
+    return home, away
+
+
+def _fixture_status_short(fixture: dict[str, Any]) -> str:
+    fixture_obj = fixture.get("fixture") if isinstance(fixture.get("fixture"), dict) else {}
+    status = fixture_obj.get("status") if isinstance(fixture_obj.get("status"), dict) else {}
+    return str(status.get("short") or "").upper()
+
+
+def _fixture_elapsed(fixture: dict[str, Any]) -> int | None:
+    fixture_obj = fixture.get("fixture") if isinstance(fixture.get("fixture"), dict) else {}
+    status = fixture_obj.get("status") if isinstance(fixture_obj.get("status"), dict) else {}
+    return _to_int(status.get("elapsed"))
 
 
 def _clock_from_fixture(fixture: dict[str, Any]) -> str:
@@ -589,6 +616,7 @@ def _event_summary(events: list[dict[str, Any]], player_stats: dict[int, dict[st
         goals = stat.get("statGoals")
         result[player_id] = {
             "goals": int(goals) if isinstance(goals, (int, float)) and goals > 0 else 0,
+            "ownGoals": 0,
             "yellowCards": int(stat.get("statYellowCards") or 0),
             "redCards": int(stat.get("statRedCards") or 0),
             "cardLabel": "",
@@ -599,9 +627,14 @@ def _event_summary(events: list[dict[str, Any]], player_stats: dict[int, dict[st
         player_id = player.get("id")
         if not isinstance(player_id, int):
             continue
-        summary = result.setdefault(player_id, {"goals": 0, "yellowCards": 0, "redCards": 0, "cardLabel": ""})
+        summary = result.setdefault(
+            player_id,
+            {"goals": 0, "ownGoals": 0, "yellowCards": 0, "redCards": 0, "cardLabel": ""},
+        )
         if kind == "goal" and not player_stats.get(player_id, {}).get("statGoals"):
             summary["goals"] += 1
+        if kind == "own-goal":
+            summary["ownGoals"] += 1
         if kind == "yellow-card":
             summary["yellowCards"] += 1
         if kind == "red-card":
@@ -706,7 +739,10 @@ def _normalize_lineup_player(
         "dribblesSuccess": stat.get("dribblesSuccess"),
         "statYellowCards": stat.get("statYellowCards"),
         "statRedCards": stat.get("statRedCards"),
-        "eventSummary": summaries.get(player_id or -1, {"goals": 0, "yellowCards": 0, "redCards": 0, "cardLabel": ""}),
+        "eventSummary": summaries.get(
+            player_id or -1,
+            {"goals": 0, "ownGoals": 0, "yellowCards": 0, "redCards": 0, "cardLabel": ""},
+        ),
     }
 
 
@@ -769,6 +805,66 @@ def _normalize_events(
             "outPlayerNumber": player_entry.get("number") if kind == "substitution" else None,
             "outPlayerPhotoUrl": player_entry.get("photoUrl") if kind == "substitution" else None,
             "teamLogoUrl": team.get("logo") or (home.get("logo") if team_id == home_id else away.get("logo") if team_id == away_id else None),
+        })
+    return result
+
+
+def _normalize_group_goal_events(
+    *,
+    fixture: dict[str, Any],
+    events: list[dict[str, Any]],
+    translations: dict[str, dict[str, dict[str, str | None]]],
+) -> list[dict[str, Any]]:
+    teams = fixture.get("teams") if isinstance(fixture.get("teams"), dict) else {}
+    home = teams.get("home") if isinstance(teams.get("home"), dict) else {}
+    away = teams.get("away") if isinstance(teams.get("away"), dict) else {}
+    fixture_obj = fixture.get("fixture") if isinstance(fixture.get("fixture"), dict) else {}
+    fixture_id = _to_int(fixture_obj.get("id"))
+    home_id = _to_int(home.get("id"))
+    away_id = _to_int(away.get("id"))
+    home_name = _translation_value(translations, "teams", home_id, "team_names", home.get("name") or "Home", short=True)
+    away_name = _translation_value(translations, "teams", away_id, "team_names", away.get("name") or "Away", short=True)
+    home_goals, away_goals = _goals_from_fixture(fixture)
+    score = f"{home_name} {home_goals}-{away_goals} {away_name}" if home_goals is not None and away_goals is not None else ""
+    result: list[dict[str, Any]] = []
+
+    for event in events:
+        kind = _event_kind(event)
+        if kind not in {"goal", "own-goal"}:
+            continue
+        detail = str(event.get("detail") or "").lower()
+        if "cancel" in detail or "disallow" in detail:
+            continue
+        team = event.get("team") if isinstance(event.get("team"), dict) else {}
+        player = event.get("player") if isinstance(event.get("player"), dict) else {}
+        team_id = _to_int(team.get("id"))
+        player_id = _to_int(player.get("id"))
+        player_name = _clean_text(player.get("name")) or ""
+        team_name = home_name if team_id == home_id else away_name if team_id == away_id else _clean_text(team.get("name")) or ""
+        opponent_name = away_name if team_id == home_id else home_name if team_id == away_id else None
+        translated_player = (
+            _translation_value(translations, "players", player_id, "player_names", player_name, short=True)
+            if player_name
+            else None
+        )
+        event_key = f"{fixture_id}:{_stable_event_id(event)}"
+        minute = _event_minute(event)
+        event_detail = _event_detail(kind, event)
+        scorer_text = f"{translated_player} {event_detail}" if translated_player else event_detail
+        result.append({
+            "eventKey": event_key,
+            "fixtureId": fixture_id,
+            "clock": minute,
+            "minute": _to_int((event.get("time") if isinstance(event.get("time"), dict) else {}).get("elapsed")),
+            "teamId": team_id,
+            "teamName": team_name,
+            "opponentName": opponent_name,
+            "playerId": player_id,
+            "playerName": translated_player,
+            "eventType": kind,
+            "detail": event_detail,
+            "score": score,
+            "message": f"{team_name} {score} {opponent_name or ''} · {minute} {scorer_text}".strip(),
         })
     return result
 
@@ -1119,6 +1215,196 @@ class BroadcastProgramSnapshotService:
             "fixtureId": snapshot.get("fixtureId") or external_id,
             "reason": result.get("reason"),
         }
+
+    def get_live_group_standings(self, external_id: int, *, league_slug: str | None = None) -> dict[str, Any]:
+        snapshot = self.get_snapshot(external_id, league_slug=league_slug)
+        if snapshot is None:
+            raise BroadcastOverlayError("fixture_not_found")
+        fixture_id = snapshot.get("fixtureId") if isinstance(snapshot.get("fixtureId"), int) else external_id
+        cache_key = _live_group_standings_cache_key(fixture_id)
+        cached = _cache_get(self.cache, cache_key)
+        if isinstance(cached, dict):
+            return {**cached, "cached": True}
+
+        league_id = _to_int(snapshot.get("leagueId"))
+        season = _to_int(snapshot.get("season"))
+        standings = snapshot.get("standings") if isinstance(snapshot.get("standings"), dict) else {}
+        standing_rows = standings.get("rows") if isinstance(standings.get("rows"), list) else []
+        if league_id is None or season is None or not standing_rows:
+            return {
+                "available": False,
+                "fixtureId": fixture_id,
+                "leagueId": league_id,
+                "season": season,
+                "groupName": standings.get("group_name") or "",
+                "generatedAt": _now_iso(self.now_func),
+                "cached": False,
+                "liveFixtures": [],
+                "groupGoalEvents": [],
+                "rows": [],
+                "limitations": ["현재 조 팀 목록을 확인할 수 없어 실시간 조별상황을 계산하지 못했습니다."],
+            }
+
+        team_meta: dict[int, dict[str, Any]] = {}
+        for row in standing_rows:
+            if not isinstance(row, dict):
+                continue
+            team_id = _to_int(row.get("team_id") or row.get("teamId"))
+            if team_id is None:
+                continue
+            team_code = _clean_text(row.get("team_code") or row.get("teamCode")) or str(team_id)
+            team_name = _clean_text(row.get("team_name") or row.get("teamName")) or team_code
+            team_meta[team_id] = {
+                "teamId": team_id,
+                "teamName": team_name,
+                "teamCode": team_code,
+            }
+        group_team_ids = set(team_meta)
+        if len(group_team_ids) < 2:
+            return {
+                "available": False,
+                "fixtureId": fixture_id,
+                "leagueId": league_id,
+                "season": season,
+                "groupName": standings.get("group_name") or "",
+                "generatedAt": _now_iso(self.now_func),
+                "cached": False,
+                "liveFixtures": [],
+                "groupGoalEvents": [],
+                "rows": [],
+                "limitations": ["현재 조 팀 목록이 부족해 실시간 조별상황을 계산하지 못했습니다."],
+            }
+
+        rows_by_team: dict[int, dict[str, Any]] = {
+            team_id: {
+                **meta,
+                "played": 0,
+                "win": 0,
+                "draw": 0,
+                "loss": 0,
+                "goalsFor": 0,
+                "goalsAgainst": 0,
+                "goalDiff": 0,
+                "points": 0,
+                "isPlayingNow": False,
+                "liveFixtureId": None,
+            }
+            for team_id, meta in team_meta.items()
+        }
+        fixtures = self.api_client.get_season_fixtures(league_id=league_id, season=season)
+        live_fixtures: list[dict[str, Any]] = []
+        group_goal_events: list[dict[str, Any]] = []
+        counted_fixture_ids: set[int] = set()
+        limitations = [
+            "실시간 임시 순위이며 공식 타이브레이커 전체를 반영하지 않을 수 있습니다.",
+            "승점과 승무패는 종료된 경기만 반영하고, 진행 중 경기는 현재 스코어 기준 득실 변화만 반영합니다.",
+        ]
+        for fixture in fixtures:
+            teams = fixture.get("teams") if isinstance(fixture.get("teams"), dict) else {}
+            home = teams.get("home") if isinstance(teams.get("home"), dict) else {}
+            away = teams.get("away") if isinstance(teams.get("away"), dict) else {}
+            home_id = _to_int(home.get("id"))
+            away_id = _to_int(away.get("id"))
+            if home_id not in group_team_ids or away_id not in group_team_ids:
+                continue
+            status = _fixture_status_short(fixture)
+            if status not in LIVE_GROUP_RELEVANT_STATUSES:
+                continue
+            home_goals, away_goals = _goals_from_fixture(fixture)
+            if home_goals is None or away_goals is None:
+                continue
+            fixture_obj = fixture.get("fixture") if isinstance(fixture.get("fixture"), dict) else {}
+            related_fixture_id = _to_int(fixture_obj.get("id"))
+            if related_fixture_id is not None:
+                counted_fixture_ids.add(related_fixture_id)
+
+            def apply_result(team_id: int, goals_for: int, goals_against: int) -> None:
+                row = rows_by_team[team_id]
+                row["played"] += 1
+                row["goalsFor"] += goals_for
+                row["goalsAgainst"] += goals_against
+                if goals_for > goals_against:
+                    row["win"] += 1
+                    row["points"] += 3
+                elif goals_for == goals_against:
+                    row["draw"] += 1
+                    row["points"] += 1
+                else:
+                    row["loss"] += 1
+
+            def apply_live_goal_diff(team_id: int, goals_for: int, goals_against: int) -> None:
+                row = rows_by_team[team_id]
+                row["goalsFor"] += goals_for
+                row["goalsAgainst"] += goals_against
+
+            if status in LIVE_GROUP_FINAL_STATUSES:
+                apply_result(home_id, home_goals, away_goals)
+                apply_result(away_id, away_goals, home_goals)
+            else:
+                apply_live_goal_diff(home_id, home_goals, away_goals)
+                apply_live_goal_diff(away_id, away_goals, home_goals)
+
+            if status in LIVE_GROUP_STANDINGS_STATUSES:
+                elapsed = _fixture_elapsed(fixture)
+                home_name = _clean_text(home.get("name")) or rows_by_team[home_id]["teamName"]
+                away_name = _clean_text(away.get("name")) or rows_by_team[away_id]["teamName"]
+                live_fixture = {
+                    "fixtureId": related_fixture_id,
+                    "homeTeamId": home_id,
+                    "awayTeamId": away_id,
+                    "homeName": home_name,
+                    "awayName": away_name,
+                    "status": status,
+                    "elapsed": elapsed,
+                    "score": f"{home_goals}-{away_goals}",
+                }
+                live_fixtures.append(live_fixture)
+                rows_by_team[home_id]["isPlayingNow"] = True
+                rows_by_team[away_id]["isPlayingNow"] = True
+                rows_by_team[home_id]["liveFixtureId"] = related_fixture_id
+                rows_by_team[away_id]["liveFixtureId"] = related_fixture_id
+                if related_fixture_id is not None and related_fixture_id != fixture_id:
+                    try:
+                        related_events = self.api_client.get_events(related_fixture_id)
+                        related_translations = lookup_broadcast_translations(
+                            self.session,
+                            **_collect_translation_inputs(fixture, related_events, []),
+                        )
+                        group_goal_events.extend(_normalize_group_goal_events(
+                            fixture=fixture,
+                            events=related_events,
+                            translations=related_translations,
+                        ))
+                    except Exception:
+                        if "같은 조 타경기 이벤트를 일부 조회하지 못했습니다." not in limitations:
+                            limitations.append("같은 조 타경기 이벤트를 일부 조회하지 못했습니다.")
+
+        rows = []
+        for row in rows_by_team.values():
+            row = dict(row)
+            row["goalDiff"] = row["goalsFor"] - row["goalsAgainst"]
+            rows.append(row)
+        rows.sort(key=lambda item: (-item["points"], -item["goalDiff"], -item["goalsFor"], item["teamName"]))
+        for index, row in enumerate(rows, start=1):
+            row["rank"] = index
+
+        response = {
+            "available": True,
+            "fixtureId": fixture_id,
+            "leagueId": league_id,
+            "season": season,
+            "groupName": standings.get("group_name") or standings.get("groupName") or "",
+            "source": "api_football_live",
+            "generatedAt": _now_iso(self.now_func),
+            "cached": False,
+            "countedFixtureIds": sorted(counted_fixture_ids),
+            "liveFixtures": live_fixtures,
+            "groupGoalEvents": group_goal_events,
+            "rows": rows,
+            "limitations": limitations,
+        }
+        _cache_set(self.cache, cache_key, response, LIVE_GROUP_STANDINGS_TTL_SECONDS)
+        return response
 
     def _standings(self, fixture_id: int) -> dict[str, Any] | None:
         try:

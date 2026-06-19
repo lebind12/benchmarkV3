@@ -272,3 +272,26 @@ def broadcast_fixture_match_preview(
         if str(exc) == "fixture_not_found":
             raise HTTPException(status_code=404, detail="fixture_not_found") from exc
         raise HTTPException(status_code=502, detail="broadcast_upstream_unavailable") from exc
+
+
+@router.get("/fixtures/{external_id}/live-group-standings")
+def broadcast_fixture_live_group_standings(
+    external_id: int,
+    current_user: Annotated[Any, Depends(get_broadcast_current_user)],
+    service: BroadcastProgramSnapshotService,
+    league_slug: str | None = Query(default=None),
+):
+    if league_slug is not None and league_slug not in ALLOWED_BROADCAST_LEAGUE_SLUGS:
+        raise HTTPException(status_code=422, detail="unsupported league_slug")
+    role = getattr(current_user, "role", None)
+    if role != "ADMIN":
+        raise HTTPException(status_code=403, detail="forbidden")
+    try:
+        return service.get_live_group_standings(
+            external_id,
+            league_slug=league_slug,
+        )
+    except broadcast_service.BroadcastOverlayError as exc:
+        if str(exc) == "fixture_not_found":
+            raise HTTPException(status_code=404, detail="fixture_not_found") from exc
+        raise HTTPException(status_code=502, detail="broadcast_upstream_unavailable") from exc

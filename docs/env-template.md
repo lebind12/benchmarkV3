@@ -44,7 +44,7 @@ OPENAI_API_KEY=
 # --- Vertex AI (broadcast AI commentary) ---
 GOOGLE_CLOUD_PROJECT=
 GOOGLE_CLOUD_LOCATION=global
-VERTEX_AI_MODEL=gemini-3.1-pro-preview
+VERTEX_AI_MODEL=gemini-3.5-flash
 # Optional for local/prod runtime when using a service account JSON secret.
 # Put the full JSON object as one env value. The app writes it to a temp file
 # and points GOOGLE_APPLICATION_CREDENTIALS there before google.auth.default().

@@ -77,6 +77,7 @@ developer_instructions = """
    - L2 시나리오 → Playwright (`VITE_USE_MOCK=true`)
    - L3 시나리오 → Playwright (integration 라이프사이클에서, `BACKEND_URL=<prod>`)
 9. **타입 동기화**: Integration 라이프사이클 시작 시 `npm run gen:api` 로 BE OpenAPI → TS 타입 재생성. 타입 에러 0 일 때만 commit.
+10. **배포 금지**: 사용자가 **"배포해"** 라고 명시하지 않는 한 `vercel deploy`, `koyeb services update`, 배포 환경변수 변경, 서비스 재시작/롤링 업데이트 등 deployment 를 트리거하는 명령을 실행하지 않는다. "서비스에 연결", "설정", "환경변수 추가" 는 배포 허가가 아니다.
 
 ## endpoint-request 자동 추출 (MERGED 직후)
 

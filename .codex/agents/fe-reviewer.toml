@@ -112,6 +112,8 @@ APPROVE 후 다음 7개 모두 통과 시 `PR_CREATED`:
 9. zod 런타임 검증 통과 (모든 응답)
 10. L3 가 prod 데이터를 변경하지 않았음을 확인 (audit 로그)
 
+배포 금지: 사용자가 **"배포해"** 라고 명시하지 않는 한 리뷰어도 `vercel deploy`, `koyeb services update`, 배포 환경변수 변경, 서비스 재시작/롤링 업데이트 등 deployment 를 트리거하지 않는다. 기존 preview URL/CI 결과 조회만 허용한다.
+
 ## 권한 경계
 
 - 도구: Read, Grep, Glob, Bash (read-only — npm 명령은 결과 조회만)

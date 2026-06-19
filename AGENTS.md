@@ -114,6 +114,10 @@
 - JWT (access) — stateless, 짧은 만료
 - Refresh token rotation/blacklist 는 **Upstash** 에 저장
 - Upstash 는 MVP 에서 **refresh token rotation/blacklist 용도로만** 사용. 응답 캐시 확장은 post-MVP
+- 같은 Upstash Redis 인스턴스를 local / production 에서 함께 쓰는 경우에도 **키 prefix 로 환경을 반드시 분리**한다.
+  - local 개발: `UPSTASH_REDIS_KEY_PREFIX=local:`
+  - production: `UPSTASH_REDIS_KEY_PREFIX=prod:`
+  - 방송용 캐시/모멘텀/세션 보조 키는 모두 이 prefix 를 통과해야 하며, prefix 없는 키를 새로 만들지 않는다.
 
 ### 방송용 페이지 인증
 - 방송용 페이지는 일반 웹사이트의 한 라우트로 제공되며, 방송 SW 가 해당 페이지를 캡처해 크로마키 합성한다 (OBS 브라우저 소스 임베드 아님)
@@ -181,3 +185,5 @@
 - 실행: `scripts/feature-flow.sh`, `scripts/endpoint-flow.sh`
 - 동기화: Claude legacy 산출물은 `.claude/` 에 보관하고, Codex 운영 정본은 `.codex/` 를 사용
 - 본 AGENTS.md 는 도메인/규칙의 SSOT. 변경 시 PR 또는 명시적 결정 기록 동반
+- 배포 금지 원칙: 사용자가 **"배포해"** 라고 명시적으로 요청하지 않는 한 Koyeb/Vercel/GitHub Actions 등 어떤 서비스에서도 deployment 를 트리거하지 않는다.
+- 배포성 명령에는 `koyeb services update`, `koyeb deploy`, `vercel deploy`, 배포 환경변수 변경, 서비스 재시작/롤링 업데이트가 포함된다. "서비스에 연결", "설정해", "환경변수 넣어" 같은 표현은 배포 허가가 아니다.

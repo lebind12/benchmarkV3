@@ -5,6 +5,7 @@ import {
   fetchApiFootballAiReview,
   fetchApiFootballBroadcastSnapshot,
   fetchApiFootballFirstLiveFixture,
+  fetchApiFootballLiveGroupStandings,
   shouldUseApiFootballLive,
   type ApiFootballAiReviewResponse,
   type ApiFootballBroadcastCoach,
@@ -13,6 +14,8 @@ import {
   type ApiFootballBroadcastLineupPlayer,
   type ApiFootballBroadcastSnapshot,
   type ApiFootballBroadcastStat,
+  type ApiFootballLiveGroupGoalEvent,
+  type ApiFootballLiveGroupStandingsResponse,
 } from "@/lib/api/apiFootballLive";
 import { readBroadcastFixtureId } from "@/lib/broadcastQuery";
 import ProgramMomentumLineChart from "@/components/broadcast/ProgramMomentumLineChart.vue";
@@ -85,6 +88,7 @@ type LineupPlayerView = {
   statRedCards?: number;
   eventSummary?: {
     goals: number;
+    ownGoals?: number;
     yellowCards: number;
     redCards: number;
     cardLabel: string;
@@ -162,11 +166,22 @@ type GroupStandingsRowView = {
   goalsAgainst: number;
   goalDiff: number;
   points: number;
+  isPlayingNow?: boolean;
+  liveFixtureId?: number;
+};
+
+type GroupGoalToastView = {
+  id: string;
+  eyebrow: string;
+  score: string;
+  message: string;
+  detail: string;
 };
 
 const SUBSTITUTION_ANIMATION_MS = 8000;
 const SUBSTITUTION_LINEUP_APPLY_MS = 3000;
 const STAT_COUNT_ANIMATION_MS = 900;
+const GROUP_GOAL_TOAST_MS = 7000;
 const bottomViewTabs: BottomViewTab[] = [
   { id: "lineup", label: "라인업", shortLabel: "라인업" },
   { id: "attack", label: "공격", shortLabel: "공격" },
@@ -288,6 +303,14 @@ const isAiReviewPanelOpen = ref(false);
 const aiReviewStatus = ref<"idle" | "loading" | "ready" | "error">("idle");
 const aiReviewResult = ref<ApiFootballAiReviewResponse | null>(null);
 const aiReviewError = ref("");
+const liveGroupStatus = ref<"idle" | "loading" | "ready" | "error">("idle");
+const liveGroupStandings = ref<ApiFootballLiveGroupStandingsResponse | null>(null);
+const liveGroupError = ref("");
+const liveGroupFixtureId = ref<number | null>(null);
+const activeGroupGoalToast = ref<GroupGoalToastView | null>(null);
+const groupGoalToastQueue = ref<GroupGoalToastView[]>([]);
+const seenGroupGoalEventKeys = ref<Set<string>>(new Set());
+const hasInitializedGroupGoalEvents = ref(false);
 const isAdminAllowed = ref(
   typeof localStorage !== "undefined" &&
     localStorage.getItem("mockRole") === "ADMIN",
@@ -295,6 +318,7 @@ const isAdminAllowed = ref(
 
 let livePollingTimer: number | undefined;
 let statAnimationFrame: number | undefined;
+let groupGoalToastTimer: number | undefined;
 const substitutionAnimationTimers = new Map<
   string,
   SubstitutionAnimationTimers
@@ -531,6 +555,29 @@ const groupStandingsRows = computed<GroupStandingsRowView[]>(() => {
     .filter((row) => row.teamName || row.teamCode);
 });
 
+const displayGroupStandingsRows = computed<GroupStandingsRowView[]>(() => {
+  const liveRows = liveGroupStandings.value?.rows;
+  if (liveGroupStatus.value === "ready" && Array.isArray(liveRows) && liveRows.length > 0) {
+    return liveRows.map((row) => ({
+      teamId: row.teamId,
+      teamName: row.teamName,
+      teamCode: row.teamCode,
+      rank: row.rank,
+      played: row.played,
+      win: row.win,
+      draw: row.draw,
+      loss: row.loss,
+      goalsFor: row.goalsFor,
+      goalsAgainst: row.goalsAgainst,
+      goalDiff: row.goalDiff,
+      points: row.points,
+      isPlayingNow: row.isPlayingNow,
+      liveFixtureId: row.liveFixtureId ?? undefined,
+    }));
+  }
+  return groupStandingsRows.value;
+});
+
 const momentumView = computed(() => {
   const snapshot = liveSnapshot.value;
   const momentum = snapshot?.momentum;
@@ -649,6 +696,33 @@ async function requestAiReview(forceRefresh = false) {
   }
 }
 
+async function requestLiveGroupStandings(forceRefresh = false) {
+  const fixtureId = liveSnapshot.value?.fixtureId;
+  if (!fixtureId || liveGroupStatus.value === "loading") return;
+  if (
+    !forceRefresh &&
+    liveGroupStatus.value === "ready" &&
+    liveGroupFixtureId.value === fixtureId
+  ) {
+    return;
+  }
+  liveGroupStatus.value = "loading";
+  liveGroupError.value = "";
+  try {
+    const result = await fetchApiFootballLiveGroupStandings(fixtureId);
+    liveGroupStandings.value = result;
+    liveGroupFixtureId.value = fixtureId;
+    consumeGroupGoalEvents(result.groupGoalEvents);
+    liveGroupStatus.value = result.available ? "ready" : "error";
+    liveGroupError.value = result.available
+      ? ""
+      : result.limitations?.[0] ?? "실시간 조별상황을 조회하지 못했습니다.";
+  } catch (error) {
+    liveGroupStatus.value = "error";
+    liveGroupError.value = (error as Error).message;
+  }
+}
+
 function isUsableStandingsPayload(
   standings: NonNullable<ApiFootballBroadcastSnapshot["standings"]> | null | undefined,
 ): standings is NonNullable<ApiFootballBroadcastSnapshot["standings"]> {
@@ -738,26 +812,35 @@ function eventScorerLookupKeys(event: ApiFootballBroadcastEvent) {
   return keys;
 }
 
-const lineupPlayerEventSummary = computed<Map<string, { goals: number; yellowCards: number; redCards: number }>>(() => {
+type LineupPlayerEventSummary = {
+  goals: number;
+  ownGoals: number;
+  yellowCards: number;
+  redCards: number;
+};
+
+const lineupPlayerEventSummary = computed<Map<string, LineupPlayerEventSummary>>(() => {
   const snapshot = liveSnapshot.value;
-  const result = new Map<string, { goals: number; yellowCards: number; redCards: number }>();
+  const result = new Map<string, LineupPlayerEventSummary>();
 
   if (!snapshot) return result;
 
   snapshot.events.forEach((event) => {
     const isGoal = event.kind === "goal";
+    const isOwnGoal = event.kind === "own-goal";
     const isYellowCard = event.kind === "yellow-card";
     const isRedCard =
       event.kind === "red-card" ||
       (event.kind === "card" && event.detail === "Red Card");
 
-    if (!isGoal && !isYellowCard && !isRedCard) return;
+    if (!isGoal && !isOwnGoal && !isYellowCard && !isRedCard) return;
 
-    const keys = isGoal ? eventScorerLookupKeys(event) : eventLookupKeys(event);
+    const keys = isGoal || isOwnGoal ? eventScorerLookupKeys(event) : eventLookupKeys(event);
     keys.forEach((key) => {
       const existing = result.get(key);
       if (existing) {
         if (isGoal) existing.goals += 1;
+        if (isOwnGoal) existing.ownGoals += 1;
         if (isYellowCard) existing.yellowCards += 1;
         if (isRedCard) existing.redCards += 1;
         return;
@@ -765,6 +848,7 @@ const lineupPlayerEventSummary = computed<Map<string, { goals: number; yellowCar
 
       result.set(key, {
         goals: isGoal ? 1 : 0,
+        ownGoals: isOwnGoal ? 1 : 0,
         yellowCards: isYellowCard ? 1 : 0,
         redCards: isRedCard ? 1 : 0,
       });
@@ -782,6 +866,17 @@ function getPlayerGoalCount(entry: LineupPlayerView) {
   for (const key of keys) {
     const summary = lineupPlayerEventSummary.value.get(key);
     if (summary) return summary.goals;
+  }
+  return 0;
+}
+
+function getPlayerOwnGoalCount(entry: LineupPlayerView) {
+  if (entry.eventSummary) return entry.eventSummary.ownGoals ?? 0;
+
+  const keys = lineupPlayerLookupKeys(entry);
+  for (const key of keys) {
+    const summary = lineupPlayerEventSummary.value.get(key);
+    if (summary) return summary.ownGoals;
   }
   return 0;
 }
@@ -820,6 +915,7 @@ const selectedLineupPlayerSummary = computed(() => {
 
   const summary = {
     goals: 0,
+    ownGoals: 0,
     assists: 0,
     yellowCards: 0,
     redCards: 0,
@@ -852,9 +948,13 @@ const selectedLineupPlayerSummary = computed(() => {
 
     if (!isPlayer) return;
 
-    if (event.kind === "goal" || event.kind === "own-goal") {
+    if (event.kind === "goal") {
       summary.goals += Number(event.playerId !== undefined ? player.id === event.playerId : event.player === player.name);
       summary.assists += Number(event.assistId !== undefined ? player.id === event.assistId : event.assist === player.name);
+    }
+
+    if (event.kind === "own-goal") {
+      summary.ownGoals += Number(event.playerId !== undefined ? player.id === event.playerId : event.player === player.name);
     }
 
     if (event.kind === "yellow-card") summary.yellowCards += 1;
@@ -869,6 +969,7 @@ const selectedLineupPlayerSummary = computed(() => {
 
   if (summary.statGoals !== undefined) summary.goals = summary.statGoals;
   if (summary.statAssists !== undefined) summary.assists = summary.statAssists;
+  if (player.eventSummary?.ownGoals !== undefined) summary.ownGoals = player.eventSummary.ownGoals;
 
   return summary;
 });
@@ -910,6 +1011,7 @@ const selectedLineupPlayerStats = computed(() => {
     { label: "평점", value: player.rating ? formatRatingValue(player.rating) : "0" },
   ];
   const cards = { label: "카드", value: formatCardPair(summary.yellowCards, summary.redCards) };
+  const ownGoals = { label: "자책골", value: formatStatValue(summary.ownGoals) };
   const pos = (player.pos ?? "").toUpperCase();
 
   if (pos === "G") {
@@ -919,6 +1021,7 @@ const selectedLineupPlayerStats = computed(() => {
       { label: "실점", value: formatStatValue(summary.goalsConceded) },
       { label: "패스", value: formatPassValue(summary.passesAccurate, summary.passes) },
       { label: "패스성공률", value: formatPercentValue(summary.passesAccuracyPct) },
+      ownGoals,
       cards,
     ];
   }
@@ -931,6 +1034,7 @@ const selectedLineupPlayerStats = computed(() => {
       { label: "블록", value: formatStatValue(summary.blocks) },
       { label: "경합", value: formatPairValue(summary.duelsWon, summary.duelsTotal) },
       { label: "패스성공률", value: formatPercentValue(summary.passesAccuracyPct) },
+      ownGoals,
       cards,
     ];
   }
@@ -943,6 +1047,7 @@ const selectedLineupPlayerStats = computed(() => {
       { label: "키패스", value: formatStatValue(summary.keyPasses) },
       { label: "경합", value: formatPairValue(summary.duelsWon, summary.duelsTotal) },
       { label: "슈팅(유효)", value: formatShotsLabel(summary.shotsTotal, summary.shotsOnGoal) },
+      ownGoals,
       cards,
     ];
   }
@@ -950,6 +1055,7 @@ const selectedLineupPlayerStats = computed(() => {
   return [
     ...common,
     { label: "득점", value: formatStatValue(summary.goals) },
+    ownGoals,
     { label: "어시스트", value: formatStatValue(summary.assists) },
     { label: "슈팅(유효)", value: formatShotsLabel(summary.shotsTotal, summary.shotsOnGoal) },
     { label: "드리블", value: formatPairValue(summary.dribblesSuccess, summary.dribblesAttempts) },
@@ -1552,6 +1658,68 @@ function setBottomView(nextView: BottomView) {
   activeBottomView.value = nextView;
 }
 
+function displayGroupGoalToast(toast: GroupGoalToastView) {
+  if (groupGoalToastTimer !== undefined) {
+    window.clearTimeout(groupGoalToastTimer);
+  }
+  activeGroupGoalToast.value = toast;
+  groupGoalToastTimer = window.setTimeout(() => {
+    activeGroupGoalToast.value = null;
+    groupGoalToastTimer = undefined;
+    const nextToast = groupGoalToastQueue.value.shift();
+    if (nextToast) {
+      displayGroupGoalToast(nextToast);
+    }
+  }, GROUP_GOAL_TOAST_MS);
+}
+
+function showGroupGoalToast(toast: GroupGoalToastView) {
+  if (activeGroupGoalToast.value) {
+    groupGoalToastQueue.value.push(toast);
+    return;
+  }
+  displayGroupGoalToast(toast);
+}
+
+function groupGoalEventToToast(event: ApiFootballLiveGroupGoalEvent): GroupGoalToastView {
+  const scoreLine = event.score || event.teamName;
+  const clock = event.clock ? ` · ${event.clock}` : "";
+  return {
+    id: event.eventKey,
+    eyebrow: "같은 조 득점",
+    score: `${scoreLine}${clock}`,
+    message: event.playerName ? `${event.playerName} ${event.detail}` : event.detail,
+    detail: "타경기 소식",
+  };
+}
+
+function consumeGroupGoalEvents(events: ApiFootballLiveGroupGoalEvent[] | undefined) {
+  const goalEvents = Array.isArray(events)
+    ? events.filter((event) => typeof event.eventKey === "string" && event.eventKey)
+    : [];
+  if (!hasInitializedGroupGoalEvents.value) {
+    goalEvents.forEach((event) => seenGroupGoalEventKeys.value.add(event.eventKey));
+    hasInitializedGroupGoalEvents.value = true;
+    return;
+  }
+
+  const freshEvents = goalEvents.filter(
+    (event) => !seenGroupGoalEventKeys.value.has(event.eventKey),
+  );
+  goalEvents.forEach((event) => seenGroupGoalEventKeys.value.add(event.eventKey));
+  freshEvents.forEach((event) => showGroupGoalToast(groupGoalEventToToast(event)));
+}
+
+function showTestGroupGoalToast() {
+  showGroupGoalToast({
+    id: `test-group-goal-${Date.now()}`,
+    eyebrow: "같은 조 득점",
+    score: "노르웨이 2-1 이라크 · 67'",
+    message: "엘링 홀란 득점",
+    detail: "Group I 타경기 소식",
+  });
+}
+
 watch(
   () => liveSnapshot.value?.fixtureId,
   () => {
@@ -1559,6 +1727,18 @@ watch(
     aiReviewStatus.value = "idle";
     aiReviewResult.value = null;
     aiReviewError.value = "";
+    liveGroupStatus.value = "idle";
+    liveGroupStandings.value = null;
+    liveGroupError.value = "";
+    liveGroupFixtureId.value = null;
+    activeGroupGoalToast.value = null;
+    groupGoalToastQueue.value = [];
+    seenGroupGoalEventKeys.value = new Set();
+    hasInitializedGroupGoalEvents.value = false;
+    if (groupGoalToastTimer !== undefined) {
+      window.clearTimeout(groupGoalToastTimer);
+      groupGoalToastTimer = undefined;
+    }
   },
 );
 
@@ -1572,6 +1752,12 @@ function handleBottomViewKeyboard(event: KeyboardEvent) {
   }
 
   if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+
+  if (event.key.toLowerCase() === "w") {
+    event.preventDefault();
+    showTestGroupGoalToast();
+    return;
+  }
 
   const shortcutViews: Partial<Record<string, BottomView>> = {
     z: "lineup",
@@ -1613,6 +1799,9 @@ async function refreshApiFootballLive() {
     };
     scheduleSubstitutionAnimations(liveSnapshot.value);
     liveStatus.value = "ready";
+    if (activeBottomView.value === "group") {
+      void requestLiveGroupStandings(true);
+    }
   } catch (error) {
     liveStatus.value = "error";
     liveError.value = (error as Error).message;
@@ -1638,7 +1827,12 @@ onMounted(() => {
 
 watch(
   () => activeBottomView.value,
-  () => startStatAnimation(),
+  (view) => {
+    startStatAnimation();
+    if (view === "group") {
+      void requestLiveGroupStandings();
+    }
+  },
 );
 
 onBeforeUnmount(() => {
@@ -1648,6 +1842,9 @@ onBeforeUnmount(() => {
   }
   if (statAnimationFrame !== undefined) {
     window.cancelAnimationFrame(statAnimationFrame);
+  }
+  if (groupGoalToastTimer !== undefined) {
+    window.clearTimeout(groupGoalToastTimer);
   }
   substitutionAnimationTimers.forEach((timers) => {
     window.clearTimeout(timers.apply);
@@ -1855,12 +2052,25 @@ onBeforeUnmount(() => {
                                 class="lineup-entry-meta-cell lineup-entry-goal-cell"
                               >
                                 <span
-                                  v-if="getPlayerGoalCount(entry) > 0"
-                                  class="lineup-entry-goal"
-                                  :data-goals="getPlayerGoalCount(entry)"
+                                  v-if="getPlayerGoalCount(entry) > 0 || getPlayerOwnGoalCount(entry) > 0"
+                                  class="lineup-entry-goal-stack"
                                 >
-                                  <img :src="goalSoccerBallUrl" alt="" aria-hidden="true" />
-                                  <b v-if="getPlayerGoalCount(entry) > 1">{{ getPlayerGoalCount(entry) }}</b>
+                                  <span
+                                    v-if="getPlayerGoalCount(entry) > 0"
+                                    class="lineup-entry-goal"
+                                    :data-goals="getPlayerGoalCount(entry)"
+                                  >
+                                    <img :src="goalSoccerBallUrl" alt="" aria-hidden="true" />
+                                    <b v-if="getPlayerGoalCount(entry) > 1">{{ getPlayerGoalCount(entry) }}</b>
+                                  </span>
+                                  <span
+                                    v-if="getPlayerOwnGoalCount(entry) > 0"
+                                    class="lineup-entry-goal lineup-entry-goal--own"
+                                    :data-goals="getPlayerOwnGoalCount(entry)"
+                                  >
+                                    <img :src="goalSoccerBallUrl" alt="" aria-hidden="true" />
+                                    <b>OG{{ getPlayerOwnGoalCount(entry) > 1 ? getPlayerOwnGoalCount(entry) : "" }}</b>
+                                  </span>
                                 </span>
                                 <span v-else class="lineup-entry-meta-empty" aria-hidden="true">
                                   -
@@ -1962,6 +2172,18 @@ onBeforeUnmount(() => {
                     @click="requestAiReview()"
                   >
                     AI 리뷰
+                  </button>
+                </div>
+                <div v-else-if="activeStatView?.id === 'group'" class="stats-action-row">
+                  <button
+                    type="button"
+                    class="live-group-open-button"
+                    :class="{ 'live-group-open-button--active': liveGroupStatus === 'ready' }"
+                    :disabled="liveGroupStatus === 'loading'"
+                    data-testid="program-live-group-open"
+                    @click="requestLiveGroupStandings(true)"
+                  >
+                    {{ liveGroupStatus === "loading" ? "조회 중" : liveGroupStatus === "ready" ? "실시간 반영" : "실시간 조별상황" }}
                   </button>
                 </div>
               </header>
@@ -2195,7 +2417,7 @@ onBeforeUnmount(() => {
                 class="group-standings"
                 data-testid="program-group-standings"
               >
-                <template v-if="groupStandingsRows.length">
+                <template v-if="displayGroupStandingsRows.length">
                   <div class="group-standings-table-wrap">
                     <table class="group-standings-table">
                       <colgroup>
@@ -2226,17 +2448,19 @@ onBeforeUnmount(() => {
                       </thead>
                       <tbody>
                         <tr
-                          v-for="row in groupStandingsRows"
+                          v-for="row in displayGroupStandingsRows"
                           :key="
                             row.teamId ?? `${row.teamCode}-${row.rank}`
                           "
                           :data-team-id="row.teamId"
+                          :data-live="row.isPlayingNow === true"
                         >
                           <td>{{ row.rank }}</td>
                           <td>
                             <span class="group-standings-team-code">{{
                               row.teamCode
                             }}</span>
+                            <small v-if="row.isPlayingNow" class="group-standings-live">LIVE</small>
                           </td>
                           <td>{{ row.played }}</td>
                           <td>{{ row.win }}</td>
@@ -2250,6 +2474,9 @@ onBeforeUnmount(() => {
                       </tbody>
                     </table>
                   </div>
+                  <p v-if="liveGroupError" class="group-standings-error">
+                    {{ liveGroupError }}
+                  </p>
                 </template>
                 <template v-else>
                   <div class="stats-empty" data-testid="program-stats-empty">
@@ -2267,19 +2494,36 @@ onBeforeUnmount(() => {
             role="tablist"
             aria-label="하단 판넬 버튼"
           >
-            <button
+            <div
               v-for="tab in bottomViewTabs"
               :key="`lineup-control-${tab.id}`"
-              type="button"
-              class="lineup-control-button"
-              :class="{ active: activeBottomView === tab.id }"
-              role="tab"
-              :aria-selected="activeBottomView === tab.id"
+              class="lineup-control-item"
               :data-tab-id="tab.id"
-              @click="setBottomView(tab.id)"
             >
-              {{ tab.shortLabel }}
-            </button>
+              <Transition name="group-goal-bubble">
+                <aside
+                  v-if="tab.id === 'group' && activeGroupGoalToast"
+                  class="group-goal-bubble"
+                  data-testid="program-group-goal-toast"
+                >
+                  <span>{{ activeGroupGoalToast.eyebrow }}</span>
+                  <strong>{{ activeGroupGoalToast.score }}</strong>
+                  <p>{{ activeGroupGoalToast.message }}</p>
+                  <small>{{ activeGroupGoalToast.detail }}</small>
+                </aside>
+              </Transition>
+              <button
+                type="button"
+                class="lineup-control-button"
+                :class="{ active: activeBottomView === tab.id }"
+                role="tab"
+                :aria-selected="activeBottomView === tab.id"
+                :data-tab-id="tab.id"
+                @click="setBottomView(tab.id)"
+              >
+                {{ tab.shortLabel }}
+              </button>
+            </div>
           </aside>
         </div>
       </section>
@@ -3003,10 +3247,31 @@ onBeforeUnmount(() => {
   letter-spacing: 0;
 }
 
+.lineup-entry-goal-stack {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.lineup-entry-goal-stack .lineup-entry-goal {
+  min-width: 1.36rem;
+}
+
 .lineup-entry-goal img {
   width: 0.72rem;
   height: 0.72rem;
   object-fit: contain;
+}
+
+.lineup-entry-goal--own {
+  min-width: 2.05rem;
+  border-color: rgba(255, 214, 74, 0.82);
+  background:
+    linear-gradient(135deg, rgba(255, 214, 74, 0.2), rgba(255, 0, 60, 0.28)),
+    rgba(80, 0, 18, 0.88);
+  color: #ffffff;
 }
 
 .lineup-entry-goal b {
@@ -3027,9 +3292,17 @@ onBeforeUnmount(() => {
   max-width: max-content;
   padding: 0.26rem 0;
   padding-inline: 0;
-  overflow: hidden;
+  overflow: visible;
   align-items: stretch;
   flex: 0 0 auto;
+}
+
+.lineup-control-item {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
 }
 
 .lineup-control-button {
@@ -3602,6 +3875,7 @@ onBeforeUnmount(() => {
 }
 
 .stats-action-row {
+  position: relative;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -3609,8 +3883,93 @@ onBeforeUnmount(() => {
   margin-top: 0.76rem;
 }
 
+.group-goal-bubble {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.56rem);
+  z-index: 30;
+  width: max-content;
+  min-width: 15.5rem;
+  max-width: min(26rem, 54vw);
+  padding: 0.78rem 0.92rem;
+  border: 0.08rem solid rgba(201, 151, 43, 0.88);
+  background: #111111;
+  color: #f5f1e8;
+  box-shadow:
+    0 1rem 2rem rgba(0, 0, 0, 0.5),
+    inset 0 0 0 0.06rem rgba(255, 255, 255, 0.12);
+}
+
+.group-goal-bubble::before {
+  content: "";
+  position: absolute;
+  right: 1.15rem;
+  top: 100%;
+  border: 0.5rem solid transparent;
+  border-top-color: rgba(201, 151, 43, 0.88);
+}
+
+.group-goal-bubble::after {
+  content: "";
+  position: absolute;
+  right: 1.24rem;
+  top: 100%;
+  border: 0.4rem solid transparent;
+  border-top-color: #111111;
+}
+
+.group-goal-bubble span,
+.group-goal-bubble strong,
+.group-goal-bubble p,
+.group-goal-bubble small {
+  display: block;
+  letter-spacing: 0;
+}
+
+.group-goal-bubble span {
+  color: #c9972b;
+  font-size: 0.64rem;
+  font-weight: 950;
+}
+
+.group-goal-bubble strong {
+  margin-top: 0.16rem;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 950;
+  line-height: 1.08;
+}
+
+.group-goal-bubble p {
+  margin: 0.28rem 0 0;
+  color: #f6e1a8;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.group-goal-bubble small {
+  margin-top: 0.28rem;
+  color: rgba(245, 241, 232, 0.7);
+  font-size: 0.66rem;
+  font-weight: 750;
+}
+
+.group-goal-bubble-enter-active,
+.group-goal-bubble-leave-active {
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.group-goal-bubble-enter-from,
+.group-goal-bubble-leave-to {
+  opacity: 0;
+  transform: translateY(0.32rem) scale(0.98);
+}
+
 .momentum-open-button,
-.ai-review-open-button {
+.ai-review-open-button,
+.live-group-open-button {
   width: fit-content;
   border: 0.08rem solid rgba(201, 151, 43, 0.7);
   background:
@@ -3629,12 +3988,16 @@ onBeforeUnmount(() => {
 .momentum-open-button:focus-visible,
 .ai-review-open-button--active,
 .ai-review-open-button:hover:not(:disabled),
-.ai-review-open-button:focus-visible:not(:disabled) {
+.ai-review-open-button:focus-visible:not(:disabled),
+.live-group-open-button--active,
+.live-group-open-button:hover,
+.live-group-open-button:focus-visible {
   background: #c9972b;
   color: #050505;
 }
 
-.ai-review-open-button:disabled {
+.ai-review-open-button:disabled,
+.live-group-open-button:disabled {
   border-color: #4e493d;
   background: #111111;
   color: #736b5b;
@@ -4291,6 +4654,11 @@ onBeforeUnmount(() => {
   line-height: 1.2;
 }
 
+.group-standings-table tbody tr[data-live="true"] td {
+  background: rgba(201, 151, 43, 0.18);
+  color: #ffffff;
+}
+
 .group-standings-table tbody tr td:first-child {
   border-top-left-radius: 0.34rem;
   border-bottom-left-radius: 0.34rem;
@@ -4306,11 +4674,33 @@ onBeforeUnmount(() => {
 }
 
 .group-standings-team-code {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
   color: #c9972b;
   font-size: 0.88rem;
   font-weight: 950;
   margin-bottom: 0.02rem;
+}
+
+.group-standings-live {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.34rem;
+  padding: 0.08rem 0.28rem;
+  border: 0.06rem solid #c9972b;
+  color: #050505;
+  background: #c9972b;
+  font-size: 0.56rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.group-standings-error {
+  margin: 0;
+  color: #d8a55c;
+  font-size: 0.7rem;
+  font-weight: 850;
 }
 
 .group-standings-team-name {

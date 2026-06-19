@@ -223,6 +223,7 @@ export type ApiFootballBroadcastLineupPlayer = {
   statRedCards?: number
   eventSummary?: {
     goals: number
+    ownGoals?: number
     yellowCards: number
     redCards: number
     cardLabel: string
@@ -301,6 +302,65 @@ export type ApiFootballBroadcastStandingRow = {
 export type ApiFootballBroadcastStandings = {
   group_name: string
   rows: ApiFootballBroadcastStandingRow[]
+}
+
+export type ApiFootballLiveGroupStandingRow = {
+  rank: number
+  teamId?: number
+  teamName: string
+  teamCode: string
+  played: number
+  win: number
+  draw: number
+  loss: number
+  goalsFor: number
+  goalsAgainst: number
+  goalDiff: number
+  points: number
+  isPlayingNow: boolean
+  liveFixtureId?: number | null
+}
+
+export type ApiFootballLiveGroupFixture = {
+  fixtureId?: number | null
+  homeTeamId: number
+  awayTeamId: number
+  homeName: string
+  awayName: string
+  status: string
+  elapsed?: number | null
+  score: string
+}
+
+export type ApiFootballLiveGroupGoalEvent = {
+  eventKey: string
+  fixtureId?: number | null
+  clock: string
+  minute?: number | null
+  teamId?: number | null
+  teamName: string
+  opponentName?: string | null
+  playerId?: number | null
+  playerName?: string | null
+  eventType: string
+  detail: string
+  score: string
+  message: string
+}
+
+export type ApiFootballLiveGroupStandingsResponse = {
+  available: boolean
+  fixtureId: number
+  leagueId?: number | null
+  season?: number | null
+  groupName: string
+  source?: string
+  generatedAt: string
+  cached: boolean
+  liveFixtures: ApiFootballLiveGroupFixture[]
+  groupGoalEvents?: ApiFootballLiveGroupGoalEvent[]
+  rows: ApiFootballLiveGroupStandingRow[]
+  limitations: string[]
 }
 
 export type ApiFootballBroadcastMomentum = {
@@ -1410,6 +1470,20 @@ export async function fetchApiFootballAiReview(
   }
 
   return (await response.json()) as ApiFootballAiReviewResponse
+}
+
+export async function fetchApiFootballLiveGroupStandings(
+  fixtureId: number,
+): Promise<ApiFootballLiveGroupStandingsResponse> {
+  const response = await fetch(apiUrl(`/api/v1/broadcast/fixtures/${fixtureId}/live-group-standings`), {
+    headers: broadcastProgramHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`실시간 조별상황 요청 실패: ${response.status}`)
+  }
+
+  return (await response.json()) as ApiFootballLiveGroupStandingsResponse
 }
 
 export async function fetchFixtureStandings(
