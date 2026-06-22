@@ -45,6 +45,8 @@ export type TimelineEventType =
   | 'goal'
   | 'goal_penalty'
   | 'goal_own'
+  | 'penalty_missed'
+  | 'goal_cancelled'
   | 'yellow_card'
   | 'red_card'
   | 'yellow_red'

@@ -25,6 +25,10 @@ function iconFor(type: TimelineEvent['type']): string {
       return '⚽(P)'
     case 'goal_own':
       return '⚽(OG)'
+    case 'penalty_missed':
+      return 'PK X'
+    case 'goal_cancelled':
+      return 'VAR X'
     case 'yellow_card':
       return '🟨'
     case 'red_card':
@@ -50,6 +54,10 @@ function tooltip(e: TimelineEvent): string {
       return `${min} — ${name} 페널티골`
     case 'goal_own':
       return `${min} — ${name} 자책골`
+    case 'penalty_missed':
+      return `${min} — ${name} 페널티킥 실축`
+    case 'goal_cancelled':
+      return `${min} — ${name} 득점 취소`
     case 'yellow_card':
       return `${min} — ${name} 경고${e.detail ? ` (${e.detail})` : ''}`
     case 'red_card':

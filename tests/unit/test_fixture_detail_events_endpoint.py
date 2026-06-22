@@ -111,3 +111,13 @@ def test_events_u04_rejects_non_integer_external_id():
     response = client.get("/api/v1/fixtures/not-an-int/events")
 
     assert response.status_code == 422
+
+
+def test_events_u05_goal_detail_exceptions_are_not_counted_as_goals():
+    from app.services.fixture_detail import _event_type
+
+    assert _event_type({"type": "Goal", "detail": "Missed Penalty"}) == "penalty_missed"
+    assert _event_type({"type": "Goal", "detail": "Goal cancelled"}) == "goal_cancelled"
+    assert _event_type({"type": "Goal", "detail": "Goal disallowed"}) == "goal_cancelled"
+    assert _event_type({"type": "Goal", "detail": "Penalty"}) == "goal_penalty"
+    assert _event_type({"type": "Goal", "detail": "Normal Goal"}) == "goal"

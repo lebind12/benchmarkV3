@@ -988,7 +988,7 @@ function toBroadcastEventKind(event: ApiFootballBroadcastEvent): BroadcastEventK
   if (event.kind === 'yellow-card' || event.kind === 'red-card' || event.kind === 'card') {
     return 'yellow-card'
   }
-  if (event.kind === 'var') return 'var'
+  if (event.kind === 'var' || event.kind === 'goal-cancelled' || event.kind === 'penalty-missed') return 'var'
   return 'stat'
 }
 

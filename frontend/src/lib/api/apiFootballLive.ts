@@ -152,6 +152,8 @@ type ApiFootballFixturePlayerItem = {
 export type ApiFootballBroadcastEventKind =
   | 'goal'
   | 'own-goal'
+  | 'penalty-missed'
+  | 'goal-cancelled'
   | 'substitution'
   | 'yellow-card'
   | 'red-card'
@@ -661,6 +663,8 @@ function eventKind(event: ApiFootballEventItem): ApiFootballBroadcastEventKind |
   const type = (event.type ?? '').toLowerCase()
   const detail = (event.detail ?? '').toLowerCase()
 
+  if (type.includes('goal') && detail.includes('miss') && detail.includes('penalty')) return 'penalty-missed'
+  if (type.includes('goal') && (detail.includes('cancel') || detail.includes('disallow'))) return 'goal-cancelled'
   if (type.includes('goal') && detail.includes('own')) return 'own-goal'
   if (type.includes('goal')) return 'goal'
   if (type.includes('subst')) return 'substitution'
@@ -675,6 +679,8 @@ function eventKind(event: ApiFootballEventItem): ApiFootballBroadcastEventKind |
 function eventTitle(kind: ApiFootballBroadcastEventKind) {
   if (kind === 'goal') return '득점'
   if (kind === 'own-goal') return '자책골'
+  if (kind === 'penalty-missed') return '페널티킥 실축'
+  if (kind === 'goal-cancelled') return '득점 취소'
   if (kind === 'substitution') return '선수 교체'
   if (kind === 'yellow-card') return '경고'
   if (kind === 'red-card') return '퇴장'
@@ -707,6 +713,8 @@ function eventDetail(kind: ApiFootballBroadcastEventKind, event: ApiFootballEven
   if (detail && detailMap[detail]) return detailMap[detail]
   if (kind === 'goal') return '득점 상황'
   if (kind === 'own-goal') return '자책골'
+  if (kind === 'penalty-missed') return '페널티킥 실축'
+  if (kind === 'goal-cancelled') return '득점 취소'
   if (kind === 'substitution') return '선수 교체'
   if (kind === 'yellow-card') return '옐로카드'
   if (kind === 'red-card') return '레드카드'

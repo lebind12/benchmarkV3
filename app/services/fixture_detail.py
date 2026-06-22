@@ -216,7 +216,11 @@ def _event_type(event: dict[str, Any]) -> str | None:
     kind = str(event.get("type") or "").lower()
     detail = str(event.get("detail") or "").lower()
     if kind == "goal":
-        if "penalty" in detail:
+        if "miss" in detail and "penalty" in detail:
+            return "penalty_missed"
+        if "cancel" in detail or "disallow" in detail:
+            return "goal_cancelled"
+        if detail.strip() == "penalty":
             return "goal_penalty"
         if "own" in detail:
             return "goal_own"

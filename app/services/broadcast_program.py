@@ -301,6 +301,10 @@ def _stable_event_id(event: dict[str, Any]) -> str:
 def _event_kind(event: dict[str, Any]) -> str | None:
     event_type = str(event.get("type") or "").lower()
     detail = str(event.get("detail") or "").lower()
+    if "goal" in event_type and "miss" in detail and "penalty" in detail:
+        return "penalty-missed"
+    if "goal" in event_type and ("cancel" in detail or "disallow" in detail):
+        return "goal-cancelled"
     if "goal" in event_type and "own" in detail:
         return "own-goal"
     if "goal" in event_type:
@@ -322,6 +326,8 @@ def _event_title(kind: str) -> str:
     return {
         "goal": "득점",
         "own-goal": "자책골",
+        "penalty-missed": "페널티킥 실축",
+        "goal-cancelled": "득점 취소",
         "substitution": "선수 교체",
         "yellow-card": "경고",
         "red-card": "퇴장",
@@ -356,6 +362,8 @@ def _event_detail(kind: str, event: dict[str, Any]) -> str:
     return {
         "goal": "득점 상황",
         "own-goal": "자책골",
+        "penalty-missed": "페널티킥 실축",
+        "goal-cancelled": "득점 취소",
         "substitution": "선수 교체",
         "yellow-card": "옐로카드",
         "red-card": "레드카드",
