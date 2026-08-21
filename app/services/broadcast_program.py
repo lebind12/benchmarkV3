@@ -15,6 +15,7 @@ from app.services.broadcast import (
     BroadcastOverlayError,
     _cache_get,
     _cache_set,
+    _live_block_ttl,
     lookup_broadcast_translations,
 )
 from app.services.broadcast_ai_commentary import (
@@ -901,7 +902,8 @@ class BroadcastProgramSnapshotService:
             return cached
         value = fetch()
         if value is not None:
-            _cache_set(self.cache, key, value, LIVE_BLOCK_TTLS.get(block, BROADCAST_OVERLAY_TTL_SECONDS))
+            default_ttl = LIVE_BLOCK_TTLS.get(block, BROADCAST_OVERLAY_TTL_SECONDS)
+            _cache_set(self.cache, key, value, _live_block_ttl(block, value, default_ttl))
         return value
 
     def _has_redis_momentum(self, fixture_id: int) -> bool:

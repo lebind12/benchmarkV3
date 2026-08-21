@@ -394,6 +394,12 @@ def _cache_set(cache: Any, key: str, value: Any, ttl_seconds: int) -> None:
         method(key, ttl_seconds, value)
 
 
+def _live_block_ttl(block: str, value: Any, default_ttl_seconds: int) -> int:
+    if block == "lineups" and isinstance(value, list) and not value:
+        return BROADCAST_OVERLAY_TTL_SECONDS
+    return default_ttl_seconds
+
+
 _OVERLAY_FIXTURE_SQL = text(
     """
     SELECT f.id AS fixture_id, f.external_id, f.season_year, f.status_short,
@@ -1347,7 +1353,7 @@ class BroadcastOverlayService:
             return cached
         value = fetch()
         if value is not None:
-            _cache_set(self.cache, key, value, ttl_seconds)
+            _cache_set(self.cache, key, value, _live_block_ttl(block, value, ttl_seconds))
         return value
 
     def _live_blocks(self, external_id: int) -> dict[str, Any]:
