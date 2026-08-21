@@ -10,6 +10,7 @@ import {
   API_FOOTBALL_LINEUPS_REFRESH_MS,
   fetchApiFootballBroadcastInitialSnapshot,
   fetchApiFootballBroadcastLineupsSnapshot,
+  fetchApiFootballBroadcastSnapshot,
   fetchApiFootballBroadcastTickSnapshot,
   fetchApiFootballFirstLiveFixture,
   shouldUseApiFootballLive,
@@ -553,6 +554,7 @@ let eventTimer: number | undefined
 let livePollingTimer: number | undefined
 let manualClockTimer: number | undefined
 let lastLineupsRefreshAt = 0
+let hiddenMomentumSyncInFlight = false
 const themeVars = computed<Record<string, string>>(() => ({
   '--panel': theme.value.panel,
   '--panel-alt': theme.value.panelAlt,
@@ -651,10 +653,24 @@ async function refreshApiFootballLive() {
     activeMatch.value = nextMatch
     syncEventNotificationQueue(snapshot.fixtureId, nextMatch.events)
     liveStatus.value = 'ready'
+    void syncHiddenMomentum(snapshot.fixtureId)
   } catch (error) {
     liveStatus.value = 'error'
     liveError.value = (error as Error).message
     console.error('Failed to refresh API-Football broadcast overlay data', error)
+  }
+}
+
+async function syncHiddenMomentum(fixtureId: number) {
+  if (hiddenMomentumSyncInFlight) return
+
+  hiddenMomentumSyncInFlight = true
+  try {
+    await fetchApiFootballBroadcastSnapshot(fixtureId)
+  } catch (error) {
+    console.error('Failed to collect hidden broadcast momentum', error)
+  } finally {
+    hiddenMomentumSyncInFlight = false
   }
 }
 
@@ -1125,15 +1141,17 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
             :aria-pressed="theme.slug === 'premier-league' ? undefined : !isManualClockRunning"
             @click="handleHomeTeamClockControl"
           >
-            <span class="team-mark country-badge" data-testid="country-badge" :aria-label="homeBroadcastCode">
-              <img
-                v-if="match.homeLogoUrl"
-                class="country-flag"
-                :src="match.homeLogoUrl"
-                alt=""
-                aria-hidden="true"
-              />
-              <b v-else>{{ homeBroadcastCode }}</b>
+            <span class="team-code-slot">
+              <span class="team-mark country-badge" data-testid="country-badge" :aria-label="homeBroadcastCode">
+                <img
+                  v-if="match.homeLogoUrl"
+                  class="country-flag"
+                  :src="match.homeLogoUrl"
+                  alt=""
+                  aria-hidden="true"
+                />
+                <b v-else>{{ homeBroadcastCode }}</b>
+              </span>
             </span>
             <strong>{{ homeScoreboardName }}</strong>
           </component>
@@ -1164,15 +1182,17 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
             @click="handleAwayTeamClockControl"
           >
             <strong>{{ awayScoreboardName }}</strong>
-            <span class="team-mark country-badge" data-testid="country-badge" :aria-label="awayBroadcastCode">
-              <img
-                v-if="match.awayLogoUrl"
-                class="country-flag"
-                :src="match.awayLogoUrl"
-                alt=""
-                aria-hidden="true"
-              />
-              <b v-else>{{ awayBroadcastCode }}</b>
+            <span class="team-code-slot">
+              <span class="team-mark country-badge" data-testid="country-badge" :aria-label="awayBroadcastCode">
+                <img
+                  v-if="match.awayLogoUrl"
+                  class="country-flag"
+                  :src="match.awayLogoUrl"
+                  alt=""
+                  aria-hidden="true"
+                />
+                <b v-else>{{ awayBroadcastCode }}</b>
+              </span>
             </span>
           </button>
           <button
@@ -1221,12 +1241,12 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
           </div>
           <div class="worldcup-formation-band" data-testid="worldcup-formation-band" aria-hidden="true">
             <b class="formation-ribbon-label">{{ match?.leagueName ?? theme.label }}</b>
-            <i class="formation-ribbon-code">{{ lineup.code }}</i>
+            <i v-if="theme.slug !== 'premier-league'" class="formation-ribbon-code">{{ lineup.code }}</i>
             <span></span><span></span><span></span><span></span><span></span>
           </div>
           <header class="formation-header">
             <div>
-              <span class="eyebrow">{{ lineup.code }}</span>
+              <span v-if="theme.slug !== 'premier-league'" class="eyebrow">{{ lineup.code }}</span>
               <strong>{{ lineup.name }}</strong>
             </div>
             <span
@@ -1422,6 +1442,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
           :clock="displayClock"
           :status="match.status"
           :stats="match.stats"
+          :fixture-id="match.fixtureId"
           :material-revision="materialRevision"
         />
         <div v-else class="live-state live-state--panel" data-testid="stats-live-empty">
@@ -1598,6 +1619,10 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   color: var(--text);
   font-size: 1rem;
   font-weight: 900;
+}
+
+.team-code-slot {
+  display: contents;
 }
 
 .team-mark b {
@@ -2416,7 +2441,14 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   padding: 0.22rem;
   overflow: visible;
   display: grid;
-  grid-template-columns: 0.9fr 1.25fr 1.25fr 1.25fr 0.9fr;
+  grid-template-columns:
+    minmax(5.5rem, 0.9fr)
+    5rem
+    minmax(0, 1.25fr)
+    minmax(6rem, 1.25fr)
+    minmax(0, 1.25fr)
+    5rem
+    minmax(5.5rem, 0.9fr);
   grid-template-rows: 1fr;
   align-items: center;
   background: var(--dark);
@@ -2426,21 +2458,38 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .broadcast-stage[data-league='premier-league'] .score-team {
   grid-row: 1;
+  display: grid;
   min-width: 0;
   height: 100%;
-  gap: 0.45rem;
-  padding: 0 0.5rem;
+  gap: 0;
+  padding: 0;
   background: var(--panel);
   border-radius: 0;
 }
 
 .broadcast-stage[data-league='premier-league'] .score-team-home {
-  grid-column: 2;
+  grid-column: 2 / 4;
+  grid-template-columns: 5rem minmax(0, 1fr);
   cursor: default;
 }
 
 .broadcast-stage[data-league='premier-league'] .score-team-away {
-  grid-column: 4;
+  grid-column: 5 / 7;
+  grid-template-columns: minmax(0, 1fr) 5rem;
+}
+
+.broadcast-stage[data-league='premier-league'] .score-team strong {
+  padding: 0 0.5rem;
+  text-align: center;
+}
+
+.broadcast-stage[data-league='premier-league'] .team-code-slot {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-inline: 0.4rem;
 }
 
 .broadcast-stage[data-league='premier-league'] .score-core {
@@ -2460,12 +2509,12 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   background: transparent;
   border-radius: 999rem;
   color: var(--muted);
-  font-size: 1.18rem;
+  font-size: 2rem;
   text-align: center;
 }
 
 .broadcast-stage[data-league='premier-league'] .score-added-time {
-  grid-column: 5;
+  grid-column: 7;
   grid-row: 1;
   width: 100%;
   height: 100%;
@@ -2486,12 +2535,12 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .broadcast-stage[data-league='premier-league'] .score-added-time strong {
-  font-size: 1.2rem;
+  font-size: 2rem;
   line-height: 1;
 }
 
 .broadcast-stage[data-league='premier-league'] .score-number {
-  grid-column: 3;
+  grid-column: 4;
   grid-row: 1;
   height: 100%;
   display: flex;

@@ -154,6 +154,10 @@ function stubApiFootballFetch() {
       })
     }
 
+    if (url.pathname === '/api/v1/broadcast/fixtures/260506/program-snapshot') {
+      return jsonResponse({ fixtureId: 260506 })
+    }
+
     if (url.pathname === '/fixtures' && url.searchParams.get('live') === 'all') {
       return jsonResponse({ response: [fixtureResponse(260506)] })
     }
@@ -351,6 +355,18 @@ describe('BroadcastApp', () => {
     expect(wrapper.get('.dial-header').text()).toContain('BUR')
   })
 
+  it('removes duplicate Korean short names from EPL formation cards', async () => {
+    const wrapper = await mountBroadcast('?fixtureId=260506&league=premier-league')
+    const formationCards = wrapper.findAll('[data-testid=formation-card]')
+
+    expect(formationCards).toHaveLength(2)
+    formationCards.forEach((card) => {
+      expect(card.find('.formation-ribbon-code').exists()).toBe(false)
+      expect(card.find('.formation-header .eyebrow').exists()).toBe(false)
+      expect(card.get('.formation-header strong').text()).not.toBe('')
+    })
+  })
+
   it('falls back Premier League code slots to Home and Away when API-Football has no usable code', async () => {
     fixtureHomeName = 'Arsenal'
     fixtureHomeCode = 'A'
@@ -447,7 +463,18 @@ describe('BroadcastApp', () => {
     expect(urls.some((url) => url.includes('/fixtures/lineups?'))).toBe(false)
     expect(urls.some((url) => url.includes('/fixtures/players?'))).toBe(true)
     expect(urls.some((url) => url.includes('/teams?'))).toBe(false)
+    expect(urls).toContain('/api/v1/broadcast/fixtures/260506/program-snapshot')
     expect(wrapper.findAll('.rating-chip').map((node) => node.text())).toContain('8.6')
+  })
+
+  it('collects momentum in the background without rendering a momentum panel', async () => {
+    const wrapper = await mountBroadcast('?fixtureId=260506&league=premier-league')
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>
+
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).toContain(
+      '/api/v1/broadcast/fixtures/260506/program-snapshot',
+    )
+    expect(wrapper.get('[data-testid=stats-card]').text()).not.toContain('모멘텀')
   })
 
   it('refreshes API-Football lineups every 120 seconds without reloading teams', async () => {
