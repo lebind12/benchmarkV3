@@ -100,7 +100,7 @@ describe('BroadcastStatsBoard', () => {
 
     const attackMetrics = wrapper.findAll('[data-testid=dial-stat-metric]')
     expect(attackMetrics[0].attributes('data-scale-kind')).toBe('continuous')
-    expect(attackMetrics[0].attributes('data-scale-max')).toBe('3')
+    expect(attackMetrics[0].attributes('data-scale-max')).toBe('2')
     expect(attackMetrics[1].attributes('data-scale-kind')).toBe('count')
     expect(attackMetrics[1].attributes('data-scale-max')).toBe('5')
     expect(attackMetrics[2].attributes('data-scale-kind')).toBe('percentage')
@@ -115,6 +115,22 @@ describe('BroadcastStatsBoard', () => {
     await viewport.trigger('pointerup', { clientX: 80, pointerType: 'touch' })
     expect(wrapper.get('[data-testid=dial-stat-tab-control]').attributes('aria-selected')).toBe('true')
     expect(wrapper.get('[data-testid=dial-stat-panel-control]').text()).toContain('점유율')
+  })
+
+  it('recalculates the xG scale from 120 percent of the larger value', async () => {
+    const wrapper = mountBoard()
+
+    await wrapper.setProps({
+      stats: stats.map((stat) => stat.label === 'xG'
+        ? { ...stat, home: '3.1', away: '0.2', homePct: 94, awayPct: 6 }
+        : stat),
+    })
+
+    const xgMetric = wrapper.findAll('[data-testid=dial-stat-metric]')[0]
+    expect(xgMetric.attributes('data-scale-kind')).toBe('continuous')
+    expect(xgMetric.attributes('data-scale-max')).toBe('4')
+    expect(xgMetric.attributes('style')).toContain('--dial-home-pct: 77.5%')
+    expect(xgMetric.attributes('style')).toContain('--dial-away-pct: 5%')
   })
 
   it('keeps zero count values at zero height on a dynamic count scale', async () => {
