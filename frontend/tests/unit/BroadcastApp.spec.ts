@@ -372,7 +372,7 @@ describe('BroadcastApp', () => {
     expect(wrapper.get('.dial-header').text()).toContain('Away')
   })
 
-  it('supports manual match clock, added time editors, and team-side pause/play controls', async () => {
+  it('supports manual match clock, added time editors, and an EPL away-side timer toggle', async () => {
     vi.useFakeTimers()
     const wrapper = await mountBroadcast('?fixtureId=260506&league=premier-league')
     const promptSpy = vi.spyOn(window, 'prompt')
@@ -382,17 +382,23 @@ describe('BroadcastApp', () => {
     expect(wrapper.get('[data-testid=manual-clock-button]').text()).toContain('00:00')
     expect(wrapper.get('[data-testid=manual-added-time-button]').text()).toContain('00:00')
 
-    await wrapper.get('[data-testid=score-team-home]').trigger('click')
-    vi.advanceTimersByTime(3_000)
-    await nextTick()
-    expect(wrapper.get('[data-testid=manual-clock-button]').text()).toContain('00:00')
+    const homeTeam = wrapper.get('[data-testid=score-team-home]')
+    const awayTeam = wrapper.get('[data-testid=score-team-away]')
+    expect(homeTeam.element.tagName).toBe('DIV')
+    expect(awayTeam.attributes('aria-label')).toBe('경기시간 시작')
 
-    await wrapper.get('[data-testid=score-team-away]').trigger('click')
+    await awayTeam.trigger('click')
+    expect(awayTeam.attributes('aria-label')).toBe('경기시간 일시정지')
     vi.advanceTimersByTime(2_000)
     await nextTick()
     expect(wrapper.get('[data-testid=manual-clock-button]').text()).toContain('00:02')
 
-    await wrapper.get('[data-testid=score-team-home]').trigger('click')
+    await awayTeam.trigger('click')
+    expect(awayTeam.attributes('aria-label')).toBe('경기시간 시작')
+    vi.advanceTimersByTime(3_000)
+    await nextTick()
+    expect(wrapper.get('[data-testid=manual-clock-button]').text()).toContain('00:02')
+
     await wrapper.get('[data-testid=manual-clock-button]').trigger('click')
     expect(promptSpy).toHaveBeenCalledWith('경기시간 입력', '00:02')
     expect(wrapper.get('[data-testid=manual-clock-button]').text()).toContain('70:15')
@@ -400,6 +406,27 @@ describe('BroadcastApp', () => {
     await wrapper.get('[data-testid=manual-added-time-button]').trigger('click')
     expect(promptSpy).toHaveBeenCalledWith('추가시간 입력', '00:00')
     expect(wrapper.get('[data-testid=manual-added-time-button]').text()).toContain('05:00')
+  })
+
+  it('keeps separate home-pause and away-play controls for other broadcast themes', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountBroadcast('?fixtureId=260506&league=world-cup-2026')
+    const homeTeam = wrapper.get('[data-testid=score-team-home]')
+    const awayTeam = wrapper.get('[data-testid=score-team-away]')
+
+    expect(homeTeam.element.tagName).toBe('BUTTON')
+    expect(homeTeam.attributes('aria-label')).toBe('경기시간 일시정지')
+    expect(awayTeam.attributes('aria-label')).toBe('경기시간 재생')
+
+    await awayTeam.trigger('click')
+    vi.advanceTimersByTime(2_000)
+    await nextTick()
+    expect(wrapper.get('[data-testid=manual-clock-button]').text()).toContain('00:02')
+
+    await homeTeam.trigger('click')
+    vi.advanceTimersByTime(2_000)
+    await nextTick()
+    expect(wrapper.get('[data-testid=manual-clock-button]').text()).toContain('00:02')
   })
 
   it('polls live-changing API-Football endpoints and refreshes player ratings after the initial snapshot', async () => {

@@ -791,6 +791,19 @@ function playManualClock() {
   isManualClockRunning.value = true
 }
 
+function handleHomeTeamClockControl() {
+  if (theme.value.slug === 'premier-league') return
+  pauseManualClock()
+}
+
+function handleAwayTeamClockControl() {
+  if (theme.value.slug !== 'premier-league') {
+    playManualClock()
+    return
+  }
+  isManualClockRunning.value = !isManualClockRunning.value
+}
+
 function requestTimeInput(kind: TimeEditorKind) {
   const label = kind === 'clock' ? '경기시간 입력' : '추가시간 입력'
   const currentValue = kind === 'clock' ? displayClock.value : displayAddedTime.value
@@ -1103,13 +1116,14 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
           <div class="worldcup-score-strip" data-testid="worldcup-score-strip" aria-hidden="true">
             <span></span><span></span><span></span><span></span><span></span>
           </div>
-          <button
-            type="button"
+          <component
+            :is="theme.slug === 'premier-league' ? 'div' : 'button'"
+            :type="theme.slug === 'premier-league' ? undefined : 'button'"
             class="score-team score-team-home"
             data-testid="score-team-home"
-            aria-label="경기시간 일시정지"
-            :aria-pressed="!isManualClockRunning"
-            @click="pauseManualClock"
+            :aria-label="theme.slug === 'premier-league' ? undefined : '경기시간 일시정지'"
+            :aria-pressed="theme.slug === 'premier-league' ? undefined : !isManualClockRunning"
+            @click="handleHomeTeamClockControl"
           >
             <span class="team-mark country-badge" data-testid="country-badge" :aria-label="homeBroadcastCode">
               <img
@@ -1122,7 +1136,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
               <b v-else>{{ homeBroadcastCode }}</b>
             </span>
             <strong>{{ homeScoreboardName }}</strong>
-          </button>
+          </component>
           <div class="score-core">
             <span class="score-status">{{ match.status }}</span>
             <strong class="score-number">{{ match.score }}</strong>
@@ -1139,9 +1153,15 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
             type="button"
             class="score-team score-team-away"
             data-testid="score-team-away"
-            aria-label="경기시간 재생"
+            :aria-label="
+              theme.slug === 'premier-league'
+                ? isManualClockRunning
+                  ? '경기시간 일시정지'
+                  : '경기시간 시작'
+                : '경기시간 재생'
+            "
             :aria-pressed="isManualClockRunning"
-            @click="playManualClock"
+            @click="handleAwayTeamClockControl"
           >
             <strong>{{ awayScoreboardName }}</strong>
             <span class="team-mark country-badge" data-testid="country-badge" :aria-label="awayBroadcastCode">
@@ -2416,6 +2436,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .broadcast-stage[data-league='premier-league'] .score-team-home {
   grid-column: 2;
+  cursor: default;
 }
 
 .broadcast-stage[data-league='premier-league'] .score-team-away {
