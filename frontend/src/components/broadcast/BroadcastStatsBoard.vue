@@ -94,7 +94,19 @@ const boardVariant = computed<BoardVariant>(() => {
   }
 })
 
-const possession = computed(() => props.stats.find((stat) => stat.label === '점유율') ?? props.stats[0])
+const fallbackPossession: StatItem = {
+  label: '점유율',
+  home: '50%',
+  away: '50%',
+  homePct: 50,
+  awayPct: 50,
+}
+const possession = computed(() => {
+  const received = props.stats.find((stat) => stat.label === '점유율')
+  if (!received) return fallbackPossession
+  if (numericStat(received.home) + numericStat(received.away) <= 0) return fallbackPossession
+  return received
+})
 const secondaryStats = computed(() => props.stats.filter((stat) => stat !== possession.value))
 const compactStats = computed(() => secondaryStats.value.slice(0, 3))
 const matrixStats = computed(() => props.stats.slice(0, 4))
@@ -217,6 +229,13 @@ function dialMetricStyle(metric: StatItem) {
   }
 }
 
+function possessionRingStyle(metric: StatItem) {
+  const awayPercent = Math.max(0, Math.min(100, metric.awayPct))
+  return {
+    '--dial-possession-away-angle': `${awayPercent * 3.6}deg`,
+  }
+}
+
 function selectDialTab(nextTab: DialTabId) {
   if (nextTab === activeDialTab.value) return
   const currentIndex = dialTabs.findIndex((tab) => tab.id === activeDialTab.value)
@@ -284,7 +303,7 @@ function awayOffsetStyle(value: number) {
     :data-variant="boardVariant"
     data-testid="stats-card"
   >
-    <div v-if="stats.length === 0" class="stats-empty" data-testid="stats-empty">
+    <div v-if="stats.length === 0 && boardVariant !== 'dial'" class="stats-empty" data-testid="stats-empty">
       <span>경기 스탯</span>
       <strong>라이브 스탯 수신 대기</strong>
       <p>{{ homeCode }} / {{ awayCode }}</p>
@@ -348,7 +367,11 @@ function awayOffsetStyle(value: number) {
           <img v-if="homeLogoUrl" :src="homeLogoUrl" alt="" aria-hidden="true" />
           <b v-else>{{ homeCode }}</b>
         </span>
-        <div class="dial-ring">
+        <div
+          class="dial-ring"
+          :style="possessionRingStyle(possession)"
+          data-testid="stats-possession-ring"
+        >
           <span>점유율</span>
         </div>
         <strong
@@ -1020,7 +1043,10 @@ function awayOffsetStyle(value: number) {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: conic-gradient(var(--accent) 0deg 220deg, var(--accent-alt) 220deg 360deg);
+  background: conic-gradient(
+    var(--accent) 0deg var(--dial-possession-away-angle),
+    var(--accent-alt) var(--dial-possession-away-angle) 360deg
+  );
   border: 0.38rem solid var(--text);
   box-shadow: 0.2rem 0.2rem 0 #000000;
 }
