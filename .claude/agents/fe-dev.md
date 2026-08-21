@@ -106,13 +106,13 @@ Mock 머지 완료 직후 다음 절차 자동 수행:
 - 실패 시 evidence 에 로그 첨부 + 해당 loop counter 증가.
 - `task_completed` 는 feature-flow 가 `FE_DONE_AWAITING_BE` 또는 `DONE` 인 최종 상태에서만 허용된다. mock 구현, Playwright 통과, endpoint-request 생성, integration 구현은 각각 stage 전환으로만 기록하고 TaskList 완료로 보고하지 않는다.
 
-## Worktree / 동시 작업 격리
+## Branch / 순차 작업 격리
 
-- **항상 자기 전용 git worktree 안에서 작업한다**. 메인 worktree (`/Users/woolee/benchmark`) 에서 직접 commit 하지 않는다.
-- worktree 생성 패턴: `git worktree add ../benchmark.fe-dev-<feature_id> -b fe-feat-<feature_id>` (Mock) 또는 `... -b fe-feat-integration-<feature_id>` (Integration), 인프라는 `../benchmark.fe-dev-infra-<task_id> -b fe-infra-<task_id>`.
-- 작업 종료 시 자기 worktree 안에서 stage / commit / push.
-- 다른 에이전트(특히 be-dev) 와 같은 디렉토리에서 동시에 `git add` 하지 않는다. 루트 파일(.gitignore, README.md) 변경도 자기 worktree 안에서만.
-- 인프라 단계처럼 base 가 main 인 경우에도 worktree 분리 유지. 머지는 reviewer APPROVE 후 별도 단계.
+- 별도 git worktree 를 생성하지 않는다. 하나의 checkout 에서 `fe-feat-<feature_id>`, `fe-feat-integration-<feature_id>` 또는 `fe-infra-<task_id>` 브랜치로 `git switch` 한다.
+- 브랜치 전환 전 `git status` 가 clean 하고 다른 구현 에이전트가 같은 checkout 에서 작업 중이지 않은지 확인한다.
+- 작업 종료 시 task branch 에서 stage / commit / push 한다. `frontend` / `main` 에 직접 commit 하지 않는다.
+- 다른 브랜치의 구현 작업과 동시에 파일을 편집하거나 `git add` 하지 않는다. fe-planner / fe-dev / fe-reviewer 는 같은 task branch 에서 순차적으로 turn-taking 한다.
+- 인프라 단계처럼 base 가 main 인 경우에도 task branch 를 만든다. 머지는 reviewer APPROVE 후 별도 단계로 수행한다.
 
 ## 권한 경계
 

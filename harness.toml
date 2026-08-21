@@ -1,5 +1,6 @@
 # Harness v4 Configuration
 # Codex workflow uses .codex/agents, .codex/schemas, and .codex/state.
+# Git workflow uses one checkout with task branches; project agents must not create worktrees.
 
 [project]
 name = "benchmark"

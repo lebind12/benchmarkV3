@@ -184,6 +184,8 @@
 - 스키마: `.codex/schemas/*.schema.json`
 - 실행: `scripts/feature-flow.sh`, `scripts/endpoint-flow.sh`
 - 동기화: Claude legacy 산출물은 `.claude/` 에 보관하고, Codex 운영 정본은 `.codex/` 를 사용
+- Git 작업 방식: 별도 worktree 를 생성하지 않고 하나의 checkout 에서 task branch 로 `git switch` 한다. 브랜치 전환 전 작업 디렉토리가 clean 하고 다른 구현 에이전트가 작업 중이지 않은지 확인한다.
+- 단일 checkout 에서 서로 다른 브랜치를 동시에 편집하지 않는다. planner / dev / reviewer 와 FE / BE 구현은 브랜치 전환을 포함해 순차적으로 수행한다.
 - 본 AGENTS.md 는 도메인/규칙의 SSOT. 변경 시 PR 또는 명시적 결정 기록 동반
 - 배포 금지 원칙: 사용자가 **"배포해"** 라고 명시적으로 요청하지 않는 한 Koyeb/Vercel/GitHub Actions 등 어떤 서비스에서도 deployment 를 트리거하지 않는다.
 - 배포성 명령에는 `koyeb services update`, `koyeb deploy`, `vercel deploy`, 배포 환경변수 변경, 서비스 재시작/롤링 업데이트가 포함된다. "서비스에 연결", "설정해", "환경변수 넣어" 같은 표현은 배포 허가가 아니다.

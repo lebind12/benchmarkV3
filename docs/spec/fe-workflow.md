@@ -227,11 +227,13 @@ L1 + L2 통과 + 코드 품질 항목:
 | 외부 CDN / 폰트 | 실 | 실 | 실 | 실 |
 | OpenAI / API-Football | n/a (FE 가 직접 호출 안 함) | n/a | n/a | n/a |
 
-## 12. 워크트리 / 브랜치 정리
+## 12. 브랜치 정리
 
-- Mock 라이프사이클: `fe-feat-<id>` worktree 1개
-- Integration 라이프사이클: `fe-feat-integration-<id>` worktree 1개 (필요 시점에 생성)
-- 두 라이프사이클은 시간차로 진행. 동시 진행 가능하지만 같은 feature 안에서 충돌 가능 → 가능하면 mock 완전히 머지된 후 integration 시작
+- Mock 라이프사이클: `fe-feat-<id>` task branch 1개
+- Integration 라이프사이클: 필요 시 `fe-feat-integration-<id>` task branch 1개
+- 별도 worktree 를 생성하지 않고 하나의 checkout 에서 해당 task branch 로 전환한다.
+- 브랜치 전환 전 작업 디렉토리가 clean 하고 다른 구현 에이전트가 작업 중이지 않은지 확인한다.
+- 서로 다른 브랜치의 구현은 동시에 진행하지 않는다. Mock 을 머지한 뒤 Integration 을 순차적으로 시작한다.
 - 머지 흐름: `fe-feat-* / fe-feat-integration-* → frontend → main`
 
 ## 13. CLI

@@ -10,7 +10,7 @@
 | **be-dev** | 구현 (모델, 라우터, 비즈니스, 마이그레이션), 마이그레이션 작성 | Read, Write (app/, alembic/ 전체), Edit, Bash, Glob, Grep | branch / commit / push, **prod DB 접속 금지** |
 | **be-reviewer** | 코드 리뷰, 게이트 판정 (APPROVE / REQUEST_CHANGES) | Read, Grep, Glob, Bash (read-only) | commit/push **불가**. PR comment 만 |
 
-원칙: 각 에이전트는 endpoint 1개에 대해 1 worktree 안에서 turn-taking. 동시에 같은 worktree 를 쓰지 않는다.
+원칙: endpoint 1개마다 task branch 1개를 사용하고, 하나의 checkout 에서 세 에이전트가 순차적으로 turn-taking 한다. 별도 worktree 는 만들지 않는다.
 
 ## 2. 상태 머신
 
@@ -62,7 +62,7 @@
 | `SPEC_APPROVED` | spec 승인됨. dev 작업 시작 가능 | `IMPL_IN_PROGRESS` | be-dev 가 start |
 | `SPEC_FAILED` | spec 자체가 문제 (spec SSOT 충돌, 명세 부족 등) | ESCALATED | 사람 결정 후 SPEC_DRAFTING 으로 복귀 |
 | `IMPL_IN_PROGRESS` | be-dev 가 구현 중 | `IMPL_PUSHED` | be-dev 가 push 완료 |
-| `IMPL_PUSHED` | 구현 commit 이 worktree 브랜치에 올라감 | `TESTING` | be-test 가 자동 진입 |
+| `IMPL_PUSHED` | 구현 commit 이 task branch 에 올라감 | `TESTING` | be-test 가 자동 진입 |
 | `TESTING` | be-test 가 단위 + 통합 테스트 실행 | `TEST_FAILED`, `REVIEW_PENDING` | 테스트 결과 |
 | `TEST_FAILED` | 테스트 실패. 카운트 증가 | `IMPL_IN_PROGRESS` (재시도) 또는 `ESCALATED` | test_loop ≤ 3 ? |
 | `REVIEW_PENDING` | 테스트 통과, reviewer 가 코드 검토 중 | `MERGE_GATE`, `CHANGES_REQUESTED` | be-reviewer 판정 |
@@ -162,12 +162,14 @@ main 머지 시:
 | 인증 / Role / migration 운영 적용 / 비용 임계치 초과 | `MERGE_GATE` 에서 자동 머지 차단 |
 | `backend → main` PR | 항상 사람 승인 필수 |
 
-## 7. worktree / branch 사용
+## 7. branch 사용
 
-- endpoint 1개 = worktree 1개 (디렉토리: `.git/worktrees/be-ep-<id>/` 또는 Harness 가 관리하는 임시 경로)
+- endpoint 1개 = task branch 1개. 별도 worktree 를 생성하지 않는다.
 - 브랜치: `be-ep-<endpoint_id>` (`backend` 브랜치에서 분기)
+- 현재 checkout 을 task branch 로 전환하고 세 에이전트가 순차적으로 turn-taking 한다.
+- 브랜치 전환 전 작업 디렉토리가 clean 하고 다른 구현 에이전트가 작업 중이지 않은지 확인한다.
+- 단일 checkout 에서 서로 다른 브랜치의 구현을 동시에 진행하지 않는다.
 - 머지 흐름: `be-ep-* → backend`, `backend → main`
-- 세 에이전트 모두 같은 worktree, turn-taking
 
 ## 8. 외부 의존성 mock 정책
 

@@ -55,13 +55,13 @@ model: sonnet
 - 종료 시: `scripts/endpoint-flow.sh transition <id> IMPL_PUSHED --by be-dev --note "commit <hash>"` 호출. `artifacts.impl_commit` 에 hash 기록.
 - `task_completed` 는 endpoint-flow 가 `MERGED` 인 최종 상태에서만 허용된다. 구현 commit / push 완료는 TaskList 완료가 아니라 `IMPL_PUSHED` stage 전환으로만 기록한다.
 
-## Worktree / 동시 작업 격리
+## Branch / 순차 작업 격리
 
-- **항상 자기 전용 git worktree 안에서 작업한다**. 메인 worktree (`/Users/woolee/benchmark`) 에서 직접 commit 하지 않는다.
-- worktree 생성 패턴: `git worktree add ../benchmark.be-dev-<task_id> -b be-ep-<id>` 또는 인프라 단계에서는 `../benchmark.be-dev-infra-<task_id> -b be-infra-<task_id>`.
-- 작업 종료 시 자기 worktree 안에서 stage / commit / push. 메인 worktree 의 상태에 의존하지 않는다.
-- 다른 에이전트(특히 fe-dev) 와 같은 디렉토리에서 동시에 `git add` 하지 않는다.
-- 인프라 단계처럼 base 브랜치가 main 인 경우라도 worktree 는 분리한다. 머지는 reviewer APPROVE 후 별도 단계로 수행.
+- 별도 git worktree 를 생성하지 않는다. 하나의 checkout 에서 지정된 `be-ep-<id>` 또는 `be-infra-<task_id>` 브랜치로 `git switch` 한다.
+- 브랜치 전환 전 `git status` 가 clean 하고 다른 구현 에이전트가 같은 checkout 에서 작업 중이지 않은지 확인한다.
+- 작업 종료 시 task branch 에서 stage / commit / push 한다. `backend` / `main` 에 직접 commit 하지 않는다.
+- 다른 브랜치의 구현 작업과 동시에 파일을 편집하거나 `git add` 하지 않는다. be-test / be-dev / be-reviewer 는 같은 task branch 에서 순차적으로 turn-taking 한다.
+- 인프라 단계처럼 base 브랜치가 main 인 경우에도 task branch 를 만든다. 머지는 reviewer APPROVE 후 별도 단계로 수행한다.
 
 ## 권한 경계
 
