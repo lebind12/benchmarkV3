@@ -206,14 +206,16 @@ function dialMetricScale(metric: StatItem): DialMetricScale {
   if (percentageDialStats.has(metric.label)) {
     return { kind: 'percentage', max: 100 }
   }
-  if (metric.label === 'xG') {
-    return { kind: 'continuous', max: 3 }
-  }
 
   const largestValue = Math.max(numericStat(metric.home), numericStat(metric.away))
+  const dynamicMax = Math.max(1, Math.ceil(largestValue * 1.2))
+  if (metric.label === 'xG') {
+    return { kind: 'continuous', max: dynamicMax }
+  }
+
   return {
     kind: 'count',
-    max: Math.max(1, Math.ceil(largestValue * 1.2)),
+    max: dynamicMax,
   }
 }
 
