@@ -41,7 +41,7 @@ describe('BroadcastStatsBoard', () => {
     vi.unstubAllGlobals()
   })
 
-  it('renders team logos inside the Premier League possession area', () => {
+  it('renders team logos and a data-driven ring inside the Premier League possession area', async () => {
     const wrapper = mountBoard()
 
     const homeLogo = wrapper.get('[data-testid=stats-possession-home-logo]')
@@ -54,6 +54,37 @@ describe('BroadcastStatsBoard', () => {
     expect(homeValue.text()).toBe('44%')
     expect(awayValue.text()).toBe('56%')
     expect(wrapper.findAll('.dial-ring strong')).toHaveLength(0)
+    expect(wrapper.get('[data-testid=stats-possession-ring]').attributes('style')).toContain(
+      '--dial-possession-away-angle: 201.6deg',
+    )
+
+    await wrapper.setProps({
+      stats: stats.map((stat) => stat.label === '점유율'
+        ? { ...stat, home: '70%', away: '30%', homePct: 70, awayPct: 30 }
+        : stat),
+    })
+
+    expect(wrapper.get('[data-testid=stats-possession-ring]').attributes('style')).toContain(
+      '--dial-possession-away-angle: 108deg',
+    )
+  })
+
+  it('falls back to an even possession split while possession data is unavailable', async () => {
+    const wrapper = mountBoard()
+
+    await wrapper.setProps({ stats: stats.filter((stat) => stat.label !== '점유율') })
+
+    expect(wrapper.get('[data-testid=stats-possession-home-value]').text()).toBe('50%')
+    expect(wrapper.get('[data-testid=stats-possession-away-value]').text()).toBe('50%')
+    expect(wrapper.get('[data-testid=stats-possession-ring]').attributes('style')).toContain(
+      '--dial-possession-away-angle: 180deg',
+    )
+
+    await wrapper.setProps({ stats: [] })
+
+    expect(wrapper.find('[data-testid=stats-empty]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid=stats-possession-home-value]').text()).toBe('50%')
+    expect(wrapper.get('[data-testid=stats-possession-away-value]').text()).toBe('50%')
   })
 
   it('groups the EPL lower stats into five tabs with three broadcast-style metrics', async () => {
