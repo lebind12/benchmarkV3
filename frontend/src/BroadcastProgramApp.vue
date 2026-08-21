@@ -310,7 +310,6 @@ const liveGroupFixtureId = ref<number | null>(null);
 const activeGroupGoalToast = ref<GroupGoalToastView | null>(null);
 const groupGoalToastQueue = ref<GroupGoalToastView[]>([]);
 const seenGroupGoalEventKeys = ref<Set<string>>(new Set());
-const hasInitializedGroupGoalEvents = ref(false);
 const isAdminAllowed = ref(
   typeof localStorage !== "undefined" &&
     localStorage.getItem("mockRole") === "ADMIN",
@@ -1697,12 +1696,6 @@ function consumeGroupGoalEvents(events: ApiFootballLiveGroupGoalEvent[] | undefi
   const goalEvents = Array.isArray(events)
     ? events.filter((event) => typeof event.eventKey === "string" && event.eventKey)
     : [];
-  if (!hasInitializedGroupGoalEvents.value) {
-    goalEvents.forEach((event) => seenGroupGoalEventKeys.value.add(event.eventKey));
-    hasInitializedGroupGoalEvents.value = true;
-    return;
-  }
-
   const freshEvents = goalEvents.filter(
     (event) => !seenGroupGoalEventKeys.value.has(event.eventKey),
   );
@@ -1734,7 +1727,6 @@ watch(
     activeGroupGoalToast.value = null;
     groupGoalToastQueue.value = [];
     seenGroupGoalEventKeys.value = new Set();
-    hasInitializedGroupGoalEvents.value = false;
     if (groupGoalToastTimer !== undefined) {
       window.clearTimeout(groupGoalToastTimer);
       groupGoalToastTimer = undefined;
@@ -1799,9 +1791,7 @@ async function refreshApiFootballLive() {
     };
     scheduleSubstitutionAnimations(liveSnapshot.value);
     liveStatus.value = "ready";
-    if (activeBottomView.value === "group") {
-      void requestLiveGroupStandings(true);
-    }
+    void requestLiveGroupStandings(true);
   } catch (error) {
     liveStatus.value = "error";
     liveError.value = (error as Error).message;
