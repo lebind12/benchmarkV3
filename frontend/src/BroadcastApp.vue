@@ -3721,7 +3721,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .broadcast-stage[data-revision][data-league] .scoreboard > .score-clock {
-  top: calc(100% + 0.12rem);
+  top: calc(100% + 0.27rem);
   height: 2.585rem;
   border-radius: 0;
 }
@@ -3731,7 +3731,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .broadcast-stage[data-revision][data-league] .scoreboard > .score-added-time {
-  top: calc(100% + 2.705rem);
+  top: calc(100% + 2.855rem);
   height: 1.88rem;
   background: linear-gradient(to top right, #FF7A00 0%, #7138C8 100%);
   border-radius: 0 0 0.5rem 0.5rem;
