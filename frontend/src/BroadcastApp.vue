@@ -3705,7 +3705,6 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   z-index: 4;
   left: calc(50% - 4px);
   width: 7.4rem;
-  height: 2.35rem;
   display: flex;
   grid-column: auto;
   grid-row: auto;
@@ -3715,7 +3714,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   background: #16091F;
   border: 0;
   color: #FFFFFF;
-  font-weight: 950;
+  font-weight: 650;
   text-align: center;
   transform: translateX(-50%);
   box-shadow: none;
@@ -3723,6 +3722,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .broadcast-stage[data-revision][data-league] .scoreboard > .score-clock {
   top: calc(100% + 0.12rem);
+  height: 2.585rem;
   border-radius: 0;
 }
 
@@ -3731,14 +3731,21 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .broadcast-stage[data-revision][data-league] .scoreboard > .score-added-time {
-  top: calc(100% + 2.47rem);
+  top: calc(100% + 2.705rem);
+  height: 1.88rem;
   background: linear-gradient(to top right, #FF7A00 0%, #7138C8 100%);
   border-radius: 0 0 0.5rem 0.5rem;
 }
 
-.broadcast-stage[data-revision][data-league] .scoreboard > .score-clock strong,
+.broadcast-stage[data-revision][data-league] .scoreboard > .score-clock strong {
+  font-size: 1.65rem;
+  font-weight: 650;
+  line-height: 1;
+}
+
 .broadcast-stage[data-revision][data-league] .scoreboard > .score-added-time strong {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
   line-height: 1;
 }
 
