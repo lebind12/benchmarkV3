@@ -9,7 +9,7 @@
 
 ---
 
-## 1. 전체 테이블 (17개)
+## 1. 핵심 도메인 테이블 (18개)
 
 | # | 테이블 | 역할 |
 |---|---|---|
@@ -19,17 +19,18 @@
 | 4 | `team` | 팀 메타 |
 | 5 | `team_translation` | 팀 한글표기 (1:1) |
 | 6 | `team_season` | 팀-리그-시즌 정션 (M:N) |
-| 7 | `player` | 선수 메타 (현 소속 denorm) |
-| 8 | `player_translation` | 선수 한글표기 (1:1) |
-| 9 | `player_season_stat` | 선수 시즌 스탯 (하이브리드) |
-| 10 | `fixture` | 경기 |
-| 11 | `fixture_detail` | events/statistics/lineups/players JSONB |
-| 12 | `standings` | 순위표 |
-| 13 | `app_user` | 사용자 (인증) |
-| 14 | `transfer` | 이적 (API-Football `/transfers`) |
-| 15 | `injury` | 부상자 / 결장 (API-Football `/injuries`) |
-| 16 | `news_article` | 외신 기사 메타 + 한글 번역 |
-| 17 | `h2h_fixture` | Head-to-head 과거 경기 (5리그 외도 보관) |
+| 7 | `team_color` | 수동 검증된 팀 브랜드 팔레트 (1:1) |
+| 8 | `player` | 선수 메타 (현 소속 denorm) |
+| 9 | `player_translation` | 선수 한글표기 (1:1) |
+| 10 | `player_season_stat` | 선수 시즌 스탯 (하이브리드) |
+| 11 | `fixture` | 경기 |
+| 12 | `fixture_detail` | events/statistics/lineups/players JSONB |
+| 13 | `standings` | 순위표 |
+| 14 | `app_user` | 사용자 (인증) |
+| 15 | `transfer` | 이적 (API-Football `/transfers`) |
+| 16 | `injury` | 부상자 / 결장 (API-Football `/injuries`) |
+| 17 | `news_article` | 외신 기사 메타 + 한글 번역 |
+| 18 | `h2h_fixture` | Head-to-head 과거 경기 (5리그 외도 보관) |
 
 ---
 
@@ -45,6 +46,7 @@ league (5리그)
 
 team
   ├─ 1:0..1 ─ team_translation
+  ├─ 1:0..1 ─ team_color
   ├─ N:1    ─ venue (home)
   ├─ 1:N    ─ player (current_team_id, nullable)
   ├─ 1:N    ─ fixture (home_team_id / away_team_id, nullable for cup draws)
@@ -191,6 +193,44 @@ CREATE TABLE team_season (
 );
 CREATE INDEX team_season_league_year_idx ON team_season (league_id, season_year);
 ```
+
+### 3.6.1 `team_color`
+
+팀의 장기적인 브랜드 팔레트를 보관한다. API-Football의 경기별 유니폼 색상은
+`fixture_detail.lineups`에 남기며 이 테이블과 혼합하지 않는다. `external_id`는
+중복 저장하지 않고 `team_id`로 조인해 `team.external_id`를 사용한다.
+
+```sql
+CREATE TABLE team_color (
+    id              bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    team_id         bigint      NOT NULL UNIQUE
+                                REFERENCES team(id) ON DELETE CASCADE,
+    primary_color   varchar(7)  NOT NULL,
+    secondary_color varchar(7),
+    accent_color    varchar(7),
+    source_url      text,
+    verified_at     timestamptz,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT team_color_primary_hex_check
+        CHECK (primary_color ~ '^#[0-9A-Fa-f]{6}$'),
+    CONSTRAINT team_color_secondary_hex_check
+        CHECK (
+            secondary_color IS NULL
+            OR secondary_color ~ '^#[0-9A-Fa-f]{6}$'
+        ),
+    CONSTRAINT team_color_accent_hex_check
+        CHECK (
+            accent_color IS NULL
+            OR accent_color ~ '^#[0-9A-Fa-f]{6}$'
+        )
+);
+```
+
+- 2026/27 EPL 20팀은 migration `0015_team_color`에서 `team.external_id`로 찾아 시드한다.
+- daily-sync는 `team_color`를 생성하거나 갱신하지 않는다.
+- 크로마키 안전성은 저장 제약이 아니라 방송 UI의 색상 선택 단계에서 처리한다.
 
 ### 3.7 `player`
 
@@ -587,3 +627,4 @@ ORDER BY kickoff_at DESC LIMIT 5;
 |---|---|
 | 2026-05-13 | 초기 스키마 13 테이블 합의 (메인 세션) |
 | 2026-05-13 | `league.is_active` 컬럼 추가 — ADMIN 이 동적으로 수집 league 추가/제외 가능 (월드컵/유로 등 추후 추가 시나리오) |
+| 2026-08-22 | `team_color` 1:1 브랜드 팔레트 테이블 및 2026/27 EPL 20팀 시드 추가 |

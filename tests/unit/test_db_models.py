@@ -25,6 +25,7 @@ def _import_models():
     from app.models import (  # noqa: F401
         AppUser,
         Base,
+        BroadcastMomentumState,
         Coach,
         CoachTranslation,
         Fixture,
@@ -41,6 +42,7 @@ def _import_models():
         PlayerTranslation,
         Standings,
         Team,
+        TeamColor,
         TeamCoach,
         TeamSeason,
         TeamTranslation,
@@ -50,6 +52,7 @@ def _import_models():
     )
     return {
         "Base": Base,
+        "BroadcastMomentumState": BroadcastMomentumState,
         "Coach": Coach,
         "CoachTranslation": CoachTranslation,
         "TeamCoach": TeamCoach,
@@ -59,6 +62,7 @@ def _import_models():
         "LeagueTranslation": LeagueTranslation,
         "Venue": Venue,
         "Team": Team,
+        "TeamColor": TeamColor,
         "TeamTranslation": TeamTranslation,
         "TeamSeason": TeamSeason,
         "Player": Player,
@@ -83,6 +87,7 @@ EXPECTED_TABLES = {
     "league_sync_target",
     "venue",
     "team",
+    "team_color",
     "team_translation",
     "team_season",
     "coach",
@@ -100,6 +105,7 @@ EXPECTED_TABLES = {
     "news_article",
     "h2h_fixture",
     "worker_sync_log",
+    "broadcast_momentum_state",
 }
 
 
@@ -143,7 +149,7 @@ def _has_unique(table, column_name):
 # ---------------------------------------------------------------------------
 
 def test_u01_all_models_importable(models):
-    assert len(models) == 24  # 23 models + Base
+    assert len(models) == 26  # 25 models + Base
 
 
 def test_u02_metadata_contains_expected_tables(metadata):
@@ -163,6 +169,7 @@ def test_u02_metadata_contains_expected_tables(metadata):
         ("league_sync_target", ["id"]),
         ("venue", ["id"]),
         ("team", ["id"]),
+        ("team_color", ["id"]),
         ("team_translation", ["team_id"]),
         ("team_season", ["team_id", "league_id", "season_year"]),
         ("coach", ["id"]),
@@ -180,6 +187,7 @@ def test_u02_metadata_contains_expected_tables(metadata):
         ("news_article", ["id"]),
         ("h2h_fixture", ["id"]),
         ("worker_sync_log", ["id"]),
+        ("broadcast_momentum_state", ["id"]),
     ],
 )
 def test_u03_primary_keys(metadata, table_name, expected_pk):
@@ -363,6 +371,7 @@ TABLES_WITH_CREATED_AT = [
     "league_sync_target",
     "venue",
     "team",
+    "team_color",
     "team_season",
     "player",
     "fixture",
@@ -372,6 +381,7 @@ TABLES_WITH_CREATED_AT = [
     "news_article",
     "h2h_fixture",
     "worker_sync_log",
+    "broadcast_momentum_state",
 ]
 
 TABLES_WITH_UPDATED_AT = [
@@ -381,6 +391,7 @@ TABLES_WITH_UPDATED_AT = [
     "league_sync_target",
     "venue",
     "team",
+    "team_color",
     "team_translation",
     "player",
     "player_translation",
@@ -393,6 +404,7 @@ TABLES_WITH_UPDATED_AT = [
     "injury",
     "news_article",
     "h2h_fixture",
+    "broadcast_momentum_state",
 ]
 
 

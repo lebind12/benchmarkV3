@@ -28,6 +28,7 @@ let fixtureAwayCode: string | null = 'BRA'
 let fixtureAwayLogo: string | null = 'api-away-logo'
 let teamEndpointHomeCode: string | null = 'ARS'
 let teamEndpointAwayCode: string | null = 'BUR'
+let programSnapshotHomeAccent: string | null = '#9C824A'
 let reverseHomeBackLine = false
 const defaultLineupGrids = [
   '1:1',
@@ -130,6 +131,57 @@ function defaultFixtureEvents() {
 
 let fixtureEvents = defaultFixtureEvents()
 
+function firstLiveProgramSnapshot() {
+  return {
+    fixtureId: 260506,
+    leagueId: 1,
+    leagueName: '월드컵',
+    leagueShortName: '월드컵',
+    home: '대한민국',
+    away: '브라질',
+    homeId: 10,
+    awayId: 20,
+    homeCode: '한국',
+    awayCode: '브라질',
+    homeEnglishCode: 'KOR',
+    awayEnglishCode: 'BRA',
+    homeLogoUrl: fixtureHomeLogo,
+    awayLogoUrl: fixtureAwayLogo,
+    score: '1 - 1',
+    clock: "63'",
+    addedTime: '+2',
+    status: '후반',
+    venue: 'Live Stadium',
+    lineups: [
+      {
+        teamId: 10,
+        name: '대한민국',
+        code: '한국',
+        primaryColor: '#EF0107',
+        secondaryColor: '#063672',
+        accentColor: programSnapshotHomeAccent,
+        shape: '4-3-3',
+        players: [],
+        substituteNumbers: {},
+      },
+      {
+        teamId: 20,
+        name: '브라질',
+        code: '브라질',
+        primaryColor: '#003399',
+        secondaryColor: '#FFFFFF',
+        accentColor: '#A7A5A6',
+        shape: '4-2-3-1',
+        players: [],
+        substituteNumbers: {},
+      },
+    ],
+    playerRatings: {},
+    stats: [{ label: '점유율', home: '61%', away: '39%', homePct: 61, awayPct: 39 }],
+    events: [],
+  }
+}
+
 function stubApiFootballFetch() {
   vi.stubEnv('VITE_API_FOOTBALL_KEY', 'test-key')
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
@@ -155,7 +207,27 @@ function stubApiFootballFetch() {
     }
 
     if (url.pathname === '/api/v1/broadcast/fixtures/260506/program-snapshot') {
-      return jsonResponse({ fixtureId: 260506 })
+      return jsonResponse({
+        fixtureId: 260506,
+        lineups: [
+          {
+            teamId: 10,
+            primaryColor: '#EF0107',
+            secondaryColor: '#063672',
+            accentColor: programSnapshotHomeAccent,
+          },
+          {
+            teamId: 20,
+            primaryColor: '#003399',
+            secondaryColor: '#FFFFFF',
+            accentColor: '#A7A5A6',
+          },
+        ],
+      })
+    }
+
+    if (url.pathname === '/api/v1/broadcast/program-snapshot/first-live') {
+      return jsonResponse(firstLiveProgramSnapshot())
     }
 
     if (url.pathname === '/fixtures' && url.searchParams.get('live') === 'all') {
@@ -301,6 +373,7 @@ describe('BroadcastApp', () => {
     fixtureAwayLogo = 'api-away-logo'
     teamEndpointHomeCode = 'ARS'
     teamEndpointAwayCode = 'BUR'
+    programSnapshotHomeAccent = '#9C824A'
     reverseHomeBackLine = false
     homeLineupGrids = defaultLineupGrids
     awayLineupGrids = defaultLineupGrids
@@ -326,6 +399,8 @@ describe('BroadcastApp', () => {
     const scoreBadges = wrapper.findAll('[data-testid=country-badge]')
     expect(scoreBadges[0].attributes('aria-label')).toBe('KOR')
     expect(scoreBadges[1].attributes('aria-label')).toBe('BRA')
+    expect(scoreBadges[0].get('img').attributes('src')).toBe('api-home-logo')
+    expect(scoreBadges[1].get('img').attributes('src')).toBe('api-away-logo')
     expect(wrapper.get('.dial-header').text()).toContain('KOR')
     expect(wrapper.get('.dial-header').text()).toContain('BRA')
   })
@@ -528,6 +603,75 @@ describe('BroadcastApp', () => {
     expect(wrapper.text()).toContain('손흥민')
     expect(wrapper.text()).not.toContain('손흥민 풀네임')
     expect(wrapper.text()).toContain('네이마르')
+  })
+
+  it('recolors the existing formation board with the full team palette', async () => {
+    const wrapper = await mountBroadcast(
+      '?fixtureId=260506&league=premier-league&teamColorMode=full',
+    )
+    const cards = wrapper.findAll('[data-testid=formation-card]')
+    const pitches = wrapper.findAll('.pitch')
+
+    expect(cards).toHaveLength(2)
+    expect(pitches).toHaveLength(2)
+    expect(wrapper.get('[data-testid=broadcast-stage]').attributes('data-team-color-mode')).toBe('full')
+    expect(cards[0].attributes('data-team-color')).toBe('true')
+    expect(cards[0].attributes('data-accent-color')).toBe('#9C824A')
+    expect(cards[0].attributes('style')).toContain('--team-frame: #9C824A')
+    expect(cards[0].attributes('style')).toContain('--team-primary: #EF0107')
+    expect(cards[0].attributes('style')).toContain('--team-secondary: #063672')
+    expect(pitches[0].attributes('data-primary-color')).toBe('#EF0107')
+    expect(pitches[0].attributes('style')).toContain('--team-pitch: #EF0107')
+    expect(pitches[0].attributes('data-secondary-color')).toBe('#063672')
+    expect(pitches[0].attributes('style')).toContain('--team-player: #063672')
+    expect(pitches[0].attributes('data-accent-color')).toBe('#9C824A')
+    expect(cards[1].attributes('data-accent-color')).toBe('#A7A5A6')
+    expect(pitches[1].attributes('data-primary-color')).toBe('#003399')
+    expect(pitches[1].attributes('style')).toContain('--team-pitch: #003399')
+    expect(pitches[1].attributes('data-secondary-color')).toBe('#FFFFFF')
+    expect(pitches[1].attributes('style')).toContain('--team-player: #FFFFFF')
+    expect(pitches[1].attributes('style')).toContain('--team-player-text: #111111')
+  })
+
+  it('limits team colors to the pitch and player markers in field mode', async () => {
+    const wrapper = await mountBroadcast(
+      '?fixtureId=260506&league=premier-league&teamColorMode=field',
+    )
+    const stage = wrapper.get('[data-testid=broadcast-stage]')
+    const card = wrapper.findAll('[data-testid=formation-card]')[0]
+    const pitch = wrapper.findAll('.pitch')[0]
+
+    expect(stage.attributes('data-team-color-mode')).toBe('field')
+    expect(card.attributes('style')).toContain('--team-primary: #EF0107')
+    expect(card.attributes('style')).not.toContain('background:')
+    expect(pitch.attributes('style')).toContain('--team-pitch: #EF0107')
+    expect(pitch.attributes('style')).toContain('--team-player: #063672')
+  })
+
+  it('uses default board colors and primary player markers in the third mode', async () => {
+    const wrapper = await mountBroadcast(
+      '?fixtureId=260506&league=premier-league&teamColorMode=marker-primary',
+    )
+    const stage = wrapper.get('[data-testid=broadcast-stage]')
+    const card = wrapper.findAll('[data-testid=formation-card]')[0]
+    const pitch = wrapper.findAll('.pitch')[0]
+
+    expect(stage.attributes('data-team-color-mode')).toBe('marker-primary')
+    expect(card.attributes('style')).not.toContain('--team-primary:')
+    expect(card.attributes('style')).not.toContain('--team-pitch:')
+    expect(pitch.attributes('style')).not.toContain('--team-pitch:')
+    expect(pitch.attributes('style')).toContain('--team-player: #EF0107')
+    expect(pitch.attributes('style')).toContain('--team-player-text: #FFFFFF')
+  })
+
+  it('keeps the default formation badge colors when accent color is null', async () => {
+    programSnapshotHomeAccent = null
+
+    const wrapper = await mountBroadcast('?league=premier-league')
+    const firstCard = wrapper.findAll('[data-testid=formation-card]')[0]
+
+    expect(firstCard.attributes('data-accent-color')).toBeUndefined()
+    expect(firstCard.attributes('style')).not.toContain('--team-accent:')
   })
 
   it('replaces the formation player directly when a substitution event is received', async () => {

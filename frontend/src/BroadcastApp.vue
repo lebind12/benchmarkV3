@@ -18,7 +18,10 @@ import {
   type ApiFootballBroadcastLineup,
   type ApiFootballBroadcastSnapshot,
 } from '@/lib/api/apiFootballLive'
-import { readBroadcastFixtureId } from '@/lib/broadcastQuery'
+import {
+  readBroadcastFixtureId,
+  readBroadcastTeamColorMode,
+} from '@/lib/broadcastQuery'
 
 type LeagueSlug =
   | 'premier-league'
@@ -68,6 +71,9 @@ type FormationLayout = PitchPoint[]
 type LineupSide = {
   name: string
   code: string
+  primaryColor?: string | null
+  secondaryColor?: string | null
+  accentColor?: string | null
   shape: string
   players: PlayerNode[]
 }
@@ -527,6 +533,7 @@ const searchParams = new URLSearchParams(
   typeof window === 'undefined' ? '' : window.location.search,
 )
 const requestedFixtureId = readBroadcastFixtureId(searchParams)
+const teamColorMode = readBroadcastTeamColorMode(searchParams)
 const requestedLeague = searchParams.get('league') as LeagueSlug | null
 const selectedLeague =
   requestedLeague && Object.hasOwn(themes, requestedLeague)
@@ -666,7 +673,45 @@ async function syncHiddenMomentum(fixtureId: number) {
 
   hiddenMomentumSyncInFlight = true
   try {
-    await fetchApiFootballBroadcastSnapshot(fixtureId)
+    const colorSnapshot = await fetchApiFootballBroadcastSnapshot(fixtureId)
+    const currentSnapshot = activeApiFootballSnapshot.value
+    if (currentSnapshot?.fixtureId === fixtureId && Array.isArray(colorSnapshot.lineups)) {
+      const teamColors = new Map<
+        number,
+        { primaryColor?: string; secondaryColor?: string; accentColor?: string }
+      >()
+      colorSnapshot.lineups.forEach((lineup) => {
+        if (lineup.teamId !== undefined) {
+          const primaryColor = isValidHexColor(lineup.primaryColor)
+            ? lineup.primaryColor
+            : undefined
+          const secondaryColor = isValidHexColor(lineup.secondaryColor)
+            ? lineup.secondaryColor
+            : undefined
+          const accentColor = isValidHexColor(lineup.accentColor)
+            ? lineup.accentColor
+            : undefined
+          if (primaryColor || secondaryColor || accentColor) {
+            teamColors.set(lineup.teamId, { primaryColor, secondaryColor, accentColor })
+          }
+        }
+      })
+
+      const lineups = currentSnapshot.lineups.map((lineup) => {
+        const teamColor = lineup.teamId !== undefined
+          ? teamColors.get(lineup.teamId)
+          : undefined
+        return {
+          ...lineup,
+          primaryColor: teamColor?.primaryColor ?? lineup.primaryColor,
+          secondaryColor: teamColor?.secondaryColor ?? lineup.secondaryColor,
+          accentColor: teamColor?.accentColor ?? lineup.accentColor,
+        }
+      })
+      const enrichedSnapshot = { ...currentSnapshot, lineups }
+      activeApiFootballSnapshot.value = enrichedSnapshot
+      activeMatch.value = createBroadcastMatchFromSnapshot(enrichedSnapshot)
+    }
   } catch (error) {
     console.error('Failed to collect hidden broadcast momentum', error)
   } finally {
@@ -878,6 +923,9 @@ function toLineupSide(
   return {
     name: lineup.name,
     code: lineup.code,
+    primaryColor: lineup.primaryColor,
+    secondaryColor: lineup.secondaryColor,
+    accentColor: lineup.accentColor,
     shape: lineup.shape,
     players: activePlayers.map((player) => ({
       id: player.id,
@@ -1025,6 +1073,88 @@ function formationLabel(lineup: LineupSide): string {
   return lineup.shape || 'N/A'
 }
 
+function isValidHexColor(color: string | null | undefined): color is string {
+  return typeof color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(color)
+}
+
+function mixHexColor(base: string, target: '#000000' | '#FFFFFF', weight: number): string {
+  const targetChannel = target === '#FFFFFF' ? 255 : 0
+  const channels = [1, 3, 5].map((offset) => Number.parseInt(base.slice(offset, offset + 2), 16))
+  return `#${channels
+    .map((channel) => Math.round(channel * (1 - weight) + targetChannel * weight)
+      .toString(16)
+      .padStart(2, '0'))
+    .join('')}`.toUpperCase()
+}
+
+function hexLuminance(color: string): number {
+  const red = Number.parseInt(color.slice(1, 3), 16)
+  const green = Number.parseInt(color.slice(3, 5), 16)
+  const blue = Number.parseInt(color.slice(5, 7), 16)
+  return red * 0.2126 + green * 0.7152 + blue * 0.0722
+}
+
+function contrastColor(color: string): '#111111' | '#FFFFFF' {
+  return hexLuminance(color) >= 150 ? '#111111' : '#FFFFFF'
+}
+
+function formationPitchStyle(lineup: LineupSide): Record<string, string> {
+  if (teamColorMode === 'marker-primary') {
+    if (!isValidHexColor(lineup.primaryColor)) return {}
+
+    const markerColor = lineup.primaryColor.toUpperCase()
+    const markerContrast = contrastColor(markerColor)
+    return {
+      '--team-player': markerColor,
+      '--team-player-text': markerContrast,
+      '--team-player-border': markerContrast,
+    }
+  }
+
+  const style: Record<string, string> = {}
+  let secondaryColor: string | undefined
+
+  if (isValidHexColor(lineup.secondaryColor)) {
+    secondaryColor = lineup.secondaryColor.toUpperCase()
+    const secondaryContrast = contrastColor(secondaryColor)
+    style['--team-secondary'] = secondaryColor
+    style['--team-secondary-text'] = secondaryContrast
+    style['--team-player'] = secondaryColor
+    style['--team-player-text'] = secondaryContrast
+    style['--team-player-border'] = secondaryContrast
+  }
+
+  if (isValidHexColor(lineup.accentColor)) {
+    const accentColor = lineup.accentColor.toUpperCase()
+    style['--team-accent'] = accentColor
+    style['--team-accent-text'] = contrastColor(accentColor)
+  }
+
+  if (!isValidHexColor(lineup.primaryColor)) return style
+
+  const primaryColor = lineup.primaryColor.toUpperCase()
+  const primaryContrast = contrastColor(primaryColor)
+  const pitchColor = primaryColor
+  const pitchContrast = contrastColor(pitchColor)
+  const pitchLuminance = hexLuminance(pitchColor)
+  const stripeColor = pitchLuminance < 72
+    ? mixHexColor(pitchColor, '#FFFFFF', 0.14)
+    : mixHexColor(pitchColor, '#000000', 0.16)
+
+  const teamStyle: Record<string, string> = {
+    ...style,
+    '--team-primary': primaryColor,
+    '--team-primary-text': primaryContrast,
+    '--team-pitch': pitchColor,
+    '--team-pitch-alt': stripeColor,
+    '--team-field-line': pitchContrast,
+    '--team-frame': style['--team-accent'] ?? style['--team-player'] ?? primaryContrast,
+    '--team-frame-text': style['--team-accent-text'] ?? style['--team-player-text'] ?? primaryContrast,
+  }
+
+  return teamStyle
+}
+
 function formationLayout(shape: string): FormationLayout {
   const normalized = normalizeFormationShape(shape)
   const parts = parseSupportedFormation(normalized)
@@ -1122,6 +1252,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
     class="broadcast-stage"
     :data-league="theme.slug"
     :data-revision="materialRevision ? 'material' : 'base'"
+    :data-team-color-mode="teamColorMode"
     :style="themeVars"
     data-testid="broadcast-stage"
   >
@@ -1231,6 +1362,9 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
           v-for="lineup in match?.lineups ?? []"
           :key="lineup.code"
           class="formation-card"
+          :data-team-color="isValidHexColor(lineup.primaryColor) ? 'true' : undefined"
+          :data-accent-color="isValidHexColor(lineup.accentColor) ? lineup.accentColor : undefined"
+          :style="formationPitchStyle(lineup)"
           data-testid="formation-card"
         >
           <div class="formation-side-rail formation-side-rail-left">
@@ -1256,7 +1390,14 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
               {{ formationLabel(lineup) }}
             </span>
           </header>
-          <div class="pitch" :aria-label="`${lineup.name} ${formationLabel(lineup)}`">
+          <div
+            class="pitch"
+            :aria-label="`${lineup.name} ${formationLabel(lineup)}`"
+            :data-primary-color="lineup.primaryColor || undefined"
+            :data-secondary-color="lineup.secondaryColor || undefined"
+            :data-accent-color="lineup.accentColor || undefined"
+            :style="formationPitchStyle(lineup)"
+          >
             <div class="pitch-stripes" aria-hidden="true">
               <span></span>
               <span></span>
@@ -1631,7 +1772,10 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .country-flag {
-  display: none;
+  display: block;
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
 }
 
 .score-core {
@@ -1825,7 +1969,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   position: relative;
   flex: 1 1 auto;
   margin: 3%;
-  background: var(--pitch);
+  background: var(--team-pitch, var(--pitch));
   border: 0.14rem solid var(--muted);
   overflow: hidden;
 }
@@ -1844,11 +1988,11 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .pitch-stripes span {
   flex: 1 1 16.666%;
-  background: var(--pitch);
+  background: var(--team-pitch, var(--pitch));
 }
 
 .pitch-stripes span:nth-child(even) {
-  background: var(--pitch-alt);
+  background: var(--team-pitch-alt, var(--pitch-alt));
 }
 
 .field-markings {
@@ -2023,9 +2167,9 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   width: 2.62rem;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: var(--accent);
-  border: 0.13rem solid var(--accent-alt);
-  color: var(--text);
+  background: var(--team-player, var(--accent));
+  border: 0.13rem solid var(--team-player-border, var(--accent-alt));
+  color: var(--team-player-text, var(--text));
   font-size: 1.1rem;
   font-weight: 900;
   box-shadow: 0.16rem 0.16rem 0 #000000;
@@ -2112,8 +2256,8 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   min-width: 3.05rem;
   padding: 0.12rem 0.34rem;
   border-radius: 0.35rem;
-  background: var(--dark);
-  color: var(--text);
+  background: #000000;
+  color: #FFFFFF;
   font-size: 0.72rem;
   font-weight: 800;
   text-align: center;
@@ -2553,20 +2697,19 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .broadcast-stage[data-league='premier-league'] .score-team .team-mark {
   width: 4.2rem;
-  height: 3rem;
+  height: 4.2rem;
+  overflow: hidden;
   border-radius: 999rem;
   background: var(--text);
   border-color: var(--accent-alt);
   color: var(--panel);
 }
 
-.broadcast-stage[data-league='premier-league'] .score-team .team-mark::before {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  content: attr(aria-label);
-  font-size: 1rem;
-  font-weight: 950;
+.broadcast-stage[data-league='premier-league'] .score-team .country-flag {
+  flex: 0 0 auto;
+  width: 110%;
+  height: 110%;
+  max-width: none;
 }
 
 .broadcast-stage[data-league='europa-league'] .scoreboard {
@@ -2660,7 +2803,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .broadcast-stage[data-league='premier-league'] .pitch {
-  background: #220733;
+  background: var(--team-pitch, var(--pitch));
   border-color: var(--accent-alt);
 }
 
@@ -2669,17 +2812,17 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .broadcast-stage[data-league='premier-league'] .pitch-stripes span {
-  background: #32105A;
+  background: var(--team-pitch, var(--pitch));
 }
 
 .broadcast-stage[data-league='premier-league'] .pitch-stripes span:nth-child(2),
 .broadcast-stage[data-league='premier-league'] .pitch-stripes span:nth-child(5) {
-  background: #472078;
+  background: var(--team-pitch-alt, var(--pitch-alt));
 }
 
 .broadcast-stage[data-league='premier-league'] .pitch-stripes span:nth-child(3),
 .broadcast-stage[data-league='premier-league'] .pitch-stripes span:nth-child(4) {
-  background: #2A0D4F;
+  background: var(--team-pitch, var(--pitch));
 }
 
 .broadcast-stage[data-league='premier-league'] .halfway-line,
@@ -2734,7 +2877,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .broadcast-stage[data-league='champions-league'] .pitch,
 .broadcast-stage[data-league='europa-league'] .pitch {
-  background: var(--pitch);
+  background: var(--team-pitch, var(--pitch));
   border-color: var(--accent-alt);
 }
 
@@ -2746,19 +2889,19 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .broadcast-stage[data-league='champions-league'] .pitch-stripes span,
 .broadcast-stage[data-league='europa-league'] .pitch-stripes span {
-  background: var(--pitch);
+  background: var(--team-pitch, var(--pitch));
 }
 
 .broadcast-stage[data-league='champions-league'] .pitch-stripes span:nth-child(even),
 .broadcast-stage[data-league='europa-league'] .pitch-stripes span:nth-child(even) {
-  background: var(--pitch-alt);
+  background: var(--team-pitch-alt, var(--pitch-alt));
 }
 
 .broadcast-stage[data-league='champions-league'] .pitch-stripes span:nth-child(3),
 .broadcast-stage[data-league='europa-league'] .pitch-stripes span:nth-child(3) {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
-    var(--pitch);
+    var(--team-pitch, var(--pitch));
 }
 
 .broadcast-stage[data-league='champions-league'] .field-markings::before,
@@ -2998,8 +3141,8 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .broadcast-stage[data-league='world-cup-2026'] .formation-card:nth-child(2) .shirt {
-  background: var(--accent-alt);
-  border-color: #F5F1E8;
+  background: var(--team-player, var(--accent-alt));
+  border-color: var(--team-player-border, #F5F1E8);
 }
 
 .broadcast-stage[data-revision='material'] .scoreboard,
@@ -3164,6 +3307,44 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   background: rgba(255, 255, 255, 0.18);
   content: '';
   transform: rotate(-18deg);
+}
+
+/* Team palette only: preserve each competition's formation-card structure. */
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] {
+  background: var(--team-secondary, var(--team-primary));
+  border-color: var(--team-frame);
+}
+
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .formation-header {
+  background: var(--team-secondary, var(--team-primary));
+  border-bottom-color: var(--team-frame);
+  color: var(--team-secondary-text, var(--team-primary-text));
+}
+
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .formation-header strong {
+  color: inherit;
+}
+
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-accent-color] .shape-pill {
+  background: var(--team-accent);
+  color: var(--team-accent-text);
+}
+
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .pitch {
+  border-color: var(--team-frame);
+}
+
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .halfway-line,
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .center-circle,
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .penalty-box,
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .goal-area,
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .corner-arc {
+  border-color: var(--team-field-line);
+}
+
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .center-spot,
+.broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .penalty-spot {
+  background: var(--team-field-line);
 }
 
 @keyframes event-rise {

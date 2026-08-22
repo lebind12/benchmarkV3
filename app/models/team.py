@@ -4,13 +4,16 @@ from __future__ import annotations
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Identity,
     Index,
     Integer,
     PrimaryKeyConstraint,
+    String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -60,6 +63,45 @@ class TeamTranslation(Base):
     )
     name_ko: Mapped[str | None] = mapped_column(Text)
     short_name_ko: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class TeamColor(Base):
+    """Curated, stable club-brand palette. Match kit colors live elsewhere."""
+
+    __tablename__ = "team_color"
+    __table_args__ = (
+        UniqueConstraint("team_id", name="team_color_team_id_key"),
+        CheckConstraint(
+            "primary_color ~ '^#[0-9A-Fa-f]{6}$'",
+            name="team_color_primary_hex_check",
+        ),
+        CheckConstraint(
+            "secondary_color IS NULL OR secondary_color ~ '^#[0-9A-Fa-f]{6}$'",
+            name="team_color_secondary_hex_check",
+        ),
+        CheckConstraint(
+            "accent_color IS NULL OR accent_color ~ '^#[0-9A-Fa-f]{6}$'",
+            name="team_color_accent_hex_check",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, Identity(always=True), primary_key=True
+    )
+    team_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("team.id", ondelete="CASCADE"), nullable=False
+    )
+    primary_color: Mapped[str] = mapped_column(String(7), nullable=False)
+    secondary_color: Mapped[str | None] = mapped_column(String(7))
+    accent_color: Mapped[str | None] = mapped_column(String(7))
+    source_url: Mapped[str | None] = mapped_column(Text)
+    verified_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[object] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     updated_at: Mapped[object] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

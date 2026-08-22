@@ -6,8 +6,10 @@ from datetime import datetime, timezone
 from math import isfinite
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.team import Team, TeamColor
 from app.services import fixture_detail
 from app.services.broadcast import (
     BROADCAST_OVERLAY_TTL_SECONDS,
@@ -669,17 +671,23 @@ def _normalize_lineups(
     translations: dict[str, dict[str, dict[str, str | None]]],
     player_stats: dict[int, dict[str, Any]],
     summaries: dict[int, dict[str, Any]],
+    team_colors: dict[int, dict[str, str | None]] | None = None,
 ) -> list[dict[str, Any]]:
+    colors = team_colors or {}
     result = []
     for lineup in lineups:
         team = lineup.get("team") if isinstance(lineup.get("team"), dict) else {}
         coach = lineup.get("coach") if isinstance(lineup.get("coach"), dict) else {}
         team_id = team.get("id") if isinstance(team.get("id"), int) else None
         team_name = team.get("name") or "미정 팀"
+        team_palette = colors.get(team_id or -1, {})
         normalized = {
             "teamId": team_id,
             "name": _translation_value(translations, "teams", team_id, "team_names", team_name),
             "code": _translation_value(translations, "teams", team_id, "team_names", team_name, short=True),
+            "primaryColor": team_palette.get("primaryColor"),
+            "secondaryColor": team_palette.get("secondaryColor"),
+            "accentColor": team_palette.get("accentColor"),
             "shape": lineup.get("formation") or "4-3-3",
             "coach": _normalize_coach(coach, translations),
             "players": [],
@@ -690,6 +698,40 @@ def _normalize_lineups(
             normalized["players"].append(_normalize_lineup_player(player, index, translations, player_stats, summaries))
         result.append(normalized)
     return result
+
+
+def _lookup_team_colors(
+    session: Session,
+    team_external_ids: list[int | None],
+) -> dict[int, dict[str, str | None]]:
+    cleaned_ids = sorted(
+        {
+            team_id
+            for team_id in team_external_ids
+            if isinstance(team_id, int) and not isinstance(team_id, bool) and team_id > 0
+        }
+    )
+    if not cleaned_ids:
+        return {}
+
+    rows = session.execute(
+        select(
+            Team.external_id,
+            TeamColor.primary_color,
+            TeamColor.secondary_color,
+            TeamColor.accent_color,
+        )
+        .join(TeamColor, TeamColor.team_id == Team.id)
+        .where(Team.external_id.in_(cleaned_ids))
+    )
+    return {
+        row.external_id: {
+            "primaryColor": row.primary_color,
+            "secondaryColor": row.secondary_color,
+            "accentColor": row.accent_color,
+        }
+        for row in rows
+    }
 
 
 def _normalize_coach(
@@ -998,6 +1040,10 @@ class BroadcastProgramSnapshotService:
         fixture_obj = fixture.get("fixture") if isinstance(fixture.get("fixture"), dict) else {}
         home_id = home.get("id") if isinstance(home.get("id"), int) else None
         away_id = away.get("id") if isinstance(away.get("id"), int) else None
+        team_colors = _lookup_team_colors(
+            self.session,
+            [home_id, away_id],
+        )
         player_stats = _player_stats_map(players)
         summaries = _event_summary(events, player_stats)
         meta = _event_player_meta(lineups, player_stats)
@@ -1077,7 +1123,13 @@ class BroadcastProgramSnapshotService:
             "kickoffAt": fixture_obj.get("date"),
             "venue": (fixture_obj.get("venue") or {}).get("name") if isinstance(fixture_obj.get("venue"), dict) else "라이브 경기장",
             "standings": standings,
-            "lineups": _normalize_lineups(lineups, translations, player_stats, summaries),
+            "lineups": _normalize_lineups(
+                lineups,
+                translations,
+                player_stats,
+                summaries,
+                team_colors,
+            ),
             "playerStats": {str(player_id): stat for player_id, stat in player_stats.items()},
             "playerRatings": {str(player_id): stat["rating"] for player_id, stat in player_stats.items() if stat.get("rating")},
             "stats": stats,

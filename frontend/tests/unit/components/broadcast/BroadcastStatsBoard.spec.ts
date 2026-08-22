@@ -49,6 +49,7 @@ describe('BroadcastStatsBoard', () => {
     const homeValue = wrapper.get('[data-testid=stats-possession-home-value]')
     const awayValue = wrapper.get('[data-testid=stats-possession-away-value]')
 
+
     expect(homeLogo.find('img').attributes('src')).toBe('https://example.com/chelsea.png')
     expect(awayLogo.find('img').attributes('src')).toBe('https://example.com/tottenham.png')
     expect(homeValue.text()).toBe('44%')

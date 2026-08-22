@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.broadcast_program import _event_kind, _event_summary
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+from app.services.broadcast_program import (
+    _event_kind,
+    _event_summary,
+    _lookup_team_colors,
+    _normalize_lineups,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -47,3 +55,75 @@ def test_goal_detail_exceptions_are_not_broadcast_goals() -> None:
     assert result[12]["ownGoals"] == 0
     assert result[13]["goals"] == 0
     assert result[13]["ownGoals"] == 0
+
+
+def test_lookup_team_colors_uses_external_team_ids() -> None:
+    session = MagicMock()
+    session.execute.return_value = [
+        SimpleNamespace(
+            external_id=40,
+            primary_color="#C8102E",
+            secondary_color="#F6EB61",
+            accent_color="#00B2A9",
+        ),
+        SimpleNamespace(
+            external_id=42,
+            primary_color="#EF0107",
+            secondary_color="#063672",
+            accent_color="#9C824A",
+        ),
+    ]
+
+    result = _lookup_team_colors(session, [42, 40, 42, None])
+
+    assert result == {
+        40: {
+            "primaryColor": "#C8102E",
+            "secondaryColor": "#F6EB61",
+            "accentColor": "#00B2A9",
+        },
+        42: {
+            "primaryColor": "#EF0107",
+            "secondaryColor": "#063672",
+            "accentColor": "#9C824A",
+        },
+    }
+    session.execute.assert_called_once()
+
+
+def test_normalize_lineups_includes_nullable_primary_color() -> None:
+    lineups = [
+        {
+            "team": {"id": 40, "name": "Liverpool"},
+            "formation": "4-3-3",
+            "startXI": [],
+            "substitutes": [],
+        },
+        {
+            "team": {"id": 999_999, "name": "Unseeded FC"},
+            "formation": "4-4-2",
+            "startXI": [],
+            "substitutes": [],
+        },
+    ]
+
+    result = _normalize_lineups(
+        lineups,
+        translations={},
+        player_stats={},
+        summaries={},
+        team_colors={
+            40: {
+                "primaryColor": "#C8102E",
+                "secondaryColor": "#F6EB61",
+                "accentColor": "#00B2A9",
+            }
+        },
+    )
+
+    assert result[0]["primaryColor"] == "#C8102E"
+    assert result[0]["secondaryColor"] == "#F6EB61"
+    assert result[0]["accentColor"] == "#00B2A9"
+    assert result[1]["primaryColor"] is None
+    assert result[1]["secondaryColor"] is None
+    assert result[1]["accentColor"] is None

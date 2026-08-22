@@ -271,6 +271,9 @@ export type ApiFootballBroadcastLineup = {
   teamId?: number
   name: string
   code: string
+  primaryColor?: string | null
+  secondaryColor?: string | null
+  accentColor?: string | null
   shape: string
   coach?: ApiFootballBroadcastCoach
   players: ApiFootballBroadcastLineupPlayer[]
@@ -1448,9 +1451,37 @@ export async function fetchApiFootballBroadcastLineupsSnapshot(
     return previousSnapshot
   }
 
+  const teamColors = new Map(
+    previousSnapshot.lineups
+      .filter((lineup) => lineup.teamId !== undefined)
+      .map((lineup) => [
+        lineup.teamId as number,
+        {
+          primaryColor: lineup.primaryColor,
+          secondaryColor: lineup.secondaryColor,
+          accentColor: lineup.accentColor,
+        },
+      ]),
+  )
+  const refreshedLineups = normalizeLineups(
+    lineups,
+    playerRatingMapFromSnapshot(previousSnapshot),
+  ).map((lineup) => ({
+    ...lineup,
+    primaryColor: lineup.teamId !== undefined
+      ? teamColors.get(lineup.teamId)?.primaryColor ?? lineup.primaryColor
+      : lineup.primaryColor,
+    secondaryColor: lineup.teamId !== undefined
+      ? teamColors.get(lineup.teamId)?.secondaryColor ?? lineup.secondaryColor
+      : lineup.secondaryColor,
+    accentColor: lineup.teamId !== undefined
+      ? teamColors.get(lineup.teamId)?.accentColor ?? lineup.accentColor
+      : lineup.accentColor,
+  }))
+
   return applyBroadcastTranslations({
     ...previousSnapshot,
-    lineups: normalizeLineups(lineups, playerRatingMapFromSnapshot(previousSnapshot)),
+    lineups: refreshedLineups,
   })
 }
 

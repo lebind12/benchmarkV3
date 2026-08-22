@@ -1639,7 +1639,10 @@ function isEditableKeyboardTarget(target: EventTarget | null) {
 }
 
 function setBottomView(nextView: BottomView) {
-  if (nextView === activeBottomView.value) return;
+  if (nextView === activeBottomView.value) {
+    if (nextView !== "lineup") setBottomView("lineup");
+    return;
+  }
   isMomentumPanelOpen.value = false;
   isAiReviewPanelOpen.value = false;
 

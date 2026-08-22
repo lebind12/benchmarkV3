@@ -39,6 +39,8 @@
 
 리그별 차이는 색상, 프레임 형태, 패턴 강도, 이벤트 강조색으로 제한한다. 정보 구조는 동일하다.
 
+- 상단 스코어보드의 팀 식별 영역은 팀 로고를 우선하고, 로고가 없을 때만 약자를 표시한다.
+
 ## 5. 이벤트 팝업
 
 중앙 하단 예외 슬롯에만 표시한다.
@@ -59,6 +61,11 @@
 
 - 직접 엔트리: `/broadcast.html?fixtureId=1000001&league=premier-league`
 - 앱 라우트 브릿지: `/broadcast/fixtures/1000001?league=premier-league`
+- 팀컬러 경기장 모드: `teamColorMode=field` — 경기장 Primary, 선수 마커 Secondary만 적용 (기본값)
+- 팀컬러 전체 모드: `teamColorMode=full` — 카드/헤더 Secondary, 필드 Primary, 선수 마커 Secondary,
+  포메이션 배지/테두리 Accent 적용
+- Primary 마커 전용 모드: `teamColorMode=marker-primary` — 카드/헤더/필드/포메이션
+  배지는 리그 기본 디자인을 유지하고 선수 마커만 Primary 적용
 
 ## 7. 라이브 데이터
 

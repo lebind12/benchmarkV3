@@ -1026,8 +1026,10 @@ function awayOffsetStyle(value: number) {
 
 .dial-team-crest img {
   display: block;
-  width: 76%;
-  height: 76%;
+  flex: 0 0 auto;
+  width: 110%;
+  height: 110%;
+  max-width: none;
   object-fit: contain;
 }
 
