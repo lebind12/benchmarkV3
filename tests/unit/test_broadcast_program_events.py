@@ -65,12 +65,14 @@ def test_lookup_team_colors_uses_external_team_ids() -> None:
             primary_color="#C8102E",
             secondary_color="#F6EB61",
             accent_color="#00B2A9",
+            scoreboard_color_mode="PRIMARY_LIGHT",
         ),
         SimpleNamespace(
             external_id=42,
             primary_color="#EF0107",
             secondary_color="#063672",
             accent_color="#9C824A",
+            scoreboard_color_mode="PRIMARY_LIGHT",
         ),
     ]
 
@@ -81,11 +83,13 @@ def test_lookup_team_colors_uses_external_team_ids() -> None:
             "primaryColor": "#C8102E",
             "secondaryColor": "#F6EB61",
             "accentColor": "#00B2A9",
+            "scoreboardColorMode": "PRIMARY_LIGHT",
         },
         42: {
             "primaryColor": "#EF0107",
             "secondaryColor": "#063672",
             "accentColor": "#9C824A",
+            "scoreboardColorMode": "PRIMARY_LIGHT",
         },
     }
     session.execute.assert_called_once()
@@ -117,6 +121,7 @@ def test_normalize_lineups_includes_nullable_primary_color() -> None:
                 "primaryColor": "#C8102E",
                 "secondaryColor": "#F6EB61",
                 "accentColor": "#00B2A9",
+                "scoreboardColorMode": "PRIMARY_LIGHT",
             }
         },
     )
@@ -124,6 +129,8 @@ def test_normalize_lineups_includes_nullable_primary_color() -> None:
     assert result[0]["primaryColor"] == "#C8102E"
     assert result[0]["secondaryColor"] == "#F6EB61"
     assert result[0]["accentColor"] == "#00B2A9"
+    assert result[0]["scoreboardColorMode"] == "PRIMARY_LIGHT"
     assert result[1]["primaryColor"] is None
     assert result[1]["secondaryColor"] is None
     assert result[1]["accentColor"] is None
+    assert result[1]["scoreboardColorMode"] is None

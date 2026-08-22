@@ -4,6 +4,7 @@ import goalIconUrl from '@/assets/broadcast/goal-soccer-ball.svg?url'
 import redCardIconUrl from '@/assets/broadcast/red-card.svg?url'
 import substitutionIconUrl from '@/assets/broadcast/substitution.svg?url'
 import yellowCardIconUrl from '@/assets/broadcast/yellow-card.svg?url'
+import eaglekopLogoUrl from '../../assets/eaglekop_logo.png?url'
 import BroadcastStatsBoard from '@/components/broadcast/BroadcastStatsBoard.vue'
 import {
   API_FOOTBALL_LIVE_POLL_MS,
@@ -74,6 +75,7 @@ type LineupSide = {
   primaryColor?: string | null
   secondaryColor?: string | null
   accentColor?: string | null
+  scoreboardColorMode?: 'PRIMARY_LIGHT' | 'SECONDARY' | null
   shape: string
   players: PlayerNode[]
 }
@@ -592,8 +594,16 @@ const awayBroadcastCode = computed(() => {
 })
 const homeScoreboardName = computed(() => match.value ? shortTeamLabel(match.value.homeCode, match.value.home) : '')
 const awayScoreboardName = computed(() => match.value ? shortTeamLabel(match.value.awayCode, match.value.away) : '')
+const scoreboardScores = computed(() => splitScore(match.value?.score))
+const homeScoreboardStyle = computed(() => scoreboardTeamStyle(match.value?.lineups[0]))
+const awayScoreboardStyle = computed(() => scoreboardTeamStyle(match.value?.lineups[1]))
+const scoreCoreStyle = computed<Record<string, string>>(() => ({
+  '--score-core-home': scoreboardCenterColor(match.value?.lineups[0]),
+  '--score-core-away': scoreboardCenterColor(match.value?.lineups[1]),
+}))
 const displayClock = computed(() => formatClock(manualClockSeconds.value))
 const displayAddedTime = computed(() => formatClock(manualAddedSeconds.value))
+const displayAddedTimeCompact = computed(() => `+${Math.floor(manualAddedSeconds.value / 60)}'`)
 const shouldShowEventLiveState = computed(() => liveStatus.value !== 'ready')
 const isAdminAllowed = ref(
   typeof localStorage !== 'undefined' && localStorage.getItem('mockRole') === 'ADMIN',
@@ -685,7 +695,12 @@ async function syncHiddenMomentum(fixtureId: number) {
     if (currentSnapshot?.fixtureId === fixtureId && Array.isArray(colorSnapshot.lineups)) {
       const teamColors = new Map<
         number,
-        { primaryColor?: string; secondaryColor?: string; accentColor?: string }
+        {
+          primaryColor?: string
+          secondaryColor?: string
+          accentColor?: string
+          scoreboardColorMode?: 'PRIMARY_LIGHT' | 'SECONDARY'
+        }
       >()
       colorSnapshot.lineups.forEach((lineup) => {
         if (lineup.teamId !== undefined) {
@@ -698,8 +713,18 @@ async function syncHiddenMomentum(fixtureId: number) {
           const accentColor = isValidHexColor(lineup.accentColor)
             ? lineup.accentColor
             : undefined
-          if (primaryColor || secondaryColor || accentColor) {
-            teamColors.set(lineup.teamId, { primaryColor, secondaryColor, accentColor })
+          const scoreboardColorMode = lineup.scoreboardColorMode === 'SECONDARY'
+            ? 'SECONDARY'
+            : lineup.scoreboardColorMode === 'PRIMARY_LIGHT'
+              ? 'PRIMARY_LIGHT'
+              : undefined
+          if (primaryColor || secondaryColor || accentColor || scoreboardColorMode) {
+            teamColors.set(lineup.teamId, {
+              primaryColor,
+              secondaryColor,
+              accentColor,
+              scoreboardColorMode,
+            })
           }
         }
       })
@@ -713,6 +738,7 @@ async function syncHiddenMomentum(fixtureId: number) {
           primaryColor: teamColor?.primaryColor ?? lineup.primaryColor,
           secondaryColor: teamColor?.secondaryColor ?? lineup.secondaryColor,
           accentColor: teamColor?.accentColor ?? lineup.accentColor,
+          scoreboardColorMode: teamColor?.scoreboardColorMode ?? lineup.scoreboardColorMode,
         }
       })
       const enrichedSnapshot = { ...currentSnapshot, lineups }
@@ -1039,6 +1065,7 @@ function toLineupSide(
     primaryColor: lineup.primaryColor,
     secondaryColor: lineup.secondaryColor,
     accentColor: lineup.accentColor,
+    scoreboardColorMode: lineup.scoreboardColorMode,
     shape: lineup.shape,
     players: activePlayers.map((player) => ({
       id: player.id,
@@ -1212,6 +1239,34 @@ function contrastColor(color: string): '#111111' | '#FFFFFF' {
   return hexLuminance(color) >= 150 ? '#111111' : '#FFFFFF'
 }
 
+function splitScore(score: string | undefined): { home: string; away: string } {
+  const values = score?.match(/\d+/g) ?? []
+  return {
+    home: values[0] ?? '0',
+    away: values[1] ?? '0',
+  }
+}
+
+function scoreboardTeamStyle(lineup: LineupSide | undefined): Record<string, string> {
+  if (!isValidHexColor(lineup?.primaryColor)) return {}
+
+  const primaryColor = lineup.primaryColor.toUpperCase()
+  return {
+    backgroundColor: primaryColor,
+    color: contrastColor(primaryColor),
+  }
+}
+
+function scoreboardCenterColor(lineup: LineupSide | undefined): string {
+  const fallback = isValidHexColor(theme.value.panel) ? theme.value.panel : '#32105A'
+  if (lineup?.scoreboardColorMode === 'SECONDARY' && isValidHexColor(lineup.secondaryColor)) {
+    return lineup.secondaryColor.toUpperCase()
+  }
+
+  const primaryColor = isValidHexColor(lineup?.primaryColor) ? lineup.primaryColor : fallback
+  return mixHexColor(primaryColor.toUpperCase(), '#FFFFFF', 0.22)
+}
+
 function formationPitchStyle(lineup: LineupSide): Record<string, string> {
   if (teamColorMode === 'marker-primary') {
     if (!isValidHexColor(lineup.primaryColor)) return {}
@@ -1382,6 +1437,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
             :type="theme.slug === 'premier-league' ? undefined : 'button'"
             class="score-team score-team-home"
             data-testid="score-team-home"
+            :style="homeScoreboardStyle"
             :aria-label="theme.slug === 'premier-league' ? undefined : '경기시간 일시정지'"
             :aria-pressed="theme.slug === 'premier-league' ? undefined : !isManualClockRunning"
             @click="handleHomeTeamClockControl"
@@ -1400,22 +1456,30 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
             </span>
             <strong>{{ homeScoreboardName }}</strong>
           </component>
-          <div class="score-core">
+          <div class="score-core" :style="scoreCoreStyle">
+            <span class="score-core-bolts score-core-bolts--left" aria-hidden="true">
+              <i></i>
+              <i></i>
+            </span>
             <span class="score-status">{{ match.status }}</span>
-            <strong class="score-number">{{ match.score }}</strong>
-            <button
-              type="button"
-              class="score-clock"
-              data-testid="manual-clock-button"
-              @click="requestTimeInput('clock')"
-            >
-              {{ displayClock }}
-            </button>
+            <span class="score-core-bolts score-core-bolts--right" aria-hidden="true">
+              <i></i>
+              <i></i>
+            </span>
           </div>
+          <button
+            type="button"
+            class="score-clock"
+            data-testid="manual-clock-button"
+            @click="requestTimeInput('clock')"
+          >
+            <strong>{{ displayClock }}</strong>
+          </button>
           <button
             type="button"
             class="score-team score-team-away"
             data-testid="score-team-away"
+            :style="awayScoreboardStyle"
             :aria-label="
               theme.slug === 'premier-league'
                 ? isManualClockRunning
@@ -1440,14 +1504,33 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
               </span>
             </span>
           </button>
+          <div
+            class="scoreboard-score scoreboard-score--home"
+            data-testid="scoreboard-home-score"
+            aria-label="홈팀 점수"
+          >
+            {{ scoreboardScores.home }}
+          </div>
+          <img
+            class="scoreboard-center-logo"
+            :src="eaglekopLogoUrl"
+            alt=""
+            aria-hidden="true"
+          />
+          <div
+            class="scoreboard-score scoreboard-score--away"
+            data-testid="scoreboard-away-score"
+            aria-label="원정팀 점수"
+          >
+            {{ scoreboardScores.away }}
+          </div>
           <button
             type="button"
             class="score-added-time"
             data-testid="manual-added-time-button"
             @click="requestTimeInput('added')"
           >
-            <span>추가시간</span>
-            <strong>{{ displayAddedTime }}</strong>
+            <strong>{{ displayAddedTimeCompact }}</strong>
           </button>
         </template>
         <div v-else class="live-state live-state--score" data-testid="broadcast-live-state">
@@ -1792,7 +1875,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .top-left-slot,
 .chat-reserve {
-  flex: 0 0 22%;
+  flex: 0 0 29%;
   height: 100%;
   display: flex;
   align-items: center;
@@ -1816,7 +1899,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .scoreboard {
   position: relative;
-  flex: 0 0 56%;
+  flex: 0 0 42%;
   min-height: 52%;
   display: flex;
   align-items: stretch;
@@ -1850,13 +1933,12 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   flex: 1 1 34%;
   gap: 5%;
   padding: 0 3%;
-  font-size: 1.7rem;
   background: var(--panel);
   border: 0;
   color: var(--text);
   cursor: pointer;
   font: inherit;
-  font-size: 1.7rem;
+  font-size: 2.5rem;
   font-weight: 950;
   letter-spacing: 0;
 }
@@ -1868,6 +1950,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 .score-team strong {
   min-width: 0;
   overflow: hidden;
+  color: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2017,7 +2100,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 0.7rem;
 }
 
@@ -2096,13 +2179,17 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   margin: 3%;
   background: var(--team-pitch, var(--pitch));
   border: 0.14rem solid var(--muted);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .pitch-stripes,
 .field-markings {
   position: absolute;
   inset: 0;
+}
+
+.field-markings {
+  overflow: hidden;
 }
 
 .pitch-stripes {
@@ -2241,6 +2328,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   flex-direction: column;
   align-items: center;
   gap: 0.1rem;
+  overflow: visible;
   transform: translate(-50%, -50%);
   z-index: 2;
 }
@@ -2252,11 +2340,12 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   justify-content: center;
   width: 3.8rem;
   height: 3rem;
+  overflow: visible;
 }
 
 .rating-chip {
   position: absolute;
-  left: 0.28rem;
+  left: -0.24rem;
   bottom: 0.1rem;
   min-width: 1.8rem;
   height: 1.05rem;
@@ -2273,8 +2362,8 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
     );
   border: 0.08rem solid var(--rating-border, var(--accent-alt));
   color: #FFFFFF;
-  font-size: 0.62rem;
-  font-weight: 900;
+  font-size: 0.93rem;
+  font-weight: 675;
   line-height: 1;
   text-shadow: 0 0.06rem 0.08rem rgba(0, 0, 0, 0.85);
   box-shadow:
@@ -2291,24 +2380,30 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   justify-content: center;
   width: 2.62rem;
   aspect-ratio: 1;
+  overflow: visible;
   border-radius: 50%;
   background: var(--team-player, var(--accent));
   border: 0.13rem solid var(--team-player-border, var(--accent-alt));
   color: var(--team-player-text, var(--text));
-  font-size: 1.1rem;
-  font-weight: 900;
+  font-size: 2rem;
+  font-weight: 675;
+  line-height: 1;
   box-shadow: 0.16rem 0.16rem 0 #000000;
 }
 
 .goal-history {
   position: absolute;
-  left: 0.28rem;
+  left: -0.24rem;
   top: 0.02rem;
   width: 1.46rem;
   height: 1.46rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 0.12rem solid #FFFFFF;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.82);
+  box-shadow: 0.1rem 0.1rem 0 #000000;
   z-index: 3;
 }
 
@@ -2341,7 +2436,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .player-status-icons {
   position: absolute;
-  right: 0.2rem;
+  right: -0.32rem;
   top: 0.12rem;
   width: 1.34rem;
   height: 3.05rem;
@@ -2380,13 +2475,15 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 .player-name {
   min-width: 3.05rem;
   padding: 0.12rem 0.34rem;
+  overflow: visible;
   border-radius: 0.35rem;
   background: #000000;
   color: #FFFFFF;
-  font-size: 0.72rem;
+  font-size: 0.936rem;
   font-weight: 800;
   text-align: center;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .character-safe-zone {
@@ -2725,18 +2822,16 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   overflow: visible;
   display: grid;
   grid-template-columns:
-    minmax(5.5rem, 0.9fr)
     5rem
-    minmax(0, 1.25fr)
-    minmax(6rem, 1.25fr)
-    minmax(0, 1.25fr)
-    5rem
-    minmax(5.5rem, 0.9fr);
+    minmax(0, 1fr)
+    11rem
+    minmax(0, 1fr)
+    5rem;
   grid-template-rows: 1fr;
   align-items: center;
   background: var(--dark);
   border-color: var(--accent-alt);
-  border-radius: 999rem;
+  border-radius: 0.65rem;
 }
 
 .broadcast-stage[data-league='premier-league'] .score-team {
@@ -2751,14 +2846,16 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .broadcast-stage[data-league='premier-league'] .score-team-home {
-  grid-column: 2 / 4;
+  grid-column: 1 / 3;
   grid-template-columns: 5rem minmax(0, 1fr);
+  border-radius: 0.45rem 0 0 0.45rem;
   cursor: default;
 }
 
 .broadcast-stage[data-league='premier-league'] .score-team-away {
-  grid-column: 5 / 7;
+  grid-column: 4 / 6;
   grid-template-columns: minmax(0, 1fr) 5rem;
+  border-radius: 0 0.45rem 0.45rem 0;
 }
 
 .broadcast-stage[data-league='premier-league'] .score-team strong {
@@ -2775,8 +2872,61 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   padding-inline: 0.4rem;
 }
 
+.broadcast-stage[data-league='premier-league'] .score-team-home .team-code-slot {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, transparent 42%);
+}
+
+.broadcast-stage[data-league='premier-league'] .score-team-away .team-code-slot {
+  background: linear-gradient(270deg, rgba(255, 255, 255, 0.3) 0%, transparent 42%);
+}
+
 .broadcast-stage[data-league='premier-league'] .score-core {
-  display: contents;
+  position: relative;
+  z-index: 2;
+  grid-column: 3;
+  grid-row: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--score-core-home, var(--panel)) 0 50%,
+    var(--score-core-away, var(--panel)) 50% 100%
+  );
+  border: 0;
+}
+
+.broadcast-stage[data-league='premier-league'] .score-core-bolts {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: auto;
+  height: 100%;
+  aspect-ratio: 1 / 2;
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.broadcast-stage[data-league='premier-league'] .score-core-bolts i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--score-core-away, var(--panel));
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+}
+
+.broadcast-stage[data-league='premier-league'] .score-core-bolts--left {
+  right: 100%;
+}
+
+.broadcast-stage[data-league='premier-league'] .score-core-bolts--left i {
+  background: var(--score-core-home, var(--panel));
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.broadcast-stage[data-league='premier-league'] .score-core-bolts--right {
+  left: 100%;
 }
 
 .broadcast-stage[data-league='premier-league'] .score-status {
@@ -3141,7 +3291,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   padding: 0.58rem 0.9rem 0.72rem;
   background: #0B2D92;
   border: 0;
-  font-size: 1.5rem;
+  font-size: 2.5rem;
   text-align: center;
 }
 
@@ -3484,6 +3634,120 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 .broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .center-spot,
 .broadcast-stage[data-team-color-mode='full'] .formation-card[data-team-color='true'] .penalty-spot {
   background: var(--team-field-line);
+}
+
+/* Eaglekop score lockup: the character replaces the separator and breaks the board silhouette. */
+.broadcast-stage .scoreboard {
+  overflow: visible;
+}
+
+.broadcast-stage .scoreboard > .scoreboard-center-logo,
+.broadcast-stage .scoreboard > .scoreboard-score {
+  position: absolute;
+  top: 50%;
+  pointer-events: none;
+}
+
+.broadcast-stage .scoreboard > .scoreboard-center-logo {
+  left: calc(50% - 4px);
+  z-index: 6;
+  display: block;
+  height: 130%;
+  width: auto;
+  max-width: none;
+  object-fit: contain;
+  filter: drop-shadow(0.18rem 0.24rem 0 rgba(0, 0, 0, 0.46));
+  transform: translate(-50%, -50%);
+}
+
+.broadcast-stage .scoreboard > .scoreboard-score {
+  left: 50%;
+  z-index: 5;
+  height: 120%;
+  aspect-ratio: 0.55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 0.06em;
+  color: #FFFFFF;
+  font-family: 'Avenir Next Condensed', 'DIN Condensed', 'Pretendard', sans-serif;
+  font-size: clamp(2.35rem, 3.75vw, 4.9rem);
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-shadow:
+    0 0.08em 0.04em rgba(0, 0, 0, 0.82),
+    0 0 0.12em rgba(0, 0, 0, 0.48);
+}
+
+.broadcast-stage .scoreboard > .scoreboard-score--home {
+  transform: translate(-202%, -50%);
+}
+
+.broadcast-stage .scoreboard > .scoreboard-score--away {
+  transform: translate(102%, -50%);
+}
+
+.broadcast-stage[data-revision='material'] .scoreboard > .scoreboard-center-logo,
+.broadcast-stage[data-revision='material'] .scoreboard > .scoreboard-score {
+  z-index: 5;
+}
+
+.broadcast-stage[data-revision='material'] .scoreboard > .scoreboard-center-logo {
+  z-index: 6;
+}
+
+/* Match-time dock: a vertical stack centered beneath the Eaglekop badge. */
+.broadcast-stage[data-revision][data-league] .scoreboard > .score-clock,
+.broadcast-stage[data-revision][data-league] .scoreboard > .score-added-time {
+  position: absolute;
+  bottom: auto;
+  z-index: 4;
+  left: calc(50% - 4px);
+  width: 7.4rem;
+  height: 2.35rem;
+  display: flex;
+  grid-column: auto;
+  grid-row: auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0.12rem 0.55rem;
+  background: #16091F;
+  border: 0;
+  color: #FFFFFF;
+  font-weight: 950;
+  text-align: center;
+  transform: translateX(-50%);
+  box-shadow: none;
+}
+
+.broadcast-stage[data-revision][data-league] .scoreboard > .score-clock {
+  top: calc(100% + 0.12rem);
+  border-radius: 0;
+}
+
+.broadcast-stage[data-revision][data-league='premier-league'] .scoreboard > .score-clock {
+  background: var(--panel);
+}
+
+.broadcast-stage[data-revision][data-league] .scoreboard > .score-added-time {
+  top: calc(100% + 2.47rem);
+  background: linear-gradient(to top right, #FF7A00 0%, #7138C8 100%);
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+.broadcast-stage[data-revision][data-league] .scoreboard > .score-clock strong,
+.broadcast-stage[data-revision][data-league] .scoreboard > .score-added-time strong {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.broadcast-stage[data-revision][data-league='europa-league'] .scoreboard > .score-clock {
+  transform: translateX(-50%) skewX(5deg);
+}
+
+.broadcast-stage[data-revision][data-league='europa-league'] .scoreboard > .score-added-time {
+  transform: translateX(-50%) skewX(5deg);
 }
 
 @keyframes event-rise {
