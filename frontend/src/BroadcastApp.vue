@@ -4,7 +4,7 @@ import goalIconUrl from '@/assets/broadcast/goal-soccer-ball.svg?url'
 import redCardIconUrl from '@/assets/broadcast/red-card.svg?url'
 import substitutionIconUrl from '@/assets/broadcast/substitution.svg?url'
 import yellowCardIconUrl from '@/assets/broadcast/yellow-card.svg?url'
-import eaglekopLogoUrl from '../../assets/eaglekop_logo.png?url'
+import eaglekopLogoUrl from '@/assets/eaglekop_logo.png?url'
 import BroadcastStatsBoard from '@/components/broadcast/BroadcastStatsBoard.vue'
 import {
   API_FOOTBALL_LIVE_POLL_MS,
