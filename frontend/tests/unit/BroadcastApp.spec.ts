@@ -380,6 +380,7 @@ describe('BroadcastApp', () => {
     standoutRating = '8.2'
     fixtureEvents = defaultFixtureEvents()
     vi.useRealTimers()
+    vi.restoreAllMocks()
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
     vi.resetModules()
@@ -820,7 +821,8 @@ describe('BroadcastApp', () => {
     vi.advanceTimersByTime(6_800)
     await nextTick()
 
-    expect(wrapper.get('[data-testid=event-logo-circle]').text()).toBe('한국')
+    expect(wrapper.get('[data-testid=event-logo-circle]').attributes('aria-label')).toBe('한국')
+    expect(wrapper.get('[data-testid=event-logo-circle] img').attributes('src')).toBe('api-home-logo')
     expect(wrapper.get('[data-testid=event-title]').text()).toContain("64'")
     expect(wrapper.get('[data-testid=event-detail]').text()).toContain('손흥민')
 
@@ -830,6 +832,61 @@ describe('BroadcastApp', () => {
 
     expect(wrapper.get('[data-testid=event-toast]').text()).toContain("66'")
     expect(wrapper.get('[data-testid=event-toast]').text()).toContain('네이마르')
+  })
+
+  it('shows the existing event formats with macOS command shortcuts', async () => {
+    vi.spyOn(window.navigator, 'platform', 'get').mockReturnValue('MacIntel')
+    const wrapper = await mountBroadcast('?fixtureId=260506&league=premier-league')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, cancelable: true }))
+    await nextTick()
+    expect(wrapper.get('[data-testid=event-toast]').classes()).toContain('event-toast--goal')
+    expect(wrapper.get('[data-testid=event-title]').text()).toContain('득점')
+    expect(wrapper.get('[data-testid=event-logo-circle] img').attributes('src')).toBe('api-home-logo')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', metaKey: true, cancelable: true }))
+    await nextTick()
+    expect(wrapper.get('[data-testid=event-toast]').classes()).toContain('event-toast--substitution')
+    expect(wrapper.get('[data-testid=event-toast]').text()).toContain('교체아웃')
+    expect(wrapper.get('[data-testid=event-toast]').text()).toContain('교체투입')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', metaKey: true, cancelable: true }))
+    await nextTick()
+    expect(wrapper.get('[data-testid=event-toast]').classes()).toContain('event-toast--yellow-card')
+    expect(wrapper.get('[data-testid=event-toast]').text()).toContain('경고')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', metaKey: true, cancelable: true }))
+    await nextTick()
+    expect(wrapper.get('[data-testid=event-toast]').classes()).toContain('event-toast--var')
+    expect(wrapper.get('[data-testid=event-toast]').text()).toContain('VAR 판독')
+  })
+
+  it('does not register command event shortcuts outside macOS', async () => {
+    vi.spyOn(window.navigator, 'platform', 'get').mockReturnValue('Win32')
+    const wrapper = await mountBroadcast('?fixtureId=260506&league=premier-league')
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, cancelable: true }))
+    await nextTick()
+
+    expect(wrapper.find('[data-testid=event-toast]').exists()).toBe(false)
+  })
+
+  it('ignores macOS command event shortcuts from editable elements', async () => {
+    vi.spyOn(window.navigator, 'platform', 'get').mockReturnValue('MacIntel')
+    const wrapper = await mountBroadcast('?fixtureId=260506&league=premier-league')
+    const input = document.createElement('input')
+    document.body.append(input)
+
+    input.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'z',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    }))
+    await nextTick()
+
+    expect(wrapper.find('[data-testid=event-toast]').exists()).toBe(false)
+    input.remove()
   })
 
   it('keeps broadcast UI CSS away from chroma key colors', () => {
