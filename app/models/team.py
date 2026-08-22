@@ -86,6 +86,10 @@ class TeamColor(Base):
             "accent_color IS NULL OR accent_color ~ '^#[0-9A-Fa-f]{6}$'",
             name="team_color_accent_hex_check",
         ),
+        CheckConstraint(
+            "scoreboard_color_mode IN ('PRIMARY_LIGHT', 'SECONDARY')",
+            name="team_color_scoreboard_color_mode_check",
+        ),
     )
 
     id: Mapped[int] = mapped_column(
@@ -97,6 +101,9 @@ class TeamColor(Base):
     primary_color: Mapped[str] = mapped_column(String(7), nullable=False)
     secondary_color: Mapped[str | None] = mapped_column(String(7))
     accent_color: Mapped[str | None] = mapped_column(String(7))
+    scoreboard_color_mode: Mapped[str] = mapped_column(
+        String(24), nullable=False, server_default="PRIMARY_LIGHT"
+    )
     source_url: Mapped[str | None] = mapped_column(Text)
     verified_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[object] = mapped_column(

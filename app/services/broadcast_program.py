@@ -688,6 +688,7 @@ def _normalize_lineups(
             "primaryColor": team_palette.get("primaryColor"),
             "secondaryColor": team_palette.get("secondaryColor"),
             "accentColor": team_palette.get("accentColor"),
+            "scoreboardColorMode": team_palette.get("scoreboardColorMode"),
             "shape": lineup.get("formation") or "4-3-3",
             "coach": _normalize_coach(coach, translations),
             "players": [],
@@ -720,6 +721,7 @@ def _lookup_team_colors(
             TeamColor.primary_color,
             TeamColor.secondary_color,
             TeamColor.accent_color,
+            TeamColor.scoreboard_color_mode,
         )
         .join(TeamColor, TeamColor.team_id == Team.id)
         .where(Team.external_id.in_(cleaned_ids))
@@ -729,6 +731,7 @@ def _lookup_team_colors(
             "primaryColor": row.primary_color,
             "secondaryColor": row.secondary_color,
             "accentColor": row.accent_color,
+            "scoreboardColorMode": row.scoreboard_color_mode,
         }
         for row in rows
     }

@@ -125,6 +125,7 @@ def test_team_color_upgrade_seeds_and_joins_all_20_epl_teams(
             "primary_color",
             "secondary_color",
             "accent_color",
+            "scoreboard_color_mode",
             "source_url",
             "verified_at",
             "created_at",
@@ -143,6 +144,7 @@ def test_team_color_upgrade_seeds_and_joins_all_20_epl_teams(
                     tc.primary_color,
                     tc.secondary_color,
                     tc.accent_color,
+                    tc.scoreboard_color_mode,
                     tc.source_url,
                     tc.verified_at
                 FROM team t
@@ -159,6 +161,16 @@ def test_team_color_upgrade_seeds_and_joins_all_20_epl_teams(
         assert all(row["team_id"] > 0 for row in rows)
         assert all(row["source_url"] for row in rows)
         assert all(row["verified_at"] is not None for row in rows)
+        secondary_mode_external_ids = {
+            row["external_id"]
+            for row in rows
+            if row["scoreboard_color_mode"] == "SECONDARY"
+        }
+        assert secondary_mode_external_ids == {35, 47, 50, 52, 55, 63, 66, 746}
+        assert all(
+            row["scoreboard_color_mode"] in {"PRIMARY_LIGHT", "SECONDARY"}
+            for row in rows
+        )
 
         arsenal = next(row for row in rows if row["external_id"] == 42)
         assert arsenal["primary_color"] == "#EF0107"

@@ -25,6 +25,20 @@ def _load_migration_module():
     return module
 
 
+def _load_scoreboard_mode_migration_module():
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "alembic"
+        / "versions"
+        / "0016_team_color_scoreboard_mode.py"
+    )
+    spec = importlib.util.spec_from_file_location("team_color_scoreboard_mode_migration", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 @pytest.fixture(scope="module")
 def table():
     from app.models import Base, TeamColor  # noqa: F401
@@ -39,6 +53,7 @@ def test_team_color_columns_and_types(table):
         "primary_color",
         "secondary_color",
         "accent_color",
+        "scoreboard_color_mode",
         "source_url",
         "verified_at",
         "created_at",
@@ -50,6 +65,9 @@ def test_team_color_columns_and_types(table):
     assert table.columns["primary_color"].nullable is False
     assert table.columns["secondary_color"].nullable is True
     assert table.columns["accent_color"].nullable is True
+    assert isinstance(table.columns["scoreboard_color_mode"].type, String)
+    assert table.columns["scoreboard_color_mode"].type.length == 24
+    assert table.columns["scoreboard_color_mode"].nullable is False
     assert isinstance(table.columns["source_url"].type, Text)
     assert isinstance(table.columns["verified_at"].type, DateTime)
     assert table.columns["created_at"].server_default is not None
@@ -80,8 +98,32 @@ def test_team_color_hex_checks_are_declared(table):
         "team_color_primary_hex_check",
         "team_color_secondary_hex_check",
         "team_color_accent_hex_check",
+        "team_color_scoreboard_color_mode_check",
     }
-    assert all("[0-9A-Fa-f]{6}" in expression for expression in checks.values())
+    assert all(
+        "[0-9A-Fa-f]{6}" in checks[name]
+        for name in (
+            "team_color_primary_hex_check",
+            "team_color_secondary_hex_check",
+            "team_color_accent_hex_check",
+        )
+    )
+    assert "PRIMARY_LIGHT" in checks["team_color_scoreboard_color_mode_check"]
+    assert "SECONDARY" in checks["team_color_scoreboard_color_mode_check"]
+
+
+def test_scoreboard_secondary_mode_matches_reference_clubs():
+    migration = _load_scoreboard_mode_migration_module()
+    assert set(migration.SECONDARY_SCOREBOARD_TEAM_EXTERNAL_IDS) == {
+        35,
+        47,
+        50,
+        52,
+        55,
+        63,
+        66,
+        746,
+    }
 
 
 def test_epl_seed_has_20_unique_team_external_ids_and_valid_colors():

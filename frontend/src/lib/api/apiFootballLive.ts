@@ -274,6 +274,7 @@ export type ApiFootballBroadcastLineup = {
   primaryColor?: string | null
   secondaryColor?: string | null
   accentColor?: string | null
+  scoreboardColorMode?: 'PRIMARY_LIGHT' | 'SECONDARY' | null
   shape: string
   coach?: ApiFootballBroadcastCoach
   players: ApiFootballBroadcastLineupPlayer[]
@@ -1460,6 +1461,7 @@ export async function fetchApiFootballBroadcastLineupsSnapshot(
           primaryColor: lineup.primaryColor,
           secondaryColor: lineup.secondaryColor,
           accentColor: lineup.accentColor,
+          scoreboardColorMode: lineup.scoreboardColorMode,
         },
       ]),
   )
@@ -1477,6 +1479,9 @@ export async function fetchApiFootballBroadcastLineupsSnapshot(
     accentColor: lineup.teamId !== undefined
       ? teamColors.get(lineup.teamId)?.accentColor ?? lineup.accentColor
       : lineup.accentColor,
+    scoreboardColorMode: lineup.teamId !== undefined
+      ? teamColors.get(lineup.teamId)?.scoreboardColorMode ?? lineup.scoreboardColorMode
+      : lineup.scoreboardColorMode,
   }))
 
   return applyBroadcastTranslations({
