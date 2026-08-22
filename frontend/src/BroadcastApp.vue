@@ -90,6 +90,7 @@ type BroadcastEvent = {
   kind: BroadcastEventKind
   teamCode: string
   opponentCode?: string
+  teamLogoUrl?: string
   minute: string
   title: string
   detail: string
@@ -562,6 +563,7 @@ let livePollingTimer: number | undefined
 let manualClockTimer: number | undefined
 let lastLineupsRefreshAt = 0
 let hiddenMomentumSyncInFlight = false
+let developmentEventSequence = 0
 const themeVars = computed<Record<string, string>>(() => ({
   '--panel': theme.value.panel,
   '--panel-alt': theme.value.panelAlt,
@@ -600,6 +602,10 @@ const isAdminAllowed = ref(
 onMounted(() => {
   if (!isAdminAllowed.value) return
 
+  if (import.meta.env.DEV && isMacOS()) {
+    window.addEventListener('keydown', handleDevelopmentEventShortcut)
+  }
+
   void refreshApiFootballLive()
   if (shouldUseApiFootballLive()) {
     livePollingTimer = window.setInterval(() => {
@@ -619,6 +625,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleDevelopmentEventShortcut)
   if (eventTimer !== undefined) {
     window.clearInterval(eventTimer)
   }
@@ -759,6 +766,112 @@ function showNextQueuedEvent() {
   }
 
   activeNotificationEvent.value = nextEvent
+}
+
+type DevelopmentEventShortcut = 'goal' | 'substitution' | 'yellow-card' | 'var'
+
+const developmentEventShortcuts: Record<string, DevelopmentEventShortcut> = {
+  z: 'goal',
+  x: 'substitution',
+  c: 'yellow-card',
+  v: 'var',
+}
+
+function isMacOS(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Mac/i.test(navigator.platform) || /Macintosh/i.test(navigator.userAgent)
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tagName = target.tagName.toLowerCase()
+  return tagName === 'input'
+    || tagName === 'select'
+    || tagName === 'textarea'
+    || target.isContentEditable
+}
+
+function handleDevelopmentEventShortcut(event: KeyboardEvent) {
+  if (
+    !event.metaKey
+    || event.ctrlKey
+    || event.altKey
+    || event.shiftKey
+    || event.repeat
+    || isEditableKeyboardTarget(event.target)
+  ) {
+    return
+  }
+
+  const kind = developmentEventShortcuts[event.key.toLowerCase()]
+  if (!kind || !match.value) return
+
+  event.preventDefault()
+  activeNotificationEvent.value = createDevelopmentEvent(kind, match.value)
+}
+
+function createDevelopmentEvent(
+  kind: DevelopmentEventShortcut,
+  currentMatch: BroadcastMatch,
+): BroadcastEvent {
+  developmentEventSequence += 1
+  const existingEvent = [...currentMatch.events].reverse().find((event) => event.kind === kind)
+  if (existingEvent) {
+    return {
+      ...existingEvent,
+      id: `development-${kind}-${developmentEventSequence}`,
+    }
+  }
+
+  const homeLineup = currentMatch.lineups[0]
+  const featuredPlayer = homeLineup?.players.find((player) => player.pos === 'F')
+    ?? homeLineup?.players.at(-1)
+  const outgoingPlayer = homeLineup?.players.find((player) => player.pos === 'M')
+    ?? featuredPlayer
+  const teamCode = homeBroadcastCode.value || currentMatch.homeCode || 'HOME'
+  const opponentCode = awayBroadcastCode.value || currentMatch.awayCode || 'AWAY'
+  const minuteValue = Number.parseInt(displayClock.value.split(':')[0] ?? '', 10)
+  const minute = Number.isFinite(minuteValue) ? `${minuteValue}'` : "0'"
+  const baseEvent = {
+    id: `development-${kind}-${developmentEventSequence}`,
+    kind,
+    teamCode,
+    opponentCode,
+    teamLogoUrl: currentMatch.homeLogoUrl,
+    minute,
+    score: currentMatch.score,
+  }
+
+  if (kind === 'goal') {
+    return {
+      ...baseEvent,
+      title: '득점',
+      detail: '개발용 골 이벤트',
+      player: featuredPlayer?.name ?? '득점 선수',
+    }
+  }
+  if (kind === 'substitution') {
+    return {
+      ...baseEvent,
+      title: '선수 교체',
+      detail: '개발용 교체 이벤트',
+      outPlayer: outgoingPlayer?.name ?? '교체 아웃 선수',
+      inPlayer: '교체 투입 선수',
+    }
+  }
+  if (kind === 'yellow-card') {
+    return {
+      ...baseEvent,
+      title: '경고',
+      detail: 'Yellow Card',
+      player: featuredPlayer?.name ?? '경고 선수',
+    }
+  }
+  return {
+    ...baseEvent,
+    title: 'VAR 판독',
+    detail: '페널티 여부 확인 중',
+  }
 }
 
 function createBroadcastMatchFromSnapshot(snapshot: ApiFootballBroadcastSnapshot): BroadcastMatch {
@@ -1042,6 +1155,7 @@ function toBroadcastEvent(
     kind: toBroadcastEventKind(event),
     teamCode: event.teamCode,
     opponentCode: event.opponentCode,
+    teamLogoUrl: event.teamLogoUrl,
     minute: event.minute,
     title: event.title,
     detail: event.detail,
@@ -1545,8 +1659,19 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
             </template>
 
             <template v-else>
-              <div class="event-logo-circle" data-testid="event-logo-circle">
-                <span>{{ currentEvent.teamCode }}</span>
+              <div
+                class="event-logo-circle"
+                data-testid="event-logo-circle"
+                :aria-label="currentEvent.teamCode"
+              >
+                <img
+                  v-if="currentEvent.teamLogoUrl"
+                  class="event-team-logo"
+                  :src="currentEvent.teamLogoUrl"
+                  alt=""
+                  aria-hidden="true"
+                />
+                <span v-else>{{ currentEvent.teamCode }}</span>
               </div>
               <div class="event-card">
                 <div class="event-title-box" data-testid="event-title">
@@ -2295,11 +2420,21 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   justify-content: center;
   aspect-ratio: 1;
   align-self: center;
+  overflow: hidden;
   border-radius: 50%;
   background: var(--dark);
   border: 0.25rem solid var(--accent-alt);
   box-shadow: 0.35rem 0.35rem 0 #000000;
   z-index: 2;
+}
+
+.event-team-logo {
+  display: block;
+  flex: 0 0 auto;
+  width: 90%;
+  height: 90%;
+  max-width: none;
+  object-fit: contain;
 }
 
 .event-logo-circle span {
@@ -2420,9 +2555,13 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   flex: 0 0 28%;
   flex-direction: column;
   gap: 0.12rem;
-  background: var(--border);
-  border: 0.12rem solid var(--dark);
-  color: var(--dark);
+  background: var(--dark);
+  border: 0.12rem solid var(--accent-alt);
+  color: #FFFFFF;
+}
+
+.sub-core span {
+  color: var(--accent-alt);
 }
 
 .sub-core img {
