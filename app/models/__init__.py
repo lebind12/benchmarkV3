@@ -12,7 +12,7 @@ from app.models.league import ApiFootballLeagueCatalog, League, LeagueSyncTarget
 from app.models.news_article import NewsArticle
 from app.models.player import Player, PlayerSeasonStat, PlayerTranslation
 from app.models.standings import Standings
-from app.models.team import Team, TeamSeason, TeamTranslation
+from app.models.team import Team, TeamColor, TeamSeason, TeamTranslation
 from app.models.transfer import Transfer
 from app.models.venue import Venue
 from app.models.worker_sync_log import WorkerSyncLog
@@ -26,6 +26,7 @@ __all__ = [
     "LeagueSyncTarget",
     "Venue",
     "Team",
+    "TeamColor",
     "TeamTranslation",
     "TeamSeason",
     "Coach",
@@ -36,6 +37,7 @@ __all__ = [
     "PlayerSeasonStat",
     "Fixture",
     "FixtureDetail",
+    "H2HFixture",
     "Standings",
     "AppUser",
     "Transfer",

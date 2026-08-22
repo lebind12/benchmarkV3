@@ -99,6 +99,9 @@ lineups[]
   teamId
   name
   code
+  primaryColor
+  secondaryColor
+  accentColor
   shape
   coach
     id
@@ -130,6 +133,12 @@ lineups[]
 Backend responsibilities:
 
 - Normalize `startXI` into `players`.
+- Resolve `primaryColor` from `team_color.primary_color` by API-Football team ID;
+  return `null` when the team has no curated color.
+- Resolve `secondaryColor` from `team_color.secondary_color` for formation player
+  markers; return `null` when it is not curated.
+- Resolve `accentColor` from `team_color.accent_color` for existing formation
+  borders and badges; return `null` when it is not curated.
 - Build `substituteNumbers` from API-Football substitutes.
 - Merge `/fixtures/players` stats into lineup players.
 - Include player photos from `/fixtures/players`.

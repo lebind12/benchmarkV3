@@ -101,6 +101,7 @@ EXPECTED_TABLES = {
     "league_sync_target",
     "venue",
     "team",
+    "team_color",
     "team_translation",
     "team_season",
     "coach",
@@ -118,6 +119,7 @@ EXPECTED_TABLES = {
     "news_article",
     "h2h_fixture",
     "worker_sync_log",
+    "broadcast_momentum_state",
 }
 
 

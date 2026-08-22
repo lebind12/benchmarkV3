@@ -42,12 +42,12 @@ def _has_unique(tbl, column_name):
 
 EXPECTED_TABLES = {
     "api_football_league_catalog",
-    "league", "league_translation", "venue", "team", "team_translation",
+    "league", "league_translation", "venue", "team", "team_color", "team_translation",
     "team_season", "coach", "coach_translation", "team_coach",
     "player", "player_translation", "player_season_stat",
     "fixture", "fixture_detail", "standings", "app_user",
     "transfer", "injury", "news_article",
-    "h2h_fixture", "league_sync_target", "worker_sync_log",
+    "h2h_fixture", "league_sync_target", "worker_sync_log", "broadcast_momentum_state",
 }
 
 

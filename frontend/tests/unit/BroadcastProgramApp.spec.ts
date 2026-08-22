@@ -76,6 +76,121 @@ function defaultFixtureEvents() {
 
 let fixtureEvents: ReturnType<typeof defaultFixtureEvents> = []
 
+function programSnapshot() {
+  const translatedNames = new Map<number, string>([
+    [100, '김승규'],
+    [101, '김민재'],
+    [102, '이재성'],
+    [103, '손흥민'],
+    [104, '황희찬'],
+    [105, '조규성'],
+    [106, '이강인'],
+    [107, '정우영'],
+    [108, '황인범'],
+    [109, '김진수'],
+    [110, '김문환'],
+    [111, '홍현석'],
+    [204, '네이마르'],
+  ])
+  const normalizePlayers = (team: 'home' | 'away') => lineupPlayers(team).map(({ player }) => ({
+    id: player.id,
+    no: player.number,
+    name: translatedNames.get(player.id) ?? player.name,
+    longName: translatedNames.get(player.id) ?? player.name,
+    pos: player.pos,
+    grid: player.grid,
+    eventSummary: { goals: 0, ownGoals: 0, yellowCards: 0, redCards: 0, cardLabel: '' },
+  }))
+
+  return {
+    fixtureId: 260506,
+    leagueId: 1,
+    leagueName: '월드컵',
+    leagueShortName: '월드컵',
+    season: 2026,
+    home: '대한민국',
+    away: '브라질',
+    homeId: 10,
+    awayId: 20,
+    homeCode: '한국',
+    awayCode: '브라질',
+    homeEnglishCode: 'KOR',
+    awayEnglishCode: 'BRA',
+    homeLogoUrl: 'https://example.com/korea.png',
+    awayLogoUrl: 'https://example.com/brazil.png',
+    score: '1 : 1',
+    clock: '72:00',
+    addedTime: '+2',
+    status: '후반',
+    venue: 'Live Stadium',
+    lineups: [
+      {
+        teamId: 10,
+        name: '대한민국',
+        code: '한국',
+        shape: '4-2-3-1',
+        coach: { id: 1000, name: '홍명보', longName: '홍명보' },
+        players: normalizePlayers('home'),
+        substituteNumbers: { 111: 17 },
+      },
+      {
+        teamId: 20,
+        name: '브라질',
+        code: '브라질',
+        shape: '4-3-3',
+        coach: { id: 2000, name: '안첼로티', longName: '카를로 안첼로티' },
+        players: normalizePlayers('away'),
+        substituteNumbers: {},
+      },
+    ],
+    playerRatings: {},
+    stats: [{ label: '점유율', home: '61%', away: '39%', homePct: 61, awayPct: 39 }],
+    programStats: {
+      attack: [{ id: 'possession', label: '점유율', home: '61%', away: '39%', homePct: 61, awayPct: 39 }],
+      discipline: [{ id: 'discipline', label: '징계/수비', home: '1', away: '3', homePct: 25, awayPct: 75 }],
+    },
+    events: [
+      {
+        id: 'substitution-67-106-111',
+        kind: 'substitution',
+        teamId: 10,
+        teamCode: '한국',
+        opponentCode: '브라질',
+        minute: "67'",
+        title: '선수 교체',
+        detail: '선수 교체',
+        playerId: 106,
+        player: '이강인',
+        playerShortName: '이강인',
+        playerNumber: 18,
+        assistId: 111,
+        assist: '홍현석',
+        assistShortName: '홍현석',
+        assistNumber: 17,
+        inPlayer: '홍현석',
+        inPlayerShortName: '홍현석',
+        inPlayerNumber: 17,
+        outPlayer: '이강인',
+        outPlayerShortName: '이강인',
+        outPlayerNumber: 18,
+      },
+      {
+        id: 'yellow-card-70-204',
+        kind: 'yellow-card',
+        teamId: 20,
+        teamCode: '브라질',
+        opponentCode: '한국',
+        minute: "70'",
+        title: '경고',
+        detail: 'Yellow Card',
+        playerId: 204,
+        player: '네이마르 주니오르',
+        playerShortName: '네이마르',
+      },
+    ],
+  }
+}
+
 function stubApiFootballFetch() {
   vi.stubEnv('VITE_API_FOOTBALL_KEY', 'test-key')
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
@@ -108,6 +223,10 @@ function stubApiFootballFetch() {
           2000: { name_ko: '카를로 안첼로티', short_name_ko: '안첼로티' },
         },
       })
+    }
+
+    if (url.pathname === '/api/v1/broadcast/fixtures/260506/program-snapshot') {
+      return jsonResponse(programSnapshot())
     }
 
     if (url.pathname === '/fixtures' && url.searchParams.has('id')) {
@@ -337,10 +456,13 @@ describe('BroadcastProgramApp', () => {
     input.remove()
   })
 
-  it('shows a stable empty state when live mode is unavailable', async () => {
+  it('shows a stable empty state when the backend snapshot is unavailable', async () => {
     vi.resetModules()
     localStorage.setItem('mockRole', 'ADMIN')
-    vi.stubGlobal('fetch', vi.fn())
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 503,
+    } as Response)))
     setSearch('')
 
     const { default: BroadcastProgramApp } = await import('@/BroadcastProgramApp.vue')
@@ -348,7 +470,7 @@ describe('BroadcastProgramApp', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid=program-live-empty]').text()).toContain(
-      'API-Football 라이브 모드가 설정되지 않았습니다',
+      '방송 프로그램 스냅샷 요청 실패: 503',
     )
   })
 })

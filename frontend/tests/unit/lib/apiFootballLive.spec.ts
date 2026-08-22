@@ -133,13 +133,13 @@ describe('apiFootballLive', () => {
 
     vi.stubGlobal('fetch', fetchMock)
     const {
+      fetchApiFootballBroadcastInitialSnapshot,
       fetchApiFootballBroadcastLineupsSnapshot,
       fetchApiFootballBroadcastTickSnapshot,
-      fetchApiFootballBroadcastSnapshot,
       shouldUseApiFootballLive,
     } = await import('@/lib/api/apiFootballLive')
 
-    const snapshot = await fetchApiFootballBroadcastSnapshot(123)
+    const snapshot = await fetchApiFootballBroadcastInitialSnapshot(123)
 
     expect(shouldUseApiFootballLive()).toBe(true)
     expect(fetchMock).toHaveBeenCalledTimes(6)
@@ -244,8 +244,8 @@ describe('apiFootballLive', () => {
       throw new Error(`unexpected url ${url}`)
     }))
 
-    const { fetchApiFootballBroadcastSnapshot } = await import('@/lib/api/apiFootballLive')
-    const snapshot = await fetchApiFootballBroadcastSnapshot(999)
+    const { fetchApiFootballBroadcastInitialSnapshot } = await import('@/lib/api/apiFootballLive')
+    const snapshot = await fetchApiFootballBroadcastInitialSnapshot(999)
 
     expect(snapshot.stats).toEqual([])
   })
@@ -295,8 +295,8 @@ describe('apiFootballLive', () => {
     })
 
     vi.stubGlobal('fetch', fetchMock)
-    const { fetchApiFootballBroadcastSnapshot } = await import('@/lib/api/apiFootballLive')
-    const snapshot = await fetchApiFootballBroadcastSnapshot(777)
+    const { fetchApiFootballBroadcastInitialSnapshot } = await import('@/lib/api/apiFootballLive')
+    const snapshot = await fetchApiFootballBroadcastInitialSnapshot(777)
     const requestedUrls = fetchMock.mock.calls.map(([input]) => String(input))
 
     expect(snapshot).toMatchObject({
@@ -348,8 +348,8 @@ describe('apiFootballLive', () => {
       throw new Error(`unexpected url ${url}`)
     }))
 
-    const { fetchApiFootballBroadcastSnapshot } = await import('@/lib/api/apiFootballLive')
-    const snapshot = await fetchApiFootballBroadcastSnapshot(778)
+    const { fetchApiFootballBroadcastInitialSnapshot } = await import('@/lib/api/apiFootballLive')
+    const snapshot = await fetchApiFootballBroadcastInitialSnapshot(778)
 
     expect(snapshot).toMatchObject({
       fixtureId: 778,
