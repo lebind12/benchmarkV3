@@ -546,6 +546,9 @@ const materialRevision =
   searchParams.get('revision') === 'material' || searchParams.get('material') === 'on'
 
 const theme = computed(() => themes[selectedLeague])
+const usesAwayClockToggle = computed(() =>
+  theme.value.slug === 'premier-league' || theme.value.slug === 'champions-league',
+)
 const activeMatch = ref<BroadcastMatch | null>(null)
 const activeApiFootballSnapshot = ref<ApiFootballBroadcastSnapshot | null>(null)
 const match = computed(() => activeMatch.value)
@@ -992,12 +995,12 @@ function playManualClock() {
 }
 
 function handleHomeTeamClockControl() {
-  if (theme.value.slug === 'premier-league') return
+  if (usesAwayClockToggle.value) return
   pauseManualClock()
 }
 
 function handleAwayTeamClockControl() {
-  if (theme.value.slug !== 'premier-league') {
+  if (!usesAwayClockToggle.value) {
     playManualClock()
     return
   }
@@ -1433,14 +1436,14 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
             <span></span><span></span><span></span><span></span><span></span>
           </div>
           <component
-            :is="theme.slug === 'premier-league' ? 'div' : 'button'"
-            :type="theme.slug === 'premier-league' ? undefined : 'button'"
+            :is="usesAwayClockToggle ? 'div' : 'button'"
+            :type="usesAwayClockToggle ? undefined : 'button'"
             class="score-team score-team-home"
             data-testid="score-team-home"
             :style="homeScoreboardStyle"
-            :aria-label="theme.slug === 'premier-league' ? undefined : '경기시간 일시정지'"
-            :aria-pressed="theme.slug === 'premier-league' ? undefined : !isManualClockRunning"
-            @click="handleHomeTeamClockControl"
+            :aria-label="usesAwayClockToggle ? undefined : '경기시간 일시정지'"
+            :aria-pressed="usesAwayClockToggle ? undefined : !isManualClockRunning"
+            v-on="usesAwayClockToggle ? {} : { click: handleHomeTeamClockControl }"
           >
             <span class="team-code-slot">
               <span class="team-mark country-badge" data-testid="country-badge" :aria-label="homeBroadcastCode">
@@ -1481,7 +1484,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
             data-testid="score-team-away"
             :style="awayScoreboardStyle"
             :aria-label="
-              theme.slug === 'premier-league'
+              usesAwayClockToggle
                 ? isManualClockRunning
                   ? '경기시간 일시정지'
                   : '경기시간 시작'
@@ -1564,12 +1567,6 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
           :style="formationPitchStyle(lineup)"
           data-testid="formation-card"
         >
-          <div class="formation-side-rail formation-side-rail-left">
-            {{ lineup.code }}
-          </div>
-          <div class="formation-side-rail formation-side-rail-right">
-            {{ match?.leagueShortName ?? match?.leagueName ?? theme.label }}
-          </div>
           <div class="worldcup-formation-band" data-testid="worldcup-formation-band" aria-hidden="true">
             <b class="formation-ribbon-label">{{ match?.leagueName ?? theme.label }}</b>
             <i v-if="theme.slug !== 'premier-league'" class="formation-ribbon-code">{{ lineup.code }}</i>
@@ -1783,8 +1780,8 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
           :theme-label="match.leagueName"
           :home="match.home"
           :away="match.away"
-          :home-code="homeBroadcastCode"
-          :away-code="awayBroadcastCode"
+          :home-code="match.homeEnglishCode"
+          :away-code="match.awayEnglishCode"
           :home-logo-url="match.homeLogoUrl"
           :away-logo-url="match.awayLogoUrl"
           :score="match.score"
@@ -1917,8 +1914,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .formation-ribbon-label,
-.formation-ribbon-code,
-.formation-side-rail {
+.formation-ribbon-code {
   display: none;
 }
 
@@ -1945,6 +1941,10 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .score-team-away {
   text-align: right;
+}
+
+.score-team-home:not(button) {
+  cursor: default;
 }
 
 .score-team strong {
@@ -2117,21 +2117,26 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 
 .formation-header strong {
   display: block;
-  font-size: 1.25rem;
+  font-size: 1.625rem;
   line-height: 1.1;
+}
+
+.formation-header .eyebrow {
+  font-size: calc(0.95rem * 1.3);
 }
 
 .shape-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 4.2rem;
-  height: 2rem;
+  min-width: calc(4.2rem * 1.3);
+  height: calc(2rem * 1.3);
   border-radius: 999rem;
   background: var(--accent);
   border: 0.12rem solid var(--accent-alt);
   color: var(--text);
   font: inherit;
+  font-size: 1.3rem;
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -2329,7 +2334,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   align-items: center;
   gap: 0.1rem;
   overflow: visible;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(1.3);
   z-index: 2;
 }
 
@@ -2503,6 +2508,8 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .event-toast {
+  --event-type-scale: 1.3;
+  font-size: calc(1rem * var(--event-type-scale));
   width: 100%;
   height: 100%;
   display: flex;
@@ -2543,7 +2550,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   border-radius: 50%;
   background: var(--panel-alt);
   color: var(--text);
-  font-size: 1.4rem;
+  font-size: calc(1.4rem * var(--event-type-scale));
   font-weight: 900;
 }
 
@@ -2575,19 +2582,19 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .event-title-box span {
-  font-size: 1.15rem;
+  font-size: calc(1.15rem * var(--event-type-scale));
   font-weight: 900;
 }
 
 .event-title-box strong {
-  font-size: 1.7rem;
+  font-size: calc(1.7rem * var(--event-type-scale));
 }
 
 .event-title-box i {
   margin-left: auto;
   color: var(--accent-alt);
   font-style: normal;
-  font-size: 1.22rem;
+  font-size: calc(1.22rem * var(--event-type-scale));
   font-weight: 950;
 }
 
@@ -2595,7 +2602,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   flex: 1 1 auto;
   background: var(--panel);
   color: var(--text);
-  font-size: 1.08rem;
+  font-size: calc(1.08rem * var(--event-type-scale));
   font-weight: 800;
 }
 
@@ -2639,13 +2646,13 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 .sub-out span,
 .sub-in span,
 .sub-core span {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem * var(--event-type-scale));
   font-weight: 950;
 }
 
 .sub-out strong,
 .sub-in strong {
-  font-size: 1.45rem;
+  font-size: calc(1.45rem * var(--event-type-scale));
 }
 
 .sub-core {
@@ -2667,7 +2674,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .sub-core strong {
-  font-size: 1.24rem;
+  font-size: calc(1.24rem * var(--event-type-scale));
 }
 
 .card-plate-icon {
@@ -2703,12 +2710,12 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 .card-plate-copy span,
 .card-plate-copy i {
   color: var(--accent-alt);
-  font-size: 0.82rem;
+  font-size: calc(0.82rem * var(--event-type-scale));
   font-style: normal;
 }
 
 .card-plate-copy strong {
-  font-size: 1.65rem;
+  font-size: calc(1.65rem * var(--event-type-scale));
 }
 
 .var-label,
@@ -2761,7 +2768,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
   border: 0.16rem solid var(--accent-alt);
   color: var(--dark);
   box-shadow: 0.25rem 0.25rem 0 #000000;
-  font-size: 1.3rem;
+  font-size: calc(1.3rem * var(--event-type-scale));
 }
 
 .stat-copy {
@@ -2781,13 +2788,13 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 .stat-copy span,
 .stat-copy i {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: calc(0.82rem * var(--event-type-scale));
   font-style: normal;
 }
 
 .stat-copy strong {
   color: var(--accent-alt);
-  font-size: 1.85rem;
+  font-size: calc(1.85rem * var(--event-type-scale));
 }
 
 .right-column {
@@ -2806,6 +2813,8 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 }
 
 .broadcast-stage[data-league='champions-league'] .score-team {
+  min-width: 0;
+  padding-inline: 1.5%;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
     var(--panel);
@@ -2814,6 +2823,11 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 .broadcast-stage[data-league='champions-league'] .score-core {
   background: var(--accent);
   border-color: var(--border);
+}
+
+.broadcast-stage[data-league='champions-league'] .score-team .team-mark {
+  flex-shrink: 0;
+  width: 5.25rem;
 }
 
 .broadcast-stage[data-league='premier-league'] .scoreboard {
@@ -3130,38 +3144,6 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
 .broadcast-stage[data-league='champions-league'] .formation-card,
 .broadcast-stage[data-league='europa-league'] .formation-card {
   border-color: var(--accent-alt);
-}
-
-.broadcast-stage[data-league='champions-league'] .formation-side-rail,
-.broadcast-stage[data-league='europa-league'] .formation-side-rail {
-  position: absolute;
-  top: 15%;
-  bottom: 0.9rem;
-  z-index: 7;
-  width: 0.9rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  border: 0.08rem solid var(--border);
-  color: var(--text);
-  font-size: 0.54rem;
-  font-weight: 950;
-  letter-spacing: 0;
-  writing-mode: vertical-rl;
-  pointer-events: none;
-}
-
-.broadcast-stage[data-league='champions-league'] .formation-side-rail-left,
-.broadcast-stage[data-league='europa-league'] .formation-side-rail-left {
-  left: 0.42rem;
-}
-
-.broadcast-stage[data-league='champions-league'] .formation-side-rail-right,
-.broadcast-stage[data-league='europa-league'] .formation-side-rail-right {
-  right: 0.42rem;
-  background: var(--accent-alt);
-  color: var(--dark);
 }
 
 .broadcast-stage[data-league='champions-league'] .pitch,
@@ -3535,7 +3517,7 @@ function playersForLineup(lineup: LineupSide): PlayerNode[] {
     radial-gradient(circle at 14% 12%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 30%);
 }
 
-.broadcast-stage[data-revision='material'] .formation-card > *:not(.formation-side-rail) {
+.broadcast-stage[data-revision='material'] .formation-card > * {
   position: relative;
   z-index: 2;
 }

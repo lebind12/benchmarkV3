@@ -171,3 +171,12 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 - DoD 의 `[tdd:skip:<reason>]` 태그 는 Harness 규약 (현재 사용 안 함)
 - Status 마커: `cc:TODO`, `cc:WIP`, `cc:완료 [hash]`, `blocked`
 - 본 파일은 v2 포맷 (Task / 내용 / DoD / Depends / Status)
+
+## 방송 화면 개선 (2026-09-10)
+
+| Task | 내용 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| UCL-UI-1 | 챔피언스리그 포메이션 양옆 장식선 제거, 선수 UI/헤더 1.3배 확대, EPL 스탯 UI·기능 공유, 스탯 글씨 1.3배(항목·탭·리그명 1.6배), 팀 로고 1.5배, 스탯 리그명 좌우 팀 영문 약칭 표시, 오른쪽 팀 타이머 토글 | UCL 색상 유지, 단위 테스트 45개 통과 및 빌드 확인. 최종 화면은 사용자 직접 확인(Playwright 중단 요청) | - | cc:완료 [local-ucl-broadcast-ui] |
+| BCAST-UI-2 | 유로파 포메이션 양옆 리본 제거, 6개 리그의 스탯 UI·기능·영문 약칭 공통화, 포메이션/스탯 글씨·선수·스탯 로고 크기를 현재 UCL 기준으로 통일 | 리그 색상 유지, 공통 스탯/방송 단위 테스트 69개 및 빌드 통과. Playwright 미실행, 화면은 사용자 확인 | UCL-UI-1 | cc:완료 [local-all-league-broadcast-ui] |
+| BCAST-UI-3 | 모든 리그 하단 이벤트 팝업의 글씨 1.3배 확대(득점·교체·경고·VAR·스탯) | 공통 글씨 배율 적용 및 빌드 통과. Playwright 미실행 | BCAST-UI-2 | cc:완료 [local-event-popup-type-scale] |
+| PLAYER-KO-20260910 | 미번역 선수 869명의 한국어 이름·짧은 이름과 출처를 `seeds/player_translation_pending_20260910.csv`에 기록하고 DB 반영 | NULL 행 868건 갱신, 누락 행 1건 생성. 두 번역 컬럼의 잔여 NULL 0건, 기존 비NULL 필드 21,764개 보존 확인 | - | cc:완료 [player-translation-pending-20260910] |
