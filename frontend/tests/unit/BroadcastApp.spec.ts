@@ -475,15 +475,15 @@ describe('BroadcastApp', () => {
     expect(wrapper.get('.dial-header').text()).toContain('Away')
   })
 
-  it('supports manual match clock, added time editors, and an EPL away-side timer toggle', async () => {
+  it.each(['premier-league', 'champions-league'])('supports manual time editors and an away-side timer toggle for %s', async (league) => {
     vi.useFakeTimers()
-    const wrapper = await mountBroadcast('?fixtureId=260506&league=premier-league')
+    const wrapper = await mountBroadcast(`?fixtureId=260506&league=${league}`)
     const promptSpy = vi.spyOn(window, 'prompt')
       .mockReturnValueOnce('70:15')
       .mockReturnValueOnce('+5')
 
     expect(wrapper.get('[data-testid=manual-clock-button]').text()).toContain('00:00')
-    expect(wrapper.get('[data-testid=manual-added-time-button]').text()).toContain('00:00')
+    expect(wrapper.get('[data-testid=manual-added-time-button]').text()).toContain("+0'")
 
     const homeTeam = wrapper.get('[data-testid=score-team-home]')
     const awayTeam = wrapper.get('[data-testid=score-team-away]')
@@ -491,6 +491,9 @@ describe('BroadcastApp', () => {
     expect(awayTeam.attributes('aria-label')).toBe('경기시간 시작')
 
     await awayTeam.trigger('click')
+    expect(awayTeam.attributes('aria-label')).toBe('경기시간 일시정지')
+    await homeTeam.trigger('click')
+    expect(homeTeam.attributes('aria-label')).toBeUndefined()
     expect(awayTeam.attributes('aria-label')).toBe('경기시간 일시정지')
     vi.advanceTimersByTime(2_000)
     await nextTick()
@@ -508,7 +511,7 @@ describe('BroadcastApp', () => {
 
     await wrapper.get('[data-testid=manual-added-time-button]').trigger('click')
     expect(promptSpy).toHaveBeenCalledWith('추가시간 입력', '00:00')
-    expect(wrapper.get('[data-testid=manual-added-time-button]').text()).toContain('05:00')
+    expect(wrapper.get('[data-testid=manual-added-time-button]').text()).toContain("+5'")
   })
 
   it('keeps separate home-pause and away-play controls for other broadcast themes', async () => {
@@ -591,15 +594,18 @@ describe('BroadcastApp', () => {
 
   it.each([
     ['premier-league', 'dial'],
-    ['champions-league', 'matrix'],
-    ['europa-league', 'timeline'],
-    ['carabao-cup', 'ticket'],
-    ['fa-cup', 'tower'],
-    ['world-cup-2026', 'ribbon'],
-  ])('maps %s to the recommended stats board variant', async (league, variant) => {
+    ['champions-league', 'dial'],
+    ['europa-league', 'dial'],
+    ['carabao-cup', 'dial'],
+    ['fa-cup', 'dial'],
+    ['world-cup-2026', 'dial'],
+  ])('renders the shared stats board for %s', async (league, variant) => {
     const wrapper = await mountBroadcast(`?fixtureId=260506&league=${league}`)
 
     expect(wrapper.get('[data-testid=stats-card]').attributes('data-variant')).toBe(variant)
+    expect(wrapper.findAll('[role=tab]')).toHaveLength(5)
+    expect(wrapper.get('.dial-header').text()).toContain('KOR')
+    expect(wrapper.get('.dial-header').text()).toContain('BRA')
   })
 
   it('renders live formation cards from API-Football lineups', async () => {

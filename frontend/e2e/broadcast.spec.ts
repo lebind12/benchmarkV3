@@ -19,7 +19,7 @@ test.describe('broadcast match overlay (mock)', () => {
     await expect(page.getByTestId('character-safe-zone')).toBeVisible()
     await expect(page.getByTestId('broadcast-right-column')).toBeVisible()
     await expect(page.getByTestId('event-toast')).toBeVisible()
-    await expect(page.getByTestId('stats-country-badge')).toHaveCount(2)
+    await expect(page.getByTestId(/stats-possession-(home|away)-logo/)).toHaveCount(2)
     await expect(page.getByTestId('chat-reserve')).toHaveText('')
 
     const stageBackground = await page

@@ -16,10 +16,19 @@ const stats = [
   { label: '레드카드', home: '0', away: '0', homePct: 50, awayPct: 50 },
 ]
 
-function mountBoard() {
+const leagues = [
+  'premier-league',
+  'champions-league',
+  'europa-league',
+  'carabao-cup',
+  'fa-cup',
+  'world-cup-2026',
+] as const
+
+function mountBoard(league: typeof leagues[number] = 'premier-league') {
   return mount(BroadcastStatsBoard, {
     props: {
-      league: 'premier-league',
+      league,
       themeLabel: '프리미어리그',
       home: '첼시',
       away: '토트넘',
@@ -36,13 +45,13 @@ function mountBoard() {
   })
 }
 
-describe('BroadcastStatsBoard', () => {
+describe.each(leagues)('BroadcastStatsBoard (%s)', (league) => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('renders team logos and a data-driven ring inside the Premier League possession area', async () => {
-    const wrapper = mountBoard()
+  it('renders team logos and a data-driven possession ring', async () => {
+    const wrapper = mountBoard(league)
 
     const homeLogo = wrapper.get('[data-testid=stats-possession-home-logo]')
     const awayLogo = wrapper.get('[data-testid=stats-possession-away-logo]')
@@ -71,7 +80,7 @@ describe('BroadcastStatsBoard', () => {
   })
 
   it('falls back to an even possession split while possession data is unavailable', async () => {
-    const wrapper = mountBoard()
+    const wrapper = mountBoard(league)
 
     await wrapper.setProps({ stats: stats.filter((stat) => stat.label !== '점유율') })
 
@@ -88,8 +97,8 @@ describe('BroadcastStatsBoard', () => {
     expect(wrapper.get('[data-testid=stats-possession-away-value]').text()).toBe('50%')
   })
 
-  it('groups the EPL lower stats into five tabs with three broadcast-style metrics', async () => {
-    const wrapper = mountBoard()
+  it('groups the lower stats into five tabs with three broadcast-style metrics', async () => {
+    const wrapper = mountBoard(league)
 
     expect(wrapper.findAll('[role=tab]')).toHaveLength(5)
     expect(wrapper.get('[data-testid=dial-stat-tab-attack]').attributes('aria-selected')).toBe('true')
@@ -119,7 +128,7 @@ describe('BroadcastStatsBoard', () => {
   })
 
   it('recalculates the xG scale from 120 percent of the larger value', async () => {
-    const wrapper = mountBoard()
+    const wrapper = mountBoard(league)
 
     await wrapper.setProps({
       stats: stats.map((stat) => stat.label === 'xG'
@@ -135,7 +144,7 @@ describe('BroadcastStatsBoard', () => {
   })
 
   it('keeps zero count values at zero height on a dynamic count scale', async () => {
-    const wrapper = mountBoard()
+    const wrapper = mountBoard(league)
 
     await wrapper.get('[data-testid=dial-stat-tab-discipline]').trigger('click')
     const redCardMetric = wrapper.findAll('[data-testid=dial-stat-metric]')
@@ -161,7 +170,7 @@ describe('BroadcastStatsBoard', () => {
       }),
     })
     vi.stubGlobal('fetch', fetchMock)
-    const wrapper = mountBoard()
+    const wrapper = mountBoard(league)
 
     await wrapper.get('[data-testid=dial-stat-tab-ai]').trigger('click')
     expect(fetchMock).not.toHaveBeenCalled()
