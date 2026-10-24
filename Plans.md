@@ -199,3 +199,4 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | AX-11 | 검색 읽기 경로·SQL 게이트 | 전용 role/view·SQLGlot·timeout/비용/동시성·격리 검증. 공통 인증/수집 정책 검증 선행 | AX-10 | cc:TODO |
 | AX-12 | 조회 도구·Retriever/Planner·검색 연동 | 지정 Vertex 모델·검증 bundle·실제 정답·FE 흐름 검증 | AX-9, AX-10, AX-11 | cc:TODO |
 | AX-13 | 검색 통합 인수 | 정확도·권한·부하·지연/비용·문서 정합. 배포 제외 | AX-12 | cc:TODO |
+| AX-SEARCH-WORKTREE | AX 전용 worktree 생성 | `/Users/woolee/benchmark-ax`와 검색 브랜치 연결·clean 확인, 최신 세션 분리 규칙/결정 기록. 기존 관리·메인 파일/인덱스 변경 없음 | AX-SEARCH-LOOKUP-PLAN | cc:완료 [local-ax-worktree-20261025] |
