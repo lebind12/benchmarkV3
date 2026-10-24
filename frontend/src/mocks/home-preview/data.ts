@@ -1,8 +1,8 @@
 export type Team = { id: number; name: string; english: string; color: string }
 export type Match = {
-  id: number; home: Team; away: Team; league: 'EPL' | 'UCL' | 'UEL' | 'FA컵';
+  id: number; home: Team; away: Team; league: string; competitionType?: 'domestic_cup';
   round: string; day: string; time: string; state: 'ongoing' | 'scheduled' | 'finished';
-  score?: string; preview: 'ready' | 'partial' | 'pending' | 'failed' | 'previous';
+  score?: string; preview: 'ready' | 'partial' | 'pending' | 'failed' | 'previous' | 'unavailable';
 }
 export const sampleDay = '2026-10-25'
 export const teams: Record<string, Team> = {
@@ -29,7 +29,7 @@ export const sampleMatches: Match[] = [
   { id: 90008, home: t.united!, away: t.villa!, league: 'FA컵', round: '8강', day: sampleDay, time: '18:00', state: 'scheduled', preview: 'ready' },
   { id: 90009, home: t.inter!, away: t.bayern!, league: 'UCL', round: '8강', day: sampleDay, time: '18:00', state: 'scheduled', preview: 'ready' },
   { id: 90010, home: t.spurs!, away: t.united!, league: 'EPL', round: '샘플 라운드', day: sampleDay, time: '16:00', state: 'finished', score: '2 : 1', preview: 'ready' },
-  { id: 90011, home: t.arsenal!, away: t.chelsea!, league: 'EPL', round: '샘플 라운드', day: '2026-10-27', time: '04:00', state: 'scheduled', preview: 'ready' },
+  { id: 90011, home: t.arsenal!, away: t.chelsea!, league: 'EPL', round: '샘플 라운드', day: '2026-10-27', time: '04:00', state: 'scheduled', preview: 'unavailable' },
 ]
 const bigSix = new Set([40, 50, 33, 47, 49, 42])
 export function rank(match: Match): number {
@@ -39,7 +39,7 @@ export function rank(match: Match): number {
   if (match.league === 'UCL' && match.round === '결승') return 4
   if (match.league === 'UCL' && match.round === '4강') return 5
   if (match.league === 'UEL' && match.round === '결승' && !big) return 6
-  if (['UEL', 'FA컵'].includes(match.league) && big) return 7
+  if ((match.league === 'UEL' || match.league === 'FA컵' || match.competitionType === 'domestic_cup') && big) return 7
   if (match.league === 'UCL' && match.round === '8강') return 8
   return Infinity
 }

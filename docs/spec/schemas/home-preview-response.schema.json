@@ -1,0 +1,1361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Home preview response",
+  "$comment": "Generated from Zod. Cross-field invariants: docs/features/home-preview-contract.md; enforced by Zod and later BE parity tests.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fixture_id",
+    "publication",
+    "refresh",
+    "preview"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "fixture_id": {
+      "type": "integer",
+      "exclusiveMinimum": 0
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "served",
+        "reason",
+        "generated_at",
+        "as_of"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "ready",
+            "partial",
+            "pending",
+            "failed",
+            "unavailable"
+          ]
+        },
+        "served": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "current",
+                "previous"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "not_collected",
+                "insufficient_sample",
+                "confirmed_no_absences",
+                "no_source",
+                "source_unverified",
+                "upstream_failed",
+                "outside_generation_window",
+                "generation_pending",
+                "generation_failed",
+                "refresh_failed",
+                "kickoff_passed",
+                "no_valid_snapshot",
+                "budget_deferred"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generated_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "refresh": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "last_attempt_at",
+        "reason"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "idle",
+            "queued",
+            "running",
+            "failed"
+          ]
+        },
+        "last_attempt_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "not_collected",
+                "insufficient_sample",
+                "confirmed_no_absences",
+                "no_source",
+                "source_unverified",
+                "upstream_failed",
+                "outside_generation_window",
+                "generation_pending",
+                "generation_failed",
+                "refresh_failed",
+                "kickoff_passed",
+                "no_valid_snapshot",
+                "budget_deferred"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "preview": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "is_mock",
+            "fixture",
+            "generated_at",
+            "as_of",
+            "sources",
+            "analysis",
+            "facts",
+            "external"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.1",
+              "type": "string"
+            },
+            "is_mock": {
+              "type": "boolean"
+            },
+            "fixture": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "external_id",
+                "kickoff_at",
+                "home",
+                "away"
+              ],
+              "properties": {
+                "external_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "kickoff_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "home": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "external_id",
+                    "name"
+                  ],
+                  "properties": {
+                    "external_id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "away": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "external_id",
+                    "name"
+                  ],
+                  "properties": {
+                    "external_id": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "generated_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "as_of": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "sources": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "fixture_id",
+                  "kind",
+                  "title",
+                  "url",
+                  "published_at",
+                  "retrieved_at"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "fixture_id": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "db",
+                      "web",
+                      "api"
+                    ]
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "url": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "published_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "retrieved_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            },
+            "analysis": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "summary",
+                "key_points",
+                "ai_prediction"
+              ],
+              "properties": {
+                "summary": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "reason",
+                    "as_of",
+                    "source_ids",
+                    "data"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "partial",
+                        "missing",
+                        "unverified",
+                        "error"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_collected",
+                            "insufficient_sample",
+                            "confirmed_no_absences",
+                            "no_source",
+                            "source_unverified",
+                            "upstream_failed",
+                            "outside_generation_window",
+                            "generation_pending",
+                            "generation_failed",
+                            "refresh_failed",
+                            "kickoff_passed",
+                            "no_valid_snapshot",
+                            "budget_deferred"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "as_of": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "text",
+                            "evidence_ids"
+                          ],
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "evidence_ids": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "minItems": 1
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "key_points": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "reason",
+                    "as_of",
+                    "source_ids",
+                    "data"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "partial",
+                        "missing",
+                        "unverified",
+                        "error"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_collected",
+                            "insufficient_sample",
+                            "confirmed_no_absences",
+                            "no_source",
+                            "source_unverified",
+                            "upstream_failed",
+                            "outside_generation_window",
+                            "generation_pending",
+                            "generation_failed",
+                            "refresh_failed",
+                            "kickoff_passed",
+                            "no_valid_snapshot",
+                            "budget_deferred"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "as_of": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "title",
+                              "description",
+                              "evidence_ids"
+                            ],
+                            "properties": {
+                              "title": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "description": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "evidence_ids": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "minItems": 1
+                              }
+                            }
+                          },
+                          "minItems": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "ai_prediction": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "reason",
+                    "as_of",
+                    "source_ids",
+                    "data"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "partial",
+                        "missing",
+                        "unverified",
+                        "error"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_collected",
+                            "insufficient_sample",
+                            "confirmed_no_absences",
+                            "no_source",
+                            "source_unverified",
+                            "upstream_failed",
+                            "outside_generation_window",
+                            "generation_pending",
+                            "generation_failed",
+                            "refresh_failed",
+                            "kickoff_passed",
+                            "no_valid_snapshot",
+                            "budget_deferred"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "as_of": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "home_goals",
+                            "away_goals",
+                            "confidence",
+                            "reason",
+                            "evidence_ids"
+                          ],
+                          "properties": {
+                            "home_goals": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 30
+                            },
+                            "away_goals": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 30
+                            },
+                            "confidence": {
+                              "type": "string",
+                              "enum": [
+                                "low",
+                                "medium",
+                                "high"
+                              ]
+                            },
+                            "reason": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "evidence_ids": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "minItems": 1
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "facts": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "injuries",
+                "home_form",
+                "away_form"
+              ],
+              "properties": {
+                "injuries": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "reason",
+                    "as_of",
+                    "source_ids",
+                    "data"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "partial",
+                        "missing",
+                        "unverified",
+                        "error"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_collected",
+                            "insufficient_sample",
+                            "confirmed_no_absences",
+                            "no_source",
+                            "source_unverified",
+                            "upstream_failed",
+                            "outside_generation_window",
+                            "generation_pending",
+                            "generation_failed",
+                            "refresh_failed",
+                            "kickoff_passed",
+                            "no_valid_snapshot",
+                            "budget_deferred"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "as_of": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "team_id",
+                              "player_name",
+                              "availability",
+                              "detail",
+                              "impact",
+                              "source_ids"
+                            ],
+                            "properties": {
+                              "team_id": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "player_name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "availability": {
+                                "type": "string",
+                                "enum": [
+                                  "out",
+                                  "doubtful"
+                                ]
+                              },
+                              "detail": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "impact": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "source_ids": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "minItems": 1
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "home_form": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "reason",
+                    "as_of",
+                    "source_ids",
+                    "data"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "partial",
+                        "missing",
+                        "unverified",
+                        "error"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_collected",
+                            "insufficient_sample",
+                            "confirmed_no_absences",
+                            "no_source",
+                            "source_unverified",
+                            "upstream_failed",
+                            "outside_generation_window",
+                            "generation_pending",
+                            "generation_failed",
+                            "refresh_failed",
+                            "kickoff_passed",
+                            "no_valid_snapshot",
+                            "budget_deferred"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "as_of": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "team_id",
+                            "expected_count",
+                            "matches"
+                          ],
+                          "properties": {
+                            "team_id": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "expected_count": {
+                              "const": 5,
+                              "type": "number"
+                            },
+                            "matches": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "fixture_id",
+                                  "kickoff_at",
+                                  "opponent",
+                                  "competition",
+                                  "goals_for",
+                                  "goals_against",
+                                  "status",
+                                  "penalties"
+                                ],
+                                "properties": {
+                                  "fixture_id": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0
+                                  },
+                                  "kickoff_at": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  "opponent": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "competition": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "goals_for": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "goals_against": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "FT",
+                                      "AET",
+                                      "PEN"
+                                    ]
+                                  },
+                                  "penalties": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "for",
+                                          "against"
+                                        ],
+                                        "properties": {
+                                          "for": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          "against": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "maxItems": 5
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "away_form": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "reason",
+                    "as_of",
+                    "source_ids",
+                    "data"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "partial",
+                        "missing",
+                        "unverified",
+                        "error"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_collected",
+                            "insufficient_sample",
+                            "confirmed_no_absences",
+                            "no_source",
+                            "source_unverified",
+                            "upstream_failed",
+                            "outside_generation_window",
+                            "generation_pending",
+                            "generation_failed",
+                            "refresh_failed",
+                            "kickoff_passed",
+                            "no_valid_snapshot",
+                            "budget_deferred"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "as_of": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "team_id",
+                            "expected_count",
+                            "matches"
+                          ],
+                          "properties": {
+                            "team_id": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "expected_count": {
+                              "const": 5,
+                              "type": "number"
+                            },
+                            "matches": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "fixture_id",
+                                  "kickoff_at",
+                                  "opponent",
+                                  "competition",
+                                  "goals_for",
+                                  "goals_against",
+                                  "status",
+                                  "penalties"
+                                ],
+                                "properties": {
+                                  "fixture_id": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0
+                                  },
+                                  "kickoff_at": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  "opponent": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "competition": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "goals_for": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "goals_against": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "FT",
+                                      "AET",
+                                      "PEN"
+                                    ]
+                                  },
+                                  "penalties": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": [
+                                          "for",
+                                          "against"
+                                        ],
+                                        "properties": {
+                                          "for": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          "against": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "maxItems": 5
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "external": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "predictions",
+                "odds"
+              ],
+              "properties": {
+                "predictions": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "reason",
+                    "as_of",
+                    "source_ids",
+                    "data"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "partial",
+                        "missing",
+                        "unverified",
+                        "error"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_collected",
+                            "insufficient_sample",
+                            "confirmed_no_absences",
+                            "no_source",
+                            "source_unverified",
+                            "upstream_failed",
+                            "outside_generation_window",
+                            "generation_pending",
+                            "generation_failed",
+                            "refresh_failed",
+                            "kickoff_passed",
+                            "no_valid_snapshot",
+                            "budget_deferred"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "as_of": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "source_id",
+                              "outlook",
+                              "summary"
+                            ],
+                            "properties": {
+                              "source_id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "outlook": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "summary": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            }
+                          },
+                          "minItems": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "odds": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "reason",
+                    "as_of",
+                    "source_ids",
+                    "data"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "partial",
+                        "missing",
+                        "unverified",
+                        "error"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_collected",
+                            "insufficient_sample",
+                            "confirmed_no_absences",
+                            "no_source",
+                            "source_unverified",
+                            "upstream_failed",
+                            "outside_generation_window",
+                            "generation_pending",
+                            "generation_failed",
+                            "refresh_failed",
+                            "kickoff_passed",
+                            "no_valid_snapshot",
+                            "budget_deferred"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "as_of": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "source_id",
+                              "bookmaker",
+                              "market",
+                              "format",
+                              "home",
+                              "draw",
+                              "away",
+                              "collected_at"
+                            ],
+                            "properties": {
+                              "source_id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "bookmaker": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "market": {
+                                "const": "1x2_90min",
+                                "type": "string"
+                              },
+                              "format": {
+                                "const": "decimal",
+                                "type": "string"
+                              },
+                              "home": {
+                                "type": "number",
+                                "exclusiveMinimum": 1
+                              },
+                              "draw": {
+                                "type": "number",
+                                "exclusiveMinimum": 1
+                              },
+                              "away": {
+                                "type": "number",
+                                "exclusiveMinimum": 1
+                              },
+                              "collected_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          },
+                          "minItems": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

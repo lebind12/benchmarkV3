@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Home preview recommendations",
+  "$comment": "Generated from Zod. Cross-field invariants: docs/features/home-preview-contract.md; enforced by Zod and later BE parity tests.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "requested_date",
+    "display_date",
+    "timezone",
+    "as_of",
+    "policy_version",
+    "fallback_reason",
+    "items",
+    "today_results"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "requested_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "display_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "timezone": {
+      "const": "Asia/Seoul",
+      "type": "string"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "policy_version": {
+      "const": "home-priority-2026-10-25",
+      "type": "string"
+    },
+    "fallback_reason": {
+      "anyOf": [
+        {
+          "const": "no_eligible_today",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fixture_id",
+          "kickoff_at",
+          "status_as_of",
+          "competition",
+          "home",
+          "away",
+          "state",
+          "priority",
+          "reason",
+          "preview"
+        ],
+        "properties": {
+          "fixture_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "kickoff_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status_as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "competition": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "external_id",
+              "name",
+              "category",
+              "round"
+            ],
+            "properties": {
+              "external_id": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "epl",
+                  "ucl",
+                  "uel",
+                  "domestic_cup",
+                  "other"
+                ]
+              },
+              "round": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "home": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "external_id",
+              "name"
+            ],
+            "properties": {
+              "external_id": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "away": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "external_id",
+              "name"
+            ],
+            "properties": {
+              "external_id": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ongoing",
+              "scheduled"
+            ]
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "preview": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "state",
+              "served",
+              "generated_at",
+              "as_of"
+            ],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "ready",
+                  "partial",
+                  "pending",
+                  "failed",
+                  "unavailable"
+                ]
+              },
+              "served": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "current",
+                      "previous"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "generated_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "as_of": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "today_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fixture_id",
+          "kickoff_at",
+          "status_as_of",
+          "competition",
+          "home",
+          "away",
+          "state",
+          "goals_home",
+          "goals_away"
+        ],
+        "properties": {
+          "fixture_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "kickoff_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status_as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "competition": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "external_id",
+              "name",
+              "category",
+              "round"
+            ],
+            "properties": {
+              "external_id": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "epl",
+                  "ucl",
+                  "uel",
+                  "domestic_cup",
+                  "other"
+                ]
+              },
+              "round": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "home": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "external_id",
+              "name"
+            ],
+            "properties": {
+              "external_id": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "away": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "external_id",
+              "name"
+            ],
+            "properties": {
+              "external_id": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "state": {
+            "const": "finished",
+            "type": "string"
+          },
+          "goals_home": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "goals_away": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

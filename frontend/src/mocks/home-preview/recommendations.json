@@ -1,0 +1,287 @@
+{
+  "schema_version": "1.0",
+  "requested_date": "2026-10-25",
+  "display_date": "2026-10-25",
+  "timezone": "Asia/Seoul",
+  "as_of": "2026-10-25T10:20:00Z",
+  "policy_version": "home-priority-2026-10-25",
+  "fallback_reason": null,
+  "items": [
+    {
+      "fixture_id": 90002,
+      "kickoff_at": "2026-10-25T19:00:00+09:00",
+      "status_as_of": "2026-10-25T10:20:00Z",
+      "competition": {
+        "external_id": 39,
+        "name": "EPL",
+        "category": "epl",
+        "round": "샘플 라운드"
+      },
+      "home": {
+        "external_id": 50,
+        "name": "맨체스터 시티"
+      },
+      "away": {
+        "external_id": 49,
+        "name": "첼시"
+      },
+      "state": "ongoing",
+      "priority": 1,
+      "reason": "빅6 EPL 경기",
+      "preview": {
+        "state": "partial",
+        "served": "current",
+        "generated_at": "2026-10-25T08:10:00Z",
+        "as_of": "2026-10-25T08:00:00Z"
+      }
+    },
+    {
+      "fixture_id": 90001,
+      "kickoff_at": "2026-10-25T22:00:00+09:00",
+      "status_as_of": "2026-10-25T10:20:00Z",
+      "competition": {
+        "external_id": 39,
+        "name": "EPL",
+        "category": "epl",
+        "round": "샘플 라운드"
+      },
+      "home": {
+        "external_id": 42,
+        "name": "아스널"
+      },
+      "away": {
+        "external_id": 40,
+        "name": "리버풀"
+      },
+      "state": "scheduled",
+      "priority": 1,
+      "reason": "빅6 EPL 경기",
+      "preview": {
+        "state": "ready",
+        "served": "current",
+        "generated_at": "2026-10-25T08:10:00Z",
+        "as_of": "2026-10-25T08:00:00Z"
+      }
+    },
+    {
+      "fixture_id": 90003,
+      "kickoff_at": "2026-10-25T23:00:00+09:00",
+      "status_as_of": "2026-10-25T10:20:00Z",
+      "competition": {
+        "external_id": 39,
+        "name": "EPL",
+        "category": "epl",
+        "round": "샘플 라운드"
+      },
+      "home": {
+        "external_id": 51,
+        "name": "브라이턴"
+      },
+      "away": {
+        "external_id": 66,
+        "name": "애스턴 빌라"
+      },
+      "state": "scheduled",
+      "priority": 2,
+      "reason": "프리미어리그",
+      "preview": {
+        "state": "pending",
+        "served": null,
+        "generated_at": null,
+        "as_of": null
+      }
+    },
+    {
+      "fixture_id": 90004,
+      "kickoff_at": "2026-10-25T21:00:00+09:00",
+      "status_as_of": "2026-10-25T10:20:00Z",
+      "competition": {
+        "external_id": 2,
+        "name": "UCL",
+        "category": "ucl",
+        "round": "8강"
+      },
+      "home": {
+        "external_id": 40,
+        "name": "리버풀"
+      },
+      "away": {
+        "external_id": 157,
+        "name": "바이에른 뮌헨"
+      },
+      "state": "scheduled",
+      "priority": 3,
+      "reason": "빅6 챔피언스리그",
+      "preview": {
+        "state": "ready",
+        "served": "previous",
+        "generated_at": "2026-10-25T03:00:00Z",
+        "as_of": "2026-10-25T02:40:00Z"
+      }
+    },
+    {
+      "fixture_id": 90005,
+      "kickoff_at": "2026-10-25T20:00:00+09:00",
+      "status_as_of": "2026-10-25T10:20:00Z",
+      "competition": {
+        "external_id": 2,
+        "name": "UCL",
+        "category": "ucl",
+        "round": "결승"
+      },
+      "home": {
+        "external_id": 157,
+        "name": "바이에른 뮌헨"
+      },
+      "away": {
+        "external_id": 505,
+        "name": "인터 밀란"
+      },
+      "state": "scheduled",
+      "priority": 4,
+      "reason": "챔피언스리그 결승",
+      "preview": {
+        "state": "ready",
+        "served": "current",
+        "generated_at": "2026-10-25T08:10:00Z",
+        "as_of": "2026-10-25T08:00:00Z"
+      }
+    },
+    {
+      "fixture_id": 90006,
+      "kickoff_at": "2026-10-25T18:00:00+09:00",
+      "status_as_of": "2026-10-25T10:20:00Z",
+      "competition": {
+        "external_id": 2,
+        "name": "UCL",
+        "category": "ucl",
+        "round": "4강"
+      },
+      "home": {
+        "external_id": 505,
+        "name": "인터 밀란"
+      },
+      "away": {
+        "external_id": 157,
+        "name": "바이에른 뮌헨"
+      },
+      "state": "scheduled",
+      "priority": 5,
+      "reason": "챔피언스리그 4강",
+      "preview": {
+        "state": "partial",
+        "served": "current",
+        "generated_at": "2026-10-25T08:10:00Z",
+        "as_of": "2026-10-25T08:00:00Z"
+      }
+    },
+    {
+      "fixture_id": 90007,
+      "kickoff_at": "2026-10-25T18:00:00+09:00",
+      "status_as_of": "2026-10-25T10:20:00Z",
+      "competition": {
+        "external_id": 3,
+        "name": "UEL",
+        "category": "uel",
+        "round": "결승"
+      },
+      "home": {
+        "external_id": 51,
+        "name": "브라이턴"
+      },
+      "away": {
+        "external_id": 505,
+        "name": "인터 밀란"
+      },
+      "state": "scheduled",
+      "priority": 6,
+      "reason": "유로파리그 결승",
+      "preview": {
+        "state": "failed",
+        "served": null,
+        "generated_at": null,
+        "as_of": null
+      }
+    },
+    {
+      "fixture_id": 90008,
+      "kickoff_at": "2026-10-25T18:00:00+09:00",
+      "status_as_of": "2026-10-25T10:20:00Z",
+      "competition": {
+        "external_id": 45,
+        "name": "FA컵",
+        "category": "domestic_cup",
+        "round": "8강"
+      },
+      "home": {
+        "external_id": 33,
+        "name": "맨체스터 유나이티드"
+      },
+      "away": {
+        "external_id": 66,
+        "name": "애스턴 빌라"
+      },
+      "state": "scheduled",
+      "priority": 7,
+      "reason": "빅6 컵대회",
+      "preview": {
+        "state": "ready",
+        "served": "current",
+        "generated_at": "2026-10-25T08:10:00Z",
+        "as_of": "2026-10-25T08:00:00Z"
+      }
+    },
+    {
+      "fixture_id": 90009,
+      "kickoff_at": "2026-10-25T18:00:00+09:00",
+      "status_as_of": "2026-10-25T10:20:00Z",
+      "competition": {
+        "external_id": 2,
+        "name": "UCL",
+        "category": "ucl",
+        "round": "8강"
+      },
+      "home": {
+        "external_id": 505,
+        "name": "인터 밀란"
+      },
+      "away": {
+        "external_id": 157,
+        "name": "바이에른 뮌헨"
+      },
+      "state": "scheduled",
+      "priority": 8,
+      "reason": "챔피언스리그 8강",
+      "preview": {
+        "state": "ready",
+        "served": "current",
+        "generated_at": "2026-10-25T08:10:00Z",
+        "as_of": "2026-10-25T08:00:00Z"
+      }
+    }
+  ],
+  "today_results": [
+    {
+      "fixture_id": 90010,
+      "kickoff_at": "2026-10-25T16:00:00+09:00",
+      "status_as_of": "2026-10-25T10:20:00Z",
+      "competition": {
+        "external_id": 39,
+        "name": "EPL",
+        "category": "epl",
+        "round": "샘플 라운드"
+      },
+      "home": {
+        "external_id": 47,
+        "name": "토트넘"
+      },
+      "away": {
+        "external_id": 33,
+        "name": "맨체스터 유나이티드"
+      },
+      "state": "finished",
+      "goals_home": 2,
+      "goals_away": 1
+    }
+  ]
+}

@@ -204,7 +204,7 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | PRE-00 | 현재 코드 대조·구현 계획 수립 | 기존 JSON/DB/생성/인증/스케줄러·migration 현황 대조, plan.md §14 및 본 표 작성, 미정 계약/실응답/운영 경계 명시. 문서 자체 점검 | HOME-JSON-1 | cc:완료 [계획 문서만; 구현 미착수] |
-| PRE-01 | FE 부족 상태·조회/추천 계약 보완 | 생성 전/실패/이전 유효본 envelope·null 생성 시각/공개 reason·컵 폼 기준, 동적 추천 목록/정렬/날짜·상태 시각 요구를 mock/Zod/JSON/endpoint-request로 작성·검증. 기존 디자인 유지 | PRE-00 | cc:TODO |
+| PRE-01 | FE 부족 상태·조회/추천 계약 보완 | 생성 전/실패/이전 유효본 envelope·null 생성 시각/공개 reason·컵 폼 기준, 동적 추천 목록/정렬/날짜·상태 시각 요구를 mock/Zod/JSON/endpoint-request로 작성·검증. 기존 디자인 유지 | PRE-00 | cc:완료 [FE 계약/목업; unit 23/E2E 13/build PASS; BE 미구현] |
 | PRE-02 | DB coverage·웹/배당 소스·provider 검증 | 읽기 전용 coverage, 공식/매체/외부 전망 소스 매칭·사용 범위·시각, 부상/배당 MCP 실응답 확인 경로/누락 기록, Vertex 검색/structured output 계약·usage fixture. 탐색 범위/자료 유효기간/검색·비용 상한 명세. 사용자에게 소스 조사 전가 안 함 | PRE-01 | cc:TODO |
 | PRE-03 | BE 명세·Pydantic·테스트 선행·spec review | endpoint-request 기준 GET/저장/생성 경계·오류/권한·상태·시간/사실 검증 명세와 testplan·실패 테스트. JSON Schema/Zod/Pydantic 공통 fixture·drift 검증 계획. 기존 방송 호환·독립 spec review | PRE-01, PRE-02 | cc:TODO |
 | PRE-04 | snapshot·프리뷰·publication 저장 기반 | 실제 baseline 대조 후 Supabase CLI migration/ORM/문서 동기화, 근거/불변 버전/현재 제공본/실행 책임 확정, unique/FK/인덱스·원자 전환·2시즌 보관 정리. 격리 migration·기존 데이터/참조 보존 검증 | PRE-03 | cc:TODO |
@@ -239,3 +239,8 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 ## 전용 worktree 분리 완료 — 최신 사용자 지시
 
 현재 작업 경로는 `/Users/woolee/benchmark-main`, 통합 브랜치는 `feat/home-preview-json`이다. 이전의 공유 checkout/브랜치 분리 기록은 당시 기록이며 운영 방식은 `docs/decisions/2026-10-25-parallel-worktrees.md`로 대체한다. 관리·AX 변경은 포함하지 않았다. PRE-01은 미착수이며 다음 작업이다. 공통 인증/관리 코드는 현재 출발 커밋에 없으므로 후속 의존성 검토가 필요하다.
+
+
+### PRE-01 실행 결과 — 2026-10-25
+
+메인 전용 worktree `feat/home-preview-json`에서 FE 계약/목업을 보완했다. `docs/features/home-preview-contract.md`가 상세 계약이다. publication/refresh 분리, null 본문·생성 시각, facts-only, 갱신 실패 이전본, 공개 reason enum, FT/AET/PEN, 추천 목록/정렬/KST/기준 시각과 endpoint-request를 검증했다. 생성 구조 JSON Schema와 Zod의 drift 검사 포함. 단위 23개, E2E 13개, production build PASS. E2E는 API 요청 0건을 확인했다. DB/Redis/API-Football/Vertex를 호출하지 않았다. PRE-02가 다음 작업이며 PRE-03 BE spec/test/review 및 실제 구현은 아직 시작하지 않았다. 앞의 미착수 표기는 분리 당시 기록이다.

@@ -1,6 +1,6 @@
 {
   "90001": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "is_mock": true,
     "fixture": {
       "external_id": 90001,
@@ -164,7 +164,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80001,
@@ -172,7 +174,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80002,
@@ -180,7 +184,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80003,
@@ -188,7 +194,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80004,
@@ -196,7 +204,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -218,7 +228,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80101,
@@ -226,7 +238,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80102,
@@ -234,7 +248,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80103,
@@ -242,7 +258,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80104,
@@ -250,7 +268,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -331,7 +351,7 @@
     }
   },
   "90002": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "is_mock": true,
     "fixture": {
       "external_id": 90002,
@@ -495,7 +515,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80001,
@@ -503,7 +525,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80002,
@@ -511,7 +535,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80003,
@@ -519,7 +545,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80004,
@@ -527,7 +555,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -549,7 +579,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80101,
@@ -557,7 +589,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80102,
@@ -565,7 +599,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80103,
@@ -573,7 +609,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80104,
@@ -581,7 +619,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -662,7 +702,7 @@
     }
   },
   "90003": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "is_mock": true,
     "fixture": {
       "external_id": 90003,
@@ -826,7 +866,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80001,
@@ -834,7 +876,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80002,
@@ -842,7 +886,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80003,
@@ -850,7 +896,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80004,
@@ -858,7 +906,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -880,7 +930,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80101,
@@ -888,7 +940,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80102,
@@ -896,7 +950,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80103,
@@ -904,7 +960,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80104,
@@ -912,7 +970,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -993,7 +1053,7 @@
     }
   },
   "90004": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "is_mock": true,
     "fixture": {
       "external_id": 90004,
@@ -1157,7 +1217,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80001,
@@ -1165,7 +1227,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80002,
@@ -1173,7 +1237,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80003,
@@ -1181,7 +1247,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80004,
@@ -1189,7 +1257,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -1211,7 +1281,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80101,
@@ -1219,7 +1291,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80102,
@@ -1227,7 +1301,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80103,
@@ -1235,7 +1311,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80104,
@@ -1243,7 +1321,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -1324,7 +1404,7 @@
     }
   },
   "90005": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "is_mock": true,
     "fixture": {
       "external_id": 90005,
@@ -1488,7 +1568,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80001,
@@ -1496,7 +1578,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80002,
@@ -1504,7 +1588,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80003,
@@ -1512,7 +1598,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80004,
@@ -1520,7 +1608,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -1542,7 +1632,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80101,
@@ -1550,7 +1642,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80102,
@@ -1558,7 +1652,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80103,
@@ -1566,7 +1662,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80104,
@@ -1574,7 +1672,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -1655,7 +1755,7 @@
     }
   },
   "90006": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "is_mock": true,
     "fixture": {
       "external_id": 90006,
@@ -1819,7 +1919,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80001,
@@ -1827,7 +1929,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80002,
@@ -1835,7 +1939,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80003,
@@ -1843,7 +1949,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80004,
@@ -1851,7 +1959,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -1873,7 +1983,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80101,
@@ -1881,7 +1993,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80102,
@@ -1889,7 +2003,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80103,
@@ -1897,7 +2013,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80104,
@@ -1905,7 +2023,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -1986,7 +2106,7 @@
     }
   },
   "90007": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "is_mock": true,
     "fixture": {
       "external_id": 90007,
@@ -2150,7 +2270,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80001,
@@ -2158,7 +2280,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80002,
@@ -2166,7 +2290,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80003,
@@ -2174,7 +2300,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80004,
@@ -2182,7 +2310,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -2204,7 +2334,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80101,
@@ -2212,7 +2344,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80102,
@@ -2220,7 +2354,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80103,
@@ -2228,7 +2364,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80104,
@@ -2236,7 +2374,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -2317,7 +2457,7 @@
     }
   },
   "90008": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "is_mock": true,
     "fixture": {
       "external_id": 90008,
@@ -2481,7 +2621,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80001,
@@ -2489,7 +2631,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80002,
@@ -2497,7 +2641,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80003,
@@ -2505,7 +2651,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80004,
@@ -2513,7 +2661,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -2535,7 +2685,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80101,
@@ -2543,7 +2695,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80102,
@@ -2551,7 +2705,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80103,
@@ -2559,7 +2715,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80104,
@@ -2567,7 +2725,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -2648,7 +2808,7 @@
     }
   },
   "90009": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "is_mock": true,
     "fixture": {
       "external_id": 90009,
@@ -2812,7 +2972,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80001,
@@ -2820,7 +2982,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80002,
@@ -2828,7 +2992,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80003,
@@ -2836,7 +3002,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80004,
@@ -2844,7 +3012,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -2866,7 +3036,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80101,
@@ -2874,7 +3046,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80102,
@@ -2882,7 +3056,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80103,
@@ -2890,7 +3066,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80104,
@@ -2898,7 +3076,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -2979,7 +3159,7 @@
     }
   },
   "90011": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "is_mock": true,
     "fixture": {
       "external_id": 90011,
@@ -3143,7 +3323,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80001,
@@ -3151,7 +3333,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80002,
@@ -3159,7 +3343,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80003,
@@ -3167,7 +3353,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80004,
@@ -3175,7 +3363,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }
@@ -3197,7 +3387,9 @@
               "opponent": "샘플 팀 A",
               "competition": "UCL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80101,
@@ -3205,7 +3397,9 @@
               "opponent": "샘플 팀 B",
               "competition": "EPL",
               "goals_for": 0,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80102,
@@ -3213,7 +3407,9 @@
               "opponent": "샘플 팀 C",
               "competition": "EPL",
               "goals_for": 3,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80103,
@@ -3221,7 +3417,9 @@
               "opponent": "샘플 팀 D",
               "competition": "UCL",
               "goals_for": 1,
-              "goals_against": 1
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
             },
             {
               "fixture_id": 80104,
@@ -3229,7 +3427,9 @@
               "opponent": "샘플 팀 E",
               "competition": "EPL",
               "goals_for": 2,
-              "goals_against": 0
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
             }
           ]
         }

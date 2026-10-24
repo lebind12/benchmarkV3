@@ -1,10 +1,25 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "home-preview-analysis-v1",
+  "title": "Home preview analysis",
+  "$comment": "Generated from Zod. Cross-field invariants: docs/features/home-preview-contract.md; enforced by Zod and later BE parity tests.",
   "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "key_points",
+    "ai_prediction"
+  ],
   "properties": {
     "summary": {
       "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ],
       "properties": {
         "status": {
           "type": "string",
@@ -17,17 +32,40 @@
           ]
         },
         "reason": {
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "not_collected",
+                "insufficient_sample",
+                "confirmed_no_absences",
+                "no_source",
+                "source_unverified",
+                "upstream_failed",
+                "outside_generation_window",
+                "generation_pending",
+                "generation_failed",
+                "refresh_failed",
+                "kickoff_passed",
+                "no_valid_snapshot",
+                "budget_deferred"
+              ]
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "as_of": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "format": "date-time"
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "source_ids": {
           "type": "array",
@@ -40,6 +78,11 @@
           "anyOf": [
             {
               "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "evidence_ids"
+              ],
               "properties": {
                 "text": {
                   "type": "string",
@@ -53,19 +96,18 @@
                   },
                   "minItems": 1
                 }
-              },
-              "required": [
-                "text",
-                "evidence_ids"
-              ],
-              "additionalProperties": false
+              }
             },
             {
               "type": "null"
             }
           ]
         }
-      },
+      }
+    },
+    "key_points": {
+      "type": "object",
+      "additionalProperties": false,
       "required": [
         "status",
         "reason",
@@ -73,10 +115,6 @@
         "source_ids",
         "data"
       ],
-      "additionalProperties": false
-    },
-    "key_points": {
-      "type": "object",
       "properties": {
         "status": {
           "type": "string",
@@ -89,17 +127,40 @@
           ]
         },
         "reason": {
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "not_collected",
+                "insufficient_sample",
+                "confirmed_no_absences",
+                "no_source",
+                "source_unverified",
+                "upstream_failed",
+                "outside_generation_window",
+                "generation_pending",
+                "generation_failed",
+                "refresh_failed",
+                "kickoff_passed",
+                "no_valid_snapshot",
+                "budget_deferred"
+              ]
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "as_of": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "format": "date-time"
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "source_ids": {
           "type": "array",
@@ -112,9 +173,14 @@
           "anyOf": [
             {
               "type": "array",
-              "minItems": 1,
               "items": {
                 "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "title",
+                  "description",
+                  "evidence_ids"
+                ],
                 "properties": {
                   "title": {
                     "type": "string",
@@ -132,21 +198,20 @@
                     },
                     "minItems": 1
                   }
-                },
-                "required": [
-                  "title",
-                  "description",
-                  "evidence_ids"
-                ],
-                "additionalProperties": false
-              }
+                }
+              },
+              "minItems": 1
             },
             {
               "type": "null"
             }
           ]
         }
-      },
+      }
+    },
+    "ai_prediction": {
+      "type": "object",
+      "additionalProperties": false,
       "required": [
         "status",
         "reason",
@@ -154,10 +219,6 @@
         "source_ids",
         "data"
       ],
-      "additionalProperties": false
-    },
-    "ai_prediction": {
-      "type": "object",
       "properties": {
         "status": {
           "type": "string",
@@ -170,17 +231,40 @@
           ]
         },
         "reason": {
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "not_collected",
+                "insufficient_sample",
+                "confirmed_no_absences",
+                "no_source",
+                "source_unverified",
+                "upstream_failed",
+                "outside_generation_window",
+                "generation_pending",
+                "generation_failed",
+                "refresh_failed",
+                "kickoff_passed",
+                "no_valid_snapshot",
+                "budget_deferred"
+              ]
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "as_of": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "format": "date-time"
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "source_ids": {
           "type": "array",
@@ -193,6 +277,14 @@
           "anyOf": [
             {
               "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "home_goals",
+                "away_goals",
+                "confidence",
+                "reason",
+                "evidence_ids"
+              ],
               "properties": {
                 "home_goals": {
                   "type": "integer",
@@ -224,36 +316,14 @@
                   },
                   "minItems": 1
                 }
-              },
-              "required": [
-                "home_goals",
-                "away_goals",
-                "confidence",
-                "reason",
-                "evidence_ids"
-              ],
-              "additionalProperties": false
+              }
             },
             {
               "type": "null"
             }
           ]
         }
-      },
-      "required": [
-        "status",
-        "reason",
-        "as_of",
-        "source_ids",
-        "data"
-      ],
-      "additionalProperties": false
+      }
     }
-  },
-  "required": [
-    "summary",
-    "key_points",
-    "ai_prediction"
-  ],
-  "additionalProperties": false
+  }
 }

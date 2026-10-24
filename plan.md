@@ -2,7 +2,7 @@
 
 현재 세션에서 작성한 홈 관련 내용만 분리한 정본이다. 작성일 2026-10-25. 추천 정책은 §5.2.1, 실행 설계는 §14, Task/DoD/Depends/Status는 `Plans.md`의 HOME/PRE 표를 따른다. 별도 세션의 관리·검색 기획과 구현은 이 브랜치에 포함하지 않는다.
 
-사용자가 구현 착수를 승인했다. 기존 홈 목업/JSON 계약은 로컬 검증 상태이며 PRE-01부터 후속 개발한다. 운영 적용·배포는 별도 명시 요청 전에는 수행하지 않는다.
+사용자가 구현 착수를 승인했다. 기존 홈 목업/JSON 계약과 PRE-01의 FE 계약 보완은 로컬 검증 상태이며 다음 작업은 PRE-02다. 운영 적용·배포는 별도 명시 요청 전에는 수행하지 않는다.
 
 ### 5.2.1 2026-10-25 사용자 확정 — 추천 순서와 진행 중 처리
 
@@ -205,8 +205,13 @@ PRE-09 이후 API는 저장 DB만 읽는다. 조회 dependency에 외부 클라�
 
 ### 14.13 세션 분리 이후 기준선
 
-현재 작업 브랜치는 `fe-feat-home-preview-contract`, 통합 기준은 `feat/home-preview-json`, 출발 커밋은 `e3e8f40a8e045174d06544116a933cc03507c33a`이다. §14.1의 관리/세션/migration 현황은 분리 전 checkout을 읽어 작성한 관찰이며 이 브랜치에 해당 변경이 포함됐다는 의미가 아니다. 관리 공통 인증/수집 의존 코드는 후속 단계에서 별도 검토 후 가져온다. 원래 공용 plan.md의 관리/검색 내용은 원래 브랜치용 stash와 파일 백업에 보존했다.
+현재 작업 브랜치와 통합 기준은 `feat/home-preview-json`, 출발 커밋은 `e3e8f40a8e045174d06544116a933cc03507c33a`이다. §14.1의 관리/세션/migration 현황은 분리 전 checkout을 읽어 작성한 관찰이며 이 브랜치에 해당 변경이 포함됐다는 의미가 아니다. 관리 공통 인증/수집 의존 코드는 후속 단계에서 별도 검토 후 가져온다. 원래 공용 plan.md의 관리/검색 내용은 원래 checkout에 그대로 유지했다. stash는 수행하지 않았다.
 
 ## 전용 worktree 분리 완료 — 최신 사용자 지시
 
 현재 작업 경로는 `/Users/woolee/benchmark-main`, 통합 브랜치는 `feat/home-preview-json`이다. 이전의 공유 checkout/브랜치 분리 기록은 당시 기록이며 운영 방식은 `docs/decisions/2026-10-25-parallel-worktrees.md`로 대체한다. 관리·AX 변경은 포함하지 않았다. PRE-01은 미착수이며 다음 작업이다. 공통 인증/관리 코드는 현재 출발 커밋에 없으므로 후속 의존성 검토가 필요하다.
+
+
+### 14.14 PRE-01 완료와 현재 실행 기준
+
+2026-10-25, `feat/home-preview-json` 메인 worktree에서 계약/목업 보완을 완료했다. [PRE-01 계약](docs/features/home-preview-contract.md), 추천/프리뷰 endpoint-request, Zod 및 생성 JSON Schema가 현재 BE 입력이다. 저장 본문 v1.1과 조회 envelope v1.0을 구분한다. 단위 23개/E2E 13개/build PASS. 다음은 PRE-02 DB coverage·웹/배당·provider 조사다. 이전 절의 ‘PRE-01 다음’/‘미착수’는 작성 당시 기록이다. BE와 실 `/` 연동·정기 생성은 미구현이며 개발·테스트 이외 외부 실행/원격 push/merge/배포는 수행하지 않았다.

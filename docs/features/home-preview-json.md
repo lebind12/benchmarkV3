@@ -96,3 +96,7 @@
 ## 구현 계획 정본
 
 2026-10-25 후속 사용자 요청으로 상세 실행 계획을 작성했다. **설계/경계/검증은 [plan.md §14](../../plan.md), Task/DoD/Depends/Status는 [Plans.md PRE 표](../../Plans.md)가 정본**이다. 위 후속 BE 단계의 상위 설명을 세분화하며, 구현 완료를 뜻하지 않는다. 첫 작업은 PRE-01의 생성 전·실패·이전본 응답과 추천 endpoint-request 보완이다. 새 웹/AI·DB 저장·공개 GET·실 메인·정기 실행은 아직 미구현이다.
+
+## PRE-01 보완 — 2026-10-25
+
+저장 payload는 v1.1, public 조회 envelope는 v1.0으로 구분한다. 생성 전/실패/이전본·사실만 제공·동적 추천 목록·컵 결과·공개 reason 계약은 [home-preview-contract.md](home-preview-contract.md)가 최신이다. generated_at은 사실만 제공하는 경우 null이며 전체 분석 data도 null이다. `responses.json`이 API 응답 예제이고 기존 `previews.json`은 저장 본문 예제다. 실제 endpoint/DB/AI 연동 완료를 의미하지 않는다.

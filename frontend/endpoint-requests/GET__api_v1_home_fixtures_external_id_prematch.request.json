@@ -13,28 +13,25 @@
       "description": "API-Football fixture external_id"
     }
   ],
-  "response_example_path": "frontend/src/mocks/home-preview/previews.json",
-  "response_example_json_pointer": "/90001",
-  "response_schema_ref": "frontend/src/lib/api/homePreviewSchema.ts#homePreviewSchema",
+  "response_example_path": "frontend/src/mocks/home-preview/responses.json",
+  "response_example_json_pointer": "/ready",
+  "response_schema_ref": "docs/spec/schemas/home-preview-response.schema.json",
   "analysis_schema_ref": "docs/spec/schemas/home-preview-analysis.schema.json",
   "response_shape": {
-    "schema_version": "1.0",
-    "is_mock": "boolean; production false only",
-    "fixture": "external_id, kickoff_at, home/away external_id/name",
-    "generated_at": "ISO8601",
-    "as_of": "ISO8601",
-    "sources": "id/fixture_id/kind/title/url/published_at/retrieved_at[]",
-    "facts": "injuries/home_form/away_form section envelopes",
-    "external": "predictions/odds section envelopes",
-    "analysis": "summary/key_points/ai_prediction section envelopes"
+    "schema_version": "1.0 (transport); preview.schema_version=1.1",
+    "fixture_id": "positive integer",
+    "publication": "state ready|partial|pending|failed|unavailable; served current|previous|null; reason enum|null; generated_at/as_of ISO|null",
+    "refresh": "state idle|queued|running|failed; last_attempt_at ISO|null; reason enum|null",
+    "preview": "stored HomePreview payload|null; facts-only generated_at=null and all analysis.data=null"
   },
   "scenarios_used": [
     "ready",
     "partial",
-    "missing",
-    "unverified",
-    "error",
+    "pending",
+    "failed",
+    "unavailable",
     "previous",
+    "facts",
     "invalid_json"
   ],
   "notes_for_be": [
@@ -43,7 +40,9 @@
     "Strict server schema, source/fixture references, snapshot time and fact verification before saving.",
     "Missing/unverified/error sections require data=null and a public reason code.",
     "Generate only analysis; assemble DB/provider facts deterministically.",
-    "HTTP behavior for no saved record, preparation, storage failure, and stale previous publication must be finalized in BE spec.",
-    "Keep existing broadcast Markdown API behavior while adding a separate stored JSON path."
-  ]
+    "Keep existing broadcast Markdown API behavior while adding a separate stored JSON path.",
+    "FE error proposal: invalid parameter 422, unknown fixture 404, existing fixture with no snapshot 200 envelope, database unavailable 503; finalize in PRE-03.",
+    "See docs/features/home-preview-contract.md for exact state/time/cup invariants. No automatic generation on GET."
+  ],
+  "payload_schema_ref": "docs/spec/schemas/home-preview-payload.schema.json"
 }

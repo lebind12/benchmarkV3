@@ -16,7 +16,22 @@
         },
         "reason": {
           "type": "STRING",
-          "nullable": true
+          "nullable": true,
+          "enum": [
+            "not_collected",
+            "insufficient_sample",
+            "confirmed_no_absences",
+            "no_source",
+            "source_unverified",
+            "upstream_failed",
+            "outside_generation_window",
+            "generation_pending",
+            "generation_failed",
+            "refresh_failed",
+            "kickoff_passed",
+            "no_valid_snapshot",
+            "budget_deferred"
+          ]
         },
         "as_of": {
           "type": "STRING",
@@ -84,7 +99,22 @@
         },
         "reason": {
           "type": "STRING",
-          "nullable": true
+          "nullable": true,
+          "enum": [
+            "not_collected",
+            "insufficient_sample",
+            "confirmed_no_absences",
+            "no_source",
+            "source_unverified",
+            "upstream_failed",
+            "outside_generation_window",
+            "generation_pending",
+            "generation_failed",
+            "refresh_failed",
+            "kickoff_passed",
+            "no_valid_snapshot",
+            "budget_deferred"
+          ]
         },
         "as_of": {
           "type": "STRING",
@@ -161,7 +191,22 @@
         },
         "reason": {
           "type": "STRING",
-          "nullable": true
+          "nullable": true,
+          "enum": [
+            "not_collected",
+            "insufficient_sample",
+            "confirmed_no_absences",
+            "no_source",
+            "source_unverified",
+            "upstream_failed",
+            "outside_generation_window",
+            "generation_pending",
+            "generation_failed",
+            "refresh_failed",
+            "kickoff_passed",
+            "no_valid_snapshot",
+            "budget_deferred"
+          ]
         },
         "as_of": {
           "type": "STRING",

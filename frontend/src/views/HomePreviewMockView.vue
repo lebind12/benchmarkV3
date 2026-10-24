@@ -2,8 +2,11 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Clock3, Info, RotateCw, ShieldAlert } from 'lucide-vue-next'
 import PreviewTeam from '@/components/home-preview/PreviewTeam.vue'
-import { recommendationReason, sampleDay, sampleMatches, selectRecommendations, type Match } from '@/mocks/home-preview/data'
+import { recommendationReason, sampleDay, sampleMatches, type Match } from '@/mocks/home-preview/data'
 import { buildMockPreview, parsePreviewFile, previewBlocks } from '@/mocks/home-preview/preview'
+import { buildMockRecommendations } from '@/mocks/home-preview/recommendations'
+import { buildMockResponse } from '@/mocks/home-preview/response'
+import { recentMatchResult } from '@/lib/api/homePreviewSchema'
 import type { HomePreview } from '@/lib/api/homePreviewSchema'
 import '@/styles/home-preview.css'
 
@@ -56,10 +59,10 @@ const collection = computed(() => {
   if (scenario.value === 'results') return matches.map(m => m.day === sampleDay ? { ...m, state: 'finished' as const, score: '1 : 1' } : m)
   return matches
 })
-const selection = computed(() => selectRecommendations(collection.value, sampleDay))
+const selection = computed(() => buildMockRecommendations(collection.value, sampleDay))
 const match = computed(() => selection.value.matches[index.value])
 const previewState = computed(() => recovered.value ? 'ready' : override.value === 'auto' ? match.value?.preview : override.value)
-const readable = computed(() => ['ready', 'partial', 'previous'].includes(previewState.value ?? ''))
+const readable = computed(() => response.value?.preview !== null && response.value !== null)
 type DataKey = 'summary' | 'keyPoints' | 'injuries' | 'homeForm' | 'awayForm' | 'ai' | 'external' | 'odds'
 type DataStatus = 'available' | 'partial' | 'missing'
 const dataItems: { key: DataKey; label: string; target: string; partial?: boolean }[] = [
@@ -77,7 +80,9 @@ const noticeEdits = reactive<Record<number, string>>({})
 const importedPreviews = reactive<Record<number, HomePreview>>({})
 const jsonDraft = ref('')
 const jsonError = ref('')
-const preview = computed(() => match.value ? importedPreviews[match.value.id] ?? buildMockPreview(match.value, previewState.value, dataEdits[match.value.id]) : null)
+const draftPreview = computed(() => match.value ? importedPreviews[match.value.id] ?? buildMockPreview(match.value, previewState.value, dataEdits[match.value.id]) : null)
+const response = computed(() => match.value ? buildMockResponse(match.value, previewState.value, ['pending', 'failed', 'unavailable'].includes(previewState.value ?? '') ? null : draftPreview.value) : null)
+const preview = computed(() => response.value?.preview ?? null)
 const dataStatus = computed(() => {
   const blocks = preview.value && previewBlocks(preview.value)
   return Object.fromEntries(dataItems.map(item => [item.key, blocks?.[item.key].status ?? 'missing'])) as Record<DataKey, string>
@@ -92,7 +97,7 @@ const availableSources = computed(() => visibleSources.value.map(source => sourc
 const prediction = computed(() => preview.value?.analysis.ai_prediction.data)
 const formData = (side: number) => side ? preview.value?.facts.away_form.data : preview.value?.facts.home_form.data
 function showJson() {
-  if (preview.value) { jsonDraft.value = JSON.stringify(preview.value, null, 2); jsonError.value = '' }
+  if (draftPreview.value) { jsonDraft.value = JSON.stringify(draftPreview.value, null, 2); jsonError.value = '' }
 }
 function applyJson() {
   if (!match.value) return
@@ -151,8 +156,8 @@ watch(override, () => { recovered.value = false })
 function formRows(side: number) {
   return (formData(side)?.matches ?? []).map(row => ({
     date: new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit' }).format(new Date(row.kickoff_at)).replace('/', '.'),
-    opponent: row.opponent, competition: row.competition, score: `${row.goals_for}–${row.goals_against}`,
-    result: row.goals_for > row.goals_against ? '승' : row.goals_for < row.goals_against ? '패' : '무',
+    opponent: row.opponent, competition: row.competition, score: `${row.goals_for}–${row.goals_against}${row.status === 'FT' ? '' : row.status === 'AET' ? ' (연장)' : row.penalties ? ` (승부차기 ${row.penalties.for}–${row.penalties.against})` : ' (승부차기 미확인)'}`,
+    result: recentMatchResult(row),
   }))
 }
 const touchStart = ref<number | null>(null)
@@ -173,7 +178,7 @@ function swipe(event: TouchEvent) {
           <summary>평가 도구</summary>
           <div class="hp-tools__body">
             <label>경기 상황<select v-model="scenario" aria-label="경기 상황"><option v-for="[value, label] in scenarioOptions" :key="value" :value="value">{{ label }}</option></select></label>
-            <label>프리뷰 상태<select v-model="override" aria-label="프리뷰 상태"><option value="auto">경기별 기본 상태</option><option value="ready">준비 완료</option><option value="partial">일부 자료 부족</option><option value="pending">준비 중</option><option value="failed">불러오기 실패</option><option value="previous">이전 유효본</option></select></label>
+            <label>프리뷰 상태<select v-model="override" aria-label="프리뷰 상태"><option value="auto">경기별 기본 상태</option><option value="ready">준비 완료</option><option value="partial">일부 자료 부족</option><option value="pending">준비 중</option><option value="failed">불러오기 실패</option><option value="previous">이전 유효본 · 갱신 실패</option><option value="unavailable">생성 대상 시각 전</option><option value="facts">사실 자료만 있음</option></select></label>
             <label class="hp-check"><input v-model="missingLogo" type="checkbox" />로고 없음</label>
             <fieldset v-if="match" class="hp-data-controls"><legend>선택 경기 자료</legend>
               <label v-for="item in dataItems" :key="item.key">{{ item.label }}<select :aria-label="`${item.label} 자료 상태`" :value="dataStatus[item.key]" @change="setDataStatus(item.key, $event)"><option value="available">있음</option><option v-if="item.partial" value="partial">일부 있음 (3/5)</option><option value="missing">없음</option></select></label>
@@ -217,7 +222,7 @@ function swipe(event: TouchEvent) {
         <div class="hp-preview-stage" :style="{ '--home-tint': match.home.color, '--away-tint': match.away.color }">
         <section class="hp-preview" :key="`preview-${match.id}`" aria-labelledby="preview-heading" data-testid="selected-preview" :data-fixture-id="match.id">
           <header class="hp-section-head hp-reveal"><h2 id="preview-heading">경기 전 프리뷰</h2></header>
-          <div v-if="previewState === 'previous'" class="hp-state-note"><Info :size="18" />최신 프리뷰를 준비하고 있어 이전 유효본을 표시합니다. 생성 10.25 12:00 · 자료 10.25 11:40 KST</div>
+          <div v-if="response?.publication.served === 'previous'" class="hp-state-note" data-testid="previous-publication"><Info :size="18" />갱신에 실패하여 이전 유효본을 표시합니다. 생성 {{ formatTime(response.publication.generated_at) }} · 자료 {{ formatTime(response.publication.as_of) }} KST</div>
           <section v-if="readable && dataGaps.length" class="hp-data-summary" aria-labelledby="data-gap-heading" data-testid="data-gap-summary">
             <header><Info :size="18" /><h3 id="data-gap-heading">자료 확인 현황</h3><span>미제공 {{ missingData.length }} · 일부 제공 {{ partialData.length }}</span></header>
             <ul><li v-for="item in dataGaps" :key="item.key"><button @click="openData(item.target)"><b>{{ item.label }}</b><span>{{ dataStatus[item.key] === 'missing' ? '미제공' : dataStatus[item.key] === 'unverified' ? '미확인' : dataStatus[item.key] === 'error' ? '조회 실패' : ['homeForm', 'awayForm'].includes(item.key) ? `${formData(item.key === 'awayForm' ? 1 : 0)?.matches.length ?? 0} / 5경기` : '일부 제공' }}</span><ArrowRight :size="13" /></button></li></ul>
@@ -225,9 +230,9 @@ function swipe(event: TouchEvent) {
           </section>
           <div v-if="!readable" class="hp-preview-empty" role="status">
             <ShieldAlert v-if="previewState === 'failed'" :size="32" /><Clock3 v-else :size="32" />
-            <h3>{{ previewState === 'failed' ? '프리뷰를 불러오지 못했습니다' : '이 경기의 프리뷰를 준비하고 있습니다' }}</h3>
+            <h3>{{ previewState === 'failed' ? '프리뷰를 불러오지 못했습니다' : previewState === 'unavailable' ? '킥오프 24시간 전부터 프리뷰를 준비합니다' : '이 경기의 프리뷰를 준비하고 있습니다' }}</h3>
             <p>{{ previewState === 'failed' ? '잠시 후 저장된 프리뷰를 다시 확인해주세요.' : '자료가 준비되면 관전 포인트와 경기 전망을 확인할 수 있습니다.' }}</p>
-            <button class="hp-action" @click="recovered = true"><RotateCw :size="15" />다시 확인 <span class="hp-muted">(샘플)</span></button>
+            <button v-if="previewState !== 'unavailable'" class="hp-action" @click="recovered = true"><RotateCw :size="15" />다시 확인 <span class="hp-muted">(샘플)</span></button>
           </div>
           <template v-else>
             <p id="preview-summary" tabindex="-1" class="hp-lead hp-reveal">{{ preview?.analysis.summary.data?.text || '한줄 전망 자료가 없습니다.' }}</p>
@@ -241,7 +246,7 @@ function swipe(event: TouchEvent) {
             <section id="preview-form" tabindex="-1" class="hp-form-section hp-reveal"><header class="hp-subhead"><h3>최근 5경기</h3><span>킥오프 이전 완료 경기 · 모든 대회 · 샘플</span></header><div class="hp-form-grid"><article v-for="(team, side) in [match.home, match.away]" :key="team.id" class="hp-form"><header><b>{{ team.name }}</b><div><span v-for="(row, r) in formRows(side)" :key="r" :class="['hp-form-badge', `hp-form-badge--${row.result}`]">{{ row.result }}</span></div></header><p v-if="formRows(side).length === 0" class="hp-unavailable">최근 경기 자료가 없습니다.</p><template v-else><p v-if="formRows(side).length < 5" class="hp-inline-note">확인 가능한 완료 경기 {{ formRows(side).length }}개만 표시합니다.</p><table><caption class="hp-sr-only">{{ team.name }} 최근 5경기 샘플</caption><thead><tr><th>날짜</th><th>대회</th><th>상대</th><th>결과</th></tr></thead><tbody><tr v-for="row in formRows(side)" :key="row.date"><td>{{ row.date }}</td><td>{{ row.competition }}</td><td>{{ row.opponent }}</td><td><b>{{ row.score }}</b></td></tr></tbody></table></template></article></div></section>
 
             <div class="hp-evidence-grid hp-reveal"><section id="preview-external" tabindex="-1"><header class="hp-subhead"><h3>외부 사이트 전망</h3><span>AI 예측과 별도</span></header><p v-if="!preview?.external.predictions.data" class="hp-unavailable">확인한 외부 전망이 없습니다.</p><template v-else><div v-for="(item, i) in preview.external.predictions.data" :key="i" class="hp-external"><span>{{ sourceTitle([item.source_id]) }}</span><b>{{ item.outlook }}</b><p>{{ item.summary }}</p><small>자료 {{ formatTime(preview.external.predictions.as_of) }} KST</small></div></template></section><section id="preview-odds" tabindex="-1"><header class="hp-subhead"><h3>경기 전 배당</h3><span>90분 승무패 · Decimal</span></header><p v-if="!preview?.external.odds.data" class="hp-unavailable">이 경기의 경기 전 배당이 없습니다.</p><template v-else><article v-for="(item, i) in preview.external.odds.data" :key="i"><p class="hp-inline-note">{{ item.bookmaker }}</p><div class="hp-odds"><div><span>홈승</span><b>{{ item.home.toFixed(2) }}</b></div><div><span>무승부</span><b>{{ item.draw.toFixed(2) }}</b></div><div><span>원정승</span><b>{{ item.away.toFixed(2) }}</b></div></div><p class="hp-inline-note">수집 기준 {{ formatTime(item.collected_at) }} KST</p></article></template></section></div>
-            <footer class="hp-sources hp-reveal"><h3>출처와 자료 시점</h3><p>{{ availableSources || '표시할 출처가 없습니다.' }}</p><ul v-if="visibleSources.some(source => source.url)" class="hp-source-links"><template v-for="source in visibleSources" :key="source.id"><li v-if="source.url"><a :href="source.url" target="_blank" rel="noopener noreferrer">{{ source.title }}</a><span> · 확인 {{ formatTime(source.retrieved_at) }} KST</span></li></template></ul><p>자료 기준 {{ formatTime(preview?.as_of) }} KST / 생성 {{ formatTime(preview?.generated_at) }} KST</p></footer>
+            <footer class="hp-sources hp-reveal"><h3>출처와 자료 시점</h3><p>{{ availableSources || '표시할 출처가 없습니다.' }}</p><ul v-if="visibleSources.some(source => source.url)" class="hp-source-links"><template v-for="source in visibleSources" :key="source.id"><li v-if="source.url"><a :href="source.url" target="_blank" rel="noopener noreferrer">{{ source.title }}</a><span> · 확인 {{ formatTime(source.retrieved_at) }} KST</span></li></template></ul><p>자료 기준 {{ formatTime(preview?.as_of) }} KST / {{ preview?.generated_at ? `생성 ${formatTime(preview.generated_at)} KST` : 'AI 분석 미생성' }}</p></footer>
           </template>
         </section>
         </div>

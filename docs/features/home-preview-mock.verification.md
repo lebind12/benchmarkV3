@@ -63,3 +63,14 @@ vue-tsc -b && vite build: success
 - JSON의 분석/스코어 편집을 화면에 반영하고, 다른 fixture의 출처를 넣은 잘못된 JSON은 오류와 함께 거부·직전 유효 화면을 보존한다. 기존 누락 상태 조작·경기별 격리·모바일·다크·감소 모션 검증 유지.
 - 10개 샘플 JSON을 검증한다. 구조화된 facts/external/analysis, null 누락, 근거 참조, 시각, 표본 수, 배당 시장, AI 영역에 사실 필드를 추가하는 오류를 검사했다.
 - `home-preview-analysis.schema.json`, Vertex 지원 형식과 generation 요청 예제는 로컬 계약 산출물이다. 실제 provider schema 수용/검색·생성·DB 저장/공개 GET을 검증한 결과가 아니다. 실제 생성 경로의 Markdown 반환은 유지한다.
+
+
+## PRE-01 재검증 — 2026-10-25
+
+- 경로 `/Users/woolee/benchmark-main`, branch `feat/home-preview-json`, 브라우저 테스트 5192/백엔드 proxy 8017. 기존 공용 checkout의 브랜치/HEAD/실제 index/작업 파일 변경 없음.
+- `npm run test:unit -- tests/unit/home-preview`: 3 files / 23 tests PASS.
+- `./node_modules/.bin/playwright test --config playwright.home-preview.config.ts`: 13 tests PASS, API request 0 / page error 0.
+- `npm run build`: vue-tsc + Vite PASS.
+- `out/home-preview/mobile-preview.png` 시각 확인: 제목/본문/카드/모바일 폭 유지. 데스크톱/모바일/다크/reduced-motion 회귀 테스트 PASS.
+- 생성 전/실패/24h 전 상태의 null publication, 사실만 있는 본문의 null generated_at, 실패 후 이전 저장본의 시각 유지, PEN 미확인·확인 결과, 동적 컵 분류·정렬·날짜/중복/출처 오류 차단 검증.
+- 테스트는 로컬 목업/계약 검증이며 실 DB·Vertex·API-Football·Redis·스케줄러/배포 검증이 아니다. PRE-03에서 Pydantic 의미 검증 parity가 필요하다.

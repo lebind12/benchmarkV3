@@ -23,6 +23,10 @@ export function buildMockPreview(match: Match, state: string | undefined, edits:
       block.reason = 'insufficient_sample'
     }
   }
+  if (state === 'facts') {
+    for (const block of Object.values(result.analysis)) Object.assign(block, { status: 'missing', reason: 'generation_pending', as_of: null, source_ids: [], data: null })
+    result.generated_at = null
+  }
   return homePreviewSchema.parse(result)
 }
 export function parsePreviewFile(json: string, fixtureId: number): HomePreview {
