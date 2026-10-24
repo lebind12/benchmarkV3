@@ -180,3 +180,62 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | BCAST-UI-2 | 유로파 포메이션 양옆 리본 제거, 6개 리그의 스탯 UI·기능·영문 약칭 공통화, 포메이션/스탯 글씨·선수·스탯 로고 크기를 현재 UCL 기준으로 통일 | 리그 색상 유지, 공통 스탯/방송 단위 테스트 69개 및 빌드 통과. Playwright 미실행, 화면은 사용자 확인 | UCL-UI-1 | cc:완료 [local-all-league-broadcast-ui] |
 | BCAST-UI-3 | 모든 리그 하단 이벤트 팝업의 글씨 1.3배 확대(득점·교체·경고·VAR·스탯) | 공통 글씨 배율 적용 및 빌드 통과. Playwright 미실행 | BCAST-UI-2 | cc:완료 [local-event-popup-type-scale] |
 | PLAYER-KO-20260910 | 미번역 선수 869명의 한국어 이름·짧은 이름과 출처를 `seeds/player_translation_pending_20260910.csv`에 기록하고 DB 반영 | NULL 행 868건 갱신, 누락 행 1건 생성. 두 번역 컬럼의 잔여 NULL 0건, 기존 비NULL 필드 21,764개 보존 확인 | - | cc:완료 [player-translation-pending-20260910] |
+
+## 메인 추천·프리뷰 목업 — 2026-10-25
+
+| Task | 내용 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| HOME-PREVIEW-0 | 추천 순서·진행 중·날짜 이동 결정 | plan.md §5.2.1과 결정 기록에 사용자 확정 반영 | - | cc:완료 [local-decision] |
+| HOME-PREVIEW-1 | 메인 FE 평가용 목업 | 개발 전용 /home/mock, 진행 중 우선/예정 정렬·전환·로고 등장·인라인 프리뷰·누락/실패/이전본·다음 날짜·오늘 결과·모바일/다크/감소 모션 검증, BE/운영 호출 없음 | HOME-PREVIEW-0 | cc:완료 [local-mock; unit 5/E2E 10/build PASS; 사용자 평가 대기] |
+| HOME-PREVIEW-EVAL | 사용자 목업 평가 | 디자인·흐름 피드백 후 실제 홈 전환·endpoint-request 범위 확정 | HOME-PREVIEW-1 | cc:TODO |
+
+## 메인 프리뷰 구조화 JSON — 2026-10-25
+
+| Task | 내용 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| HOME-JSON-1 | DB/웹/AI 책임·JSON 계약 및 FE 목업 | 사실/외부/분석 분리, 샘플 JSON·AI response schema·Vertex 요청 예제·FE strict validation·본문 JSON 렌더링·누락/편집·잘못된 응답 차단·endpoint-request·검증 기록 | HOME-PREVIEW-1 | cc:완료 [JSON 목업; unit 12/E2E 11/build PASS; BE 미구현] |
+| HOME-JSON-2 | 근거 수집·JSON 생성·DB 저장/조회 BE 명세/구현 | 상위 묶음. 실제 실행/완료 판정은 PRE-01~09·11~12로 세분화. 기존 Markdown 호환, source/사실/시점 검증·Supabase/ORM·격리 검증 | HOME-JSON-1 | cc:TODO [PRE 표 참조; BE 미구현] |
+| HOME-JSON-3 | 저장 JSON 실 연동 검증 | 상위 묶음. 실제 실행/완료 판정은 PRE-10·12. 현재 / 라우트·DB 저장본·동일 fixture·누락/이전본·출처 검증 | HOME-JSON-2 | cc:TODO [PRE 표 참조; 실 연동 전] |
+
+## 메인 구조화 JSON 프리뷰 구현 계획 — PRE 실행 정본 (2026-10-25)
+
+사용자가 요청한 것은 구현 계획 수립이다. 상세 설계·추천 정책·한계·회귀 기준은 `plan.md` §14와 §5.2.1을 따른다. 표의 `완료`는 해당 산출물만 의미하며, 문서/FE 목업 완료를 BE·실 연동·운영 완료로 확대하지 않는다. 현재 새 BE 구현은 시작하지 않았다.
+
+| Task | 내용 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| PRE-00 | 현재 코드 대조·구현 계획 수립 | 기존 JSON/DB/생성/인증/스케줄러·migration 현황 대조, plan.md §14 및 본 표 작성, 미정 계약/실응답/운영 경계 명시. 문서 자체 점검 | HOME-JSON-1 | cc:완료 [계획 문서만; 구현 미착수] |
+| PRE-01 | FE 부족 상태·조회/추천 계약 보완 | 생성 전/실패/이전 유효본 envelope·null 생성 시각/공개 reason·컵 폼 기준, 동적 추천 목록/정렬/날짜·상태 시각 요구를 mock/Zod/JSON/endpoint-request로 작성·검증. 기존 디자인 유지 | PRE-00 | cc:TODO |
+| PRE-02 | DB coverage·웹/배당 소스·provider 검증 | 읽기 전용 coverage, 공식/매체/외부 전망 소스 매칭·사용 범위·시각, 부상/배당 MCP 실응답 확인 경로/누락 기록, Vertex 검색/structured output 계약·usage fixture. 탐색 범위/자료 유효기간/검색·비용 상한 명세. 사용자에게 소스 조사 전가 안 함 | PRE-01 | cc:TODO |
+| PRE-03 | BE 명세·Pydantic·테스트 선행·spec review | endpoint-request 기준 GET/저장/생성 경계·오류/권한·상태·시간/사실 검증 명세와 testplan·실패 테스트. JSON Schema/Zod/Pydantic 공통 fixture·drift 검증 계획. 기존 방송 호환·독립 spec review | PRE-01, PRE-02 | cc:TODO |
+| PRE-04 | snapshot·프리뷰·publication 저장 기반 | 실제 baseline 대조 후 Supabase CLI migration/ORM/문서 동기화, 근거/불변 버전/현재 제공본/실행 책임 확정, unique/FK/인덱스·원자 전환·2시즌 보관 정리. 격리 migration·기존 데이터/참조 보존 검증 | PRE-03 | cc:TODO |
+| PRE-05 | DB 사실 조립·추천 정책 서비스 | 기존 경기/번역/최근 경기 재사용, snapshot+킥오프 cutoff·FT/AET/PEN·표본/NULL·source provenance, 활성/허용 시즌·진행 중 우선/확정 순서·동률·KST fallback·중복 제거·모든 중요 경기 접근성 테스트 | PRE-04 | cc:TODO |
+| PRE-06 | 웹 근거·부상·외부 전망·배당 어댑터 | 검증한 원본만 정규화·저장, source registry/grounding·발표/확인 시각·같은 경기·확정/불확실·시장/북메이커, unverified/missing/error 및 상충 보도. URL/시간/크기 제한·출처 지시 격리. 고정 원본+소량 실응답 contract 검증 | PRE-02, PRE-04 | cc:TODO |
+| PRE-07 | schema 강제 AI analysis 생성 | 검증된 근거만 입력·새 JSON 경로, MIME/provider schema+strict Pydantic·근거/필드/시점·원본 사실 대조, 거절/잘림/빈/오류/환각 출처·숫자 테스트. 기존 방송 Markdown 회귀 통과 | PRE-03, PRE-05, PRE-06 | cc:TODO |
+| PRE-08 | 생성 pipeline·publication·내부 실행 | DB→웹→JSON→합성/검증→원자 저장, fingerprint/생성 버전·중복/소유권·제한된 재시도·deadline/예산·중단/복구. 실패 시 이전본 보존, 자료만 있는 부분/미제공 처리, 예정만 생성·킥오프 경계. 내부 CLI/작업으로 검증, 미요청 수동 API 추가 안 함 | PRE-05, PRE-06, PRE-07 | cc:TODO |
+| PRE-09 | 공개 저장본·추천 GET 구현 | 보완한 FE 계약대로 DB 조회만 제공. 정상/일부/이전본/생성본 없음/없는 fixture/DB 장애, is_mock=false·진단 비노출·외부 호출 0. 추천 전환용 fixture identity·동적 활성 리그/날짜·오늘 결과 통합 테스트 | PRE-03, PRE-04, PRE-05, PRE-08 | cc:TODO |
+| PRE-10 | 실제 메인 FE 연동 | 실제 / 라우트에 평가 디자인·저장 JSON GET/Zod 적용, /home/mock 평가 도구 분리, 빠른 연속 전환/늦은 응답 경합·부분/실패/이전본·출처/시각·mobile/dark/reduced motion. L1/L2/build+격리 API L3 | PRE-09 | cc:TODO |
+| PRE-11 | 6시간 갱신의 실제 실행 연결 | 정기 daily-sync와 관리 수동 실행의 종료 경로 대조·공통 후처리, enable 설정·커밋된 성공 snapshot·중복/부분 실패·재기동·예산 이월 검증. 공개 조회/서버 import 생성 0·진행 중 신규 생성 0·전체 API 한도 유지. 운영 설정/재시작 없음 | PRE-08, PRE-09 | cc:TODO |
+| PRE-12 | 전체 인수·독립 리뷰·운영 인계 | 핵심 추천 유형별 근거→JSON→DB→메인, 정상/실제 미제공 coverage·모든 negative case, migration·unit/격리 integration·FE L1~L3/build·스케줄/비용/회귀·독립 review. 외부/DB 환경 부족 skip은 완료 아님. 운영 적용/배포는 별도 기록 | PRE-10, PRE-11 | cc:TODO |
+
+의존 흐름: `PRE-01 → 02 → 03 → 04 → (05,06) → 07 → 08 → 09 → (10,11) → 12`. 괄호는 논리 의존 관계이며 단일 checkout에서 동시 브랜치 편집을 허용하는 뜻이 아니다. 실제 작업은 한 task branch에서 소유 범위를 보존하고 FE/BE 역할을 순차 인계한다.
+
+- 다음 실행 출발점: **PRE-01**. 이 계획 수립 턴에서는 workflow 상태 전이·브랜치/커밋·원격 push/merge·운영 DB/외부 API·배포를 수행하지 않는다.
+- HOME-JSON-2는 PRE BE 작업의 상위 묶음, HOME-JSON-3는 FE 실 연동/인수 상위 묶음이다. AX-7/AX-PRE-1/AX-8의 홈 관련 범위를 구체화하며 AX-8의 모든 일반/방송 동적 리그 확장 완료까지 주장하지 않는다.
+- 현재 checkout의 관리/검색/홈 미커밋 변경과 실제 작업 소유·migration baseline을 보존·정리한 뒤 lifecycle을 시작한다. 기존 변경을 임의 stash/reset하지 않는다.
+
+### PRE 착수 승인·브랜치/예산 후속 기록 — 2026-10-25
+
+- 사용자가 계획 저장 후 개발 진행을 요청했다. 생성 시점·처리 횟수·시즌/토큰 비용 가정은 `plan.md` §14.11에 저장했다. 브랜치 계획은 §14.12를 따른다.
+- 현재 `fe-feat-streamer-management-mock`에 관리·검색·홈의 미커밋 변경이 있어 브랜치 전환·구현 수정은 아직 하지 않았다. 작업 소유/보존과 clean 상태 확보를 선행하며 임의 stash/reset/전체 일괄 커밋을 하지 않는다.
+- 로컬 통합 `feat/home-preview-json` → `fe-feat-home-preview-contract` → `be-ep-home-prematch` → `be-ep-home-recommendations` → `fe-feat-integration-home-preview` → `be-feat-home-preview-refresh` 순서. 각 단계 결과를 로컬 통합 브랜치에 반영하며 실제 시작 커밋은 정리 후 기록한다.
+- PRE-01의 기능 구현·테스트는 미착수 상태다. 계획/브랜치 정책 저장을 구현 완료나 배포 승인으로 처리하지 않는다.
+
+### 현재 세션 분리 기록
+
+- 홈 프리뷰 세션의 전용 파일과 공용 파일의 홈 관련 부분만 복원했다. 관리·검색·선수 번역 및 공통 인증/환경 변경은 포함하지 않았다.
+- 작업 브랜치: `fe-feat-home-preview-contract`, 로컬 통합 기준 브랜치: `feat/home-preview-json`. 두 브랜치의 기준은 `e3e8f40a8e045174d06544116a933cc03507c33a`이다.
+- 공통 인증/관리 코드가 이 브랜치에 없으므로 관련 재사용 계획은 후속 의존성 검토가 필요하다. 원래 브랜치의 미커밋 상태는 별도 stash로 보존한다.
+
+## 전용 worktree 분리 완료 — 최신 사용자 지시
+
+현재 작업 경로는 `/Users/woolee/benchmark-main`, 통합 브랜치는 `feat/home-preview-json`이다. 이전의 공유 checkout/브랜치 분리 기록은 당시 기록이며 운영 방식은 `docs/decisions/2026-10-25-parallel-worktrees.md`로 대체한다. 관리·AX 변경은 포함하지 않았다. PRE-01은 미착수이며 다음 작업이다. 공통 인증/관리 코드는 현재 출발 커밋에 없으므로 후속 의존성 검토가 필요하다.

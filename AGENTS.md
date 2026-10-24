@@ -101,6 +101,7 @@
 원칙:
 - API-Football 직접 호출은 **방송용 페이지 + 워커 (daily-sync 등)** 만 허용
 - 일반 사용자 페이지가 라이브 매치를 보고 있어도 최대 6h stale 가능 (정책상 허용)
+- 메인의 오늘 추천 경기 프리뷰는 부상·최근 5경기·관전 포인트·AI 경기 예측·외부 사이트 전망·경기 전 배당을 포함하는 개발 범위다(2026-10-24 후속 결정). 외부 근거와 생성본을 수집/생성 경로에서 DB에 저장하고 일반 페이지는 저장본만 조회한다. 기존 6시간 갱신 정책은 유지한다. AI 예측은 예측으로 구분하며 사실·통계·부상·외부 사이트 의견·배당을 창작하지 않는다. 출처·자료 기준 시각·생성 시각과 누락 상태를 보존한다. 상세 및 미정 추천 순서는 `plan.md` §5 참조.
 - 라이브 정보가 절실히 필요한 사용자 = 방송용 페이지로 유도 (스트리머 전용)
 
 ## 7. 인증/권한
@@ -184,8 +185,10 @@
 - 스키마: `.codex/schemas/*.schema.json`
 - 실행: `scripts/feature-flow.sh`, `scripts/endpoint-flow.sh`
 - 동기화: Claude legacy 산출물은 `.claude/` 에 보관하고, Codex 운영 정본은 `.codex/` 를 사용
-- Git 작업 방식: 별도 worktree 를 생성하지 않고 하나의 checkout 에서 task branch 로 `git switch` 한다. 브랜치 전환 전 작업 디렉토리가 clean 하고 다른 구현 에이전트가 작업 중이지 않은지 확인한다.
-- 단일 checkout 에서 서로 다른 브랜치를 동시에 편집하지 않는다. planner / dev / reviewer 와 FE / BE 구현은 브랜치 전환을 포함해 순차적으로 수행한다.
+- 2026-10-25 최신 사용자 결정: 관리 세션은 `/Users/woolee/benchmark`, 메인 세션은 `/Users/woolee/benchmark-main`, 자연어 검색 AX는 별도 전용 worktree에서 작업한다. 이 결정은 이전 단일 checkout/새 worktree 금지 규칙을 대체한다. 결정 기록: `docs/decisions/2026-10-25-parallel-worktrees.md`.
+- 메인 통합 브랜치는 `feat/home-preview-json`이며 이 worktree 안에서만 메인 작업을 수행한다. 관리/AX의 HEAD·실제 인덱스·작업 파일을 변경하지 않는다. 원본에서 stash/reset/clean/브랜치 전환/전체 변경 일괄 커밋을 하지 않는다.
+- 공용 파일은 메인 관련 변경만 가져오며, 다른 세션의 미커밋 인증·모델·검색 정책을 자동 적용하지 않는다. 공통 의존성은 실제 커밋 기준으로 별도 검토한다.
+- 각 worktree 안에서는 task branch를 순차 사용하고 브랜치 전환 전 해당 worktree의 clean 상태를 확인한다. 과거 `benchmark.fe-feat-main-home` worktree는 재사용/초기화하지 않는다.
 - 본 AGENTS.md 는 도메인/규칙의 SSOT. 변경 시 PR 또는 명시적 결정 기록 동반
 - 배포 금지 원칙: 사용자가 **"배포해"** 라고 명시적으로 요청하지 않는 한 Koyeb/Vercel/GitHub Actions 등 어떤 서비스에서도 deployment 를 트리거하지 않는다.
 - 배포성 명령에는 `koyeb services update`, `koyeb deploy`, `vercel deploy`, 배포 환경변수 변경, 서비스 재시작/롤링 업데이트가 포함된다. "서비스에 연결", "설정해", "환경변수 넣어" 같은 표현은 배포 허가가 아니다.

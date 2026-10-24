@@ -1,0 +1,252 @@
+{
+  "type": "OBJECT",
+  "properties": {
+    "summary": {
+      "type": "OBJECT",
+      "properties": {
+        "status": {
+          "type": "STRING",
+          "enum": [
+            "available",
+            "partial",
+            "missing",
+            "unverified",
+            "error"
+          ]
+        },
+        "reason": {
+          "type": "STRING",
+          "nullable": true
+        },
+        "as_of": {
+          "type": "STRING",
+          "nullable": true,
+          "format": "date-time"
+        },
+        "source_ids": {
+          "type": "ARRAY",
+          "items": {
+            "type": "STRING"
+          }
+        },
+        "data": {
+          "type": "OBJECT",
+          "properties": {
+            "text": {
+              "type": "STRING"
+            },
+            "evidence_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              },
+              "minItems": 1
+            }
+          },
+          "propertyOrdering": [
+            "text",
+            "evidence_ids"
+          ],
+          "required": [
+            "text",
+            "evidence_ids"
+          ],
+          "nullable": true
+        }
+      },
+      "propertyOrdering": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ],
+      "required": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ]
+    },
+    "key_points": {
+      "type": "OBJECT",
+      "properties": {
+        "status": {
+          "type": "STRING",
+          "enum": [
+            "available",
+            "partial",
+            "missing",
+            "unverified",
+            "error"
+          ]
+        },
+        "reason": {
+          "type": "STRING",
+          "nullable": true
+        },
+        "as_of": {
+          "type": "STRING",
+          "nullable": true,
+          "format": "date-time"
+        },
+        "source_ids": {
+          "type": "ARRAY",
+          "items": {
+            "type": "STRING"
+          }
+        },
+        "data": {
+          "type": "ARRAY",
+          "minItems": 1,
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "title": {
+                "type": "STRING"
+              },
+              "description": {
+                "type": "STRING"
+              },
+              "evidence_ids": {
+                "type": "ARRAY",
+                "items": {
+                  "type": "STRING"
+                },
+                "minItems": 1
+              }
+            },
+            "propertyOrdering": [
+              "title",
+              "description",
+              "evidence_ids"
+            ],
+            "required": [
+              "title",
+              "description",
+              "evidence_ids"
+            ]
+          },
+          "nullable": true
+        }
+      },
+      "propertyOrdering": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ],
+      "required": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ]
+    },
+    "ai_prediction": {
+      "type": "OBJECT",
+      "properties": {
+        "status": {
+          "type": "STRING",
+          "enum": [
+            "available",
+            "partial",
+            "missing",
+            "unverified",
+            "error"
+          ]
+        },
+        "reason": {
+          "type": "STRING",
+          "nullable": true
+        },
+        "as_of": {
+          "type": "STRING",
+          "nullable": true,
+          "format": "date-time"
+        },
+        "source_ids": {
+          "type": "ARRAY",
+          "items": {
+            "type": "STRING"
+          }
+        },
+        "data": {
+          "type": "OBJECT",
+          "properties": {
+            "home_goals": {
+              "type": "INTEGER",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "away_goals": {
+              "type": "INTEGER",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "confidence": {
+              "type": "STRING",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            "reason": {
+              "type": "STRING"
+            },
+            "evidence_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              },
+              "minItems": 1
+            }
+          },
+          "propertyOrdering": [
+            "home_goals",
+            "away_goals",
+            "confidence",
+            "reason",
+            "evidence_ids"
+          ],
+          "required": [
+            "home_goals",
+            "away_goals",
+            "confidence",
+            "reason",
+            "evidence_ids"
+          ],
+          "nullable": true
+        }
+      },
+      "propertyOrdering": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ],
+      "required": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ]
+    }
+  },
+  "propertyOrdering": [
+    "summary",
+    "key_points",
+    "ai_prediction"
+  ],
+  "required": [
+    "summary",
+    "key_points",
+    "ai_prediction"
+  ]
+}

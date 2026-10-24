@@ -93,6 +93,7 @@ const routes: RouteRecordRaw[] = [
     component: DefaultLayout,
     children: [
       { path: '', name: 'home', component: () => import('@/views/ui-review/UiReviewHomeView.vue') },
+      ...(import.meta.env.DEV ? [{ path: 'home/mock', name: 'home-preview-mock', component: () => import('@/views/HomePreviewMockView.vue'), meta: { localMock: true } }] : []),
       { path: 'fixtures', name: 'fixtures', component: () => import('@/views/ui-review/UiReviewFixturesView.vue') },
       {
         path: 'fixtures/:externalId(\\d+)',

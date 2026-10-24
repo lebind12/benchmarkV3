@@ -1,0 +1,49 @@
+{
+  "endpoint_id": "GET__api_v1_home_fixtures_external_id_prematch",
+  "method": "GET",
+  "path": "/api/v1/home/fixtures/{external_id}/prematch",
+  "from_feature": "home-preview-mock",
+  "auth": "public",
+  "fe_mockup_ref": "frontend/src/views/HomePreviewMockView.vue",
+  "spec_excerpt": "메인 화살표로 선택한 fixture의 저장된 경기 전 JSON 프리뷰를 조회한다. 이 요청에서 웹 검색·외부 API·AI 생성은 실행하지 않는다.",
+  "request_path_params": [
+    {
+      "name": "external_id",
+      "type": "positive integer",
+      "description": "API-Football fixture external_id"
+    }
+  ],
+  "response_example_path": "frontend/src/mocks/home-preview/previews.json",
+  "response_example_json_pointer": "/90001",
+  "response_schema_ref": "frontend/src/lib/api/homePreviewSchema.ts#homePreviewSchema",
+  "analysis_schema_ref": "docs/spec/schemas/home-preview-analysis.schema.json",
+  "response_shape": {
+    "schema_version": "1.0",
+    "is_mock": "boolean; production false only",
+    "fixture": "external_id, kickoff_at, home/away external_id/name",
+    "generated_at": "ISO8601",
+    "as_of": "ISO8601",
+    "sources": "id/fixture_id/kind/title/url/published_at/retrieved_at[]",
+    "facts": "injuries/home_form/away_form section envelopes",
+    "external": "predictions/odds section envelopes",
+    "analysis": "summary/key_points/ai_prediction section envelopes"
+  },
+  "scenarios_used": [
+    "ready",
+    "partial",
+    "missing",
+    "unverified",
+    "error",
+    "previous",
+    "invalid_json"
+  ],
+  "notes_for_be": [
+    "FE-first contract draft; this endpoint is not implemented.",
+    "DB is the only data source for public GET. No live score or polling.",
+    "Strict server schema, source/fixture references, snapshot time and fact verification before saving.",
+    "Missing/unverified/error sections require data=null and a public reason code.",
+    "Generate only analysis; assemble DB/provider facts deterministically.",
+    "HTTP behavior for no saved record, preparation, storage failure, and stale previous publication must be finalized in BE spec.",
+    "Keep existing broadcast Markdown API behavior while adding a separate stored JSON path."
+  ]
+}

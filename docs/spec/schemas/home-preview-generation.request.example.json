@@ -1,0 +1,276 @@
+{
+  "systemInstruction": {
+    "parts": [
+      {
+        "text": "검증된 DB·웹 근거만 사용해 경기 전 분석을 작성한다. 응답 스키마의 JSON만 반환한다. source_ids/evidence_ids는 입력에 제공된 ID만 사용한다. 원문에 없는 부상·외부 전망·배당·통계·전술을 사실로 만들지 않는다. 근거가 부족하면 해당 분석을 missing/unverified로 두고 data는 null로 반환한다. 자료 기준 시각은 입력 snapshot 시각을 그대로 사용한다. 경기 결과를 사전 예측에 사용하지 않는다."
+      }
+    ]
+  },
+  "contents": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "text": "<서버에서 검증한 fixture + DB snapshot + 웹 근거 registry JSON을 여기에 주입>"
+        }
+      ]
+    }
+  ],
+  "generationConfig": {
+    "responseMimeType": "application/json",
+    "responseSchema": {
+      "type": "OBJECT",
+      "properties": {
+        "summary": {
+          "type": "OBJECT",
+          "properties": {
+            "status": {
+              "type": "STRING",
+              "enum": [
+                "available",
+                "partial",
+                "missing",
+                "unverified",
+                "error"
+              ]
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "OBJECT",
+              "properties": {
+                "text": {
+                  "type": "STRING"
+                },
+                "evidence_ids": {
+                  "type": "ARRAY",
+                  "items": {
+                    "type": "STRING"
+                  },
+                  "minItems": 1
+                }
+              },
+              "propertyOrdering": [
+                "text",
+                "evidence_ids"
+              ],
+              "required": [
+                "text",
+                "evidence_ids"
+              ],
+              "nullable": true
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        },
+        "key_points": {
+          "type": "OBJECT",
+          "properties": {
+            "status": {
+              "type": "STRING",
+              "enum": [
+                "available",
+                "partial",
+                "missing",
+                "unverified",
+                "error"
+              ]
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "ARRAY",
+              "minItems": 1,
+              "items": {
+                "type": "OBJECT",
+                "properties": {
+                  "title": {
+                    "type": "STRING"
+                  },
+                  "description": {
+                    "type": "STRING"
+                  },
+                  "evidence_ids": {
+                    "type": "ARRAY",
+                    "items": {
+                      "type": "STRING"
+                    },
+                    "minItems": 1
+                  }
+                },
+                "propertyOrdering": [
+                  "title",
+                  "description",
+                  "evidence_ids"
+                ],
+                "required": [
+                  "title",
+                  "description",
+                  "evidence_ids"
+                ]
+              },
+              "nullable": true
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        },
+        "ai_prediction": {
+          "type": "OBJECT",
+          "properties": {
+            "status": {
+              "type": "STRING",
+              "enum": [
+                "available",
+                "partial",
+                "missing",
+                "unverified",
+                "error"
+              ]
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "OBJECT",
+              "properties": {
+                "home_goals": {
+                  "type": "INTEGER",
+                  "minimum": 0,
+                  "maximum": 30
+                },
+                "away_goals": {
+                  "type": "INTEGER",
+                  "minimum": 0,
+                  "maximum": 30
+                },
+                "confidence": {
+                  "type": "STRING",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                },
+                "reason": {
+                  "type": "STRING"
+                },
+                "evidence_ids": {
+                  "type": "ARRAY",
+                  "items": {
+                    "type": "STRING"
+                  },
+                  "minItems": 1
+                }
+              },
+              "propertyOrdering": [
+                "home_goals",
+                "away_goals",
+                "confidence",
+                "reason",
+                "evidence_ids"
+              ],
+              "required": [
+                "home_goals",
+                "away_goals",
+                "confidence",
+                "reason",
+                "evidence_ids"
+              ],
+              "nullable": true
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        }
+      },
+      "propertyOrdering": [
+        "summary",
+        "key_points",
+        "ai_prediction"
+      ],
+      "required": [
+        "summary",
+        "key_points",
+        "ai_prediction"
+      ]
+    },
+    "temperature": 0.3,
+    "maxOutputTokens": 8192
+  }
+}
