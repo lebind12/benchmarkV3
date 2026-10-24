@@ -180,3 +180,22 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | BCAST-UI-2 | 유로파 포메이션 양옆 리본 제거, 6개 리그의 스탯 UI·기능·영문 약칭 공통화, 포메이션/스탯 글씨·선수·스탯 로고 크기를 현재 UCL 기준으로 통일 | 리그 색상 유지, 공통 스탯/방송 단위 테스트 69개 및 빌드 통과. Playwright 미실행, 화면은 사용자 확인 | UCL-UI-1 | cc:완료 [local-all-league-broadcast-ui] |
 | BCAST-UI-3 | 모든 리그 하단 이벤트 팝업의 글씨 1.3배 확대(득점·교체·경고·VAR·스탯) | 공통 글씨 배율 적용 및 빌드 통과. Playwright 미실행 | BCAST-UI-2 | cc:완료 [local-event-popup-type-scale] |
 | PLAYER-KO-20260910 | 미번역 선수 869명의 한국어 이름·짧은 이름과 출처를 `seeds/player_translation_pending_20260910.csv`에 기록하고 DB 반영 | NULL 행 868건 갱신, 누락 행 1건 생성. 두 번역 컬럼의 잔여 NULL 0건, 기존 비NULL 필드 21,764개 보존 확인 | - | cc:완료 [player-translation-pending-20260910] |
+
+## 자연어 검색 AX — 분리 브랜치 작업
+
+자연어 검색 목업/문서만 이 브랜치에 분리했다. 상세는 [전용 계획](docs/ax/natural-language-search/plan.md)을 따른다. 관리/홈의 다른 세션 미커밋 작업은 포함하지 않았다. AX-0/2/3 등 공통 의존 작업은 기존 관리 계획의 식별자이며 이 분리로 완료 처리하지 않는다.
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| AX-10-MOCK | 검색창 중심 선행 화면 목업 | `/search` 입력·예시 순위/목록/비교·조건 수정·확인 질문·오류 상태와 API 초안. `docs/features/ax-search-mock.md` 참조. 실제 coverage·지표 정의·상세 링크·검색 연동은 AX-9/10 후속이며 AX-10 완료와 구분 | AX-0 | cc:완료 [local-search-mock-20261025] |
+| AX-SEARCH-CONTEXT | 자연어 검색 컨텍스트·사례 조사·상세 계획 분리 | `docs/ax/natural-language-search/`에 현재 상태·출처 있는 6개 사례·스택 점검·상세 plan.md·미정/DoD/의존성 정리, 상위 문서 연결. 운영 DB 조사·BE 구현과 구분 | AX-0, AX-10-MOCK | cc:완료 [local-search-context-20261025] |
+| AX-SEARCH-DECISION | 검색 모델·로그인·DB 재사용·사전 우선 결정 반영 | Vertex AI `gemini-4-argon`·로그인 필수·기존 DB 사용을 결정 기록/AGENTS/검색 계획에 연결, 용어 사전 설계 초안 작성. 실제 호출·인증·사전 적재와 구분 | AX-SEARCH-CONTEXT | cc:완료 [local-search-decision-20261025] |
+| AX-SEARCH-STACK | 검색 기술 비교군 점검 | `stack-comparison.md`에 Core/템플릿·SQLGlot/pglast/sqlparse·사전/이름 검색·Vertex SDK/REST 비교, 로컬 설치와 DB 미접속 컴파일 확인, 미검증 범위 기록. 후보 설치/최종 채택과 구분 | AX-SEARCH-DECISION | cc:완료 [local-search-stack-20261025] |
+| AX-SEARCH-STACK-SELECT | 검색 구현 기술 확정 | SQLAlchemy Core·Pydantic·SQLGlot·Google Gen AI SDK·JSON 사전/DB 별칭·pg_trgm을 결정 기록/컨텍스트/상세 계획에 반영. 실제 설치·DB/모델 검증·연동은 후속 | AX-SEARCH-STACK | cc:완료 [local-search-stack-selection-20261025] |
+| AX-SEARCH-DICT-RULES | 검색 사전 상세 규칙 초안 작성 | `dictionary-rules.md`에 정규화·엔티티/별칭·지표/집계/NULL·범위/소속·재질문·변경/버전·평가·미정 항목 작성. 규칙 초안과 AX-9 실데이터/사전 검증 완료 구분 | AX-SEARCH-STACK-SELECT | cc:완료 [local-search-dictionary-rules-20261025] |
+| AX-SEARCH-LOOKUP-PLAN | 사전·이름 조회 실행 계획 구체화 | `entity-resolution.md`에 Retriever/서버 도구/Planner 책임, 원천·입출력·정확/유사 검색·관계/선택·bounded 호출·Bundle·LOOKUP-1~7·평가 작성. 사용자 정정 보존. 실제 도구/모델/DB 검증과 구분 | AX-SEARCH-STACK-SELECT | cc:완료 [local-search-lookup-plan-20261025] |
+| AX-9 | 기존 DB 조사·사전/정답 정의 | 실제 컬럼/ID/coverage·사전·기준 SQL/독립 평가 세트 | AX-SEARCH-LOOKUP-PLAN | cc:TODO |
+| AX-10 | 검색 FE 요구·API 계약 | 실제 이름 후보·재질문·링크·누락/실패의 endpoint-request | AX-9, AX-10-MOCK | cc:TODO |
+| AX-11 | 검색 읽기 경로·SQL 게이트 | 전용 role/view·SQLGlot·timeout/비용/동시성·격리 검증. 공통 인증/수집 정책 검증 선행 | AX-10 | cc:TODO |
+| AX-12 | 조회 도구·Retriever/Planner·검색 연동 | 지정 Vertex 모델·검증 bundle·실제 정답·FE 흐름 검증 | AX-9, AX-10, AX-11 | cc:TODO |
+| AX-13 | 검색 통합 인수 | 정확도·권한·부하·지연/비용·문서 정합. 배포 제외 | AX-12 | cc:TODO |

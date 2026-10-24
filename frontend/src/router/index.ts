@@ -93,6 +93,7 @@ const routes: RouteRecordRaw[] = [
     component: DefaultLayout,
     children: [
       { path: '', name: 'home', component: () => import('@/views/ui-review/UiReviewHomeView.vue') },
+      { path: 'search', name: 'search', component: () => import('@/views/SearchMockView.vue'), meta: { title: '자연어 검색' } },
       { path: 'fixtures', name: 'fixtures', component: () => import('@/views/ui-review/UiReviewFixturesView.vue') },
       {
         path: 'fixtures/:externalId(\\d+)',

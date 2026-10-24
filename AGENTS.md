@@ -100,6 +100,7 @@
 
 원칙:
 - API-Football 직접 호출은 **방송용 페이지 + 워커 (daily-sync 등)** 만 허용
+- 자연어 검색은 **로그인 필수**이며 서버에서 활성 USER / STREAMER / ADMIN을 검증한다. 기존 API-Football 기반 DB 저장본을 조회하고 축구 지표·이름·별칭 사전을 실제 DB 데이터에 연결한다. 검색용 LLM은 Vertex AI `gemini-4-argon`으로 지정한다. 결정과 실제 구현 상태는 구분하며 상세는 `docs/decisions/2026-10-25-natural-language-search.md`, 실행 계획은 `docs/ax/natural-language-search/plan.md`를 따른다.
 - 일반 사용자 페이지가 라이브 매치를 보고 있어도 최대 6h stale 가능 (정책상 허용)
 - 라이브 정보가 절실히 필요한 사용자 = 방송용 페이지로 유도 (스트리머 전용)
 

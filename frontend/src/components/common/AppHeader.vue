@@ -15,6 +15,7 @@ const tabs = computed(() => {
     { path: '/players', label: '선수' },
     { path: '/stats', label: '스탯' },
     { path: '/news', label: '뉴스' },
+    { path: '/search', label: '검색' },
   ]
   if (auth.isAdmin) {
     base.push({ path: '/admin', label: '관리' })
