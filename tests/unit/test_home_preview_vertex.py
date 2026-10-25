@@ -59,6 +59,7 @@ def test_incomplete_blocked_empty_markdown_and_extra_fields_rejected(candidate):
 
 def test_watchpoint_selection_reason_is_required_in_new_model_response():
     data = snapshot()
+    data["sources"] = [{"id": "db-source"}]
     data["analysis"]["player_watchpoints"] = {
         "status": "available",
         "reason": None,
@@ -88,3 +89,29 @@ def test_watchpoint_selection_reason_is_required_in_new_model_response():
         analysis["player_watchpoints"]["data"][0]["reason"]
         == data["analysis"]["player_watchpoints"]["data"][0]["reason"]
     )
+
+
+@pytest.mark.parametrize("unknown", [None, "item", "parent"])
+def test_parent_evidence_index_is_completed_only_from_registered_source_ids(unknown):
+    payload = snapshot()
+    payload["sources"] = [{"id": "real-db-a"}, {"id": "real-db-b"}]
+    analysis = payload["analysis"]
+    analysis["summary"] = {
+        "status": "available",
+        "reason": None,
+        "as_of": payload["as_of"],
+        "source_ids": ["invented" if unknown == "parent" else "real-db-b"],
+        "data": {
+            "text": "확인된 기록 기반 관찰",
+            "evidence_ids": ["invented" if unknown == "item" else "real-db-a"],
+        },
+    }
+    candidate = {"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(analysis)}]}}
+    if unknown:
+        with pytest.raises(ValueError, match="unknown_analysis_source"):
+            provider(candidate).analysis(payload)
+    else:
+        result, usage = provider(candidate).analysis(payload)
+        assert result["summary"]["source_ids"] == ["real-db-b", "real-db-a"]
+        assert result["summary"]["data"] == analysis["summary"]["data"]
+        assert usage["analysis_source_indexes_completed"] == 1

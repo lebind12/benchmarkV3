@@ -20,7 +20,7 @@ from app.schemas.home_preview import PreviewPayload
 from app.services.home_preview import build_db_snapshot, eligible_rows, localize_injury_names
 from app.services.home_preview_policy import digest, identity, slot_time, utcnow
 
-GENERATION_VERSION = "home-preview-1.1-prompt-9"
+GENERATION_VERSION = "home-preview-1.1-prompt-10"
 LEASE_SECONDS = 300
 
 

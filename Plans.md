@@ -274,3 +274,12 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
 | HOME-RESEARCH-DETAIL | 선택 부상 원인/발생 시점 웹 검증, 독립 매체3곳 목표 및 API 구분, 선택 경기 상세 이동 | 선택2명/팀·미확인/상충/날짜 정밀도·기존 facts 불변·매체 count·링크 전환/이동 검증; 최신 계약 home-preview-research.md | HOME-PLAYER-POINTS, PRE-06~10 | cc:완료 [로컬 구현 BE107/FE29/E2E17/L3 4/build; 실제3곳 coverage/PRE-12 인수 별도] |
+
+
+### 2026-10-25 실제4경기 시험·재시도 정책안
+
+실제 신규 게시2/기존본 유지2. 원인과 단계별 재시도 설계는 `docs/features/home-preview-retry-policy.md`를 따른다. 부모 source index 보완은 구현/관련30테스트 PASS. HTTP 오류 상세 진단·단계 checkpoint·실패 단계만 재개·슬롯당 추가 AI 합계1회(기본3+1=4,4슬롯16) 정책은 아직 구현되지 않았다. 현행 자동 생성 OFF와 정상 슬롯 이력은 유지한다.
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| HOME-PREVIEW-RETRY | 단계별 실패 진단·checkpoint·제한 재시도 | 오류 분류/허용 metadata·재개/유효성·공유 추가1회·300초/킥오프/owner·부분 성공·회귀·미완료2경기 재시험 | HOME-RESEARCH-DETAIL | cc:計画 [정책안 저장; 부모 인덱스 보완만 구현] |
