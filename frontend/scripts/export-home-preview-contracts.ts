@@ -13,8 +13,9 @@ import { buildMockRecommendations } from '../src/mocks/home-preview/recommendati
 export function project(schema: z.ZodTypeAny): Record<string, unknown> {
   const d = schema._def
   if (schema instanceof z.ZodEffects) return project(d.schema)
+  if (schema instanceof z.ZodOptional) return project(d.innerType)
   if (schema instanceof z.ZodNullable) return { anyOf: [project(d.innerType), { type: 'null' }] }
-  if (schema instanceof z.ZodObject) return { type: 'object', additionalProperties: false, required: Object.keys(schema.shape), properties: Object.fromEntries(Object.entries(schema.shape).map(([key, child]) => [key, project(child as z.ZodTypeAny)])) }
+  if (schema instanceof z.ZodObject) return { type: 'object', additionalProperties: false, required: Object.keys(schema.shape).filter(key => !(schema.shape[key] instanceof z.ZodOptional)), properties: Object.fromEntries(Object.entries(schema.shape).map(([key, child]) => [key, project(child as z.ZodTypeAny)])) }
   if (schema instanceof z.ZodArray) return { type: 'array', items: project(d.type), ...(d.minLength ? { minItems: d.minLength.value } : {}), ...(d.maxLength ? { maxItems: d.maxLength.value } : {}) }
   if (schema instanceof z.ZodEnum) return { type: 'string', enum: d.values }
   if (schema instanceof z.ZodLiteral) return { const: d.value, type: typeof d.value }

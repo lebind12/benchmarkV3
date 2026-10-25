@@ -612,6 +612,10 @@
                         "type": "integer",
                         "exclusiveMinimum": 0
                       },
+                      "player_id": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
                       "player_name": {
                         "type": "string",
                         "minLength": 1

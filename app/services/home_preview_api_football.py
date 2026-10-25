@@ -106,6 +106,7 @@ class ApiFootballPreviewEvidence:
                     injuries.append(
                         {
                             "team_id": row["team"]["id"],
+                            "player_id": row["player"]["id"],
                             "player_name": row["player"]["name"],
                             "availability": availability,
                             "detail": row["player"].get("reason") or "사유 미제공",

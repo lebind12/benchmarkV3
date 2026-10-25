@@ -54,7 +54,12 @@ class Client:
 
 def test_real_capture_preserves_api_numbers_statuses_and_update_clock():
     client = Client()
-    provider = ApiFootballPreviewEvidence(client, league_id=39, season_year=2026)
+    provider = ApiFootballPreviewEvidence(
+        client,
+        league_id=39,
+        season_year=2026,
+        clock=lambda: clock(CAPTURE["_capture"]["checked_at"]),
+    )
     result, usage = provider(snapshot(), now=clock(CAPTURE["_capture"]["checked_at"]))
     assert len(result["facts"]["injuries"]["data"]) == 30
     assert {r["availability"] for r in result["facts"]["injuries"]["data"]} == {"out", "doubtful"}
@@ -64,6 +69,10 @@ def test_real_capture_preserves_api_numbers_statuses_and_update_clock():
     assert result["external"]["odds"]["as_of"] == "2026-10-24T21:18:23+00:00"
     assert usage["api_football_requests"] == 4
     assert (
+        result["facts"]["injuries"]["data"][0]["player_id"]
+        == CAPTURE["injuries"]["response"][0]["player"]["id"]
+    )
+    assert (
         result["external"]["predictions"]["data"][0]["summary"]
         == CAPTURE["predictions"]["response"][0]["predictions"]["advice"]
     )
@@ -72,9 +81,12 @@ def test_real_capture_preserves_api_numbers_statuses_and_update_clock():
 def test_no_reported_injuries_is_not_confirmed_zero():
     client = Client()
     client.values["injuries"]["response"] = []
-    result, _ = ApiFootballPreviewEvidence(client, league_id=39, season_year=2026)(
-        snapshot(), now=clock(CAPTURE["_capture"]["checked_at"])
-    )
+    result, _ = ApiFootballPreviewEvidence(
+        client,
+        league_id=39,
+        season_year=2026,
+        clock=lambda: clock(CAPTURE["_capture"]["checked_at"]),
+    )(snapshot(), now=clock(CAPTURE["_capture"]["checked_at"]))
     assert result["facts"]["injuries"]["status"] == "missing"
     assert result["facts"]["injuries"]["data"] is None
 
@@ -83,17 +95,23 @@ def test_wrong_fixture_stale_odds_and_wrong_market_cannot_publish():
     client = Client()
     client.values["injuries"]["response"][0]["fixture"]["id"] = 99
     client.values["odds"]["response"][0]["update"] = "2026-10-20T00:00:00Z"
-    result, _ = ApiFootballPreviewEvidence(client, league_id=39, season_year=2026)(
-        snapshot(), now=clock(CAPTURE["_capture"]["checked_at"])
-    )
+    result, _ = ApiFootballPreviewEvidence(
+        client,
+        league_id=39,
+        season_year=2026,
+        clock=lambda: clock(CAPTURE["_capture"]["checked_at"]),
+    )(snapshot(), now=clock(CAPTURE["_capture"]["checked_at"]))
     assert result["facts"]["injuries"]["status"] == "error"
     assert result["external"]["odds"]["data"] is None
     client = Client()
     for book in client.values["odds"]["response"][0]["bookmakers"]:
         book["bets"][0]["id"] = 2
-    result, _ = ApiFootballPreviewEvidence(client, league_id=39, season_year=2026)(
-        snapshot(), now=clock(CAPTURE["_capture"]["checked_at"])
-    )
+    result, _ = ApiFootballPreviewEvidence(
+        client,
+        league_id=39,
+        season_year=2026,
+        clock=lambda: clock(CAPTURE["_capture"]["checked_at"]),
+    )(snapshot(), now=clock(CAPTURE["_capture"]["checked_at"]))
     assert result["external"]["odds"]["data"] is None
 
 
@@ -104,9 +122,12 @@ def test_coverage_failure_is_error_not_reported_as_missing_data():
         def get(self, *args, **kwargs):
             raise ApiFootballError("private auth diagnostic")
 
-    result, _ = ApiFootballPreviewEvidence(FailedClient(), league_id=39, season_year=2026)(
-        snapshot(), now=clock(CAPTURE["_capture"]["checked_at"])
-    )
+    result, _ = ApiFootballPreviewEvidence(
+        FailedClient(),
+        league_id=39,
+        season_year=2026,
+        clock=lambda: clock(CAPTURE["_capture"]["checked_at"]),
+    )(snapshot(), now=clock(CAPTURE["_capture"]["checked_at"]))
     assert result["facts"]["injuries"]["status"] == "error"
     assert result["external"]["odds"]["reason"] == "upstream_failed"
     assert "private auth diagnostic" not in str(result)
@@ -118,6 +139,9 @@ def test_current_fixture_identity_disagreement_cannot_publish_odds_for_wrong_sid
     client = Client()
     client.values["predictions"]["response"][0]["teams"]["away"]["id"] = 999
     with pytest.raises(ValueError, match="prediction_identity"):
-        ApiFootballPreviewEvidence(client, league_id=39, season_year=2026)(
-            snapshot(), now=clock(CAPTURE["_capture"]["checked_at"])
-        )
+        ApiFootballPreviewEvidence(
+            client,
+            league_id=39,
+            season_year=2026,
+            clock=lambda: clock(CAPTURE["_capture"]["checked_at"]),
+        )(snapshot(), now=clock(CAPTURE["_capture"]["checked_at"]))

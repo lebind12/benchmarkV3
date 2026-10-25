@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Fixture, League, LeagueSyncTarget, LeagueTranslation, Team, TeamTranslation
 from app.models.home_preview import HomePreviewPublication, HomePreviewVersion
+from app.models.player import Player, PlayerTranslation
 from app.schemas.home_preview import PreviewPayload, PreviewResponse, structure
 from app.services.home_preview_policy import (
     FINISHED,
@@ -105,6 +106,32 @@ def eligible_rows(session, *, start=None, end=None, include_unranked=False):
     return result
 
 
+def localize_injury_names(session: Session, preview):
+    """Resolve display names in one DB read; leave immutable source evidence untouched."""
+    injuries = preview["facts"]["injuries"]["data"] or []
+    if not injuries:
+        return
+    ids = {row["player_id"] for row in injuries if row.get("player_id") is not None}
+    legacy_names = {row["player_name"] for row in injuries if row.get("player_id") is None}
+    rows = session.execute(
+        select(Player.external_id, Player.name, PlayerTranslation.name_ko)
+        .outerjoin(PlayerTranslation, PlayerTranslation.player_id == Player.id)
+        .where(or_(Player.external_id.in_(ids), Player.name.in_(legacy_names)))
+    ).all()
+    by_id = {pid: ko for pid, _name, ko in rows}
+    by_name = {}
+    for pid, name, ko in rows:
+        by_name.setdefault(name, []).append((pid, ko))
+    for injury in injuries:
+        if injury.get("player_id") is not None:
+            translated = by_id.get(injury["player_id"])
+        else:
+            matches = by_name.get(injury["player_name"], [])
+            translated = matches[0][1] if len(matches) == 1 else None
+        if translated and translated.strip():
+            injury["player_name"] = translated
+
+
 def read_preview(session: Session, external_id: int, *, now=None):
     now = now or utcnow()
     fixture = fixture_by_external(session, external_id)
@@ -143,6 +170,7 @@ def read_preview(session: Session, external_id: int, *, now=None):
             "reason": publication.reason,
         }
     if preview is not None:
+        localize_injury_names(session, preview)
         complete = all(
             block["status"] == "available"
             for group in ("analysis", "facts", "external")

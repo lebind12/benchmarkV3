@@ -19,7 +19,7 @@ export const recentMatchSchema = z.object({ fixture_id: id, kickoff_at: time, op
   if (row.penalties && (row.goals_for !== row.goals_against || row.penalties.for === row.penalties.against)) ctx.addIssue({ code: 'custom', message: 'Penalty decision requires a tied match and a non-tied shootout' })
 })
 const form = z.object({ team_id: id, expected_count: z.literal(5), matches: z.array(recentMatchSchema).max(5) }).strict()
-const injury = z.object({ team_id: id, player_name: text, availability: z.enum(['out', 'doubtful']), detail: text, impact: text, source_ids: refs }).strict()
+const injury = z.object({ team_id: id, player_id: id.optional(), player_name: text, availability: z.enum(['out', 'doubtful']), detail: text, impact: text, source_ids: refs }).strict()
 const externalPrediction = z.object({ source_id: text, outlook: text, summary: text }).strict()
 const odds = z.object({ source_id: text, bookmaker: text, market: z.literal('1x2_90min'), format: z.literal('decimal'), home: z.number().gt(1), draw: z.number().gt(1), away: z.number().gt(1), collected_at: time }).strict()
 export const homePreviewSchema = z.object({

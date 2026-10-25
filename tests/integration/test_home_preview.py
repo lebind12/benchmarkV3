@@ -443,3 +443,83 @@ def test_explicit_retry_keeps_cumulative_calls_and_stops_after_success(setup_db)
             and usage["api_football_requests"] == 6
         )
     assert len(calls) == 2
+
+
+def test_injury_names_use_current_translation_by_external_id_with_safe_legacy_fallback(setup_db):
+    from app.models.player import Player, PlayerTranslation
+    from app.services.home_preview import localize_injury_names
+
+    _engine, factory = setup_db
+    with factory() as session:
+        players = [
+            Player(external_id=700 + i, name=name, slug=f"injury-translation-{i}")
+            for i, name in enumerate(
+                ["Changed API name", "Legacy Unique", "Duplicate", "Duplicate", "Untranslated"]
+            )
+        ]
+        session.add_all(players)
+        session.flush()
+        for player, ko in zip(
+            players, ["한국어 이름", "기존 선수", "동명이인 하나", "동명이인 둘", None]
+        ):
+            session.add(PlayerTranslation(player_id=player.id, name_ko=ko))
+        session.commit()
+        source_rows = [
+            {"player_id": 700, "player_name": "API abbreviated"},
+            {"player_name": "Legacy Unique"},
+            {"player_name": "Duplicate"},
+            {"player_id": 704, "player_name": "Untranslated"},
+            {"player_id": 999, "player_name": "Legacy Unique"},
+        ]
+        from copy import deepcopy
+
+        preview = {"facts": {"injuries": {"data": deepcopy(source_rows)}}}
+        localize_injury_names(session, preview)
+        assert [row["player_name"] for row in preview["facts"]["injuries"]["data"]] == [
+            "한국어 이름",
+            "기존 선수",
+            "Duplicate",
+            "Untranslated",
+            "Legacy Unique",
+        ]
+        session.get(PlayerTranslation, players[0].id).name_ko = "수정된 이름"
+        session.commit()
+        localize_injury_names(session, preview)
+        assert preview["facts"]["injuries"]["data"][0]["player_name"] == "수정된 이름"
+        assert source_rows[0]["player_name"] == "API abbreviated"
+
+    def evidence(snapshot, *, now):
+        snapshot["as_of"] = now.isoformat()
+        refs = [snapshot["sources"][0]["id"]]
+        snapshot["facts"]["injuries"] = {
+            "status": "available",
+            "reason": None,
+            "as_of": now.isoformat(),
+            "source_ids": refs,
+            "data": [
+                {
+                    "team_id": 40,
+                    "player_id": 700,
+                    "player_name": "API abbreviated",
+                    "availability": "out",
+                    "detail": "Injury",
+                    "impact": "출전 불가",
+                    "source_ids": refs,
+                }
+            ],
+        }
+        return snapshot, {"api_football_requests": 0}
+
+    assert (
+        process_fixture(factory, 1557444, clock=lambda: NOW, evidence_provider=evidence)["state"]
+        == "succeeded"
+    )
+    with factory() as session:
+        assert (
+            read_preview(session, 1557444, now=NOW)["preview"]["facts"]["injuries"]["data"][0][
+                "player_name"
+            ]
+            == "수정된 이름"
+        )
+        stored = session.scalar(select(HomePreviewVersion))
+        assert stored.payload["facts"]["injuries"]["data"][0]["player_name"] == "API abbreviated"

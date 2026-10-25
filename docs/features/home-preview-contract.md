@@ -59,3 +59,7 @@ PRE-02에서 DB coverage와 웹/부상/배당/Vertex 실응답·이용 범위·�
 ## API-Football 자체 전망의 구분
 
 공식 `/predictions` 실응답을 확인했으므로 외부 전망 source.kind는 web 또는 api를 허용한다. API-Football 알고리즘 전망이라는 출처를 명시하며 자체 AI 예측이나 매체 의견으로 바꾸지 않는다. winner/win_or_draw와 원문 advice만 정규화한다. goals.home/away의 -1.5 같은 임계값을 예상 스코어로 해석하지 않는다. 웹 매체 의견은 web 출처로 따로 보존하고 검색이 API 값을 덮어쓰지 않는다.
+
+### 부상 선수 표시명 — 2026-10-25
+
+신규 수집 injuries 행은 API-Football 선수 external_id인 선택 필드 `player_id`를 보존한다. 기존 v1.1 저장본은 이 필드 없이도 유효하다. 공개 조회는 `player.external_id → player_translation.player_id`로 `name_ko`를 일괄 조회해 표시명에 적용하며, NULL/빈 번역이면 원문을 유지한다. ID가 있는 행은 이름 추정으로 연결하지 않는다. ID 없는 과거 저장본은 DB player.name과 정확히 일치하는 선수가 전역에서 한 명일 때만 번역을 적용하며 약칭/동명이인은 원문을 유지한다. 저장 원본 JSON/근거·생성 시각을 변경하거나 AI를 다시 호출하지 않는다.
