@@ -167,6 +167,24 @@ def allowed_url(url, *, grounding=False):
         raise ValueError("nonpublic_source_address")
 
 
+def registered_article_url(url):
+    if not isinstance(url, str):
+        return False
+    try:
+        parsed = urlsplit(url)
+        host = (parsed.hostname or "").lower()
+        return (
+            parsed.scheme == "https"
+            and not parsed.username
+            and not parsed.password
+            and parsed.port in (None, 443)
+            and parsed.path not in ("", "/")
+            and any(host == domain or host.endswith("." + domain) for domain in ALLOWED_HOSTS)
+        )
+    except ValueError:
+        return False
+
+
 def fetch_page(url):
     # Allowlisted public hosts only, validated on every redirect; no ambient proxy credentials.
     current = url
@@ -196,7 +214,7 @@ def fetch_page(url):
                     if time.monotonic() >= deadline:
                         raise ValueError("source_deadline")
                     length += len(chunk)
-                    if length > 512 * 1024:
+                    if length > 4 * 1024 * 1024:
                         raise ValueError("source_too_large")
                     chunks.append(chunk)
                 html = b"".join(chunks).decode("utf-8", errors="replace")
@@ -464,7 +482,7 @@ class WebPreviewEvidence:
                 for chunk in grounding.get("groundingChunks", [])
                 if isinstance(chunk.get("web"), dict) and chunk["web"].get("uri")
             }
-            if len(queries) > 20 or not html or len(html) > 32768:
+            if len(queries) > 100 or not html or len(html) > 32768:
                 raise ValueError("unusable_grounding_metadata")
             pages = {}
             fetch_attempts = 0
@@ -497,7 +515,12 @@ class WebPreviewEvidence:
                     and parsed_url.path.startswith("/grounding-api-redirect/")
                     and queries
                 )
-                if url not in urls and not signed_google_redirect:
+                if (
+                    url not in urls
+                    and not signed_google_redirect
+                    and not registered_article_url(url)
+                ):
+                    rejection_codes.add("original_unavailable")
                     continue
                 try:
                     if url not in pages:

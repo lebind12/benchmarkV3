@@ -8,6 +8,7 @@ from app.services.home_preview_api_football import ApiFootballPreviewEvidence
 from app.services.home_preview_causes import WebAbsenceCauses
 from app.services.home_preview_generation import process_fixture
 from app.services.home_preview_policy import utcnow
+from app.services.home_preview_retry import ModelRun
 from app.services.home_preview_vertex import VertexPreviewProvider
 from app.services.home_preview_web import WebPreviewEvidence
 from app.workers.daily_sync.api import ApiFootballClient
@@ -92,6 +93,9 @@ def run_cycle(
                     usage.update(web_usage)
                 return payload, usage
 
+            runtime = ModelRun(clock=clock) if vertex else None
+            if vertex:
+                vertex.runtime = runtime
             results.append(
                 process_fixture(
                     session_factory,
@@ -99,6 +103,7 @@ def run_cycle(
                     provider=vertex.analysis if vertex else None,
                     evidence_provider=collect,
                     cause_provider=cause_evidence,
+                    runtime=runtime,
                     clock=clock,
                     retry_failed=retry_failed,
                     model=settings.home_preview_vertex_model if vertex else "facts-only",

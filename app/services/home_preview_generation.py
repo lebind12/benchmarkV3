@@ -19,9 +19,10 @@ from app.models.home_preview import (
 from app.schemas.home_preview import PreviewPayload
 from app.services.home_preview import build_db_snapshot, eligible_rows, localize_injury_names
 from app.services.home_preview_policy import digest, identity, slot_time, utcnow
+from app.services.home_preview_retry import failure_details
 
-GENERATION_VERSION = "home-preview-1.1-prompt-10"
-LEASE_SECONDS = 300
+GENERATION_VERSION = "home-preview-1.1-prompt-11"
+LEASE_SECONDS = 1200
 
 
 def snapshot_fingerprint(payload, *, model, now):
@@ -56,6 +57,7 @@ def process_fixture(
     clock=utcnow,
     model="facts-only",
     retry_failed=False,
+    runtime=None,
 ):
     now = clock()
     owner = str(uuid4())
@@ -103,10 +105,14 @@ def process_fixture(
                 HomePreviewAttempt.fixture_id == fixture.id, HomePreviewAttempt.slot == slot
             )
         )
+        optional_retry = bool(
+            existing and existing.state == "succeeded" and existing.usage.get("cause_search_failed")
+        )
         retry = bool(
             existing
             and retry_failed
-            and existing.state == "failed"
+            and (existing.state in ("failed", "interrupted") or optional_retry)
+            and (not runtime or existing.usage.get("model_requests", 0) < 6)
             and existing.usage.get("executions", 1) < 2
         )
         if existing and not retry:
@@ -144,6 +150,7 @@ def process_fixture(
                 started_at=now,
                 usage=initial_usage,
             )
+        attempt.usage = deepcopy(initial_usage)
         session.add(attempt)
         session.flush()
         attempt_id = attempt.id
@@ -151,10 +158,140 @@ def process_fixture(
         expected_identity = identity(fixture)
         snapshot = build_db_snapshot(session, fixture, now=now)
         session.commit()
+    usage = dict(initial_usage)
+    if retry:
+        old_failure = {
+            key: usage[key]
+            for key in (
+                "failure_type",
+                "failure_code",
+                "validation_code",
+                "failure_detail",
+                "cause_failure_type",
+                "cause_failure_code",
+            )
+            if key in usage
+        }
+        if old_failure:
+            usage["previous_failures"] = usage.get("previous_failures", []) + [old_failure]
+        for key in (
+            "failure_type",
+            "failure_code",
+            "validation_code",
+            "failure_detail",
+            "cause_search_failed",
+            "cause_failure_type",
+            "cause_failure_code",
+        ):
+            usage.pop(key, None)
+    checkpoints = deepcopy(usage.get("checkpoints", {}))
+
+    def persist_runtime(metadata):
+        usage.update(metadata)
+        with session_factory() as checkpoint_session:
+            active = checkpoint_session.get(HomePreviewAttempt, attempt_id)
+            if active.owner != owner or active.state != "running":
+                raise ValueError("generation_ownership_lost")
+            active.usage = deepcopy(usage)
+            checkpoint_session.commit()
+
+    def guard():
+        current = clock()
+        with session_factory() as check_session:
+            actual = check_session.get(Fixture, fixture_id)
+            active = check_session.get(HomePreviewAttempt, attempt_id)
+            if active.owner != owner or active.state != "running":
+                raise ValueError("generation_ownership_lost")
+            if (
+                identity(actual) != expected_identity
+                or actual.status_short != "NS"
+                or current >= actual.kickoff_at
+                or current - now > timedelta(seconds=LEASE_SECONDS)
+            ):
+                raise ValueError("generation_no_longer_eligible")
+            if fixture_id not in {
+                row[0].id
+                for row in eligible_rows(
+                    check_session, start=current, end=current + timedelta(hours=24)
+                )
+            }:
+                raise ValueError("target_disabled")
+
+    def load_checkpoint(stage, *, input_hash=None):
+        if not retry or stage not in checkpoints:
+            return None
+        with session_factory() as cp_session:
+            record = cp_session.get(HomePreviewSnapshot, checkpoints[stage])
+            if record is None or record.fixture_id != fixture_id:
+                return None
+            meta = record.payload.get("checkpoint", {})
+            if (
+                meta.get("identity") != expected_identity
+                or meta.get("slot") != slot.isoformat()
+                or meta.get("generation_version") != GENERATION_VERSION
+                or meta.get("model") != model
+                or meta.get("attempt_id") != attempt_id
+                or (input_hash and meta.get("input_hash") != input_hash)
+            ):
+                return None
+            candidate = deepcopy(record.payload["preview"])
+            PreviewPayload.model_validate(candidate)
+            if candidate["fixture"] != snapshot["fixture"] or clock() - record.as_of > timedelta(
+                hours=6
+            ):
+                return None
+            return candidate
+
+    def save_checkpoint(stage, body, *, input_hash=None):
+        if runtime is None:
+            return
+        if runtime:
+            usage.update(runtime.summary())
+        guard()
+        with session_factory() as cp_session:
+            active = cp_session.scalar(
+                select(HomePreviewAttempt)
+                .where(HomePreviewAttempt.id == attempt_id)
+                .with_for_update()
+            )
+            if active.owner != owner or active.state != "running":
+                raise ValueError("generation_ownership_lost")
+            meta = {
+                "stage": stage,
+                "identity": expected_identity,
+                "slot": slot.isoformat(),
+                "model": model,
+                "generation_version": GENERATION_VERSION,
+                "attempt_id": attempt_id,
+                "input_hash": input_hash,
+            }
+            record = HomePreviewSnapshot(
+                fixture_id=fixture_id,
+                fingerprint=digest({"checkpoint": meta, "preview": body, "owner": owner}),
+                payload={"preview": deepcopy(body), "checkpoint": meta},
+                as_of=datetime.fromisoformat(body["as_of"]),
+            )
+            cp_session.add(record)
+            cp_session.flush()
+            checkpoints[stage] = record.id
+            usage["checkpoints"] = deepcopy(checkpoints)
+            active.usage = deepcopy(usage)
+            cp_session.commit()
+
+    if runtime:
+        runtime.start(
+            usage=usage,
+            deadline=min(
+                now + timedelta(seconds=LEASE_SECONDS),
+                datetime.fromisoformat(snapshot["fixture"]["kickoff_at"]),
+            ),
+            guard=guard,
+            persist=persist_runtime,
+        )
     try:
-        payload = deepcopy(snapshot)
-        usage = dict(initial_usage)
-        if evidence_provider:
+        resumed_evidence = load_checkpoint("evidence")
+        payload = resumed_evidence or deepcopy(snapshot)
+        if evidence_provider and resumed_evidence is None:
             payload, evidence_usage = evidence_provider(payload, now=clock())
             previous_counts = {
                 key: usage.get(key, 0)
@@ -167,14 +304,17 @@ def process_fixture(
         from app.services.home_preview_injuries import enrich_importance
         from app.services.home_preview_players import enrich_player_spotlights
 
-        with session_factory() as session:
-            enrich_importance(session, payload, now=now)
-            enrich_player_spotlights(session, payload, now=now)
+        if resumed_evidence is None:
+            with session_factory() as session:
+                enrich_importance(session, payload, now=now)
+                enrich_player_spotlights(session, payload, now=now)
         PreviewPayload.model_validate(payload)
         if payload["is_mock"] is not False:
             raise ValueError("mock_payload_not_publishable")
         if payload["fixture"] != snapshot["fixture"]:
             raise ValueError("evidence_identity_mismatch")
+        if resumed_evidence is None:
+            save_checkpoint("evidence", payload)
         evidence_snapshot = {
             "preview": deepcopy(payload),
             "verification": usage.get("_evidence", []),
@@ -192,9 +332,12 @@ def process_fixture(
                     HomePreviewVersion.fingerprint == input_hash,
                 )
             )
-            previous_id = previous.id if previous else None
+            previous_id = previous.id if previous and not optional_retry else None
         if previous_id is None:
-            if provider and payload["sources"]:
+            resumed_analysis = load_checkpoint("analysis", input_hash=input_hash)
+            if resumed_analysis is not None:
+                payload = resumed_analysis
+            if provider and payload["sources"] and resumed_analysis is None:
                 usage["model_requests"] = usage.get("model_requests", 0) + 1
                 model_input = deepcopy(payload)
                 with session_factory() as session:
@@ -208,10 +351,16 @@ def process_fixture(
                 payload["generated_at"] = clock().isoformat()
                 usage.update(model_usage)
             PreviewPayload.model_validate(payload)
+            if resumed_analysis is None:
+                save_checkpoint("analysis", payload, input_hash=input_hash)
+            resumed_causes = load_checkpoint("causes", input_hash=input_hash)
+            if resumed_causes is not None:
+                payload = resumed_causes
             if (
-                cause_provider
+                resumed_causes is None
+                and cause_provider
                 and (payload["analysis"].get("key_absences") or {}).get("data")
-                and clock() - now < timedelta(seconds=LEASE_SECONDS - 90)
+                and clock() - now < timedelta(seconds=LEASE_SECONDS - 210)
             ):
                 before_causes = deepcopy(payload)
                 usage["model_requests"] = usage.get("model_requests", 0) + 1
@@ -260,6 +409,10 @@ def process_fixture(
                     ],
                 }
             PreviewPayload.model_validate(payload)
+            if not usage.get("cause_search_failed") and resumed_causes is None:
+                save_checkpoint("causes", payload, input_hash=input_hash)
+        if runtime:
+            usage.update(runtime.summary())
         finished = clock()
         with session_factory() as session:
             fixture = session.scalar(
@@ -316,9 +469,14 @@ def process_fixture(
                         for k, b in old_blocks.items()
                     ):
                         raise ValueError("degraded_refresh")
+                publication_hash = (
+                    digest({"input_hash": input_hash, "optional_retry": usage["executions"]})
+                    if optional_retry
+                    else input_hash
+                )
                 evidence = HomePreviewSnapshot(
                     fixture_id=fixture_id,
-                    fingerprint=input_hash,
+                    fingerprint=publication_hash,
                     payload=evidence_snapshot,
                     as_of=datetime.fromisoformat(payload["as_of"]),
                 )
@@ -327,7 +485,7 @@ def process_fixture(
                 version = HomePreviewVersion(
                     fixture_id=fixture_id,
                     snapshot_id=evidence.id,
-                    fingerprint=input_hash,
+                    fingerprint=publication_hash,
                     payload=payload,
                     generated_at=datetime.fromisoformat(payload["generated_at"])
                     if payload["generated_at"]
@@ -348,6 +506,9 @@ def process_fixture(
             "usage": usage,
         }
     except Exception as exc:  # noqa: BLE001 - publication boundary preserves the last valid version
+        if runtime:
+            usage.update(runtime.summary())
+        usage["failure_detail"] = failure_details(exc, now=clock())
         with session_factory() as session:
             fixture = session.scalar(
                 select(Fixture).where(Fixture.id == fixture_id).with_for_update()

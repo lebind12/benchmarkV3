@@ -220,12 +220,24 @@ def test_joined_model_excerpt_uses_only_original_labelled_score():
 def test_provider_query_overrun_is_counted_without_discarding_verified_sources():
     def lookup(payload, *, now):
         values, grounding, tokens = discovery(payload, now=now)
-        grounding["webSearchQueries"] = [f"query {i}" for i in range(11)]
+        grounding["webSearchQueries"] = [f"query {i}" for i in range(25)]
         return values, grounding, tokens
 
     result, usage = WebPreviewEvidence(lookup, fetcher=lambda _: page(), clock=lambda: NOW)(
         snapshot(), now=NOW
     )
-    assert usage["search_queries"] == 11
+    assert usage["search_queries"] == 25
     assert usage["search_query_overrun"] is True
+    assert result["external"]["predictions"]["coverage"]["web_source_count"] == 1
+
+
+def test_registered_original_article_can_be_verified_without_exact_redirect_uri():
+    def lookup(payload, *, now):
+        values, grounding, tokens = discovery(payload, now=now)
+        grounding["groundingChunks"] = []
+        return values, grounding, tokens
+
+    result, _ = WebPreviewEvidence(lookup, fetcher=lambda _: page(), clock=lambda: NOW)(
+        snapshot(), now=NOW
+    )
     assert result["external"]["predictions"]["coverage"]["web_source_count"] == 1

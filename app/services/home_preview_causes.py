@@ -12,7 +12,7 @@ import httpx
 
 from app.schemas.home_preview import PreviewPayload, clock
 from app.services.home_preview_policy import utcnow
-from app.services.home_preview_web import fetch_page, normalized
+from app.services.home_preview_web import fetch_page, normalized, registered_article_url
 
 CAUSES = {
     "hamstring": ("햄스트링 부상", r"hamstring"),
@@ -66,7 +66,7 @@ def occurrence(candidate, page, target, published, now):
     day, month = candidate.get("occurred_on"), candidate.get("occurred_month")
     if not day and not month:
         return None, None
-    quote = normalized(candidate.get("occurrence_quote", ""))
+    quote = normalized(candidate.get("occurrence_quote") or "")
     if not quote or len(quote.split()) > 20 or folded(quote) not in folded(page["text"]):
         return None, None
     # An article timestamp, predicted return date or a bare date is never an incident date.
@@ -264,7 +264,7 @@ class WebAbsenceCauses:
             usage["search_queries"] = len(queries)
             usage["search_query_overrun"] = len(queries) > 4
             html = (grounding.get("searchEntryPoint") or {}).get("renderedContent")
-            if len(queries) > 20 or not html or len(html) > 32768:
+            if len(queries) > 100 or not html or len(html) > 32768:
                 raise ValueError("unusable_grounding")
             urls = {
                 row["web"]["uri"]
@@ -279,12 +279,19 @@ class WebAbsenceCauses:
                     continue
                 url = candidate.get("url", "")
                 parsed = urlsplit(url)
-                if url not in urls and not (
-                    parsed.scheme == "https"
-                    and parsed.hostname == "vertexaisearch.cloud.google.com"
-                    and parsed.path.startswith("/grounding-api-redirect/")
-                    and queries
+                if (
+                    url not in urls
+                    and not registered_article_url(url)
+                    and not (
+                        parsed.scheme == "https"
+                        and parsed.hostname == "vertexaisearch.cloud.google.com"
+                        and parsed.path.startswith("/grounding-api-redirect/")
+                        and queries
+                    )
                 ):
+                    usage["cause_rejections"] = sorted(
+                        set(usage["cause_rejections"]) | {"unregistered_candidate_url"}
+                    )
                     continue
                 if time.monotonic() >= deadline:
                     break

@@ -35,8 +35,8 @@ const odds = z.object({ source_id: text, bookmaker: text, market: z.literal('1x2
 export const homePreviewSchema = z.object({
   schema_version: z.literal('1.1'), is_mock: z.boolean(), fixture: z.object({ external_id: id, kickoff_at: time, home: team, away: team }).strict(),
   generated_at: time.nullable(), as_of: time,
-  search_suggestions: z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(20) }).strict().nullable(),
-  search_suggestions_extra: z.array(z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(20) }).strict()).max(1).optional(),
+  search_suggestions: z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(100) }).strict().nullable(),
+  search_suggestions_extra: z.array(z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(100) }).strict()).max(1).optional(),
   sources: z.array(z.object({ id: text, fixture_id: id, kind: z.enum(['db', 'web', 'api']), title: text, url: z.string().url().nullable(), published_at: time.nullable(), retrieved_at: time }).strict()),
   analysis: homePreviewAnalysisSchema,
   facts: z.object({ player_spotlights: section(z.array(spotlight).max(8)).optional(), injuries: section(z.array(injury)), home_form: section(form), away_form: section(form) }).strict(),

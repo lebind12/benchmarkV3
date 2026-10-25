@@ -142,6 +142,8 @@ class Settings(BaseSettings):
     home_preview_search_enabled: bool = Field(default=True)
     home_preview_vertex_model: str = Field(default="gemini-3.5-flash")
     home_preview_vertex_location: str = Field(default="global")
+    home_preview_request_timeout_seconds: float = Field(default=90, ge=10, le=300)
+    home_preview_cause_timeout_seconds: float = Field(default=180, ge=60, le=300)
     home_preview_cycle_limit: int = Field(default=24,ge=1,le=100)
 
     # --- Web clients -------------------------------------------------------

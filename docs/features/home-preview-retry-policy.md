@@ -38,3 +38,16 @@ ReadTimeout은 현재 httpx의 60초 응답 읽기 제한에서 발생했다. �
 - 구현/테스트 이후 요청한 미완료2경기를 단계 재시험하고 4개 실제 공개 저장본을 브라우저에서 확인한다. 현재 상태를 4개 신규 생성 성공으로 표현하지 않는다.
 
 근거: Google Vertex AI 공식 오류 문서 https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/api-errors 및429 안내 https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 는 일시 오류에 backoff 재시도를 권고한다. 위1회/10초/공유 예산은 이 프로젝트의 비용 제한을 위한 설계 판단이다.
+
+
+## 사용자 후속 확정과 구현 — 2026-10-25
+
+사용자가 시간 제한 확대·재시도 구현·4경기 전체 재시험을 요청했다. 이전 정책안의 공유 추가1회/300초 및 중간 구현4회/900초 설명을 아래가 대체한다.
+
+- 원인 검색 응답180초, 전망/분석90초, 연결15초. 메인 전용 HOME_PREVIEW_CAUSE_TIMEOUT_SECONDS/HOME_PREVIEW_REQUEST_TIMEOUT_SECONDS로 조정한다. 실행/owner lease는1200초다. 타 AX/방송 provider는 변경하지 않았다.
+- timeout·408/429/500/502/503/504만 **단계별 최대1회** 재시도한다. 모델 요청은 단계별 최대2회/슬롯 전체 최대6회. 정상 기본3회, 최악4슬롯24회. 실패/timeout/수동 단계 재개도 같은 누적 카운터와 단계 상한을 사용한다. 실제로 한 경기의 검색 timeout과 분석429가 이어져 공유1회 정책으로는 복구하지 못한 것이 변경 근거다.
+- Retry-After 우선. 없으면429는30~35초, 기타 일시 오류10~15초 jitter. 서버 대기가60초보다 길거나 남은 실행/킥오프 예산으로 요청을 완료할 수 없으면 즉시 반복하지 않는다. 400/401/403/404·안전 차단·불완전 출력·근거 검증 실패는 자동 반복하지 않는다.
+- HTTP 요청 직전 카운터·stage·시각·timeout을 DB에 기록하고 이후 허용된 HTTP/provider code·응답 시간·종료 이유·재시도 지연을 기록한다. 오류 본문/인증/헤더/프로젝트 URL은 저장하지 않는다. fixture identity/NS/활성 target/owner/킥오프를 요청·재시도 전에 재검사한다.
+- 기존 불변 HomePreviewSnapshot에 evidence/analysis/causes checkpoint를 비공개 저장하고 attempt에는 ID를 기록한다. DB 스키마 변경은 없다. 같은 attempt/slot의 재개는 identity/model/prompt/attempt/input hash·6시간 범위를 검증하고 성공한 API/검색/분석 단계를 재호출하지 않는다. 원인만 실패한 부분 성공도 남은 예산에서 명시적으로 재개할 수 있고 과거 version을 수정하지 않는다.
+- 원인 discovery에도 실제 responseSchema로 코드 enum/필드/nullable 값을 제한한다. 등록된 HTTPS 원문 기사 URL은 Google redirect와 별개로 원문 fetch·DNS/redirect 안전 검사·선수/구단/날짜/인용 검증 후에만 채택한다. 홈페이지만 반환한 후보/미등록 호스트는 거절한다. API와 충돌하거나 검증되지 않은 원인·발생일은 창작하지 않는다.
+- 일반 GET은 DB만 읽고 자동 생성 OFF·6시간/최대4슬롯·진행 중 신규 생성 금지를 유지한다. 실제4경기 결과/검증 정본은 `home-preview-generation-verification.md`다. 전체 생성 성공과 모든 외부 사실 확보를 구분한다.

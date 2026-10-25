@@ -249,3 +249,13 @@ API 자료가 완전하면 analysis 모델 1회, 검색 보완이 필요한 경�
 ### 2026-10-25 실제4경기 시험·재시도 정책안
 
 실제 신규 게시2/기존본 유지2. 원인과 단계별 재시도 설계는 `docs/features/home-preview-retry-policy.md`를 따른다. 부모 source index 보완은 구현/관련30테스트 PASS. HTTP 오류 상세 진단·단계 checkpoint·실패 단계만 재개·슬롯당 추가 AI 합계1회(기본3+1=4,4슬롯16) 정책은 아직 구현되지 않았다. 현행 자동 생성 OFF와 정상 슬롯 이력은 유지한다.
+
+
+### 2026-10-25 재시도 구현 착수
+
+사용자 요청으로 원인180초/전망·분석90초, 실행 lease900초, 슬롯 모델4회·공유 추가1회, 비공개 불변 checkpoint 및 단계 재개를 메인 경로에 구현했다. 최신 정본은 `docs/features/home-preview-retry-policy.md`의 후속 확정 절이다. 고정 응답/격리 DB 검증 후 실제4경기 재시험 중이며, 결과가 확인되기 전 전체 성공으로 기록하지 않는다. 자동 생성/운영 배포는 OFF다.
+
+
+### 2026-10-25 재시도·실제4경기 전체 검증 완료
+
+HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초, 단계당 추가1회·전체6회 상한(정상3회,4슬롯 최악24회), checkpoint 재개/진단을 적용했다. BE125 및 실제 DB→API→브라우저4경기 PASS. 최종 저장본과 원문 누락 한계는 `docs/features/home-preview-generation-verification.md`가 정본이다. 기존 자동 생성/운영 상태와 정상 worker 슬롯 이력은 유지한다. PRE-12 독립 인수/전체 실제 웹 coverage는 별도다.

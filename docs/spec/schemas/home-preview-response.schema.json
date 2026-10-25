@@ -283,7 +283,7 @@
                         "minLength": 1,
                         "maxLength": 500
                       },
-                      "maxItems": 20
+                      "maxItems": 100
                     }
                   }
                 },
@@ -319,7 +319,7 @@
                       "minLength": 1,
                       "maxLength": 500
                     },
-                    "maxItems": 20
+                    "maxItems": 100
                   }
                 }
               },

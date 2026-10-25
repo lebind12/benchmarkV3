@@ -282,4 +282,19 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
-| HOME-PREVIEW-RETRY | 단계별 실패 진단·checkpoint·제한 재시도 | 오류 분류/허용 metadata·재개/유효성·공유 추가1회·300초/킥오프/owner·부분 성공·회귀·미완료2경기 재시험 | HOME-RESEARCH-DETAIL | cc:計画 [정책안 저장; 부모 인덱스 보완만 구현] |
+| HOME-PREVIEW-RETRY | 단계별 실패 진단·checkpoint·제한 재시도 | 오류 분류/허용 metadata·재개/유효성·공유 추가1회·300초/킥오프/owner·부분 성공·회귀·미완료2경기 재시험 | HOME-RESEARCH-DETAIL | cc:완료 [로컬 재시도·checkpoint/BE125/실제4경기 및 브라우저 PASS; PRE-12 별도] |
+
+
+### 2026-10-25 재시도 구현 착수
+
+사용자 요청으로 원인180초/전망·분석90초, 실행 lease900초, 슬롯 모델4회·공유 추가1회, 비공개 불변 checkpoint 및 단계 재개를 메인 경로에 구현했다. 최신 정본은 `docs/features/home-preview-retry-policy.md`의 후속 확정 절이다. 고정 응답/격리 DB 검증 후 실제4경기 재시험 중이며, 결과가 확인되기 전 전체 성공으로 기록하지 않는다. 자동 생성/운영 배포는 OFF다.
+
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| HOME-CAUSE-EVIDENCE | 선수별 공식 검색·주장별 다중 근거·날짜 정밀도/사건 연결 검증 | 공식 소보슬라이/프림퐁 원문 확보·원인/발생/재발/발표일 분리·소제목/다중 문단/다중 출처·실패 구분·실제 결과 대조 | HOME-PREVIEW-RETRY | cc:WIP [실제 누락 진단/4MiB 수집 보완; 다중 근거·날짜 검증 재설계 중] |
+
+
+### 2026-10-25 재시도·실제4경기 전체 검증 완료
+
+HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초, 단계당 추가1회·전체6회 상한(정상3회,4슬롯 최악24회), checkpoint 재개/진단을 적용했다. BE125 및 실제 DB→API→브라우저4경기 PASS. 최종 저장본과 원문 누락 한계는 `docs/features/home-preview-generation-verification.md`가 정본이다. 기존 자동 생성/운영 상태와 정상 worker 슬롯 이력은 유지한다. PRE-12 독립 인수/전체 실제 웹 coverage는 별도다.

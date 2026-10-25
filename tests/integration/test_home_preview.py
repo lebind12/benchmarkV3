@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from app.models import Base, Fixture, League, LeagueSyncTarget, Team
 from app.models.home_preview import HomePreviewAttempt, HomePreviewPublication, HomePreviewVersion
 from app.services.home_preview import build_db_snapshot, read_preview, recommendations
-from app.services.home_preview_generation import process_fixture
+from app.services.home_preview_generation import LEASE_SECONDS, process_fixture
 
 NOW = datetime(2026, 10, 25, 0, tzinfo=UTC)
 
@@ -244,7 +244,7 @@ def test_expired_owner_is_interrupted_and_previous_snapshot_is_preserved(setup_d
     with factory() as session:
         publication = session.scalar(select(HomePreviewPublication))
         publication.refresh_state = "running"
-        publication.last_attempt_at = NOW - timedelta(minutes=10)
+        publication.last_attempt_at = NOW - timedelta(seconds=LEASE_SECONDS + 1)
         attempt = session.scalar(select(HomePreviewAttempt))
         attempt.state = "running"
         session.commit()
@@ -686,13 +686,24 @@ def test_player_watchlist_uses_season_and_exact_recent_fixture_sequence(setup_db
         )
 
 
-@pytest.mark.parametrize("mutate_selection", [False, True])
-def test_post_selection_causes_keep_identity_and_count_the_extra_search(setup_db, mutate_selection):
+@pytest.mark.parametrize(
+    "mutate_selection,resume_optional", [(False, False), (True, False), (False, True)]
+)
+def test_post_selection_causes_keep_identity_and_count_the_extra_search(
+    setup_db, mutate_selection, resume_optional
+):
     from copy import deepcopy
 
     from app.models.player import Player, PlayerSeasonStat
+    from app.services.home_preview_retry import ModelRun
 
     _engine, factory = setup_db
+    run = (
+        ModelRun(clock=lambda: NOW, sleep=lambda _: None, jitter=lambda: 0)
+        if resume_optional
+        else None
+    )
+    calls = {"evidence": 0, "analysis": 0, "causes": 0}
     with factory() as session:
         fixture = session.scalar(select(Fixture).where(Fixture.external_id == 1557444))
         player = Player(
@@ -718,6 +729,9 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(setup_db
         session.commit()
 
     def evidence(payload, *, now):
+        calls["evidence"] += 1
+        if run:
+            run.request("forecast", lambda _: None, timeout=90)
         payload["as_of"] = now.isoformat()
         payload["sources"].append(
             {
@@ -750,6 +764,9 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(setup_db
         return payload, {"model_requests": 1, "api_football_requests": 4}
 
     def model(payload):
+        calls["analysis"] += 1
+        if run:
+            run.request("analysis", lambda _: None, timeout=90)
         analysis = deepcopy(payload["analysis"])
         row = payload["facts"]["injuries"]["data"][0]
         refs = row["source_ids"] + row["importance_evidence"]["source_ids"]
@@ -770,6 +787,21 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(setup_db
         return analysis, {}
 
     def causes(payload, *, now):
+        calls["causes"] += 1
+        if run:
+
+            def operation(_):
+                if calls["causes"] == 1:
+                    raise ValueError("invalid_cause_discovery_response")
+
+            try:
+                run.request("causes", operation, timeout=180)
+            except ValueError:
+                return payload, {
+                    "model_requests": 1,
+                    "cause_search_failed": True,
+                    "cause_failure_type": "ValueError",
+                }
         if mutate_selection:
             payload["analysis"]["key_absences"]["data"][0]["player_id"] = 999
         payload["sources"].append(
@@ -809,11 +841,39 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(setup_db
         provider=model,
         evidence_provider=evidence,
         cause_provider=causes,
+        runtime=run,
     )
     assert result["state"] == ("failed" if mutate_selection else "succeeded")
+    if resume_optional:
+        with factory() as session:
+            old_id = session.scalar(select(HomePreviewPublication)).version_id
+            assert session.scalar(select(HomePreviewAttempt)).usage["cause_search_failed"] is True
+        run = ModelRun(clock=lambda: NOW, sleep=lambda _: None, jitter=lambda: 0)
+        result = process_fixture(
+            factory,
+            1557444,
+            clock=lambda: NOW,
+            provider=model,
+            evidence_provider=evidence,
+            cause_provider=causes,
+            runtime=run,
+            retry_failed=True,
+        )
+        assert result["state"] == "succeeded"
+        assert calls == {"evidence": 1, "analysis": 1, "causes": 2}
+        with factory() as session:
+            assert session.scalar(select(HomePreviewPublication)).version_id != old_id
+            assert (
+                "cause"
+                not in session.get(HomePreviewVersion, old_id).payload["facts"]["injuries"]["data"][
+                    0
+                ]
+            )
     with factory() as session:
         usage = session.scalar(select(HomePreviewAttempt)).usage
-        assert usage["model_requests"] == 3
+        assert usage["model_requests"] == (4 if resume_optional else 3)
+        if resume_optional:
+            assert not usage.get("cause_search_failed") and usage["api_football_requests"] == 4
         if not mutate_selection:
             assert (
                 read_preview(session, 1557444, now=NOW)["preview"]["facts"]["injuries"]["data"][0][
@@ -821,3 +881,74 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(setup_db
                 ]["data"]["occurred_on"]
                 == "2026-10-18"
             )
+
+
+@pytest.mark.parametrize("changed_model", [False, True])
+def test_durable_model_retry_resumes_valid_checkpoint_and_invalidates_changed_model(
+    setup_db, changed_model
+):
+    from app.models.home_preview import HomePreviewSnapshot
+    from app.services.home_preview_retry import ModelRun
+
+    _, factory = setup_db
+    calls = {"evidence": 0, "analysis": 0}
+    active = [None]
+
+    def new_runtime():
+        return ModelRun(clock=lambda: NOW, sleep=lambda _: None, jitter=lambda: 0)
+
+    def evidence(payload, *, now):
+        calls["evidence"] += 1
+        active[0].request("forecast", lambda _: None, timeout=90)
+        return payload, {"model_requests": 1, "api_football_requests": 2}
+
+    def model(payload):
+        calls["analysis"] += 1
+
+        def operation(_):
+            if calls["analysis"] == 1:
+                raise ValueError("incomplete_model_response")
+            return payload["analysis"], {}
+
+        return active[0].request("analysis", operation, timeout=90)
+
+    active[0] = new_runtime()
+    assert (
+        process_fixture(
+            factory,
+            1557444,
+            provider=model,
+            evidence_provider=evidence,
+            runtime=active[0],
+            model="test",
+            clock=lambda: NOW,
+        )["state"]
+        == "failed"
+    )
+    with factory() as session:
+        attempt = session.scalar(select(HomePreviewAttempt))
+        checkpoint_id = attempt.usage["checkpoints"]["evidence"]
+        assert attempt.usage["model_requests"] == 2
+        assert (
+            session.get(HomePreviewSnapshot, checkpoint_id).payload["checkpoint"]["stage"]
+            == "evidence"
+        )
+    active[0] = new_runtime()
+    result = process_fixture(
+        factory,
+        1557444,
+        provider=model,
+        evidence_provider=evidence,
+        runtime=active[0],
+        model="changed" if changed_model else "test",
+        clock=lambda: NOW,
+        retry_failed=True,
+    )
+    assert result["state"] == "succeeded"
+    assert calls == {"evidence": 2 if changed_model else 1, "analysis": 2}
+    with factory() as session:
+        usage = session.scalar(select(HomePreviewAttempt)).usage
+        assert usage["model_requests"] == (4 if changed_model else 3)
+        assert usage["api_football_requests"] == (4 if changed_model else 2)
+        assert "failure_type" not in usage and usage["previous_failures"]
+        assert set(usage["checkpoints"]) == {"evidence", "analysis", "causes"}
