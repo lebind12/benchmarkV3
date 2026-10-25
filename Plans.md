@@ -305,3 +305,12 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 생성 버전prompt13. 부상 검색을 일반 Google Search→실제 URL 원문 수집→출처 ID enum JSON 추출로 분리했다. 다중 인용·소제목·발표일 정밀도·동일 사건 검증, 원문4MiB/공식 기사 링크 우선 탐색을 구현했다. 정상 최대4호출, 단계 최대3요청·슬롯 전체6요청·1200초,429는30/60초·기타10/20초 및 최대90초 대기로 보완했다. 실제4경기 최신 생성/DB→API→브라우저 오류0, 모델18/API16. BE137+추가 회귀4(기존3+신규1)/FE29/E2E17/build 통과.
 
 외부 매체는2/2/1/1곳, 자동 발생일 확인0명으로 자료 목표 미완료다. 원인 확인은3/0/1/0명. 공식 원문 개별 검증 통과와 자동 검색 완성을 구분하며 HOME-CAUSE-EVIDENCE는WIP, PRE-12 별도다. 최신 결과 정본은 docs/features/home-preview-generation-verification.md. 정상 worker 이력/다른 세션/운영 환경은 변경하지 않았다.
+
+
+### 2026-10-25 단일 호출 프롬프트 준비
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| HOME-SINGLE-PROMPT | 맨유–본머스 DB 입력을 동봉한1회 검색·분석·JSON 요청안 | 원인/발생 시점/출처를 한 응답에 보존, 실제 DB 후보·기록·시각, 읽기 전용 생성 도구·request body | HOME-CAUSE-EVIDENCE | cc:완료 [프롬프트/실험 계약/DB 입력 준비; 실제 호출·runtime 전환 미실행] |
+
+정본 docs/features/home-preview-single-call/README.md. 후보12명·관전8명·양팀 최근5경기, 로컬 저장 API 수집본과 DB 통계 입력. 이전 LLM 결과 제외, 외부 호출/DB 쓰기0회. 검색+responseSchema 실제 호환성/출력 검증과 단일 호출 worker 구현은 별도다.

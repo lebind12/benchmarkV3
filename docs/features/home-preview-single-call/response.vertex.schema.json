@@ -1,0 +1,465 @@
+{
+  "type": "OBJECT",
+  "properties": {
+    "fixture_id": {
+      "type": "INTEGER"
+    },
+    "summary": {
+      "type": "OBJECT",
+      "properties": {
+        "text": {
+          "type": "STRING"
+        },
+        "evidence_ids": {
+          "type": "ARRAY",
+          "items": {
+            "type": "STRING"
+          }
+        }
+      },
+      "required": [
+        "text",
+        "evidence_ids"
+      ]
+    },
+    "key_points": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "text": {
+            "type": "STRING"
+          },
+          "evidence_ids": {
+            "type": "ARRAY",
+            "items": {
+              "type": "STRING"
+            }
+          }
+        },
+        "required": [
+          "text",
+          "evidence_ids"
+        ]
+      },
+      "maxItems": 2
+    },
+    "ai_prediction": {
+      "type": "OBJECT",
+      "properties": {
+        "label": {
+          "type": "STRING",
+          "enum": [
+            "AI 경기 예측"
+          ]
+        },
+        "text": {
+          "type": "STRING"
+        },
+        "predicted_score": {
+          "type": "STRING",
+          "nullable": true
+        },
+        "evidence_ids": {
+          "type": "ARRAY",
+          "items": {
+            "type": "STRING"
+          }
+        }
+      },
+      "required": [
+        "label",
+        "text",
+        "predicted_score",
+        "evidence_ids"
+      ]
+    },
+    "key_absences": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "team_id": {
+            "type": "INTEGER"
+          },
+          "player_id": {
+            "type": "INTEGER"
+          },
+          "selection_reason": {
+            "type": "STRING"
+          },
+          "evidence_ids": {
+            "type": "ARRAY",
+            "items": {
+              "type": "STRING"
+            }
+          },
+          "cause": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "event_type": {
+            "type": "STRING",
+            "enum": [
+              "initial",
+              "recurrence",
+              "aggravation",
+              "suspension",
+              "unknown"
+            ]
+          },
+          "date_precision": {
+            "type": "STRING",
+            "enum": [
+              "day",
+              "month",
+              "text",
+              "unknown"
+            ]
+          },
+          "occurred_on": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "occurred_month": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "timing_text": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "date_basis": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "cause_evidence": {
+            "type": "ARRAY",
+            "items": {
+              "type": "OBJECT",
+              "properties": {
+                "source_id": {
+                  "type": "STRING"
+                },
+                "claim": {
+                  "type": "STRING"
+                },
+                "quote": {
+                  "type": "STRING"
+                }
+              },
+              "required": [
+                "source_id",
+                "claim",
+                "quote"
+              ]
+            }
+          },
+          "timing_evidence": {
+            "type": "ARRAY",
+            "items": {
+              "type": "OBJECT",
+              "properties": {
+                "source_id": {
+                  "type": "STRING"
+                },
+                "claim": {
+                  "type": "STRING"
+                },
+                "quote": {
+                  "type": "STRING"
+                }
+              },
+              "required": [
+                "source_id",
+                "claim",
+                "quote"
+              ]
+            }
+          },
+          "source_ids": {
+            "type": "ARRAY",
+            "items": {
+              "type": "STRING"
+            }
+          },
+          "missing_reason": {
+            "type": "STRING",
+            "nullable": true
+          }
+        },
+        "required": [
+          "team_id",
+          "player_id",
+          "selection_reason",
+          "evidence_ids",
+          "cause",
+          "event_type",
+          "date_precision",
+          "occurred_on",
+          "occurred_month",
+          "timing_text",
+          "date_basis",
+          "cause_evidence",
+          "timing_evidence",
+          "source_ids",
+          "missing_reason"
+        ]
+      },
+      "maxItems": 4
+    },
+    "player_watchpoints": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "team_id": {
+            "type": "INTEGER"
+          },
+          "player_id": {
+            "type": "INTEGER"
+          },
+          "focus": {
+            "type": "STRING",
+            "enum": [
+              "season_contribution",
+              "scoring_streak",
+              "assist_streak",
+              "involvement_streak"
+            ]
+          },
+          "reason": {
+            "type": "STRING"
+          },
+          "evidence_ids": {
+            "type": "ARRAY",
+            "items": {
+              "type": "STRING"
+            }
+          }
+        },
+        "required": [
+          "team_id",
+          "player_id",
+          "focus",
+          "reason",
+          "evidence_ids"
+        ]
+      },
+      "maxItems": 4
+    },
+    "external_forecasts": {
+      "type": "OBJECT",
+      "properties": {
+        "target_count": {
+          "type": "INTEGER"
+        },
+        "items": {
+          "type": "ARRAY",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "publisher": {
+                "type": "STRING"
+              },
+              "summary": {
+                "type": "STRING"
+              },
+              "predicted_score": {
+                "type": "STRING",
+                "nullable": true
+              },
+              "source_ids": {
+                "type": "ARRAY",
+                "items": {
+                  "type": "STRING"
+                }
+              },
+              "evidence": {
+                "type": "ARRAY",
+                "items": {
+                  "type": "OBJECT",
+                  "properties": {
+                    "source_id": {
+                      "type": "STRING"
+                    },
+                    "claim": {
+                      "type": "STRING"
+                    },
+                    "quote": {
+                      "type": "STRING"
+                    }
+                  },
+                  "required": [
+                    "source_id",
+                    "claim",
+                    "quote"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "publisher",
+              "summary",
+              "predicted_score",
+              "source_ids",
+              "evidence"
+            ]
+          }
+        },
+        "searched_publishers": {
+          "type": "ARRAY",
+          "items": {
+            "type": "STRING"
+          }
+        },
+        "shortfall_reason": {
+          "type": "STRING",
+          "nullable": true
+        }
+      },
+      "required": [
+        "target_count",
+        "items",
+        "searched_publishers",
+        "shortfall_reason"
+      ]
+    },
+    "odds_binding": {
+      "type": "OBJECT",
+      "properties": {
+        "home_team_id": {
+          "type": "INTEGER"
+        },
+        "away_team_id": {
+          "type": "INTEGER"
+        },
+        "db_source_ids": {
+          "type": "ARRAY",
+          "items": {
+            "type": "STRING"
+          }
+        }
+      },
+      "required": [
+        "home_team_id",
+        "away_team_id",
+        "db_source_ids"
+      ]
+    },
+    "source_catalog": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "id": {
+            "type": "STRING"
+          },
+          "url": {
+            "type": "STRING"
+          },
+          "title": {
+            "type": "STRING"
+          },
+          "publisher": {
+            "type": "STRING"
+          },
+          "published_on": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "published_at": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "verification": {
+            "type": "STRING",
+            "enum": [
+              "original_checked",
+              "pending_original"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "title",
+          "publisher",
+          "published_on",
+          "published_at",
+          "verification"
+        ]
+      }
+    },
+    "conflicts": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "player_id": {
+            "type": "INTEGER"
+          },
+          "field": {
+            "type": "STRING"
+          },
+          "db_value": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "web_claim": {
+            "type": "STRING"
+          },
+          "source_ids": {
+            "type": "ARRAY",
+            "items": {
+              "type": "STRING"
+            }
+          }
+        },
+        "required": [
+          "player_id",
+          "field",
+          "db_value",
+          "web_claim",
+          "source_ids"
+        ]
+      }
+    },
+    "missing_data": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "section": {
+            "type": "STRING"
+          },
+          "player_id": {
+            "type": "INTEGER",
+            "nullable": true
+          },
+          "reason": {
+            "type": "STRING"
+          }
+        },
+        "required": [
+          "section",
+          "player_id",
+          "reason"
+        ]
+      }
+    }
+  },
+  "required": [
+    "fixture_id",
+    "summary",
+    "key_points",
+    "ai_prediction",
+    "key_absences",
+    "player_watchpoints",
+    "external_forecasts",
+    "odds_binding",
+    "source_catalog",
+    "conflicts",
+    "missing_data"
+  ]
+}
