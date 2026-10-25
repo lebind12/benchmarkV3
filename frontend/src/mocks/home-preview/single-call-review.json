@@ -1,0 +1,2328 @@
+{
+  "result": {
+    "fixture_id": 1557445,
+    "summary": {
+      "text": "맨체스터 유나이티드는 최근 공식전 7경기 연속 무승(3무 4패)의 극심한 부진에 빠져 있으며, 주중 UEFA 챔피언스리그에서 코모에 1-4로 대패하며 마이클 캐릭 감독의 경질설이 대두되는 등 최악의 위기를 맞이했습니다. 반면 본머스는 주중 유로파리그에서 AC 밀란을 3-0으로 완파하는 등 최근 3연승을 달리며 가파른 상승세를 타고 있어 올드 트래포드 원정에서 이변을 노리고 있습니다.",
+      "evidence_ids": [
+        "db-form-33",
+        "db-form-35",
+        "sportsmole-preview",
+        "si-preview"
+      ]
+    },
+    "key_points": [
+      {
+        "text": "맨체스터 유나이티드는 최근 공식전 7경기 무승으로 최악의 흐름을 보이고 있으며, 캐릭 감독의 전술에 대한 선수단의 불만설까지 흘러나오고 있습니다.",
+        "evidence_ids": [
+          "db-form-33",
+          "sportsmole-preview",
+          "football365-preview"
+        ]
+      },
+      {
+        "text": "본머스는 최근 공식전 3연승을 달리고 있으며, 최근 맨유를 상대로 6경기 연속 무패를 기록하는 등 맞대결에서 강한 면모를 보여왔습니다.",
+        "evidence_ids": [
+          "db-form-35",
+          "si-preview"
+        ]
+      }
+    ],
+    "ai_prediction": {
+      "label": "AI 경기 예측",
+      "text": "API-Football 자체 알고리즘은 맨체스터 유나이티드의 승리 또는 무승부(더블 찬스)를 전망하고 있습니다. 비록 맨유가 심각한 부진과 내부 불화설에 시달리고 있으나, 올드 트래포드에서의 홈 이점과 기본적인 전력 우위를 바탕으로 최소 패배는 면할 것이라는 분석입니다.",
+      "predicted_score": null,
+      "evidence_ids": [
+        "api-football-predictions-1557445"
+      ]
+    },
+    "key_absences": [
+      {
+        "team_id": 33,
+        "player_id": 284322,
+        "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 6회. 확인된 최근 출전 시간 합계 512분. 2026시즌 6경기 출전·447분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다.",
+        "evidence_ids": [
+          "db-injury-participation-33"
+        ],
+        "cause": "토트넘 홋스퍼전에서 입은 미공개 부상",
+        "event_type": "initial",
+        "date_precision": "day",
+        "occurred_on": "2026-10-10",
+        "occurred_month": null,
+        "timing_text": "토트넘전 경기 중",
+        "date_basis": "맨체스터 유나이티드의 홈 경기 기록상 토트넘 홋스퍼전은 2026년 10월 10일에 치러졌으며, 기사에서 해당 경기 중 부상을 입었다고 명시하고 있습니다.",
+        "cause_evidence": [
+          {
+            "source_id": "rotowire-mainoo-injury",
+            "claim": "Mainoo remains sidelined after sustaining an undisclosed injury during the 1-1 draw against Tottenham.",
+            "quote": "Mainoo remains sidelined after sustaining an undisclosed injury during the 1-1 draw against Tottenham"
+          }
+        ],
+        "timing_evidence": [
+          {
+            "source_id": "rotowire-mainoo-injury",
+            "claim": "Mainoo was injured during the 1-1 draw against Tottenham.",
+            "quote": "sustaining an undisclosed injury during the 1-1 draw against Tottenham"
+          }
+        ],
+        "source_ids": [
+          "rotowire-mainoo-injury"
+        ],
+        "missing_reason": null
+      },
+      {
+        "team_id": 35,
+        "player_id": 304853,
+        "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 5회. 확인된 최근 출전 시간 합계 446분. 2026시즌 5경기 출전·446분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다.",
+        "evidence_ids": [
+          "db-injury-participation-35"
+        ],
+        "cause": "잉글랜드 국가대표팀 소집 중 크로아티아와의 경기에서 허벅지 부상 악화",
+        "event_type": "aggravation",
+        "date_precision": "day",
+        "occurred_on": "2026-10-03",
+        "occurred_month": null,
+        "timing_text": "잉글랜드 대표팀 소집 중 크로아티아전",
+        "date_basis": "2026년 10월 5일자 가디언 기사에서 지난 토요일(10월 3일) 크로아티아전에서 허벅지 부상을 입었다고 보도했습니다.",
+        "cause_evidence": [
+          {
+            "source_id": "guardian-scott-injury",
+            "claim": "Alex Scott suffered a thigh injury whilst on international duty with England.",
+            "quote": "with a thigh injury left Bournemouth unhappy over his treatment. Scott excelled during Saturday's 7-0 win over Croatia"
+          }
+        ],
+        "timing_evidence": [
+          {
+            "source_id": "guardian-scott-injury",
+            "claim": "Scott was injured during Saturday's match against Croatia.",
+            "quote": "Scott excelled during Saturday's 7-0 win over Croatia"
+          }
+        ],
+        "source_ids": [
+          "guardian-scott-injury"
+        ],
+        "missing_reason": null
+      }
+    ],
+    "player_watchpoints": [
+      {
+        "team_id": 33,
+        "player_id": 1485,
+        "focus": "season_contribution",
+        "reason": "브루노 페르난데스는 2026시즌 프리미어리그에서 7경기 출전해 3골 1도움을 기록하며 팀의 핵심 기여자로 활약하고 있습니다. 최근 팀의 10경기에서도 4골 1도움을 올리며 공격을 이끌고 있으나, 주중 코모전 대패 이후 전술에 대한 비판적 의견을 내비치며 이번 경기 선발 여부와 경기력에 많은 이목이 쏠리고 있습니다.",
+        "evidence_ids": [
+          "db-player-spotlights-33",
+          "football365-preview"
+        ]
+      },
+      {
+        "team_id": 35,
+        "player_id": 19245,
+        "focus": "scoring_streak",
+        "reason": "마커스 태버니어는 최근 확인된 2경기에서 연속 득점 및 연속 공격포인트를 기록하며 뛰어난 득점 감각을 보여주고 있습니다. 이번 시즌 프리미어리그 7경기에서 4골을 터뜨리며 팀 내 최다 득점자로 활약하고 있어, 최근 상승세를 탄 본머스의 공격 선봉장 역할을 톡톡히 해낼 것으로 기대됩니다.",
+        "evidence_ids": [
+          "db-player-spotlights-35",
+          "sportsmole-preview"
+        ]
+      }
+    ],
+    "external_forecasts": {
+      "target_count": 3,
+      "items": [
+        {
+          "publisher": "Sports Mole",
+          "summary": "맨체스터 유나이티드는 주중 챔피언스리그 코모전 1-4 대패로 분위기가 가라앉았으며, 마이클 캐릭 감독의 경질 위기가 고조되고 있습니다. 반면 본머스는 AC 밀란을 3-0으로 꺾는 등 최근 3연승으로 기세가 좋습니다. 본머스가 올드 트래포드에서 승리를 거둘 것으로 예상됩니다.",
+          "predicted_score": "1-2",
+          "source_ids": [
+            "sportsmole-preview"
+          ],
+          "evidence": [
+            {
+              "source_id": "sportsmole-preview",
+              "claim": "Sports Mole predicts a 2-1 win for Bournemouth.",
+              "quote": "We say: Manchester United 1-2 Bournemouth"
+            }
+          ]
+        },
+        {
+          "publisher": "Sports Illustrated",
+          "summary": "맨체스터 유나이티드는 최근 공식전 7경기 무승의 늪에 빠져 있으며, 브루노 페르난데스의 항명설 등 내부 불화설까지 겹쳤습니다. 본머스는 최근 유럽대항전과 리그에서 상승세를 타고 있으며 올드 트래포드 원정에서 강한 면모를 보여왔기에 팽팽한 무승부가 예상됩니다.",
+          "predicted_score": "1-1",
+          "source_ids": [
+            "si-preview"
+          ],
+          "evidence": [
+            {
+              "source_id": "si-preview",
+              "claim": "SI predicts a 1-1 draw.",
+              "quote": "Prediction: Man Utd 1–1 Bournemouth"
+            }
+          ]
+        },
+        {
+          "publisher": "Goal.com",
+          "summary": "맨체스터 유나이티드는 주중 코모전 패배로 최악의 위기를 맞이했으며 캐릭 감독의 입지가 흔들리고 있습니다. 양 팀의 최근 흐름과 역사적 맞대결 전적을 고려할 때 다득점 무승부 시나리오가 유력합니다.",
+          "predicted_score": "2-2",
+          "source_ids": [
+            "goal-preview"
+          ],
+          "evidence": [
+            {
+              "source_id": "goal-preview",
+              "claim": "Goal.com predicts a 2-2 draw.",
+              "quote": "Score prediction: Manchester United 2-2 Bournemouth"
+            }
+          ]
+        }
+      ],
+      "searched_publishers": [
+        "Sports Mole",
+        "Sports Illustrated",
+        "Goal.com"
+      ],
+      "shortfall_reason": null
+    },
+    "odds_binding": {
+      "home_team_id": 33,
+      "away_team_id": 35,
+      "db_source_ids": [
+        "api-football-odds-1557445"
+      ]
+    },
+    "source_catalog": [
+      {
+        "id": "sportsmole-preview",
+        "title": "Preview: Manchester United vs Bournemouth - prediction, team news, lineups - Sports Mole",
+        "publisher": "Sports Mole",
+        "url": "https://www.sportsmole.co.uk/football/man-utd/preview/man-utd-vs-bournemouth-prediction-team-news-lineups_607577.html",
+        "published_on": "2026-10-23",
+        "published_at": "2026-10-23T17:22:00+00:00",
+        "verification": "original_quote_matched"
+      },
+      {
+        "id": "si-preview",
+        "title": "Man Utd vs. Bournemouth: Preview, Predictions and Lineups Share on Facebook Share on X Share on Facebook Share on X",
+        "publisher": "Sports Illustrated",
+        "url": "https://www.si.com/soccer/man-utd-vs-bournemouth-preview-predictions-lineups-10-25-26",
+        "published_on": "2026-10-25",
+        "published_at": "2026-10-25T00:00:00+00:00",
+        "verification": "original_quote_matched"
+      },
+      {
+        "id": "goal-preview",
+        "title": "Manchester United vs Bournemouth Predictions: Redemption on the agenda | Goal.com US",
+        "publisher": "Goal.com",
+        "url": "https://www.goal.com/en-us/betting/tips/manchester-united-vs-bournemouth-predictions-10-25-2026/A%3Abltdf693f236e81339c",
+        "published_on": "2026-10-25",
+        "published_at": "2026-10-25T09:59:59+00:00",
+        "verification": "original_quote_matched"
+      },
+      {
+        "id": "rotowire-mainoo-injury",
+        "title": "Kobbie Mainoo Injury: Unlikely to face Como",
+        "publisher": "RotoWire",
+        "url": null,
+        "published_on": null,
+        "published_at": null,
+        "verification": "unresolved"
+      },
+      {
+        "id": "guardian-scott-injury",
+        "title": "Bournemouth unhappy over Scott injury but Tuchel says England took 'zero risk'",
+        "publisher": "The Guardian",
+        "url": null,
+        "published_on": null,
+        "published_at": null,
+        "verification": "unresolved"
+      },
+      {
+        "id": "football365-preview",
+        "title": "Man Utd v Bournemouth: Prediction, team news, lineups and odds",
+        "publisher": "Football365",
+        "url": "https://www.football365.com/match-preview/man-utd-v-bournemouth-prediction-preview",
+        "published_on": "2026-10-24",
+        "published_at": "2026-10-24T14:14:33+00:00",
+        "verification": "grounding_linked"
+      },
+      {
+        "id": "grounding-1cbf42c4d7a9",
+        "url": "https://www.football365.com/match-preview/man-utd-v-bournemouth-prediction-preview",
+        "title": "Man Utd v Bournemouth: Prediction, team news, lineups and odds",
+        "publisher": "www.football365.com",
+        "published_on": null,
+        "published_at": null,
+        "verification": "grounding_attribution"
+      },
+      {
+        "id": "grounding-647c66c8e1ba",
+        "url": "https://www.sportsmole.co.uk/football/man-utd/preview/man-utd-vs-bournemouth-prediction-team-news-lineups_607577.html",
+        "title": "Preview: Manchester United vs Bournemouth - prediction, team news, lineups - Sports Mole",
+        "publisher": "www.sportsmole.co.uk",
+        "published_on": null,
+        "published_at": null,
+        "verification": "grounding_attribution"
+      },
+      {
+        "id": "grounding-bb5cb467c5a3",
+        "url": "https://www.si.com/soccer/man-utd-vs-bournemouth-preview-predictions-lineups-10-25-26",
+        "title": "Man Utd vs. Bournemouth: Preview, Predictions and Lineups Share on Facebook Share on X Share on Facebook Share on X",
+        "publisher": "www.si.com",
+        "published_on": null,
+        "published_at": null,
+        "verification": "grounding_attribution"
+      },
+      {
+        "id": "grounding-21f5067c7a84",
+        "url": "https://blog.ke.sportpesa.com/2026/10/25/man-united-vs-bournemouth-prediction-premier-league-preview-h2h-team-news-and-betting-tips/",
+        "title": "Man United vs Bournemouth prediction: Premier league preview, h2h, team news and betting tips",
+        "publisher": "blog.ke.sportpesa.com",
+        "published_on": null,
+        "published_at": null,
+        "verification": "grounding_attribution"
+      },
+      {
+        "id": "grounding-08734a0b4622",
+        "url": "https://www.goal.com/en-us/betting/tips/manchester-united-vs-bournemouth-predictions-10-25-2026/A%3Abltdf693f236e81339c",
+        "title": "Manchester United vs Bournemouth Predictions: Redemption on the agenda | Goal.com US",
+        "publisher": "www.goal.com",
+        "published_on": null,
+        "published_at": null,
+        "verification": "grounding_attribution"
+      }
+    ],
+    "conflicts": [],
+    "missing_data": [],
+    "grounding_links": [
+      {
+        "path": [
+          "summary",
+          "text"
+        ],
+        "chunk_indices": [
+          0,
+          1
+        ],
+        "segment_text": "\"text\": \"맨체스터 유나이티드는 최근 공식전 7경기 연속 무승(3무 4패)의 극심한 부진에 빠져 있으며, 주중 UEFA 챔피언스리그에서 코모에 1-4로 대패하며 마이클 캐릭 감독의 경질설이 대두되는 등 최악의 위기를 맞이했습니다",
+        "start_byte": 46,
+        "end_byte": 340,
+        "source_ids": [
+          "grounding-1cbf42c4d7a9",
+          "grounding-647c66c8e1ba"
+        ]
+      },
+      {
+        "path": [
+          "summary",
+          "text"
+        ],
+        "chunk_indices": [
+          0,
+          2
+        ],
+        "segment_text": "반면 본머스는 주중 유로파리그에서 AC 밀란을 3-0으로 완파하는 등 최근 3연승을 달리며 가파른 상승세를 타고 있어 올드 트래포드 원정에서 이변을 노리고 있습니다",
+        "start_byte": 342,
+        "end_byte": 561,
+        "source_ids": [
+          "grounding-1cbf42c4d7a9",
+          "grounding-bb5cb467c5a3"
+        ]
+      },
+      {
+        "path": [
+          "key_points",
+          0,
+          "text"
+        ],
+        "chunk_indices": [
+          0,
+          1
+        ],
+        "segment_text": "\"text\": \"맨체스터 유나이티드는 최근 공식전 7경기 무승으로 최악의 흐름을 보이고 있으며, 캐릭 감독의 전술에 대한 선수단의 불만설까지 흘러나오고 있습니다",
+        "start_byte": 715,
+        "end_byte": 926,
+        "source_ids": [
+          "grounding-1cbf42c4d7a9",
+          "grounding-647c66c8e1ba"
+        ]
+      },
+      {
+        "path": [
+          "key_points",
+          1,
+          "text"
+        ],
+        "chunk_indices": [
+          0,
+          2
+        ],
+        "segment_text": "\"text\": \"본머스는 최근 공식전 3연승을 달리고 있으며, 최근 맨유를 상대로 6경기 연속 무패를 기록하는 등 맞대결에서 강한 면모를 보여왔습니다",
+        "start_byte": 1063,
+        "end_byte": 1254,
+        "source_ids": [
+          "grounding-1cbf42c4d7a9",
+          "grounding-bb5cb467c5a3"
+        ]
+      },
+      {
+        "path": [
+          "player_watchpoints",
+          0,
+          "reason"
+        ],
+        "chunk_indices": [
+          0,
+          3
+        ],
+        "segment_text": "최근 팀의 10경기에서도 4골 1도움을 올리며 공격을 이끌고 있으나, 주중 코모전 대패 이후 전술에 대한 비판적 의견을 내비치며 이번 경기 선발 여부와 경기력에 많은 이목이 쏠리고 있습니다",
+        "start_byte": 5327,
+        "end_byte": 5580,
+        "source_ids": [
+          "grounding-1cbf42c4d7a9",
+          "grounding-21f5067c7a84"
+        ]
+      },
+      {
+        "path": [
+          "player_watchpoints",
+          1,
+          "reason"
+        ],
+        "chunk_indices": [
+          3
+        ],
+        "segment_text": "이번 시즌 프리미어리그 7경기에서 4골을 터뜨리며 팀 내 최다 득점자로 활약하고 있어, 최근 상승세를 탄 본머스의 공격 선봉장 역할을 톡톡히 해낼 것으로 기대됩니다",
+        "start_byte": 5959,
+        "end_byte": 6182,
+        "source_ids": [
+          "grounding-21f5067c7a84"
+        ]
+      },
+      {
+        "path": [
+          "external_forecasts",
+          "items",
+          0,
+          "summary"
+        ],
+        "chunk_indices": [
+          1
+        ],
+        "segment_text": "본머스가 올드 트래포드에서 승리를 거둘 것으로 예상됩니다",
+        "start_byte": 6706,
+        "end_byte": 6787,
+        "source_ids": [
+          "grounding-647c66c8e1ba"
+        ]
+      },
+      {
+        "path": [
+          "external_forecasts",
+          "items",
+          1,
+          "summary"
+        ],
+        "chunk_indices": [
+          2
+        ],
+        "segment_text": "본머스는 최근 유럽대항전과 리그에서 상승세를 타고 있으며 올드 트래포드 원정에서 강한 면모를 보여왔기에 팽팽한 무승부가 예상됩니다",
+        "start_byte": 7386,
+        "end_byte": 7572,
+        "source_ids": [
+          "grounding-bb5cb467c5a3"
+        ]
+      },
+      {
+        "path": [
+          "external_forecasts",
+          "items",
+          2,
+          "summary"
+        ],
+        "chunk_indices": [
+          4
+        ],
+        "segment_text": "양 팀의 최근 흐름과 역사적 맞대결 전적을 고려할 때 다득점 무승부 시나리오가 유력합니다",
+        "start_byte": 8091,
+        "end_byte": 8214,
+        "source_ids": [
+          "grounding-08734a0b4622"
+        ]
+      }
+    ]
+  },
+  "baseline": {
+    "as_of": "2026-10-25T09:17:35.856645+00:00",
+    "facts": {
+      "injuries": {
+        "data": [
+          {
+            "detail": "Hamstring Injury",
+            "impact": "출전 불가",
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/382452.png",
+            "player_id": 382452,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "P. Dorgu",
+            "availability": "out",
+            "importance_evidence": {
+              "seasons": [
+                {
+                  "minutes": 175,
+                  "appearances": 5,
+                  "season_year": 2026
+                }
+              ],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-33"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 2,
+              "recent_minutes": 198,
+              "recognition_name": "P. Dorgu",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 2회. 확인된 최근 출전 시간 합계 198분. 2026시즌 5경기 출전·175분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "cause": {
+              "data": null,
+              "as_of": null,
+              "reason": "source_unverified",
+              "status": "unverified",
+              "source_ids": []
+            },
+            "detail": "Injury",
+            "impact": "출전 불가",
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/284322.png",
+            "player_id": 284322,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "K. Mainoo",
+            "availability": "out",
+            "importance_evidence": {
+              "seasons": [
+                {
+                  "minutes": 447,
+                  "appearances": 6,
+                  "season_year": 2026
+                }
+              ],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-33"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 6,
+              "recent_minutes": 512,
+              "recognition_name": "K. Mainoo",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 6회. 확인된 최근 출전 시간 합계 512분. 2026시즌 6경기 출전·447분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "detail": "Leg Injury",
+            "impact": "출전 불가",
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/115589.png",
+            "player_id": 115589,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "B. Sesko",
+            "availability": "out",
+            "importance_evidence": {
+              "seasons": [
+                {
+                  "minutes": 76,
+                  "appearances": 4,
+                  "season_year": 2026
+                }
+              ],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-33"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 2,
+              "recent_minutes": 183,
+              "recognition_name": "B. Šeško",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 2회. 확인된 최근 출전 시간 합계 183분. 2026시즌 4경기 출전·76분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "cause": {
+              "data": null,
+              "as_of": null,
+              "reason": "source_unverified",
+              "status": "unverified",
+              "source_ids": []
+            },
+            "detail": "Injury",
+            "impact": "출전 불가",
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/891.png",
+            "player_id": 891,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "L. Shaw",
+            "availability": "out",
+            "importance_evidence": {
+              "seasons": [
+                {
+                  "minutes": 425,
+                  "appearances": 5,
+                  "season_year": 2026
+                }
+              ],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-33"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 4,
+              "recent_minutes": 335,
+              "recognition_name": "L. Shaw",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 4회. 확인된 최근 출전 시간 합계 335분. 2026시즌 5경기 출전·425분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "detail": "Knee Injury",
+            "impact": "출전 불가",
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/51494.png",
+            "player_id": 51494,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "M. Ugarte",
+            "availability": "out",
+            "importance_evidence": {
+              "seasons": [],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-33"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 0,
+              "recent_minutes": null,
+              "recognition_name": "M. Ugarte",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 0회. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "detail": "Muscle Injury",
+            "impact": "출전 불확실",
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/2467.png",
+            "player_id": 2467,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "L. Martinez",
+            "availability": "doubtful",
+            "importance_evidence": {
+              "seasons": [
+                {
+                  "minutes": 495,
+                  "appearances": 6,
+                  "season_year": 2026
+                }
+              ],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-33"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 8,
+              "recent_minutes": 675,
+              "recognition_name": "Lisandro Martínez",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 8회. 확인된 최근 출전 시간 합계 675분. 2026시즌 6경기 출전·495분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "detail": "Hip Injury",
+            "impact": "출전 불확실",
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/909.png",
+            "player_id": 909,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "M. Rashford",
+            "availability": "doubtful",
+            "importance_evidence": {
+              "seasons": [
+                {
+                  "minutes": 356,
+                  "appearances": 6,
+                  "season_year": 2026
+                }
+              ],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-33"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 6,
+              "recent_minutes": 457,
+              "recognition_name": "M. Rashford",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 6회. 확인된 최근 출전 시간 합계 457분. 2026시즌 6경기 출전·356분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "detail": "Thigh Injury",
+            "impact": "출전 불가",
+            "team_id": 35,
+            "photo_url": "https://media.api-sports.io/football/players/51051.png",
+            "player_id": 51051,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "J. Araujo",
+            "availability": "out",
+            "importance_evidence": {
+              "seasons": [],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-35"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 0,
+              "recent_minutes": null,
+              "recognition_name": "J. Araujo",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 0회. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "cause": {
+              "data": null,
+              "as_of": null,
+              "reason": "source_unverified",
+              "status": "unverified",
+              "source_ids": []
+            },
+            "detail": "Thigh Injury",
+            "impact": "출전 불가",
+            "team_id": 35,
+            "photo_url": "https://media.api-sports.io/football/players/304853.png",
+            "player_id": 304853,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "A. Scott",
+            "availability": "out",
+            "importance_evidence": {
+              "seasons": [
+                {
+                  "minutes": 446,
+                  "appearances": 5,
+                  "season_year": 2026
+                }
+              ],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-35"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 5,
+              "recent_minutes": 446,
+              "recognition_name": "A. Scott",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 5회. 확인된 최근 출전 시간 합계 446분. 2026시즌 5경기 출전·446분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "detail": "Muscle Injury",
+            "impact": "출전 불가",
+            "team_id": 35,
+            "photo_url": "https://media.api-sports.io/football/players/361485.png",
+            "player_id": 361485,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "A. Toth",
+            "availability": "out",
+            "importance_evidence": {
+              "seasons": [
+                {
+                  "minutes": 17,
+                  "appearances": 2,
+                  "season_year": 2026
+                }
+              ],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-35"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 0,
+              "recent_minutes": 45,
+              "recognition_name": "A. Tóth",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 0회. 확인된 최근 출전 시간 합계 45분. 2026시즌 2경기 출전·17분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "detail": "Foot Injury",
+            "impact": "출전 불확실",
+            "team_id": 35,
+            "photo_url": "https://media.api-sports.io/football/players/368030.png",
+            "player_id": 368030,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "E. J. Kroupi",
+            "availability": "doubtful",
+            "importance_evidence": {
+              "seasons": [],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-35"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 0,
+              "recent_minutes": null,
+              "recognition_name": "E. Kroupi",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 0회. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          },
+          {
+            "detail": "Lacking Match Fitness",
+            "impact": "출전 불확실",
+            "team_id": 35,
+            "photo_url": "https://media.api-sports.io/football/players/412719.png",
+            "player_id": 412719,
+            "source_ids": [
+              "api-football-injuries-1557445"
+            ],
+            "player_name": "V. Milosavljevic",
+            "availability": "doubtful",
+            "importance_evidence": {
+              "seasons": [],
+              "eligible": true,
+              "source_ids": [
+                "db-injury-participation-35"
+              ],
+              "lineup_games": 10,
+              "player_games": 10,
+              "recent_games": 10,
+              "recent_starts": 0,
+              "recent_minutes": null,
+              "recognition_name": "Veljko Milosavljević",
+              "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 0회. 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+            }
+          }
+        ],
+        "as_of": "2026-10-25T09:17:02.049035+00:00",
+        "reason": null,
+        "status": "available",
+        "source_ids": [
+          "api-football-injuries-1557445"
+        ]
+      },
+      "away_form": {
+        "data": {
+          "matches": [
+            {
+              "status": "FT",
+              "opponent": "AC 밀란",
+              "goals_for": 3,
+              "penalties": null,
+              "fixture_id": 1636235,
+              "kickoff_at": "2026-10-22T19:00:00+00:00",
+              "competition": "UEFA Europa League",
+              "goals_against": 0
+            },
+            {
+              "status": "FT",
+              "opponent": "선덜랜드",
+              "goals_for": 2,
+              "penalties": null,
+              "fixture_id": 1557427,
+              "kickoff_at": "2026-10-18T13:00:00+00:00",
+              "competition": "Premier League",
+              "goals_against": 0
+            },
+            {
+              "status": "FT",
+              "opponent": "슈투름 그라츠",
+              "goals_for": 3,
+              "penalties": null,
+              "fixture_id": 1636236,
+              "kickoff_at": "2026-10-15T19:00:00+00:00",
+              "competition": "UEFA Europa League",
+              "goals_against": 0
+            },
+            {
+              "status": "FT",
+              "opponent": "첼시",
+              "goals_for": 1,
+              "penalties": null,
+              "fixture_id": 1557419,
+              "kickoff_at": "2026-10-10T14:00:00+00:00",
+              "competition": "Premier League",
+              "goals_against": 5
+            },
+            {
+              "status": "FT",
+              "opponent": "리버풀",
+              "goals_for": 0,
+              "penalties": null,
+              "fixture_id": 1557407,
+              "kickoff_at": "2026-09-20T13:00:00+00:00",
+              "competition": "Premier League",
+              "goals_against": 1
+            }
+          ],
+          "team_id": 35,
+          "expected_count": 5
+        },
+        "as_of": "2026-10-24T21:02:15.867843+00:00",
+        "reason": null,
+        "status": "available",
+        "source_ids": [
+          "db-form-35"
+        ]
+      },
+      "home_form": {
+        "data": {
+          "matches": [
+            {
+              "status": "FT",
+              "opponent": "코모 1907",
+              "goals_for": 1,
+              "penalties": null,
+              "fixture_id": 1635647,
+              "kickoff_at": "2026-10-21T16:45:00+00:00",
+              "competition": "UEFA Champions League",
+              "goals_against": 4
+            },
+            {
+              "status": "FT",
+              "opponent": "리즈 유나이티드",
+              "goals_for": 1,
+              "penalties": null,
+              "fixture_id": 1557432,
+              "kickoff_at": "2026-10-18T13:00:00+00:00",
+              "competition": "Premier League",
+              "goals_against": 1
+            },
+            {
+              "status": "FT",
+              "opponent": "아틀레티코 마드리드",
+              "goals_for": 0,
+              "penalties": null,
+              "fixture_id": 1635623,
+              "kickoff_at": "2026-10-13T19:00:00+00:00",
+              "competition": "UEFA Champions League",
+              "goals_against": 2
+            },
+            {
+              "status": "FT",
+              "opponent": "토트넘 홋스퍼",
+              "goals_for": 1,
+              "penalties": null,
+              "fixture_id": 1557425,
+              "kickoff_at": "2026-10-10T16:30:00+00:00",
+              "competition": "Premier League",
+              "goals_against": 1
+            },
+            {
+              "status": "FT",
+              "opponent": "풀럼",
+              "goals_for": 1,
+              "penalties": null,
+              "fixture_id": 1557411,
+              "kickoff_at": "2026-09-20T15:30:00+00:00",
+              "competition": "Premier League",
+              "goals_against": 1
+            }
+          ],
+          "team_id": 33,
+          "expected_count": 5
+        },
+        "as_of": "2026-10-24T15:00:19.915820+00:00",
+        "reason": null,
+        "status": "available",
+        "source_ids": [
+          "db-form-33"
+        ]
+      },
+      "player_spotlights": {
+        "data": [
+          {
+            "goals": 3,
+            "assists": 1,
+            "minutes": 630,
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/1485.png",
+            "player_id": 1485,
+            "source_ids": [
+              "db-player-spotlights-33"
+            ],
+            "appearances": 7,
+            "player_name": "브루노 페르난데스",
+            "recent_form": {
+              "goals": 4,
+              "assists": 1,
+              "minutes": 794,
+              "goal_samples": 6,
+              "assist_samples": 10,
+              "minute_samples": 10,
+              "team_match_count": 10,
+              "observed_appearances": 10
+            },
+            "season_year": 2026,
+            "record_notes": {
+              "assist_streak": null,
+              "scoring_streak": null,
+              "involvement_streak": null,
+              "recent_contribution": "최근 팀 10경기 중 출전 확인 10경기 · 득점 자료 6경기 합계 4골 · 도움 자료 10경기 합계 1도움 · 출전 시간 자료 10경기 합계 794분",
+              "season_contribution": "2026시즌 프리미어리그에서 7경기 출전 · 3골 · 1도움 · 출전 시간 630분"
+            },
+            "assist_streak": 0,
+            "canonical_name": "Bruno Fernandes",
+            "scoring_streak": 0,
+            "competition_name": "프리미어리그",
+            "involvement_streak": 0,
+            "recent_match_count": 10
+          },
+          {
+            "goals": 4,
+            "assists": 0,
+            "minutes": 630,
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/20589.png",
+            "player_id": 20589,
+            "source_ids": [
+              "db-player-spotlights-33"
+            ],
+            "appearances": 7,
+            "player_name": "브라이언 음뵈모",
+            "recent_form": {
+              "goals": 4,
+              "assists": 1,
+              "minutes": 812,
+              "goal_samples": 8,
+              "assist_samples": 10,
+              "minute_samples": 10,
+              "team_match_count": 10,
+              "observed_appearances": 10
+            },
+            "season_year": 2026,
+            "record_notes": {
+              "assist_streak": null,
+              "scoring_streak": null,
+              "involvement_streak": null,
+              "recent_contribution": "최근 팀 10경기 중 출전 확인 10경기 · 득점 자료 8경기 합계 4골 · 도움 자료 10경기 합계 1도움 · 출전 시간 자료 10경기 합계 812분",
+              "season_contribution": "2026시즌 프리미어리그에서 7경기 출전 · 4골 · 0도움 · 출전 시간 630분"
+            },
+            "assist_streak": 0,
+            "canonical_name": "B. Mbeumo",
+            "scoring_streak": 0,
+            "competition_name": "프리미어리그",
+            "involvement_streak": 0,
+            "recent_match_count": 10
+          },
+          {
+            "goals": 1,
+            "assists": 2,
+            "minutes": 505,
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/1165.png",
+            "player_id": 1165,
+            "source_ids": [
+              "db-player-spotlights-33"
+            ],
+            "appearances": 7,
+            "player_name": "마테우스 쿠냐",
+            "recent_form": {
+              "goals": 2,
+              "assists": 2,
+              "minutes": 580,
+              "goal_samples": 5,
+              "assist_samples": 10,
+              "minute_samples": 10,
+              "team_match_count": 10,
+              "observed_appearances": 10
+            },
+            "season_year": 2026,
+            "record_notes": {
+              "assist_streak": null,
+              "scoring_streak": null,
+              "involvement_streak": null,
+              "recent_contribution": "최근 팀 10경기 중 출전 확인 10경기 · 득점 자료 5경기 합계 2골 · 도움 자료 10경기 합계 2도움 · 출전 시간 자료 10경기 합계 580분",
+              "season_contribution": "2026시즌 프리미어리그에서 7경기 출전 · 1골 · 2도움 · 출전 시간 505분"
+            },
+            "assist_streak": 0,
+            "canonical_name": "Matheus Cunha",
+            "scoring_streak": 0,
+            "competition_name": "프리미어리그",
+            "involvement_streak": 0,
+            "recent_match_count": 10
+          },
+          {
+            "goals": 0,
+            "assists": 1,
+            "minutes": 547,
+            "team_id": 33,
+            "photo_url": "https://media.api-sports.io/football/players/2926.png",
+            "player_id": 2926,
+            "source_ids": [
+              "db-player-spotlights-33"
+            ],
+            "appearances": 7,
+            "player_name": "유리 틸레만스",
+            "recent_form": {
+              "goals": 0,
+              "assists": 3,
+              "minutes": 771,
+              "goal_samples": 5,
+              "assist_samples": 10,
+              "minute_samples": 10,
+              "team_match_count": 10,
+              "observed_appearances": 10
+            },
+            "season_year": 2026,
+            "record_notes": {
+              "assist_streak": null,
+              "scoring_streak": null,
+              "involvement_streak": null,
+              "recent_contribution": "최근 팀 10경기 중 출전 확인 10경기 · 득점 자료 5경기 합계 0골 · 도움 자료 10경기 합계 3도움 · 출전 시간 자료 10경기 합계 771분",
+              "season_contribution": "2026시즌 프리미어리그에서 7경기 출전 · 0골 · 1도움 · 출전 시간 547분"
+            },
+            "assist_streak": 0,
+            "canonical_name": "Y. Tielemans",
+            "scoring_streak": 0,
+            "competition_name": "프리미어리그",
+            "involvement_streak": 0,
+            "recent_match_count": 10
+          },
+          {
+            "goals": 4,
+            "assists": 0,
+            "minutes": 578,
+            "team_id": 35,
+            "photo_url": "https://media.api-sports.io/football/players/19245.png",
+            "player_id": 19245,
+            "source_ids": [
+              "db-player-spotlights-35"
+            ],
+            "appearances": 7,
+            "player_name": "마커스 태버니어",
+            "recent_form": {
+              "goals": 4,
+              "assists": 0,
+              "minutes": 722,
+              "goal_samples": 7,
+              "assist_samples": 10,
+              "minute_samples": 10,
+              "team_match_count": 10,
+              "observed_appearances": 10
+            },
+            "season_year": 2026,
+            "record_notes": {
+              "assist_streak": null,
+              "scoring_streak": "확인된 최근 팀 2경기에서 연속 득점",
+              "involvement_streak": "확인된 최근 팀 2경기에서 연속 공격포인트",
+              "recent_contribution": "최근 팀 10경기 중 출전 확인 10경기 · 득점 자료 7경기 합계 4골 · 도움 자료 10경기 합계 0도움 · 출전 시간 자료 10경기 합계 722분",
+              "season_contribution": "2026시즌 프리미어리그에서 7경기 출전 · 4골 · 0도움 · 출전 시간 578분"
+            },
+            "assist_streak": 0,
+            "canonical_name": "M. Tavernier",
+            "scoring_streak": 2,
+            "competition_name": "프리미어리그",
+            "involvement_streak": 2,
+            "recent_match_count": 10
+          },
+          {
+            "goals": 2,
+            "assists": 4,
+            "minutes": 594,
+            "team_id": 35,
+            "photo_url": "https://media.api-sports.io/football/players/152856.png",
+            "player_id": 152856,
+            "source_ids": [
+              "db-player-spotlights-35"
+            ],
+            "appearances": 7,
+            "player_name": "에바니우송",
+            "recent_form": {
+              "goals": 3,
+              "assists": 3,
+              "minutes": 725,
+              "goal_samples": 7,
+              "assist_samples": 9,
+              "minute_samples": 9,
+              "team_match_count": 10,
+              "observed_appearances": 9
+            },
+            "season_year": 2026,
+            "record_notes": {
+              "assist_streak": null,
+              "scoring_streak": null,
+              "involvement_streak": null,
+              "recent_contribution": "최근 팀 10경기 중 출전 확인 9경기 · 득점 자료 7경기 합계 3골 · 도움 자료 9경기 합계 3도움 · 출전 시간 자료 9경기 합계 725분",
+              "season_contribution": "2026시즌 프리미어리그에서 7경기 출전 · 2골 · 4도움 · 출전 시간 594분"
+            },
+            "assist_streak": 0,
+            "canonical_name": "Evanilson",
+            "scoring_streak": 0,
+            "competition_name": "프리미어리그",
+            "involvement_streak": 0,
+            "recent_match_count": 10
+          },
+          {
+            "goals": 1,
+            "assists": 0,
+            "minutes": 326,
+            "team_id": 35,
+            "photo_url": "https://media.api-sports.io/football/players/792.png",
+            "player_id": 792,
+            "source_ids": [
+              "db-player-spotlights-35"
+            ],
+            "appearances": 5,
+            "player_name": "저스틴 클라위버르트",
+            "recent_form": {
+              "goals": 3,
+              "assists": 0,
+              "minutes": 478,
+              "goal_samples": 5,
+              "assist_samples": 8,
+              "minute_samples": 8,
+              "team_match_count": 10,
+              "observed_appearances": 8
+            },
+            "season_year": 2026,
+            "record_notes": {
+              "assist_streak": null,
+              "scoring_streak": null,
+              "involvement_streak": null,
+              "recent_contribution": "최근 팀 10경기 중 출전 확인 8경기 · 득점 자료 5경기 합계 3골 · 도움 자료 8경기 합계 0도움 · 출전 시간 자료 8경기 합계 478분",
+              "season_contribution": "2026시즌 프리미어리그에서 5경기 출전 · 1골 · 0도움 · 출전 시간 326분"
+            },
+            "assist_streak": 0,
+            "canonical_name": "J. Kluivert",
+            "scoring_streak": 1,
+            "competition_name": "프리미어리그",
+            "involvement_streak": 1,
+            "recent_match_count": 10
+          },
+          {
+            "goals": 0,
+            "assists": 0,
+            "minutes": 630,
+            "team_id": 35,
+            "photo_url": "https://media.api-sports.io/football/players/20093.png",
+            "player_id": 20093,
+            "source_ids": [
+              "db-player-spotlights-35"
+            ],
+            "appearances": 7,
+            "player_name": "제임스 클레이튼 힐",
+            "recent_form": {
+              "goals": 0,
+              "assists": 0,
+              "minutes": 838,
+              "goal_samples": 6,
+              "assist_samples": 10,
+              "minute_samples": 10,
+              "team_match_count": 10,
+              "observed_appearances": 10
+            },
+            "season_year": 2026,
+            "record_notes": {
+              "assist_streak": null,
+              "scoring_streak": null,
+              "involvement_streak": null,
+              "recent_contribution": "최근 팀 10경기 중 출전 확인 10경기 · 득점 자료 6경기 합계 0골 · 도움 자료 10경기 합계 0도움 · 출전 시간 자료 10경기 합계 838분",
+              "season_contribution": "2026시즌 프리미어리그에서 7경기 출전 · 0골 · 0도움 · 출전 시간 630분"
+            },
+            "assist_streak": 0,
+            "canonical_name": "J. Hill",
+            "scoring_streak": 0,
+            "competition_name": "프리미어리그",
+            "involvement_streak": 0,
+            "recent_match_count": 10
+          }
+        ],
+        "as_of": "2026-10-25T03:04:05.796976+00:00",
+        "reason": null,
+        "status": "available",
+        "source_ids": [
+          "db-player-spotlights-33",
+          "db-player-spotlights-35"
+        ]
+      }
+    },
+    "fixture": {
+      "away": {
+        "name": "본머스",
+        "external_id": 35
+      },
+      "home": {
+        "name": "맨체스터 유나이티드",
+        "external_id": 33
+      },
+      "kickoff_at": "2026-10-25T14:00:00+00:00",
+      "external_id": 1557445
+    },
+    "is_mock": false,
+    "sources": [
+      {
+        "id": "db-form-33",
+        "url": null,
+        "kind": "db",
+        "title": "맨체스터 유나이티드 DB 완료 경기",
+        "fixture_id": 1557445,
+        "published_at": null,
+        "retrieved_at": "2026-10-24T15:00:19.915820+00:00"
+      },
+      {
+        "id": "db-form-35",
+        "url": null,
+        "kind": "db",
+        "title": "본머스 DB 완료 경기",
+        "fixture_id": 1557445,
+        "published_at": null,
+        "retrieved_at": "2026-10-24T21:02:15.867843+00:00"
+      },
+      {
+        "id": "api-football-injuries-1557445",
+        "url": "https://v3.football.api-sports.io/injuries?fixture=1557445",
+        "kind": "api",
+        "title": "API-Football 부상·출전 정보",
+        "fixture_id": 1557445,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T09:17:02.049035+00:00"
+      },
+      {
+        "id": "api-football-odds-1557445",
+        "url": "https://v3.football.api-sports.io/odds?fixture=1557445&bet=1",
+        "kind": "api",
+        "title": "API-Football 경기 전 90분 승무패 배당",
+        "fixture_id": 1557445,
+        "published_at": "2026-10-25T06:00:42+00:00",
+        "retrieved_at": "2026-10-25T09:17:03.042854+00:00"
+      },
+      {
+        "id": "api-football-predictions-1557445",
+        "url": "https://v3.football.api-sports.io/predictions?fixture=1557445",
+        "kind": "api",
+        "title": "API-Football 자체 알고리즘 전망",
+        "fixture_id": 1557445,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T09:17:04.063669+00:00"
+      },
+      {
+        "id": "web-647c66c8e1ba686c",
+        "url": "https://www.sportsmole.co.uk/football/man-utd/preview/man-utd-vs-bournemouth-prediction-team-news-lineups_607577.html",
+        "kind": "web",
+        "title": "Preview: Manchester United vs Bournemouth - prediction, team news, lineups - Sports Mole",
+        "fixture_id": 1557445,
+        "published_at": "2026-10-23T17:22:00+00:00",
+        "retrieved_at": "2026-10-25T09:17:34.976858+00:00"
+      },
+      {
+        "id": "web-12de1564118aa05d",
+        "url": "https://www.goal.com/en-gb/betting/tips/manchester-united-vs-bournemouth-predictions-25-10-2026/A%3Abltdf693f236e81339c",
+        "kind": "web",
+        "title": "Manchester United vs Bournemouth Predictions & Bet Builder Tips: Redemption on the agenda | Goal.com UK",
+        "fixture_id": 1557445,
+        "published_at": "2026-10-24T21:00:00+00:00",
+        "retrieved_at": "2026-10-25T09:17:35.856645+00:00"
+      },
+      {
+        "id": "db-injury-participation-33",
+        "url": null,
+        "kind": "db",
+        "title": "맨체스터 유나이티드 DB 선수 정보·출전 기록 (최근 최대 10경기·리그 최신 2시즌)",
+        "fixture_id": 1557445,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T04:34:54.271664+00:00"
+      },
+      {
+        "id": "db-injury-participation-35",
+        "url": null,
+        "kind": "db",
+        "title": "본머스 DB 선수 정보·출전 기록 (최근 최대 10경기·리그 최신 2시즌)",
+        "fixture_id": 1557445,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T04:34:54.271664+00:00"
+      },
+      {
+        "id": "db-player-spotlights-33",
+        "url": null,
+        "kind": "db",
+        "title": "맨체스터 유나이티드 DB 선수 시즌 기록·최근 팀 경기 기록",
+        "fixture_id": 1557445,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T03:04:04.676649+00:00"
+      },
+      {
+        "id": "db-player-spotlights-35",
+        "url": null,
+        "kind": "db",
+        "title": "본머스 DB 선수 시즌 기록·최근 팀 경기 기록",
+        "fixture_id": 1557445,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T03:04:05.796976+00:00"
+      }
+    ],
+    "analysis": {
+      "summary": {
+        "data": {
+          "text": "최근 흐름이 엇갈리는 두 팀의 맞대결입니다. 홈팀 맨체스터 유나이티드는 최근 5경기에서 3무 2패로 승리가 없으며, 직전 코모 1907과의 경기에서 1-4 대패를 당하는 등 수비 불안을 노출하고 있습니다. 반면 원정팀 본머스는 최근 3경기 연속 무실점 승리를 포함해 최근 5경기에서 3승 2패를 기록하며 상승세를 타고 있습니다.",
+          "evidence_ids": [
+            "db-form-33",
+            "db-form-35"
+          ]
+        },
+        "as_of": "2026-10-25T09:17:35.856645+00:00",
+        "reason": null,
+        "status": "available",
+        "source_ids": [
+          "db-form-33",
+          "db-form-35"
+        ]
+      },
+      "key_points": {
+        "data": [
+          {
+            "title": "맨체스터 유나이티드의 무승 탈출 과제",
+            "description": "맨체스터 유나이티드는 최근 공식전 5경기 연속 무승(3무 2패)에 그쳐 분위기 반전이 시급합니다. 특히 최근 5경기 중 4경기에서 1득점 이하에 머무른 공격력 개선이 관건입니다.",
+            "evidence_ids": [
+              "db-form-33"
+            ]
+          },
+          {
+            "title": "본머스의 견고한 무실점 흐름",
+            "description": "본머스는 최근 슈투름 그라츠(3-0), 선덜랜드(2-0), AC 밀란(3-0)을 상대로 3경기 연속 무실점 완승을 거두며 공수 양면에서 완벽한 밸런스를 보여주고 있습니다.",
+            "evidence_ids": [
+              "db-form-35"
+            ]
+          }
+        ],
+        "as_of": "2026-10-25T09:17:35.856645+00:00",
+        "reason": null,
+        "status": "available",
+        "source_ids": [
+          "db-form-33",
+          "db-form-35"
+        ]
+      },
+      "key_absences": {
+        "data": [
+          {
+            "reason": "선발 정보가 확인된 최근 10경기 중 선발 6회. 확인된 최근 출전 시간 합계 512분. 2026시즌 6경기 출전·447분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다.",
+            "team_id": 33,
+            "player_id": 284322,
+            "evidence_ids": [
+              "api-football-injuries-1557445",
+              "db-injury-participation-33"
+            ]
+          },
+          {
+            "reason": "선발 정보가 확인된 최근 10경기 중 선발 4회. 확인된 최근 출전 시간 합계 335분. 2026시즌 5경기 출전·425분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다.",
+            "team_id": 33,
+            "player_id": 891,
+            "evidence_ids": [
+              "api-football-injuries-1557445",
+              "db-injury-participation-33"
+            ]
+          },
+          {
+            "reason": "선발 정보가 확인된 최근 10경기 중 선발 5회. 확인된 최근 출전 시간 합계 446분. 2026시즌 5경기 출전·446분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다.",
+            "team_id": 35,
+            "player_id": 304853,
+            "evidence_ids": [
+              "api-football-injuries-1557445",
+              "db-injury-participation-35"
+            ]
+          }
+        ],
+        "as_of": "2026-10-25T09:17:35.856645+00:00",
+        "reason": null,
+        "status": "available",
+        "source_ids": [
+          "api-football-injuries-1557445",
+          "db-injury-participation-33",
+          "db-injury-participation-35"
+        ]
+      },
+      "ai_prediction": {
+        "data": {
+          "reason": "맨체스터 유나이티드는 최근 5경기 무승으로 흐름이 침체되어 있으며 직전 경기 4실점 대패로 수비가 흔들리고 있습니다. 반면 본머스는 최근 3경기 연속 무실점 승리를 거두며 공수 안정감이 매우 뛰어납니다. 본머스의 견고한 수비벽과 최근 상승세를 고려할 때 원정팀의 우세가 예상됩니다.",
+          "away_goals": 2,
+          "confidence": "medium",
+          "home_goals": 1,
+          "evidence_ids": [
+            "db-form-33",
+            "db-form-35",
+            "web-647c66c8e1ba686c"
+          ]
+        },
+        "as_of": "2026-10-25T09:17:35.856645+00:00",
+        "reason": null,
+        "status": "available",
+        "source_ids": [
+          "db-form-33",
+          "db-form-35",
+          "web-647c66c8e1ba686c",
+          "web-12de1564118aa05d"
+        ]
+      },
+      "player_watchpoints": {
+        "data": [
+          {
+            "focus": "season_contribution",
+            "reason": "브루노 페르난데스는 2026시즌 프리미어리그에서 7경기 출전해 3골 1도움, 출전 시간 630분을 기록하며 팀의 핵심 공격 자원으로 활약하고 있습니다. 최근 팀 10경기 중 출전이 확인된 10경기에서 득점 자료 6경기 합계 4골과 도움 자료 10경기 합계 1도움을 올리며 꾸준한 기여도를 보였습니다. 최근 5경기 연속 무승에 빠진 맨체스터 유나이티드가 홈에서 반등하기 위해서는 그의 발끝에 기대를 걸어야 합니다.",
+            "team_id": 33,
+            "player_id": 1485,
+            "evidence_ids": [
+              "db-player-spotlights-33",
+              "db-form-33"
+            ]
+          },
+          {
+            "focus": "scoring_streak",
+            "reason": "마커스 태버니어는 확인된 최근 팀 2경기에서 연속 득점 및 연속 공격포인트를 기록하며 절정의 골 감각을 뽐내고 있습니다. 이번 2026시즌 프리미어리그 7경기에 출전해 4골을 기록 중이며, 최근 팀 10경기 중 출전이 확인된 10경기에서 득점 자료 7경기 합계 4골을 터뜨렸습니다. 최근 3경기 연속 무실점 승리로 기세가 오른 본머스의 공격 선봉장으로서 맨체스터 유나이티드의 흔들리는 수비진을 공략할 핵심 선수입니다.",
+            "team_id": 35,
+            "player_id": 19245,
+            "evidence_ids": [
+              "db-player-spotlights-35",
+              "db-form-35"
+            ]
+          }
+        ],
+        "as_of": "2026-10-25T09:17:35.856645+00:00",
+        "reason": null,
+        "status": "available",
+        "source_ids": [
+          "db-player-spotlights-33",
+          "db-player-spotlights-35",
+          "db-form-33",
+          "db-form-35"
+        ]
+      }
+    },
+    "external": {
+      "odds": {
+        "data": [
+          {
+            "away": 3.0,
+            "draw": 3.6,
+            "home": 2.3,
+            "format": "decimal",
+            "market": "1x2_90min",
+            "bookmaker": "Bet365",
+            "source_id": "api-football-odds-1557445",
+            "collected_at": "2026-10-25T09:17:03.042805+00:00"
+          },
+          {
+            "away": 3.0,
+            "draw": 3.4,
+            "home": 2.25,
+            "format": "decimal",
+            "market": "1x2_90min",
+            "bookmaker": "William Hill",
+            "source_id": "api-football-odds-1557445",
+            "collected_at": "2026-10-25T09:17:03.042805+00:00"
+          },
+          {
+            "away": 3.15,
+            "draw": 3.68,
+            "home": 2.26,
+            "format": "decimal",
+            "market": "1x2_90min",
+            "bookmaker": "Marathonbet",
+            "source_id": "api-football-odds-1557445",
+            "collected_at": "2026-10-25T09:17:03.042805+00:00"
+          }
+        ],
+        "as_of": "2026-10-25T06:00:42+00:00",
+        "reason": null,
+        "status": "available",
+        "source_ids": [
+          "api-football-odds-1557445"
+        ]
+      },
+      "predictions": {
+        "data": [
+          {
+            "outlook": "맨체스터 유나이티드 승리 또는 무승부 전망",
+            "summary": "Double chance : Manchester United or draw",
+            "source_id": "api-football-predictions-1557445"
+          },
+          {
+            "outlook": "본머스 우세 전망",
+            "summary": "원문 예상 스코어 맨체스터 유나이티드 1–2 본머스",
+            "source_id": "web-647c66c8e1ba686c"
+          },
+          {
+            "outlook": "무승부 전망",
+            "summary": "원문 예상 스코어 맨체스터 유나이티드 2–2 본머스",
+            "source_id": "web-12de1564118aa05d"
+          }
+        ],
+        "as_of": "2026-10-25T09:17:35.856645+00:00",
+        "reason": "insufficient_sample",
+        "status": "partial",
+        "coverage": {
+          "checked_at": "2026-10-25T09:17:38.939864+00:00",
+          "reason_codes": [
+            "unverified_quote"
+          ],
+          "target_count": 3,
+          "candidate_count": 3,
+          "web_source_count": 2
+        },
+        "source_ids": [
+          "api-football-predictions-1557445",
+          "web-647c66c8e1ba686c",
+          "web-12de1564118aa05d"
+        ]
+      }
+    },
+    "generated_at": "2026-10-25T09:18:13.489169+00:00",
+    "schema_version": "1.1",
+    "search_suggestions": {
+      "queries": [
+        "\"Manchester United\" \"Bournemouth\" 2026",
+        "\"Man Utd\" \"Bournemouth\" 2026",
+        "\"Manchester United\" \"Bournemouth\" 2026 prediction",
+        "\"Man Utd\" \"Bournemouth\" 2026 prediction",
+        "\"Manchester United vs. Bournemouth\" 2026",
+        "\"Man Utd vs. Bournemouth\" 2026",
+        "\"Manchester United\" \"Bournemouth\" \"We say:\" OR \"predict\" OR \"prediction\" 2026",
+        "\"Manchester United vs. Bournemouth\" \"We say\" 2026",
+        "\"Man Utd vs. Bournemouth\" \"We say\" 2026",
+        "\"Manchester United\" \"Bournemouth\" \"We say\" 2026",
+        "\"Manchester United\" \"Bournemouth\" \"We say: Manchester United 1-2 Bournemouth\""
+      ],
+      "provider": "google",
+      "rendered_content": "<style>\n.container {\n  align-items: center;\n  border-radius: 8px;\n  display: flex;\n  font-family: Google Sans, Roboto, sans-serif;\n  font-size: 14px;\n  line-height: 20px;\n  padding: 8px 12px;\n}\n.chip {\n  display: inline-block;\n  border: solid 1px;\n  border-radius: 16px;\n  min-width: 14px;\n  padding: 5px 16px;\n  text-align: center;\n  user-select: none;\n  margin: 0 8px;\n  -webkit-tap-highlight-color: transparent;\n}\n.carousel {\n  overflow: auto;\n  scrollbar-width: none;\n  white-space: nowrap;\n  margin-right: -12px;\n}\n.headline {\n  display: flex;\n  margin-right: 4px;\n}\n.gradient-container {\n  position: relative;\n}\n.gradient {\n  position: absolute;\n  transform: translate(3px, -9px);\n  height: 36px;\n  width: 9px;\n}\n@media (prefers-color-scheme: light) {\n  .container {\n    background-color: #fafafa;\n    box-shadow: 0 0 0 1px #0000000f;\n  }\n  .headline-label {\n    color: #1f1f1f;\n  }\n  .chip {\n    background-color: #ffffff;\n    border-color: #d2d2d2;\n    color: #5e5e5e;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #f2f2f2;\n  }\n  .chip:focus {\n    background-color: #f2f2f2;\n  }\n  .chip:active {\n    background-color: #d8d8d8;\n    border-color: #b6b6b6;\n  }\n  .logo-dark {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #fafafa 15%, #fafafa00 100%);\n  }\n}\n@media (prefers-color-scheme: dark) {\n  .container {\n    background-color: #1f1f1f;\n    box-shadow: 0 0 0 1px #ffffff26;\n  }\n  .headline-label {\n    color: #fff;\n  }\n  .chip {\n    background-color: #2c2c2c;\n    border-color: #3c4043;\n    color: #fff;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #353536;\n  }\n  .chip:focus {\n    background-color: #353536;\n  }\n  .chip:active {\n    background-color: #464849;\n    border-color: #53575b;\n  }\n  .logo-light {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #1f1f1f 15%, #1f1f1f00 100%);\n  }\n}\n</style>\n<div class=\"container\">\n  <div class=\"headline\">\n    <svg class=\"logo-light\" width=\"18\" height=\"18\" viewBox=\"9 9 35 35\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M42.8622 27.0064C42.8622 25.7839 42.7525 24.6084 42.5487 23.4799H26.3109V30.1568H35.5897C35.1821 32.3041 33.9596 34.1222 32.1258 35.3448V39.6864H37.7213C40.9814 36.677 42.8622 32.2571 42.8622 27.0064V27.0064Z\" fill=\"#4285F4\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 43.8555C30.9659 43.8555 34.8687 42.3195 37.7213 39.6863L32.1258 35.3447C30.5898 36.3792 28.6306 37.0061 26.3109 37.0061C21.8282 37.0061 18.0195 33.9811 16.6559 29.906H10.9194V34.3573C13.7563 39.9841 19.5712 43.8555 26.3109 43.8555V43.8555Z\" fill=\"#34A853\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M16.6559 29.8904C16.3111 28.8559 16.1074 27.7588 16.1074 26.6146C16.1074 25.4704 16.3111 24.3733 16.6559 23.3388V18.8875H10.9194C9.74388 21.2072 9.06992 23.8247 9.06992 26.6146C9.06992 29.4045 9.74388 32.022 10.9194 34.3417L15.3864 30.8621L16.6559 29.8904V29.8904Z\" fill=\"#FBBC05\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 16.2386C28.85 16.2386 31.107 17.1164 32.9095 18.8091L37.8466 13.8719C34.853 11.082 30.9659 9.3736 26.3109 9.3736C19.5712 9.3736 13.7563 13.245 10.9194 18.8875L16.6559 23.3388C18.0195 19.2636 21.8282 16.2386 26.3109 16.2386V16.2386Z\" fill=\"#EA4335\"/>\n    </svg>\n    <svg class=\"logo-dark\" width=\"18\" height=\"18\" viewBox=\"0 0 48 48\" xmlns=\"http://www.w3.org/2000/svg\">\n      <circle cx=\"24\" cy=\"23\" fill=\"#FFF\" r=\"22\"/>\n      <path d=\"M33.76 34.26c2.75-2.56 4.49-6.37 4.49-11.26 0-.89-.08-1.84-.29-3H24.01v5.99h8.03c-.4 2.02-1.5 3.56-3.07 4.56v.75l3.91 2.97h.88z\" fill=\"#4285F4\"/>\n      <path d=\"M15.58 25.77A8.845 8.845 0 0 0 24 31.86c1.92 0 3.62-.46 4.97-1.31l4.79 3.71C31.14 36.7 27.65 38 24 38c-5.93 0-11.01-3.4-13.45-8.36l.17-1.01 4.06-2.85h.8z\" fill=\"#34A853\"/>\n      <path d=\"M15.59 20.21a8.864 8.864 0 0 0 0 5.58l-5.03 3.86c-.98-2-1.53-4.25-1.53-6.64 0-2.39.55-4.64 1.53-6.64l1-.22 3.81 2.98.22 1.08z\" fill=\"#FBBC05\"/>\n      <path d=\"M24 14.14c2.11 0 4.02.75 5.52 1.98l4.36-4.36C31.22 9.43 27.81 8 24 8c-5.93 0-11.01 3.4-13.45 8.36l5.03 3.85A8.86 8.86 0 0 1 24 14.14z\" fill=\"#EA4335\"/>\n    </svg>\n    <div class=\"gradient-container\"><div class=\"gradient\"></div></div>\n  </div>\n  <div class=\"carousel\">\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG-aIgB7YNJpGJDjwA3KkYTwavSbx2YKa6n5z4uNSXO-K77iaig90OYyP_JISSTp4S5KDqMJRUy2Ef_YvmYv4uib5m-QUwodhelqRuLabU7IJnBfmoINHyXwKYC9tok9Kv2gcbzqpDpUlBHDgv4sSqaEBeV2o10RwbUtxoy-hss36NbiOz7yFX09XsLc8O_RoQWMKWNwqzF0IDH63768fl_dN-W73Sae9pOGP1b0AdrftTTxtYoXvlH3vAHihrccLSiQVZPX1B9BfkGVTr6fEMOr1n660RKkeGzm-2-\">&quot;Manchester United&quot; &quot;Bournemouth&quot; &quot;We say: Manchester United 1-2 Bournemouth&quot;</a>\n  </div>\n</div>\n"
+    }
+  },
+  "execution": {
+    "started_at": "2026-10-25T11:28:25.387521+00:00",
+    "model": "gemini-3.5-flash",
+    "model_requests": 2,
+    "retry_reason": "HTTP429",
+    "previous_attempt_file": "attempt-1.json",
+    "state": "response_received",
+    "api_requests": 0,
+    "db_writes": 0,
+    "usage": {
+      "promptTokenCount": 14986,
+      "candidatesTokenCount": 3020,
+      "totalTokenCount": 21122,
+      "thoughtsTokenCount": 3116
+    },
+    "search_queries": [
+      "\"Manchester United\" \"Bournemouth\" \"October 2026\"",
+      "\"Manchester United\" \"Bournemouth\" \"2026\" preview",
+      "\"Manchester United\" \"Bournemouth\" \"10/25\" 2026",
+      "\"Manchester United\" \"Bournemouth\" \"Oct 25\" 2026",
+      "\"Kobbie Mainoo\" injury October 2026",
+      "\"Alex Scott\" Bournemouth injury October 2026",
+      "\"Alex Toth\" Bournemouth injury October 2026",
+      "\"Manuel Ugarte\" injury October 2026"
+    ],
+    "grounding_chunks": 5,
+    "finished_at": "2026-10-25T11:29:01.791131+00:00"
+  },
+  "source_checks": [
+    {
+      "id": "sportsmole-preview",
+      "url": "https://www.sportsmole.co.uk/football/man-utd/preview/man-utd-vs-bournemouth-prediction-team-news-lineups_607577.html",
+      "state": "original_quote_matched",
+      "resolved_url": "https://www.sportsmole.co.uk/football/man-utd/preview/man-utd-vs-bournemouth-prediction-team-news-lineups_607577.html",
+      "title": "Preview: Manchester United vs Bournemouth - prediction, team news, lineups - Sports Mole",
+      "quote_matches": [
+        true
+      ],
+      "reason": null,
+      "http_status": null
+    },
+    {
+      "id": "si-preview",
+      "url": "https://www.si.com/soccer/man-utd-vs-bournemouth-preview-predictions-lineups-10-25-26",
+      "state": "original_quote_matched",
+      "resolved_url": "https://www.si.com/soccer/man-utd-vs-bournemouth-preview-predictions-lineups-10-25-26",
+      "title": "Man Utd vs. Bournemouth: Preview, Predictions and Lineups Share on Facebook Share on X Share on Facebook Share on X",
+      "quote_matches": [
+        true
+      ],
+      "reason": null,
+      "http_status": null
+    },
+    {
+      "id": "goal-preview",
+      "url": "https://www.goal.com/en-us/betting/tips/manchester-united-vs-bournemouth-predictions-10-25-2026/A%3Abltdf693f236e81339c",
+      "state": "original_quote_matched",
+      "resolved_url": "https://www.goal.com/en-us/betting/tips/manchester-united-vs-bournemouth-predictions-10-25-2026/A%3Abltdf693f236e81339c",
+      "title": "Manchester United vs Bournemouth Predictions: Redemption on the agenda | Goal.com US",
+      "quote_matches": [
+        true
+      ],
+      "reason": null,
+      "http_status": null
+    },
+    {
+      "id": "rotowire-mainoo-injury",
+      "url": null,
+      "state": "unresolved",
+      "resolved_url": null,
+      "title": "Kobbie Mainoo Injury: Unlikely to face Como",
+      "quote_matches": [],
+      "reason": "missing_grounding_connection",
+      "http_status": null
+    },
+    {
+      "id": "guardian-scott-injury",
+      "url": null,
+      "state": "unresolved",
+      "resolved_url": null,
+      "title": "Bournemouth unhappy over Scott injury but Tuchel says England took 'zero risk'",
+      "quote_matches": [],
+      "reason": "missing_grounding_connection",
+      "http_status": null
+    },
+    {
+      "id": "football365-preview",
+      "url": "https://www.football365.com/match-preview/man-utd-v-bournemouth-prediction-preview",
+      "state": "grounding_linked",
+      "resolved_url": "https://www.football365.com/match-preview/man-utd-v-bournemouth-prediction-preview",
+      "title": "Man Utd v Bournemouth: Prediction, team news, lineups and odds",
+      "quote_matches": [],
+      "reason": null,
+      "http_status": null
+    },
+    {
+      "id": "grounding-1cbf42c4d7a9",
+      "url": "https://www.football365.com/match-preview/man-utd-v-bournemouth-prediction-preview",
+      "state": "grounding_attribution",
+      "resolved_url": "https://www.football365.com/match-preview/man-utd-v-bournemouth-prediction-preview",
+      "title": "Man Utd v Bournemouth: Prediction, team news, lineups and odds",
+      "quote_matches": [],
+      "reason": null,
+      "http_status": null
+    },
+    {
+      "id": "grounding-647c66c8e1ba",
+      "url": "https://www.sportsmole.co.uk/football/man-utd/preview/man-utd-vs-bournemouth-prediction-team-news-lineups_607577.html",
+      "state": "grounding_attribution",
+      "resolved_url": "https://www.sportsmole.co.uk/football/man-utd/preview/man-utd-vs-bournemouth-prediction-team-news-lineups_607577.html",
+      "title": "Preview: Manchester United vs Bournemouth - prediction, team news, lineups - Sports Mole",
+      "quote_matches": [],
+      "reason": null,
+      "http_status": null
+    },
+    {
+      "id": "grounding-bb5cb467c5a3",
+      "url": "https://www.si.com/soccer/man-utd-vs-bournemouth-preview-predictions-lineups-10-25-26",
+      "state": "grounding_attribution",
+      "resolved_url": "https://www.si.com/soccer/man-utd-vs-bournemouth-preview-predictions-lineups-10-25-26",
+      "title": "Man Utd vs. Bournemouth: Preview, Predictions and Lineups Share on Facebook Share on X Share on Facebook Share on X",
+      "quote_matches": [],
+      "reason": null,
+      "http_status": null
+    },
+    {
+      "id": "grounding-21f5067c7a84",
+      "url": "https://blog.ke.sportpesa.com/2026/10/25/man-united-vs-bournemouth-prediction-premier-league-preview-h2h-team-news-and-betting-tips/",
+      "state": "grounding_attribution",
+      "resolved_url": "https://blog.ke.sportpesa.com/2026/10/25/man-united-vs-bournemouth-prediction-premier-league-preview-h2h-team-news-and-betting-tips/",
+      "title": "Man United vs Bournemouth prediction: Premier league preview, h2h, team news and betting tips",
+      "quote_matches": [],
+      "reason": null,
+      "http_status": null
+    },
+    {
+      "id": "grounding-08734a0b4622",
+      "url": "https://www.goal.com/en-us/betting/tips/manchester-united-vs-bournemouth-predictions-10-25-2026/A%3Abltdf693f236e81339c",
+      "state": "grounding_attribution",
+      "resolved_url": "https://www.goal.com/en-us/betting/tips/manchester-united-vs-bournemouth-predictions-10-25-2026/A%3Abltdf693f236e81339c",
+      "title": "Manchester United vs Bournemouth Predictions: Redemption on the agenda | Goal.com US",
+      "quote_matches": [],
+      "reason": null,
+      "http_status": null
+    }
+  ],
+  "search_suggestions": "<style>\n.container {\n  align-items: center;\n  border-radius: 8px;\n  display: flex;\n  font-family: Google Sans, Roboto, sans-serif;\n  font-size: 14px;\n  line-height: 20px;\n  padding: 8px 12px;\n}\n.chip {\n  display: inline-block;\n  border: solid 1px;\n  border-radius: 16px;\n  min-width: 14px;\n  padding: 5px 16px;\n  text-align: center;\n  user-select: none;\n  margin: 0 8px;\n  -webkit-tap-highlight-color: transparent;\n}\n.carousel {\n  overflow: auto;\n  scrollbar-width: none;\n  white-space: nowrap;\n  margin-right: -12px;\n}\n.headline {\n  display: flex;\n  margin-right: 4px;\n}\n.gradient-container {\n  position: relative;\n}\n.gradient {\n  position: absolute;\n  transform: translate(3px, -9px);\n  height: 36px;\n  width: 9px;\n}\n@media (prefers-color-scheme: light) {\n  .container {\n    background-color: #fafafa;\n    box-shadow: 0 0 0 1px #0000000f;\n  }\n  .headline-label {\n    color: #1f1f1f;\n  }\n  .chip {\n    background-color: #ffffff;\n    border-color: #d2d2d2;\n    color: #5e5e5e;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #f2f2f2;\n  }\n  .chip:focus {\n    background-color: #f2f2f2;\n  }\n  .chip:active {\n    background-color: #d8d8d8;\n    border-color: #b6b6b6;\n  }\n  .logo-dark {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #fafafa 15%, #fafafa00 100%);\n  }\n}\n@media (prefers-color-scheme: dark) {\n  .container {\n    background-color: #1f1f1f;\n    box-shadow: 0 0 0 1px #ffffff26;\n  }\n  .headline-label {\n    color: #fff;\n  }\n  .chip {\n    background-color: #2c2c2c;\n    border-color: #3c4043;\n    color: #fff;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #353536;\n  }\n  .chip:focus {\n    background-color: #353536;\n  }\n  .chip:active {\n    background-color: #464849;\n    border-color: #53575b;\n  }\n  .logo-light {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #1f1f1f 15%, #1f1f1f00 100%);\n  }\n}\n</style>\n<div class=\"container\">\n  <div class=\"headline\">\n    <svg class=\"logo-light\" width=\"18\" height=\"18\" viewBox=\"9 9 35 35\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M42.8622 27.0064C42.8622 25.7839 42.7525 24.6084 42.5487 23.4799H26.3109V30.1568H35.5897C35.1821 32.3041 33.9596 34.1222 32.1258 35.3448V39.6864H37.7213C40.9814 36.677 42.8622 32.2571 42.8622 27.0064V27.0064Z\" fill=\"#4285F4\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 43.8555C30.9659 43.8555 34.8687 42.3195 37.7213 39.6863L32.1258 35.3447C30.5898 36.3792 28.6306 37.0061 26.3109 37.0061C21.8282 37.0061 18.0195 33.9811 16.6559 29.906H10.9194V34.3573C13.7563 39.9841 19.5712 43.8555 26.3109 43.8555V43.8555Z\" fill=\"#34A853\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M16.6559 29.8904C16.3111 28.8559 16.1074 27.7588 16.1074 26.6146C16.1074 25.4704 16.3111 24.3733 16.6559 23.3388V18.8875H10.9194C9.74388 21.2072 9.06992 23.8247 9.06992 26.6146C9.06992 29.4045 9.74388 32.022 10.9194 34.3417L15.3864 30.8621L16.6559 29.8904V29.8904Z\" fill=\"#FBBC05\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 16.2386C28.85 16.2386 31.107 17.1164 32.9095 18.8091L37.8466 13.8719C34.853 11.082 30.9659 9.3736 26.3109 9.3736C19.5712 9.3736 13.7563 13.245 10.9194 18.8875L16.6559 23.3388C18.0195 19.2636 21.8282 16.2386 26.3109 16.2386V16.2386Z\" fill=\"#EA4335\"/>\n    </svg>\n    <svg class=\"logo-dark\" width=\"18\" height=\"18\" viewBox=\"0 0 48 48\" xmlns=\"http://www.w3.org/2000/svg\">\n      <circle cx=\"24\" cy=\"23\" fill=\"#FFF\" r=\"22\"/>\n      <path d=\"M33.76 34.26c2.75-2.56 4.49-6.37 4.49-11.26 0-.89-.08-1.84-.29-3H24.01v5.99h8.03c-.4 2.02-1.5 3.56-3.07 4.56v.75l3.91 2.97h.88z\" fill=\"#4285F4\"/>\n      <path d=\"M15.58 25.77A8.845 8.845 0 0 0 24 31.86c1.92 0 3.62-.46 4.97-1.31l4.79 3.71C31.14 36.7 27.65 38 24 38c-5.93 0-11.01-3.4-13.45-8.36l.17-1.01 4.06-2.85h.8z\" fill=\"#34A853\"/>\n      <path d=\"M15.59 20.21a8.864 8.864 0 0 0 0 5.58l-5.03 3.86c-.98-2-1.53-4.25-1.53-6.64 0-2.39.55-4.64 1.53-6.64l1-.22 3.81 2.98.22 1.08z\" fill=\"#FBBC05\"/>\n      <path d=\"M24 14.14c2.11 0 4.02.75 5.52 1.98l4.36-4.36C31.22 9.43 27.81 8 24 8c-5.93 0-11.01 3.4-13.45 8.36l5.03 3.85A8.86 8.86 0 0 1 24 14.14z\" fill=\"#EA4335\"/>\n    </svg>\n    <div class=\"gradient-container\"><div class=\"gradient\"></div></div>\n  </div>\n  <div class=\"carousel\">\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFYiDi1I03ii4ysUngY7r7_5Ps46-zkjFNhLhk2lrxC8Y7Jxh6NfbkKz9ocLe3JaxFCOuEUGeNP6V6iu22PaZ9wULN2gXxYmLKE_fF3IjPW5YltDaDLiBc0uFhg6rNg_VOa7FPhS2ntre37psD_cwoeMICtMpfdxPLwXpCUJ-TR6tq7I4oNKvEmdDQ-HOkrXvrQOaB9X_RO18wG1sTHf1rQc735M04FtyJ2KQ==\">&quot;Manuel Ugarte&quot; injury October 2026</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG-zYchVsmrL-Osan0hN46pA0w5fBtH-Fg1yH1ni5rqrM_lYiv0Zgs472u9xy073nqhCw06iLyy3lEOWZd1WyowV6NappLXxFUtYZdVSJz_Rv5JiZb3DlUmAqZVJDShQ7GvvQEB8_mTs54KWQlmpvbxicaJX8b5fHrT5Zhs8VyszESSw7Au80kDvunCXj7-VMXca059mxdUxaRGIFOTmRH8XscFg_NBRbl4N4oOJ3TmYsGHUQ==\">&quot;Alex Scott&quot; Bournemouth injury October 2026</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGlVnpEA3U-Sky_UDM8OJSUpQf6N104trazjOa6JKkol6KuXMZuTvH_f2xw7Af-lHeZ1qMwBRvPUh3Ck0Bn57zT1GA8hahJ8LZ_q4RputSpjNmLMqJ4TZ-hjoZ565RwYTB458FG3We46Xy0aDnUYqx1i8QahXQODx_n0k3Yo4EZnRVb6gGaBI8hm73RA1XOyOL3kZLcDFuF-jGaxCZINgoV8RX7ZiOhze8V_g==\">&quot;Kobbie Mainoo&quot; injury October 2026</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQE8W1KaQNGHryml7D7PUUOe_2_FGU6hfns2VeSHMnJ2JAHt1j3sBmv0eaoaipvNBtUQ5va519U9rfTY7dgMOdea7SYD9zKfg0nsTyOldKDCn8OzHyXZB-H4pbvr50LWs-eUYD8EPhJdNxpBgSVdHXIoGJYMwxjKVCYoZlnFQN-uDk-GK0ajuREYa_FNyhe5bYgr9QbtLHQJsU0QJhOLGCg5mR8FJz1t6qTxSoIxdsUVdqLw\">&quot;Alex Toth&quot; Bournemouth injury October 2026</a>\n  </div>\n</div>\n",
+  "input_as_of": "2026-10-25T10:55:26.810651+00:00",
+  "raw_result": {
+    "fixture_id": 1557445,
+    "summary": {
+      "text": "맨체스터 유나이티드는 최근 공식전 7경기 연속 무승(3무 4패)의 극심한 부진에 빠져 있으며, 주중 UEFA 챔피언스리그에서 코모에 1-4로 대패하며 마이클 캐릭 감독의 경질설이 대두되는 등 최악의 위기를 맞이했습니다. 반면 본머스는 주중 유로파리그에서 AC 밀란을 3-0으로 완파하는 등 최근 3연승을 달리며 가파른 상승세를 타고 있어 올드 트래포드 원정에서 이변을 노리고 있습니다.",
+      "evidence_ids": [
+        "db-form-33",
+        "db-form-35",
+        "sportsmole-preview",
+        "si-preview"
+      ]
+    },
+    "key_points": [
+      {
+        "text": "맨체스터 유나이티드는 최근 공식전 7경기 무승으로 최악의 흐름을 보이고 있으며, 캐릭 감독의 전술에 대한 선수단의 불만설까지 흘러나오고 있습니다.",
+        "evidence_ids": [
+          "db-form-33",
+          "sportsmole-preview",
+          "football365-preview"
+        ]
+      },
+      {
+        "text": "본머스는 최근 공식전 3연승을 달리고 있으며, 최근 맨유를 상대로 6경기 연속 무패를 기록하는 등 맞대결에서 강한 면모를 보여왔습니다.",
+        "evidence_ids": [
+          "db-form-35",
+          "si-preview"
+        ]
+      }
+    ],
+    "ai_prediction": {
+      "label": "AI 경기 예측",
+      "text": "API-Football 자체 알고리즘은 맨체스터 유나이티드의 승리 또는 무승부(더블 찬스)를 전망하고 있습니다. 비록 맨유가 심각한 부진과 내부 불화설에 시달리고 있으나, 올드 트래포드에서의 홈 이점과 기본적인 전력 우위를 바탕으로 최소 패배는 면할 것이라는 분석입니다.",
+      "predicted_score": null,
+      "evidence_ids": [
+        "api-football-predictions-1557445"
+      ]
+    },
+    "key_absences": [
+      {
+        "team_id": 33,
+        "player_id": 284322,
+        "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 6회. 확인된 최근 출전 시간 합계 512분. 2026시즌 6경기 출전·447분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다.",
+        "evidence_ids": [
+          "db-injury-participation-33"
+        ],
+        "cause": "토트넘 홋스퍼전에서 입은 미공개 부상",
+        "event_type": "initial",
+        "date_precision": "day",
+        "occurred_on": "2026-10-10",
+        "occurred_month": null,
+        "timing_text": "토트넘전 경기 중",
+        "date_basis": "맨체스터 유나이티드의 홈 경기 기록상 토트넘 홋스퍼전은 2026년 10월 10일에 치러졌으며, 기사에서 해당 경기 중 부상을 입었다고 명시하고 있습니다.",
+        "cause_evidence": [
+          {
+            "source_id": "rotowire-mainoo-injury",
+            "claim": "Mainoo remains sidelined after sustaining an undisclosed injury during the 1-1 draw against Tottenham.",
+            "quote": "Mainoo remains sidelined after sustaining an undisclosed injury during the 1-1 draw against Tottenham"
+          }
+        ],
+        "timing_evidence": [
+          {
+            "source_id": "rotowire-mainoo-injury",
+            "claim": "Mainoo was injured during the 1-1 draw against Tottenham.",
+            "quote": "sustaining an undisclosed injury during the 1-1 draw against Tottenham"
+          }
+        ],
+        "source_ids": [
+          "rotowire-mainoo-injury"
+        ],
+        "missing_reason": null
+      },
+      {
+        "team_id": 35,
+        "player_id": 304853,
+        "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 5회. 확인된 최근 출전 시간 합계 446분. 2026시즌 5경기 출전·446분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다.",
+        "evidence_ids": [
+          "db-injury-participation-35"
+        ],
+        "cause": "잉글랜드 국가대표팀 소집 중 크로아티아와의 경기에서 허벅지 부상 악화",
+        "event_type": "aggravation",
+        "date_precision": "day",
+        "occurred_on": "2026-10-03",
+        "occurred_month": null,
+        "timing_text": "잉글랜드 대표팀 소집 중 크로아티아전",
+        "date_basis": "2026년 10월 5일자 가디언 기사에서 지난 토요일(10월 3일) 크로아티아전에서 허벅지 부상을 입었다고 보도했습니다.",
+        "cause_evidence": [
+          {
+            "source_id": "guardian-scott-injury",
+            "claim": "Alex Scott suffered a thigh injury whilst on international duty with England.",
+            "quote": "with a thigh injury left Bournemouth unhappy over his treatment. Scott excelled during Saturday's 7-0 win over Croatia"
+          }
+        ],
+        "timing_evidence": [
+          {
+            "source_id": "guardian-scott-injury",
+            "claim": "Scott was injured during Saturday's match against Croatia.",
+            "quote": "Scott excelled during Saturday's 7-0 win over Croatia"
+          }
+        ],
+        "source_ids": [
+          "guardian-scott-injury"
+        ],
+        "missing_reason": null
+      }
+    ],
+    "player_watchpoints": [
+      {
+        "team_id": 33,
+        "player_id": 1485,
+        "focus": "season_contribution",
+        "reason": "브루노 페르난데스는 2026시즌 프리미어리그에서 7경기 출전해 3골 1도움을 기록하며 팀의 핵심 기여자로 활약하고 있습니다. 최근 팀의 10경기에서도 4골 1도움을 올리며 공격을 이끌고 있으나, 주중 코모전 대패 이후 전술에 대한 비판적 의견을 내비치며 이번 경기 선발 여부와 경기력에 많은 이목이 쏠리고 있습니다.",
+        "evidence_ids": [
+          "db-player-spotlights-33",
+          "football365-preview"
+        ]
+      },
+      {
+        "team_id": 35,
+        "player_id": 19245,
+        "focus": "scoring_streak",
+        "reason": "마커스 태버니어는 최근 확인된 2경기에서 연속 득점 및 연속 공격포인트를 기록하며 뛰어난 득점 감각을 보여주고 있습니다. 이번 시즌 프리미어리그 7경기에서 4골을 터뜨리며 팀 내 최다 득점자로 활약하고 있어, 최근 상승세를 탄 본머스의 공격 선봉장 역할을 톡톡히 해낼 것으로 기대됩니다.",
+        "evidence_ids": [
+          "db-player-spotlights-35",
+          "sportsmole-preview"
+        ]
+      }
+    ],
+    "external_forecasts": {
+      "target_count": 3,
+      "items": [
+        {
+          "publisher": "Sports Mole",
+          "summary": "맨체스터 유나이티드는 주중 챔피언스리그 코모전 1-4 대패로 분위기가 가라앉았으며, 마이클 캐릭 감독의 경질 위기가 고조되고 있습니다. 반면 본머스는 AC 밀란을 3-0으로 꺾는 등 최근 3연승으로 기세가 좋습니다. 본머스가 올드 트래포드에서 승리를 거둘 것으로 예상됩니다.",
+          "predicted_score": "1-2",
+          "source_ids": [
+            "sportsmole-preview"
+          ],
+          "evidence": [
+            {
+              "source_id": "sportsmole-preview",
+              "claim": "Sports Mole predicts a 2-1 win for Bournemouth.",
+              "quote": "We say: Manchester United 1-2 Bournemouth"
+            }
+          ]
+        },
+        {
+          "publisher": "Sports Illustrated",
+          "summary": "맨체스터 유나이티드는 최근 공식전 7경기 무승의 늪에 빠져 있으며, 브루노 페르난데스의 항명설 등 내부 불화설까지 겹쳤습니다. 본머스는 최근 유럽대항전과 리그에서 상승세를 타고 있으며 올드 트래포드 원정에서 강한 면모를 보여왔기에 팽팽한 무승부가 예상됩니다.",
+          "predicted_score": "1-1",
+          "source_ids": [
+            "si-preview"
+          ],
+          "evidence": [
+            {
+              "source_id": "si-preview",
+              "claim": "SI predicts a 1-1 draw.",
+              "quote": "Prediction: Man Utd 1–1 Bournemouth"
+            }
+          ]
+        },
+        {
+          "publisher": "Goal.com",
+          "summary": "맨체스터 유나이티드는 주중 코모전 패배로 최악의 위기를 맞이했으며 캐릭 감독의 입지가 흔들리고 있습니다. 양 팀의 최근 흐름과 역사적 맞대결 전적을 고려할 때 다득점 무승부 시나리오가 유력합니다.",
+          "predicted_score": "2-2",
+          "source_ids": [
+            "goal-preview"
+          ],
+          "evidence": [
+            {
+              "source_id": "goal-preview",
+              "claim": "Goal.com predicts a 2-2 draw.",
+              "quote": "Score prediction: Manchester United 2-2 Bournemouth"
+            }
+          ]
+        }
+      ],
+      "searched_publishers": [
+        "Sports Mole",
+        "Sports Illustrated",
+        "Goal.com"
+      ],
+      "shortfall_reason": null
+    },
+    "odds_binding": {
+      "home_team_id": 33,
+      "away_team_id": 35,
+      "db_source_ids": [
+        "api-football-odds-1557445"
+      ]
+    },
+    "source_catalog": [
+      {
+        "id": "sportsmole-preview",
+        "title": "Manchester United vs. Bournemouth - prediction, team news, lineups",
+        "publisher": "Sports Mole"
+      },
+      {
+        "id": "si-preview",
+        "title": "Man Utd vs. Bournemouth: Preview, Predictions and Lineups",
+        "publisher": "Sports Illustrated"
+      },
+      {
+        "id": "goal-preview",
+        "title": "Manchester United vs Bournemouth predictions, betting tips & odds",
+        "publisher": "Goal.com"
+      },
+      {
+        "id": "rotowire-mainoo-injury",
+        "title": "Kobbie Mainoo Injury: Unlikely to face Como",
+        "publisher": "RotoWire"
+      },
+      {
+        "id": "guardian-scott-injury",
+        "title": "Bournemouth unhappy over Scott injury but Tuchel says England took 'zero risk'",
+        "publisher": "The Guardian"
+      },
+      {
+        "id": "football365-preview",
+        "title": "Man Utd v Bournemouth kick-off time, team news, TV channel, live stream, prediction",
+        "publisher": "Football365"
+      }
+    ],
+    "conflicts": [],
+    "missing_data": []
+  },
+  "previous_result": {
+    "fixture_id": 1557445,
+    "summary": {
+      "text": "맨체스터 유나이티드는 최근 공식전 7경기 연속 무승(3무 4패)의 극심한 부진에 빠져 있으며, 주중 챔피언스리그에서 코모에 1-4 대패를 당해 마이클 캐릭 감독의 경질 위기설이 대두되고 있습니다. 반면 본머스는 유로파리그에서 AC 밀란을 3-0으로 완파하는 등 최근 공식전 3연승을 달리며 가파른 상승세를 타고 있습니다.",
+      "evidence_ids": [
+        "db-form-33",
+        "db-form-35"
+      ]
+    },
+    "key_points": [
+      {
+        "text": "맨체스터 유나이티드는 최근 리그 3경기 연속 무승부를 포함해 공식전 7경기째 승리가 없으며, 이번 경기 결과에 따라 마이클 캐릭 감독의 거취가 결정될 수 있습니다.",
+        "evidence_ids": [
+          "db-form-33"
+        ]
+      },
+      {
+        "text": "본머스는 최근 공식전 3연승을 기록 중이며, 맨체스터 유나이티드를 상대로 최근 6차례 맞대결에서 무패(2승 4무)를 기록하며 강한 면모를 보이고 있습니다.",
+        "evidence_ids": [
+          "db-form-35"
+        ]
+      }
+    ],
+    "ai_prediction": {
+      "label": "AI 경기 예측",
+      "text": "맨체스터 유나이티드는 홈 이점과 전력상 우위를 바탕으로 배당률에서 근소한 우세를 점하고 있으나, 최근 수비 불안과 주축 선수들의 부상 누적으로 분위기가 가라앉아 있습니다. 반면 본머스는 최근 3연승의 상승세와 맞대결 우위를 앞세워 맨유를 강하게 압박할 것입니다. 맨유의 홈 강세와 본머스의 원정 약세가 맞물려 팽팽한 접전 끝에 무승부가 될 가능성이 높습니다.",
+      "predicted_score": "1-1",
+      "evidence_ids": [
+        "api-football-predictions-1557445",
+        "api-football-odds-1557445"
+      ]
+    },
+    "key_absences": [
+      {
+        "team_id": 33,
+        "player_id": 284322,
+        "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 6회. 확인된 최근 출전 시간 합계 512분. 2026시즌 6경기 출전·447분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다.",
+        "evidence_ids": [
+          "db-injury-participation-33"
+        ],
+        "cause": "부상 부위 미공개",
+        "event_type": "initial",
+        "date_precision": "day",
+        "occurred_on": "2026-10-10",
+        "occurred_month": null,
+        "timing_text": "토트넘 홋스퍼전 경기 중 부상",
+        "date_basis": "2026년 10월 10일 토트넘 홋스퍼전에서 부상을 입고 교체 아웃되었습니다.",
+        "cause_evidence": [
+          {
+            "source_id": "thefalse9-mainoo-injury",
+            "claim": "코비 마이누는 토트넘전에서 부상을 입어 결장 중입니다.",
+            "quote": "he was hurt in the 1-1 draw with Tottenham earlier this month"
+          }
+        ],
+        "timing_evidence": [
+          {
+            "source_id": "thefalse9-mainoo-injury",
+            "claim": "코비 마이누는 10월 10일 토트넘전 이후 경기에 나서지 못하고 있습니다.",
+            "quote": "hurt in the 1-1 draw with Tottenham"
+          }
+        ],
+        "source_ids": [
+          "thefalse9-mainoo-injury"
+        ],
+        "missing_reason": null
+      },
+      {
+        "team_id": 35,
+        "player_id": 304853,
+        "selection_reason": "선발 정보가 확인된 최근 10경기 중 선발 5회. 확인된 최근 출전 시간 합계 446분. 2026시즌 5경기 출전·446분. 출전 기록을 근거로 주요 결장 변수로 선별했습니다.",
+        "evidence_ids": [
+          "db-injury-participation-35"
+        ],
+        "cause": "대퇴사두근 부상",
+        "event_type": "initial",
+        "date_precision": "day",
+        "occurred_on": "2026-10-05",
+        "occurred_month": null,
+        "timing_text": "잉글랜드 대표팀 소집 중 부상",
+        "date_basis": "2026년 10월 5일 잉글랜드 국가대표팀 소집 도중 허벅지 부상으로 소집 해제되었습니다.",
+        "cause_evidence": [
+          {
+            "source_id": "rotowire-scott-injury",
+            "claim": "알렉스 스콧은 대퇴사두근 부상으로 결장합니다.",
+            "quote": "Scott (quadriceps) is expected to be sidelined for four to five weeks"
+          }
+        ],
+        "timing_evidence": [
+          {
+            "source_id": "newscord-scott-withdrawal",
+            "claim": "알렉스 스콧은 10월 5일 국가대표팀에서 부상으로 하차했습니다.",
+            "quote": "Alex Scott withdrew from England's squad ahead of the Nations League match against the Czech Republic after a thigh injury"
+          }
+        ],
+        "source_ids": [
+          "rotowire-scott-injury",
+          "newscord-scott-withdrawal"
+        ],
+        "missing_reason": null
+      }
+    ],
+    "player_watchpoints": [
+      {
+        "team_id": 33,
+        "player_id": 20589,
+        "focus": "season_contribution",
+        "reason": "2026시즌 프리미어리그에서 7경기 4골을 기록하며 팀 내 최다 득점자로 활약하고 있습니다. 최근 팀 10경기 중 10경기에 출전해 4골 1도움을 기록하며 맨유의 공격을 이끌고 있습니다. 이번 본머스전에서도 그의 득점 감각이 팀의 무승 고리를 끊는 데 핵심적인 역할을 할 것으로 기대됩니다.",
+        "evidence_ids": [
+          "db-player-spotlights-33"
+        ]
+      },
+      {
+        "team_id": 35,
+        "player_id": 19245,
+        "focus": "scoring_streak",
+        "reason": "최근 팀 2경기에서 연속 득점 및 연속 공격포인트를 기록하며 뛰어난 폼을 보여주고 있습니다. 2026시즌 프리미어리그 7경기에서 4골을 터뜨리며 팀의 핵심 공격 자원으로 자리매김했습니다. 최근 10경기에서도 4골을 기록하며 본머스의 상승세를 이끌고 있어 이번 맨유전에서도 연속 득점 행진을 이어갈지 주목됩니다.",
+        "evidence_ids": [
+          "db-player-spotlights-35"
+        ]
+      }
+    ],
+    "external_forecasts": {
+      "target_count": 3,
+      "items": [
+        {
+          "publisher": "Sports Mole",
+          "summary": "맨체스터 유나이티드는 코모전 대패 이후 자신감이 바닥에 떨어졌으며, 캐릭 감독의 경질을 피하기 어려울 수 있습니다. 반면 AC 밀란을 꺾은 본머스는 기세를 몰아 올드 트래포드에서 2-1 승리를 거둘 것으로 예상됩니다.",
+          "predicted_score": "1-2",
+          "source_ids": [
+            "sportsmole-preview"
+          ],
+          "evidence": [
+            {
+              "source_id": "sportsmole-preview",
+              "claim": "본머스가 맨체스터 유나이티드를 상대로 2-1 승리를 거둘 것입니다.",
+              "quote": "We say: Manchester United 1-2 Bournemouth"
+            }
+          ]
+        },
+        {
+          "publisher": "WhoScored",
+          "summary": "맨체스터 유나이티드가 근소한 우세를 점하고 있으나 최근 무승 흐름을 고려할 때, 최근 상승세를 타고 있는 본머스를 상대로 힘겨운 경기를 펼치며 1-1 무승부를 기록할 것입니다.",
+          "predicted_score": "1-1",
+          "source_ids": [
+            "whoscored-preview"
+          ],
+          "evidence": [
+            {
+              "source_id": "whoscored-preview",
+              "claim": "양 팀이 1-1 무승부를 거둘 것으로 예측합니다.",
+              "quote": "Our Man Utd vs Bournemouth prediction is a 1-1 draw."
+            }
+          ]
+        },
+        {
+          "publisher": "Football365",
+          "summary": "마이클 캐릭 감독의 경질 여부가 걸린 단판 승부에서, 최근 3연승을 달리는 본머스의 기세와 맨유전 6경기 무패 기록을 감안할 때 맨유가 승점 3점을 온전히 챙기기는 어려울 것입니다.",
+          "predicted_score": null,
+          "source_ids": [
+            "football365-preview"
+          ],
+          "evidence": [
+            {
+              "source_id": "football365-preview",
+              "claim": "맨유가 이번 경기에서 승리하기는 어려울 것입니다.",
+              "quote": "With their current form and poor head-to-head record in this fixture, we're not expecting United to take all three points here."
+            }
+          ]
+        }
+      ],
+      "searched_publishers": [
+        "Sports Mole",
+        "WhoScored",
+        "Football365"
+      ],
+      "shortfall_reason": null
+    },
+    "odds_binding": {
+      "home_team_id": 33,
+      "away_team_id": 35,
+      "db_source_ids": [
+        "api-football-odds-1557445"
+      ]
+    },
+    "source_catalog": [
+      {
+        "id": "thefalse9-mainoo-injury",
+        "url": "https://thefalse9.com/2026/10/man-utd-injury-news-vs-bournemouth-mainoo-out-rashford-martinez-doubts.html",
+        "title": "Man Utd Injury News vs Bournemouth: Mainoo Out, Rashford, Martinez Doubts",
+        "publisher": "The False 9",
+        "published_on": "2026-10-24",
+        "published_at": "2026-10-24T00:00:00Z",
+        "verification": "original_checked"
+      },
+      {
+        "id": "rotowire-scott-injury",
+        "url": "https://www.rotowire.com/soccer/news-detail.php?id=938291",
+        "title": "Alex Scott Injury: Set to miss four-to-five weeks",
+        "publisher": "RotoWire",
+        "published_on": "2026-10-08",
+        "published_at": "2026-10-08T05:35:00Z",
+        "verification": "original_checked"
+      },
+      {
+        "id": "newscord-scott-withdrawal",
+        "url": "https://newscord.org/sports/alex-scott-withdraws-from-england-squad-with-thigh-injury-ahead-of-czech-republic",
+        "title": "Alex Scott Withdraws From England Squad With Thigh Injury Ahead Of Czech Republic",
+        "publisher": "NewsCord",
+        "published_on": "2026-10-05",
+        "published_at": "2026-10-05T12:50:00Z",
+        "verification": "original_checked"
+      },
+      {
+        "id": "sportsmole-preview",
+        "url": "https://www.sportsmole.co.uk/football/man-utd/preview/preview-man-utd-vs-bournemouth-prediction-team-news-lineups_592819.html",
+        "title": "Preview: Manchester United vs. Bournemouth - prediction, team news, lineups",
+        "publisher": "Sports Mole",
+        "published_on": "2026-10-23",
+        "published_at": "2026-10-23T00:00:00Z",
+        "verification": "original_checked"
+      },
+      {
+        "id": "whoscored-preview",
+        "url": "https://www.whoscored.com/Matches/1557445/Preview/England-Premier-League-2026-2027-Manchester-United-Bournemouth",
+        "title": "Manchester United vs Bournemouth Preview",
+        "publisher": "WhoScored",
+        "published_on": "2026-10-25",
+        "published_at": "2026-10-25T00:00:00Z",
+        "verification": "original_checked"
+      },
+      {
+        "id": "football365-preview",
+        "url": "https://www.football365.com/news/man-utd-v-bournemouth-prediction-team-news-lineups-odds",
+        "title": "Man Utd v Bournemouth: Prediction, team news, lineups and odds",
+        "publisher": "Football365",
+        "published_on": "2026-10-24",
+        "published_at": "2026-10-24T00:00:00Z",
+        "verification": "original_checked"
+      }
+    ],
+    "conflicts": [],
+    "missing_data": []
+  },
+  "source_resolution": {
+    "model_urls_used": 0,
+    "sources": [
+      {
+        "id": "sportsmole-preview",
+        "state": "original_quote_matched",
+        "quote_count": 1,
+        "url": "https://www.sportsmole.co.uk/football/man-utd/preview/man-utd-vs-bournemouth-prediction-team-news-lineups_607577.html",
+        "origin": "google_grounding",
+        "chunk_index": 1,
+        "quote_matches": [
+          true
+        ]
+      },
+      {
+        "id": "si-preview",
+        "state": "original_quote_matched",
+        "quote_count": 1,
+        "url": "https://www.si.com/soccer/man-utd-vs-bournemouth-preview-predictions-lineups-10-25-26",
+        "origin": "google_grounding",
+        "chunk_index": 2,
+        "quote_matches": [
+          true
+        ]
+      },
+      {
+        "id": "goal-preview",
+        "state": "original_quote_matched",
+        "quote_count": 1,
+        "url": "https://www.goal.com/en-us/betting/tips/manchester-united-vs-bournemouth-predictions-10-25-2026/A%3Abltdf693f236e81339c",
+        "origin": "google_grounding",
+        "chunk_index": 4,
+        "quote_matches": [
+          true
+        ]
+      },
+      {
+        "id": "rotowire-mainoo-injury",
+        "state": "unresolved",
+        "quote_count": 2
+      },
+      {
+        "id": "guardian-scott-injury",
+        "state": "unresolved",
+        "quote_count": 2
+      },
+      {
+        "id": "football365-preview",
+        "state": "grounding_linked",
+        "quote_count": 0,
+        "url": "https://www.football365.com/match-preview/man-utd-v-bournemouth-prediction-preview",
+        "origin": "google_grounding",
+        "chunk_index": 0,
+        "quote_matches": []
+      }
+    ],
+    "fetch_failures": [],
+    "segment_diagnostics": [],
+    "claim_links": 9
+  },
+  "display_names": {
+    "382452": "파트리크 도르구",
+    "284322": "코비 마이누",
+    "115589": "벤야민 세슈코",
+    "891": "루크 쇼",
+    "51494": "마누엘 우가르테",
+    "2467": "리산드로 마르티네스",
+    "909": "마커스 래쉬포드",
+    "51051": "훌리안 아라우호",
+    "304853": "알렉스 스콧",
+    "361485": "알렉스 토트",
+    "368030": "엘리 주니어 크루피",
+    "412719": "벨코 미로사블리비치",
+    "1485": "브루노 페르난데스",
+    "20589": "브라이언 음뵈모",
+    "1165": "마테우스 쿠냐",
+    "2926": "유리 틸레만스",
+    "19245": "마커스 태버니어",
+    "152856": "에바니우송",
+    "792": "저스틴 클라위버르트",
+    "20093": "제임스 클레이튼 힐"
+  }
+}

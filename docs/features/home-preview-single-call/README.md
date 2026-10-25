@@ -42,3 +42,53 @@ PYTHONPATH=. .venv/bin/python scripts/build_home_preview_single_call_request.py 
 ```
 
 응답 계약은 실험용이다. 검증 후 실제 worker 전환과 현재 FE 계약 adapter는 별도 구현한다. 기존6시간 갱신·DB-only 홈 조회·자동 생성OFF는 유지한다.
+
+## 실제 호출·출처 보완·재시험 — 2026-10-25
+
+초기 준비 이후 사용자가 실제 호출·로컬 표시 및 URL 보완 재호출을 요청했다. 아래 기록이 앞의 미실행 상태 설명을 대체한다. 기존 worker4회 흐름과 public publication은 변경하지 않았다.
+
+첫 응답은11:04:55~11:05:34 UTC, 모델1회로 보존했다. 본문 정보와 URL 생성 오류를 구분해야 한다. 실제 Google grounding에 있던 Football365 링크는 올바른 match-preview 주소였지만 모델이 JSON에 작성한 /news/... 주소는404였다. Sports Mole의 모델 URL도 다른 기사 번호였다. 원문이 존재하는데 출처가 없다고 판단한 것은 정정한다.
+
+보완 사항:
+
+- 모델 응답 schema에서 URL/게시일/verification 필드를 제거했다. 모델은 출처 ID·매체·제목과 주장·인용을 반환한다. 모델 URL을 fetch하거나 게시하지 않는다.
+- `home_preview_grounding.py`가 원 응답 JSON의 문자열 필드 경로와 Google groundingSupports의 UTF-8 바이트 범위를 연결한다. segment text/범위/partIndex를 검증하며 잘못된 구간을 다른 주장에 붙이지 않는다.
+- 실제 URL은 groundingChunks의 URI를 따라가 원문 응답에서 확정한다. 검색 메타데이터의 매체 도메인만 기존 수집 목록에 호출 단위로 추가하고 HTTPS/redirect/공개IP/시간/크기 제한은 유지한다. 모델이 적은 호스트는 추가하지 않는다.
+- 출처별 짧은 인용을 원문과 대조해 동일 매체·유일한 기사에만 연결한다. 임의의 같은 매체 기사나 비슷한 도메인으로 대체하지 않는다. 문장부호·대시 차이만 정규화한다. 주장과 출처의 연결과 사실 전체의 확정은 구분한다.
+- 웹 근거가 있는 summary/key_points/player_watchpoints에는 웹 출처 ID도 인용하도록 프롬프트를 보완했다. 원 응답은 수정하지 않고 별도 resolved.json에 서버 URL과 필드별 grounding_links를 기록한다.
+
+재시험은 `out/home-preview/single-call-manutd-bournemouth-v2/`에 보존했다. 첫 요청은 HTTP429로 실패했고 attempt-1.json을 보존했다. 대기 후 같은 요청이36초에 성공했다. 이번 모델 요청 누적2회(실패1+성공1), 추가 분석/추출 LLM0회, 검색 쿼리8개, groundingChunks5개다. 정상 흐름은1회 요청이며 재시도를 숨기지 않는다. DB 입력은 최초 읽기 전용 입력을 그대로 사용해 URL 보완 전후를 비교했다.
+
+|출처|새 응답 전망|서버가 확정한 실제 URL|검증|
+|---|---|---|---|
+|Sports Mole|맨유1–2본머스|https://www.sportsmole.co.uk/football/man-utd/preview/man-utd-vs-bournemouth-prediction-team-news-lineups_607577.html|Google 출처·원문 인용 일치|
+|Sports Illustrated|1–1|https://www.si.com/soccer/man-utd-vs-bournemouth-preview-predictions-lineups-10-25-26|Google 출처·원문 인용 일치|
+|Goal|2–2|https://www.goal.com/en-us/betting/tips/manchester-united-vs-bournemouth-predictions-10-25-2026/A%3Abltdf693f236e81339c|Google 출처·원문 인용 일치|
+|Football365|관전 포인트/선수 기사 근거|https://www.football365.com/match-preview/man-utd-v-bournemouth-prediction-preview|해당 문장과 Google 출처 연결|
+
+새 응답에는 URL 문자열 생성0, 서버가 모델 URL을 사용한 횟수0, 원문 fetch 실패0, segment 검증 오류0, 필드별 출처 연결9개다. 외부 전망3곳의 각 예상 스코어 인용을 확인했다. **모든 문장의 의미를 자동 검증했다고 주장하지 않는다.**
+
+마이누10월10일/스콧10월3일이라는 발생일은 LLM이 반환했지만, 이번 메타데이터에는 해당 RotoWire/Guardian 출처가 없어 원문 URL을 확정하지 못했다. 내용이 틀렸다는 판정이 아니라 출처 연결 미확인이다. 날짜를 지우거나 확인 완료로 바꾸지 않고 로컬 화면에 미검증으로 표시한다.
+
+첫 응답도 새 resolver로 회귀 확인했다. Football365는 기존 Google 출처, Sports Mole은 사용자가 제공한 원문으로 URL·인용을 확인했으며 origin을 각각 기록했다. 이는 새 응답의 Google-only 검증과 구분한다.
+
+로컬 화면: http://127.0.0.1:5191/home/single-call/1557445 (개발 전용). 메인에 진입 링크를 추가했다. 실제 응답 본문·모델 발생일·출처 확인 상태·DB 번역명/선수 사진·기존 저장본·첫/두번째 원문 JSON을 볼 수 있다. 기존 검증 프리뷰 DB를 미확인 응답으로 교체하지 않았다. 배포 빌드에는 실험 route/data가 포함되지 않는다.
+
+검증: BE46 PASS(출처 연결/UTF-8/URL 생성 거절/비슷한 매체 도메인/기존검색), FE29 PASS, frontend build PASS. 실제 로컬 브라우저에서 메인 링크→새 응답 본문/JSON 일치·실제 기사607577/Football365 주소·첫 잘못된 URL 미사용·발생일·선수 이유·데스크톱1440/모바일390·overflow0/pageerror0를 확인했다. 결과/스크린샷은 v2 폴더에 보존한다. 단일 호출 실험 자체에 DB 쓰기/운영 반영/원격 push/merge/배포는0회다.
+
+원 응답·검증 결과:
+- `response.txt` / `response.json`: 수정하지 않은 LLM 응답.
+- `grounding.json`: Google 원 검색 메타데이터.
+- `resolved.json`: 실제 URL·필드별 출처를 연결한 결과.
+- `source-resolution.json`: 출처별 원문 인용 확인/연결 미확인 진단.
+- `original-pages.json`: 실제 가져온 원문 및 URL/게시 정보.
+- `execution.json` / `attempt-1.json`: 성공·429 및 누적 호출 수.
+
+재검증은 추가 LLM 호출 없이 다음과 같이 수행한다.
+
+```sh
+PYTHONPATH=. .venv/bin/python scripts/resolve_home_preview_single_call.py \
+  --run-dir out/home-preview/single-call-manutd-bournemouth-v2
+```
+
+기술 근거: Google GenerateContentResponse의 GroundingSupport/Segment는 출처 인덱스와 UTF-8 바이트 구간을 제공한다. https://cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1/GenerateContentResponse

@@ -181,7 +181,7 @@ def normalized(value):
     return " ".join(unescape(value).split())
 
 
-def allowed_url(url, *, grounding=False):
+def allowed_url(url, *, grounding=False, allowed_hosts=None):
     parsed = urlsplit(url)
     if (
         parsed.scheme != "https"
@@ -191,7 +191,10 @@ def allowed_url(url, *, grounding=False):
     ):
         raise ValueError("unapproved_source_url")
     host = (parsed.hostname or "").lower()
-    allowed = any(host == suffix or host.endswith("." + suffix) for suffix in ALLOWED_HOSTS)
+    allowed = any(
+        host == suffix or host.endswith("." + suffix)
+        for suffix in ALLOWED_HOSTS | set(allowed_hosts or ())
+    )
     if grounding and host == "vertexaisearch.cloud.google.com":
         allowed = True
     if not allowed:
@@ -219,7 +222,7 @@ def registered_article_url(url):
         return False
 
 
-def fetch_page(url):
+def fetch_page(url, *, allowed_hosts=None):
     # Allowlisted public hosts only, validated on every redirect; no ambient proxy credentials.
     current = url
     deadline = time.monotonic() + 12
@@ -232,7 +235,7 @@ def fetch_page(url):
         for _ in range(4):
             if time.monotonic() >= deadline:
                 raise ValueError("source_deadline")
-            allowed_url(current, grounding=True)
+            allowed_url(current, grounding=True, allowed_hosts=allowed_hosts)
             with client.stream(
                 "GET", current, timeout=max(0.1, min(8, deadline - time.monotonic()))
             ) as response:

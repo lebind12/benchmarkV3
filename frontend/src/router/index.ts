@@ -94,6 +94,7 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', name: 'home', component: () => import('@/views/ui-review/UiReviewHomeView.vue') },
       ...(import.meta.env.DEV ? [{ path: 'home/mock', name: 'home-preview-mock', component: () => import('@/views/HomePreviewMockView.vue'), meta: { localMock: true } }] : []),
+      ...(import.meta.env.DEV ? [{ path: 'home/single-call/1557445', name: 'home-single-call-review', component: () => import('@/views/HomeSingleCallReviewView.vue'), meta: { localMock: true } }] : []),
       { path: 'fixtures', name: 'fixtures', component: () => import('@/views/ui-review/UiReviewFixturesView.vue') },
       {
         path: 'fixtures/:externalId(\\d+)',

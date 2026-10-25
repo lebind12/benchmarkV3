@@ -12,6 +12,7 @@ import type { HomePreviewResponse } from '@/lib/api/homePreviewResponse'
 import { recentMatchResult } from '@/lib/api/homePreviewSchema'
 import '@/styles/home-preview.css'
 
+const isDevelopment = import.meta.env.DEV
 const scrollPage = ref<HTMLElement | null>(null)
 const recommendationResponse = ref<HomeRecommendations | null>(null)
 const response = ref<HomePreviewResponse | null>(null)
@@ -122,6 +123,7 @@ watch([() => selectedRow.value?.fixture_id, response], async () => { await nextT
         <div><p class="hp-date">{{ dateLabel }} <span>한국 시간</span></p><h1>오늘의 매치</h1></div>
         <RouterLink to="/fixtures" class="hp-text-link">전체 경기 <ArrowRight :size="16" /></RouterLink>
       </header>
+      <p v-if="isDevelopment" class="hp-freshness"><RouterLink to="/home/single-call/1557445" data-testid="single-call-review-link">맨유–본머스 · 1회 호출 결과 보기 →</RouterLink></p>
       <p class="hp-freshness"><Clock3 :size="14" />경기 상태 기준 {{ formatTime(recommendationResponse?.as_of) }} KST · 6시간 간격 갱신</p>
       <div v-if="recommendationResponse?.fallback_reason" class="hp-date-notice"><Info :size="18" /><span>오늘 추천할 경기가 없어 <b>{{ selection.day.replaceAll('-', '.') }}</b>의 가장 가까운 예정 경기를 보여드립니다.</span></div>
 

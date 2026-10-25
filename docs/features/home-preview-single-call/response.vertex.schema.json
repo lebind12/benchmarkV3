@@ -355,39 +355,17 @@
           "id": {
             "type": "STRING"
           },
-          "url": {
-            "type": "STRING"
-          },
           "title": {
             "type": "STRING"
           },
           "publisher": {
             "type": "STRING"
-          },
-          "published_on": {
-            "type": "STRING",
-            "nullable": true
-          },
-          "published_at": {
-            "type": "STRING",
-            "nullable": true
-          },
-          "verification": {
-            "type": "STRING",
-            "enum": [
-              "original_checked",
-              "pending_original"
-            ]
           }
         },
         "required": [
           "id",
-          "url",
           "title",
-          "publisher",
-          "published_on",
-          "published_at",
-          "verification"
+          "publisher"
         ]
       }
     },

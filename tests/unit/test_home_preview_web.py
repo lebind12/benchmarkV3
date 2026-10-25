@@ -252,3 +252,23 @@ def test_publication_metadata_is_separate_from_fixture_and_modified_dates():
     )
     assert parser.primary_dates == ["2026-10-17T10:00:00Z"]
     assert parser.publication_dates == ["2026-10-17T10:00:00Z"]
+
+
+def test_explicit_grounded_publisher_extension_is_scoped_and_still_requires_public_ip(monkeypatch):
+    import socket
+
+    import pytest
+
+    from app.services.home_preview_web import allowed_url
+
+    monkeypatch.setattr(
+        socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 443))]
+    )
+    with pytest.raises(ValueError, match="unapproved_source_host"):
+        allowed_url("https://www.si.com/soccer/preview")
+    allowed_url("https://www.si.com/soccer/preview", allowed_hosts={"si.com"})
+    with pytest.raises(ValueError, match="unapproved_source_host"):
+        allowed_url("https://si.com.evil.test/preview", allowed_hosts={"si.com"})
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("127.0.0.1", 443))])
+    with pytest.raises(ValueError, match="nonpublic_source_address"):
+        allowed_url("https://www.si.com/soccer/preview", allowed_hosts={"si.com"})

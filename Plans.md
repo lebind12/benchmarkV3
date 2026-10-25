@@ -314,3 +314,12 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 | HOME-SINGLE-PROMPT | 맨유–본머스 DB 입력을 동봉한1회 검색·분석·JSON 요청안 | 원인/발생 시점/출처를 한 응답에 보존, 실제 DB 후보·기록·시각, 읽기 전용 생성 도구·request body | HOME-CAUSE-EVIDENCE | cc:완료 [프롬프트/실험 계약/DB 입력 준비; 실제 호출·runtime 전환 미실행] |
 
 정본 docs/features/home-preview-single-call/README.md. 후보12명·관전8명·양팀 최근5경기, 로컬 저장 API 수집본과 DB 통계 입력. 이전 LLM 결과 제외, 외부 호출/DB 쓰기0회. 검색+responseSchema 실제 호환성/출력 검증과 단일 호출 worker 구현은 별도다.
+
+
+### 2026-10-25 단일 호출 실제 실행·출처 URL 보완
+
+|Task|내용|DoD|Depends|Status|
+|---|---|---|---|---|
+|HOME-SINGLE-GROUNDING|모델 URL 생성 제거·Google 실제 출처/원문 인용 연결·재호출·로컬 검토|UTF-8 문장 범위 검증/실제 URL·원문 인용/3곳 전망·실패 기록·브라우저 대조|HOME-SINGLE-PROMPT|cc:완료 [로컬실험 BE46/FE29/build/브라우저 PASS; 부상2건 원문 연결 미확인·production worker 전환 별도]|
+
+실제 새 호출은429 실패1회 후 성공1회, 정상 흐름1요청. Google 출처5·문장 연결9·전망3곳 인용 일치. 첫 원문과 수정 없는 재호출 원문을 보존하고 실제 URL은 별도 resolved.json에 연결한다. 근거와 검증 정본은 docs/features/home-preview-single-call/README.md의 실제 호출 절. DB/운영/정상 worker/6시간 정책은 변경하지 않았다.
