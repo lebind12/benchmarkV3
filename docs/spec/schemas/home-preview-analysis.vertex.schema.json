@@ -3,7 +3,8 @@
     "summary",
     "key_points",
     "ai_prediction",
-    "key_absences"
+    "key_absences",
+    "player_watchpoints"
   ],
   "type": "OBJECT",
   "properties": {
@@ -385,12 +386,122 @@
         "source_ids",
         "data"
       ]
+    },
+    "player_watchpoints": {
+      "required": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ],
+      "type": "OBJECT",
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "partial",
+            "missing",
+            "unverified",
+            "error"
+          ],
+          "type": "STRING"
+        },
+        "reason": {
+          "enum": [
+            "not_collected",
+            "insufficient_sample",
+            "confirmed_no_absences",
+            "no_source",
+            "source_unverified",
+            "upstream_failed",
+            "outside_generation_window",
+            "generation_pending",
+            "generation_failed",
+            "refresh_failed",
+            "kickoff_passed",
+            "no_valid_snapshot",
+            "budget_deferred"
+          ],
+          "type": "STRING",
+          "nullable": true
+        },
+        "as_of": {
+          "type": "STRING",
+          "format": "date-time",
+          "nullable": true
+        },
+        "source_ids": {
+          "type": "ARRAY",
+          "items": {
+            "type": "STRING"
+          }
+        },
+        "data": {
+          "maxItems": 4,
+          "type": "ARRAY",
+          "items": {
+            "required": [
+              "team_id",
+              "player_id",
+              "focus",
+              "reason",
+              "evidence_ids"
+            ],
+            "type": "OBJECT",
+            "properties": {
+              "team_id": {
+                "type": "INTEGER"
+              },
+              "player_id": {
+                "type": "INTEGER"
+              },
+              "focus": {
+                "enum": [
+                  "season_contribution",
+                  "scoring_streak",
+                  "assist_streak",
+                  "involvement_streak",
+                  "recent_contribution"
+                ],
+                "type": "STRING"
+              },
+              "reason": {
+                "type": "STRING"
+              },
+              "evidence_ids": {
+                "minItems": 1,
+                "type": "ARRAY",
+                "items": {
+                  "type": "STRING"
+                }
+              }
+            },
+            "propertyOrdering": [
+              "team_id",
+              "player_id",
+              "focus",
+              "reason",
+              "evidence_ids"
+            ]
+          },
+          "nullable": true
+        }
+      },
+      "propertyOrdering": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ]
     }
   },
   "propertyOrdering": [
     "summary",
     "key_points",
     "ai_prediction",
-    "key_absences"
+    "key_absences",
+    "player_watchpoints"
   ]
 }

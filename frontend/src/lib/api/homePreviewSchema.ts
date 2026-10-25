@@ -14,14 +14,19 @@ const supportedText = z.object({ text, evidence_ids: refs }).strict()
 const point = z.object({ title: text, description: text, evidence_ids: refs }).strict()
 const prediction = z.object({ home_goals: z.number().int().min(0).max(30), away_goals: z.number().int().min(0).max(30), confidence: z.enum(['low', 'medium', 'high']), reason: text, evidence_ids: refs }).strict()
 const keyAbsence = z.object({ team_id: id, player_id: id, reason: text, evidence_ids: refs }).strict()
-export const homePreviewAnalysisSchema = z.object({ summary: section(supportedText), key_points: section(z.array(point).min(1)), ai_prediction: section(prediction), key_absences: section(z.array(keyAbsence).max(4)).optional() }).strict()
+const playerFocus = z.enum(['season_contribution', 'scoring_streak', 'assist_streak', 'involvement_streak', 'recent_contribution'])
+const playerWatchpoint = z.object({ team_id: id, player_id: id, focus: playerFocus, reason: text.max(1000).optional(), evidence_ids: refs }).strict()
+export const homePreviewAnalysisSchema = z.object({ summary: section(supportedText), key_points: section(z.array(point).min(1)), ai_prediction: section(prediction), key_absences: section(z.array(keyAbsence).max(4)).optional(), player_watchpoints: section(z.array(playerWatchpoint).max(4)).optional() }).strict()
 export const recentMatchSchema = z.object({ fixture_id: id, kickoff_at: time, opponent: text, competition: text, goals_for: z.number().int().nonnegative(), goals_against: z.number().int().nonnegative(), status: z.enum(['FT', 'AET', 'PEN']), penalties: z.object({ for: z.number().int().nonnegative(), against: z.number().int().nonnegative() }).strict().nullable() }).strict().superRefine((row, ctx) => {
   if (row.status !== 'PEN' && row.penalties !== null) ctx.addIssue({ code: 'custom', message: 'Only PEN can have penalty scores' })
   if (row.penalties && (row.goals_for !== row.goals_against || row.penalties.for === row.penalties.against)) ctx.addIssue({ code: 'custom', message: 'Penalty decision requires a tied match and a non-tied shootout' })
 })
 const form = z.object({ team_id: id, expected_count: z.literal(5), matches: z.array(recentMatchSchema).max(5) }).strict()
-const importance = z.object({ selection_reason: text.optional(), eligible: z.boolean(), recent_games: z.number().int().min(0).max(10), lineup_games: z.number().int().min(0).max(10), player_games: z.number().int().min(0).max(10), recent_starts: z.number().int().nonnegative().nullable(), recent_minutes: z.number().int().nonnegative().nullable(), seasons: z.array(z.object({ season_year: id, appearances: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable() }).strict()).max(2), source_ids: refs }).strict()
-const injury = z.object({ team_id: id, player_id: id.optional(), status_conflict: z.boolean().optional(), importance_evidence: importance.optional(), player_name: text, availability: z.enum(['out', 'doubtful']), detail: text, impact: text, source_ids: refs }).strict()
+const importance = z.object({ recognition_name: text.optional(), selection_reason: text.optional(), eligible: z.boolean(), recent_games: z.number().int().min(0).max(10), lineup_games: z.number().int().min(0).max(10), player_games: z.number().int().min(0).max(10), recent_starts: z.number().int().nonnegative().nullable(), recent_minutes: z.number().int().nonnegative().nullable(), seasons: z.array(z.object({ season_year: id, appearances: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable() }).strict()).max(2), source_ids: refs }).strict()
+const injury = z.object({ team_id: id, player_id: id.optional(), status_conflict: z.boolean().optional(), importance_evidence: importance.optional(), player_name: text, photo_url: z.string().url().nullable().optional(), availability: z.enum(['out', 'doubtful']), detail: text, impact: text, source_ids: refs }).strict()
+const recentPlayerForm = z.object({ team_match_count: z.number().int().min(0).max(10), observed_appearances: z.number().int().min(0).max(10), goals: z.number().int().nonnegative().nullable(), assists: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable(), goal_samples: z.number().int().min(0).max(10), assist_samples: z.number().int().min(0).max(10), minute_samples: z.number().int().min(0).max(10) }).strict()
+const recordNotes = z.object({ recent_contribution: text.nullable().optional(), season_contribution: text.nullable(), scoring_streak: text.nullable(), assist_streak: text.nullable(), involvement_streak: text.nullable() }).strict()
+const spotlight = z.object({ team_id: id, player_id: id, player_name: text, photo_url: z.string().url().nullable().optional(), canonical_name: text, season_year: id, appearances: z.number().int().nonnegative().nullable(), goals: z.number().int().nonnegative().nullable(), assists: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable(), recent_form: recentPlayerForm.optional(), recent_match_count: z.number().int().min(0).max(10), scoring_streak: z.number().int().min(0).max(10), assist_streak: z.number().int().min(0).max(10), involvement_streak: z.number().int().min(0).max(10), record_notes: recordNotes, source_ids: refs }).strict()
 const externalPrediction = z.object({ source_id: text, outlook: text, summary: text }).strict()
 const odds = z.object({ source_id: text, bookmaker: text, market: z.literal('1x2_90min'), format: z.literal('decimal'), home: z.number().gt(1), draw: z.number().gt(1), away: z.number().gt(1), collected_at: time }).strict()
 export const homePreviewSchema = z.object({
@@ -30,7 +35,7 @@ export const homePreviewSchema = z.object({
   search_suggestions: z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(10) }).strict().nullable(),
   sources: z.array(z.object({ id: text, fixture_id: id, kind: z.enum(['db', 'web', 'api']), title: text, url: z.string().url().nullable(), published_at: time.nullable(), retrieved_at: time }).strict()),
   analysis: homePreviewAnalysisSchema,
-  facts: z.object({ injuries: section(z.array(injury)), home_form: section(form), away_form: section(form) }).strict(),
+  facts: z.object({ player_spotlights: section(z.array(spotlight).max(8)).optional(), injuries: section(z.array(injury)), home_form: section(form), away_form: section(form) }).strict(),
   external: z.object({ predictions: section(z.array(externalPrediction).min(1)), odds: section(z.array(odds).min(1)) }).strict(),
 }).strict().superRefine((value, context) => {
   const fail = (message: string) => context.addIssue({ code: z.ZodIssueCode.custom, message })
@@ -81,6 +86,35 @@ export const homePreviewSchema = z.object({
       if (Date.parse(match.kickoff_at) > Date.parse(value.as_of)) fail('Recent match is newer than input snapshot')
     }
   }
+  const spotlights = value.facts.player_spotlights
+  const spotlightIds = new Set<string>()
+  for (const player of spotlights?.data ?? []) {
+    if (player.photo_url && !/^https?:\/\//.test(player.photo_url)) fail('Photo URL must use HTTP')
+    const key = `${player.team_id}:${player.player_id}`
+    if (spotlightIds.has(key) || ![value.fixture.home.external_id, value.fixture.away.external_id].includes(player.team_id)) fail('Invalid spotlight player identity')
+    spotlightIds.add(key); checkRefs(player.source_ids, ['db'])
+    if (player.recent_form) {
+      const form = player.recent_form
+      if (form.team_match_count !== player.recent_match_count || form.observed_appearances > form.team_match_count) fail('Recent player sample exceeds observed matches')
+      for (const [field, sample] of [['goals', 'goal_samples'], ['assists', 'assist_samples'], ['minutes', 'minute_samples']] as const) {
+        if (form[sample] > form.observed_appearances || (form[field] === null) !== (form[sample] === 0)) fail('Unknown recent player records must remain null')
+      }
+    }
+    for (const n of [player.scoring_streak, player.assist_streak, player.involvement_streak]) if (n > player.recent_match_count) fail('Streak exceeds observed matches')
+    for (const [focus, n] of [['scoring_streak', player.scoring_streak], ['assist_streak', player.assist_streak], ['involvement_streak', player.involvement_streak]] as const) if (player.record_notes[focus] && n < 2) fail('Streak note needs at least two matches')
+  }
+  const watches = value.analysis.player_watchpoints
+  const watched = new Set<string>(); const watchedTeams = new Map<number, number>()
+  for (const pick of watches?.data ?? []) {
+    const key = `${pick.team_id}:${pick.player_id}`
+    const player = spotlights?.data?.find(row => row.team_id === pick.team_id && row.player_id === pick.player_id)
+    if (!player || !player.record_notes[pick.focus]) fail('Watchpoint requires a verified player record')
+    if (watched.has(key)) fail('Duplicate player watchpoint')
+    watched.add(key); watchedTeams.set(pick.team_id, (watchedTeams.get(pick.team_id) ?? 0) + 1)
+    if (watchedTeams.get(pick.team_id)! > 2) fail('At most two player watchpoints per team')
+    checkRefs(pick.evidence_ids, ['db'])
+    if (!pick.evidence_ids.some(ref => player?.source_ids.includes(ref)) || pick.evidence_ids.some(ref => !watches!.source_ids.includes(ref))) fail('Watchpoint requires matching DB evidence')
+  }
   const selected = value.analysis.key_absences
   const selectedIds = new Set<string>(); const teamCounts = new Map<number, number>()
   for (const pick of selected?.data ?? []) {
@@ -96,6 +130,7 @@ export const homePreviewSchema = z.object({
     if (!pick.evidence_ids.some(ref => candidate?.source_ids.includes(ref)) || !pick.evidence_ids.some(ref => candidate?.importance_evidence?.source_ids.includes(ref))) fail('Key absence needs injury and participation evidence')
   }
   for (const item of value.facts.injuries.data ?? []) {
+    if (item.photo_url && !/^https?:\/\//.test(item.photo_url)) fail('Photo URL must use HTTP')
     for (const ref of item.importance_evidence?.source_ids ?? []) if (sources.get(ref)?.kind !== 'db') fail('Participation evidence must reference DB sources')
     if (![value.fixture.home.external_id, value.fixture.away.external_id].includes(item.team_id)) fail('Injury team mismatch')
     checkRefs(item.source_ids, ['db', 'web', 'api'])

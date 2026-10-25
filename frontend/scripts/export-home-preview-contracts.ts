@@ -24,6 +24,7 @@ export function project(schema: z.ZodTypeAny): Record<string, unknown> {
     const out: Record<string, unknown> = { type: 'string' }
     for (const check of d.checks) {
       if (check.kind === 'min') out.minLength = check.value
+      if (check.kind === 'max') out.maxLength = check.value
       if (check.kind === 'datetime') out.format = 'date-time'
       if (check.kind === 'url') out.format = 'uri'
       if (check.kind === 'regex') out.pattern = check.regex.source
@@ -44,8 +45,26 @@ export const contracts = { 'payload': homePreviewSchema, 'response': homePreview
 export function documentSchema(name: string, schema: z.ZodTypeAny) {
   return { $schema: 'https://json-schema.org/draft/2020-12/schema', title: `Home preview ${name}`, $comment: 'Generated from Zod. Cross-field invariants: docs/features/home-preview-contract.md; enforced by Zod and later BE parity tests.', ...project(schema) }
 }
+export function vertexSchema(schema: Record<string, any>): Record<string, any> {
+  if (schema.anyOf) return { ...vertexSchema(schema.anyOf.find((item: any) => item.type !== 'null')), nullable: true }
+  const out: Record<string, any> = {}
+  for (const key of ['enum', 'minimum', 'maximum', 'minItems', 'maxItems', 'required']) if (schema[key] !== undefined) out[key] = schema[key]
+  if (schema.type) out.type = schema.type.toUpperCase()
+  if (schema.format === 'date-time') out.format = schema.format
+  if (schema.properties) { out.properties = Object.fromEntries(Object.entries(schema.properties).map(([key, child]) => [key, vertexSchema(child as Record<string, any>)])); out.propertyOrdering = Object.keys(schema.properties) }
+  if (schema.items) out.items = vertexSchema(schema.items)
+  return out
+}
+export function analysisVertexSchema() {
+  const out = vertexSchema(project(homePreviewAnalysisSchema))
+  out.required = Object.keys(out.properties)
+  const watchpoint = out.properties.player_watchpoints.properties.data.items
+  watchpoint.required = Object.keys(watchpoint.properties)
+  return out
+}
 if (process.argv.includes('--write')) {
   for (const [name, schema] of Object.entries(contracts)) writeFileSync(fileURLToPath(new URL(`../../docs/spec/schemas/home-preview-${name}.schema.json`, import.meta.url)), JSON.stringify(documentSchema(name, schema), null, 2) + '\n')
+  writeFileSync(fileURLToPath(new URL('../../docs/spec/schemas/home-preview-analysis.vertex.schema.json', import.meta.url)), JSON.stringify(analysisVertexSchema(), null, 2) + '\n')
   const match = sampleMatches[0]!
   const scenarios = Object.fromEntries(['ready', 'partial', 'previous', 'pending', 'failed', 'unavailable', 'facts'].map(state => [state, buildMockResponse(match, state, ['pending', 'failed', 'unavailable'].includes(state) ? null : buildMockPreview(match, state))]))
   writeFileSync(fileURLToPath(new URL('../src/mocks/home-preview/responses.json', import.meta.url)), JSON.stringify(scenarios, null, 2) + '\n')

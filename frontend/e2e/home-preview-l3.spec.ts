@@ -33,7 +33,7 @@ test('isolated API and DB publication reaches the real main page', async ({ page
   const odds = home.locator('#preview-odds .hp-odds').first()
   await expect(odds.locator('span')).toHaveText(['헐 시티 승', '무승부', '브렌트포드 승'])
   await home.locator('#preview-injuries').scrollIntoViewIfNeeded()
-  await expect(home.getByTestId('key-absence').first()).toContainText('출전 기록을 근거로')
+  await expect(home.getByTestId('key-absence').first()).toContainText('2026시즌')
   await expect.poll(() => home.locator('#preview-injuries').evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThan(.99)
   await page.screenshot({ path: '../out/home-preview/improved-injuries-mobile.png' })
   await home.locator('#preview-external').scrollIntoViewIfNeeded()
@@ -44,4 +44,102 @@ test('isolated API and DB publication reaches the real main page', async ({ page
   await page.screenshot({ path: '../out/home-preview/improved-injuries-desktop.png' })
   expect(newApiReads.filter(url => url.includes('/prematch'))).toHaveLength(3)
 
+})
+
+test('player watchpoints use translated names, right-side portraits, and folded records; injuries keep a 2x2 matrix', async ({ page }) => {
+  await page.goto('/')
+  const home = page.getByTestId('home-preview-real')
+  await home.locator('.hp-match-strip button[data-fixture-id="1557441"]').click()
+  const watched = home.getByTestId('player-watchpoint')
+  await expect(watched).toHaveCount(2)
+  await expect(watched.first()).toContainText('카마다 다이치')
+  await expect(watched.last()).toContainText('하비어 바른스')
+  await expect(watched.locator('img')).toHaveCount(2)
+  for (const size of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(size)
+    await home.locator('#preview-players').scrollIntoViewIfNeeded()
+    await expect.poll(() => home.locator('#preview-players').evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThan(.99)
+    const detail = watched.first().getByTestId('player-watchpoint-details')
+    await expect(detail).not.toHaveAttribute('open', '')
+    await expect.poll(() => watched.locator('img').evaluateAll(images => images.every(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true)
+    await page.screenshot({ path: `../out/home-preview/player-cards-${size.width}-closed.png` })
+    await detail.locator('summary').click()
+    await expect(detail).toContainText('선정 근거')
+    await expect(detail).toContainText('1골 · 3도움')
+    await expect(detail).toContainText('자료 기준')
+    await page.screenshot({ path: `../out/home-preview/player-cards-${size.width}-open.png` })
+    await detail.locator('summary').click()
+    await home.locator('#preview-injuries').scrollIntoViewIfNeeded()
+    const injured = home.getByTestId('key-absence')
+    await expect(injured).toHaveCount(4)
+    await expect(injured.locator('img')).toHaveCount(4)
+    const boxes = await injured.evaluateAll(cards => cards.map(card => { const r = card.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right } }))
+    expect(boxes[0]!.y).toBe(boxes[1]!.y); expect(boxes[2]!.y).toBe(boxes[3]!.y)
+    expect(boxes[0]!.x).toBe(boxes[2]!.x); expect(boxes[1]!.x).toBe(boxes[3]!.x)
+    expect(boxes.every(box => box.right <= size.width)).toBe(true)
+    await expect.poll(() => home.locator('#preview-injuries').evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThan(.99)
+    await page.screenshot({ path: `../out/home-preview/injury-portraits-${size.width}.png` })
+  }
+})
+
+test('expanded player reason matches the actual stored LLM response with DB records and portraits', async ({ page }) => {
+  const saved = await page.request.get('http://127.0.0.1:8017/api/v1/home/fixtures/1557444/prematch')
+  expect(saved.ok()).toBe(true)
+  const preview = (await saved.json()).preview
+  const picks = preview.analysis.player_watchpoints.data
+  expect(picks.length).toBeGreaterThan(0)
+  const loaded = page.waitForResponse(response => response.url().endsWith('/api/v1/home/fixtures/1557444/prematch') && response.status() === 200, { timeout: 15000 })
+  expect(picks.every((pick: any) => typeof pick.reason === 'string' && pick.reason.length > 0)).toBe(true)
+  await page.goto('/')
+  await loaded
+  const home = page.getByTestId('home-preview-real')
+  const points = home.getByTestId('player-watchpoint')
+  await expect(points).toHaveCount(picks.length)
+  for (const size of [{ width:1440,height:1000 }, { width:390,height:844 }]) {
+    await page.setViewportSize(size)
+    await home.locator('#preview-players').scrollIntoViewIfNeeded()
+    await expect.poll(() => home.locator('#preview-players').evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThan(.99)
+    const detail = points.first().getByTestId('player-watchpoint-details')
+    await expect(detail).not.toHaveAttribute('open', '')
+    await expect(points.first().locator('img')).toHaveCount(1)
+    await expect.poll(() => points.first().locator('img').evaluate(img => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+    await detail.locator('summary').click()
+    await expect(detail.getByTestId('player-selection-reason')).toHaveText(picks[0].reason)
+    const record = preview.facts.player_spotlights.data.find((row: any) => row.player_id === picks[0].player_id && row.team_id === picks[0].team_id)
+    await expect(detail).toContainText(record.record_notes[picks[0].focus])
+    await expect(detail).toContainText('자료 기준')
+    await page.screenshot({ path:`../out/home-preview/llm-player-reason-${size.width}.png` })
+    await detail.locator('summary').click()
+  }
+})
+
+test('complex LLM reasons distinguish season, recent observed samples, and verified team context', async ({ page }) => {
+  const saved = await page.request.get('http://127.0.0.1:8017/api/v1/home/fixtures/1557445/prematch')
+  const preview = (await saved.json()).preview
+  const picks = preview.analysis.player_watchpoints.data
+  expect(picks.length).toBe(2)
+  expect(picks.every((pick: any) => pick.reason.split(/[.!?]/).filter((sentence: string) => sentence.trim()).length >= 3)).toBe(true)
+  await page.goto('/')
+  const home = page.getByTestId('home-preview-real')
+  await home.locator('.hp-match-strip button[data-fixture-id="1557445"]').click()
+  const first = home.getByTestId('player-watchpoint').first()
+  const player = preview.facts.player_spotlights.data.find((row: any) => row.player_id === picks[0].player_id)
+  await expect(first).toContainText(player.player_name)
+  for (const size of [{width:1440,height:1000},{width:390,height:844}]) {
+    await page.setViewportSize(size)
+    const info = first.getByTestId('player-watchpoint-details')
+    await info.locator('summary').click()
+    await expect(info.getByTestId('player-selection-reason')).toHaveText(picks[0].reason)
+    await expect(info).toContainText('득점 자료 6경기 합계 4골')
+    await expect(info).toContainText('최근 팀 경기 기록은 모든 대회 기준입니다.')
+    if (size.width === 390) {
+      const width = await first.evaluate(el => el.getBoundingClientRect().width)
+      expect(width).toBeGreaterThan(280)
+    }
+    await expect(first.locator('img')).toHaveCount(1)
+    await home.locator('#preview-players').scrollIntoViewIfNeeded()
+    await expect.poll(() => home.locator('#preview-players').evaluate(el => Number(getComputedStyle(el).opacity))).toBeGreaterThan(.99)
+    await page.screenshot({path:`../out/home-preview/complex-player-reason-${size.width}.png`})
+    await info.locator('summary').click()
+  }
 })

@@ -69,3 +69,11 @@ PRE-02에서 DB coverage와 웹/부상/배당/Vertex 실응답·이용 범위·�
 v1.1은 과거 저장본 호환을 위해 선택 필드를 확장한다. injuries 행의 importance_evidence는 DB 근거 source_ids, 최근 표본 수/선발·출전 시간(NULL 허용), 명시된 시즌별 appearances/minutes, 서버 eligible 및 selection_reason을 담는다. analysis.key_absences는 기존 analysis 호출이 작성하는 선택 section으로, data는 team_id/player_id/reason/evidence_ids 배열이다. 팀당 2명·전체 4명, 후보 소속/적격/중복/상태 충돌/부상과 DB 출전 근거를 검증한다. 새 입력의 reason은 서버 selection_reason과 같아야 한다. 기존 데이터는 필드 없이 유효하며 기본 목록은 접힌 전체 명단으로 보여준다. AI는 선별과 순위만 판단하고 수치 설명은 DB 문장을 유지한다.
 
 외부 predictions에는 API 자체 알고리즘과 독립 매체의 검증된 원문 의견을 함께 저장할 수 있다. API 값이 있어도 검색을 생략하지 않는다. 배당 home/draw/away 의미는 유지하며 화면 라벨은 해당 fixture의 팀 이름으로 표시한다. 공개 조회에서 검색/생성하지 않는다.
+
+### 주요 선수·사진·기록 계약 확장
+
+선택 facts.player_spotlights는 팀/선수 ID, 한글 표시명·원문 이름, photo_url, 해당 시즌 출전/득점/도움/시간(nullable), 최근 표본 수·연속 기록 카운트와 서버 record_notes, DB source_ids를 담는다. analysis.player_watchpoints는 team_id/player_id/focus/evidence_ids를 선택하고 새 모델 응답은 선수별 선정 이유 reason을 필수로 작성한다. 기존 저장본의 공개 계약에서는 reason을 선택 필드로 허용한다. 검증된 후보/팀·중복·팀당 2명/합계 4명·존재하는 기록 focus·DB 근거를 검증한다. injuries와 spotlight 행의 선택 photo_url은 HTTP(S) URL 또는 null이다. 중요도 후보의 recognition_name은 DB 선수 이름이며 인지도 우선순위 판단용이다. 사진/번역은 조회 시 ID로 적용하고 원본 저장본을 변경하지 않는다. 상세는 home-preview-players.md를 따른다.
+
+LLM reason은 현재 기록에 대한 해석이며 기록 자체는 DB record_notes다. 카드 상세에서 ‘왜 눈여겨볼까요?’와 ‘확인된 기록’을 분리한다. reason이 없는 과거 저장본은 ‘선정 근거’와 저장된 기록만 제공하고 LLM 설명을 임의 생성하지 않는다. 새 provider 응답은 빈/누락 reason을 거절한다.
+
+복합 이유 확장: reason은 새 모델에서 3~5문장·최대 1,000자이며 최소 두 개의 확인된 기록 축을 연결한다. facts.player_spotlights의 선택 recent_form은 팀 경기 수·확인 출전 수와 goals/assists/minutes의 값 및 각 sample 수를 구분한다. record_notes.recent_contribution과 focus recent_contribution은 최근 기록을 보여준다. 각 sample은 확인 출전 수 이하이며 sample=0일 때만 값이 null이다. 세부는 home-preview-players.md의 최신 절을 따른다.

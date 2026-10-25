@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HomePlayerWatchpoints from '@/components/home-preview/HomePlayerWatchpoints.vue'
 import HomeInjurySummary from '@/components/home-preview/HomeInjurySummary.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Clock3, Info, RotateCw, ShieldAlert } from 'lucide-vue-next'
@@ -242,6 +243,7 @@ function swipe(event: TouchEvent) {
               <aside id="preview-ai" tabindex="-1" class="hp-prediction"><span>AI 경기 예측</span><p v-if="!prediction" class="hp-unavailable">AI 경기 예측 자료가 없습니다.</p><template v-else><div class="hp-prediction__score"><b>{{ prediction.home_goals }}</b><span>:</span><b>{{ prediction.away_goals }}</b></div><strong>{{ prediction.home_goals === prediction.away_goals ? '무승부 예상' : `${prediction.home_goals > prediction.away_goals ? match.home.name : match.away.name} 우세 예상` }}</strong><p>{{ prediction.reason }}</p></template></aside>
             </div>
 
+            <HomePlayerWatchpoints :preview="preview" />
             <HomeInjurySummary :preview="preview" />
 
             <section id="preview-form" tabindex="-1" class="hp-form-section hp-reveal"><header class="hp-subhead"><h3>최근 5경기</h3><span>킥오프 이전 완료 경기 · 모든 대회 · 샘플</span></header><div class="hp-form-grid"><article v-for="(team, side) in [match.home, match.away]" :key="team.id" class="hp-form"><header><b>{{ team.name }}</b><div><span v-for="(row, r) in formRows(side)" :key="r" :class="['hp-form-badge', `hp-form-badge--${row.result}`]">{{ row.result }}</span></div></header><p v-if="formRows(side).length === 0" class="hp-unavailable">최근 경기 자료가 없습니다.</p><template v-else><p v-if="formRows(side).length < 5" class="hp-inline-note">확인 가능한 완료 경기 {{ formRows(side).length }}개만 표시합니다.</p><table><caption class="hp-sr-only">{{ team.name }} 최근 5경기 샘플</caption><thead><tr><th>날짜</th><th>대회</th><th>상대</th><th>결과</th></tr></thead><tbody><tr v-for="row in formRows(side)" :key="row.date"><td>{{ row.date }}</td><td>{{ row.competition }}</td><td>{{ row.opponent }}</td><td><b>{{ row.score }}</b></td></tr></tbody></table></template></article></div></section>

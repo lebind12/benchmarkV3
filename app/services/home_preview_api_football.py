@@ -109,6 +109,7 @@ class ApiFootballPreviewEvidence:
                             "team_id": row["team"]["id"],
                             "player_id": row["player"]["id"],
                             "player_name": row["player"]["name"],
+                            "photo_url": row["player"].get("photo"),
                             "availability": availability,
                             "detail": row["player"].get("reason") or "사유 미제공",
                             "impact": "출전 불가" if availability == "out" else "출전 불확실",
@@ -119,8 +120,12 @@ class ApiFootballPreviewEvidence:
                 if injuries:
                     sid = source("injuries", "API-Football 부상·출전 정보", {"fixture": fixture_id})
                     value["facts"]["injuries"] = {
-                        "status": "partial" if any(row.get("status_conflict") for row in injuries) else "available",
-                        "reason": "source_unverified" if any(row.get("status_conflict") for row in injuries) else None,
+                        "status": "partial"
+                        if any(row.get("status_conflict") for row in injuries)
+                        else "available",
+                        "reason": "source_unverified"
+                        if any(row.get("status_conflict") for row in injuries)
+                        else None,
                         "as_of": retrieved,
                         "source_ids": [sid],
                         "data": injuries,

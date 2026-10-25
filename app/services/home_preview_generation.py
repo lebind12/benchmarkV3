@@ -1,9 +1,11 @@
 """Bounded internal generation pipeline; public routes never import this module."""
 
+import re
 from copy import deepcopy
 from datetime import datetime, timedelta
 from uuid import uuid4
 
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 
@@ -15,10 +17,10 @@ from app.models.home_preview import (
     HomePreviewVersion,
 )
 from app.schemas.home_preview import PreviewPayload
-from app.services.home_preview import build_db_snapshot, eligible_rows
+from app.services.home_preview import build_db_snapshot, eligible_rows, localize_injury_names
 from app.services.home_preview_policy import digest, identity, slot_time, utcnow
 
-GENERATION_VERSION = "home-preview-1.1-prompt-4"
+GENERATION_VERSION = "home-preview-1.1-prompt-8"
 LEASE_SECONDS = 300
 
 
@@ -162,9 +164,11 @@ def process_fixture(
                 if key in evidence_usage:
                     usage[key] = count + evidence_usage[key]
         from app.services.home_preview_injuries import enrich_importance
+        from app.services.home_preview_players import enrich_player_spotlights
 
         with session_factory() as session:
             enrich_importance(session, payload, now=now)
+            enrich_player_spotlights(session, payload, now=now)
         PreviewPayload.model_validate(payload)
         if payload["is_mock"] is not False:
             raise ValueError("mock_payload_not_publishable")
@@ -191,7 +195,14 @@ def process_fixture(
         if previous_id is None:
             if provider and payload["sources"]:
                 usage["model_requests"] = usage.get("model_requests", 0) + 1
-                analysis, model_usage = provider(deepcopy(payload))
+                model_input = deepcopy(payload)
+                with session_factory() as session:
+                    localize_injury_names(session, model_input)
+                for row in list(model_input["facts"]["injuries"]["data"] or []) + list(
+                    (model_input["facts"].get("player_spotlights") or {}).get("data") or []
+                ):
+                    row.pop("photo_url", None)
+                analysis, model_usage = provider(model_input)
                 payload["analysis"] = analysis
                 payload["generated_at"] = clock().isoformat()
                 usage.update(model_usage)
@@ -284,6 +295,14 @@ def process_fixture(
             publication = session.get(HomePreviewPublication, fixture_id)
             if attempt and attempt.owner == owner and attempt.state == "running":
                 attempt.usage = {**usage, "failure_type": type(exc).__name__}
+                if isinstance(exc, ValidationError):
+                    codes = [
+                        str((error.get("ctx") or {}).get("error", ""))
+                        for error in exc.errors(include_input=False)
+                    ]
+                    codes = [code for code in codes if re.fullmatch(r"[a-z_]{1,80}", code)]
+                    if codes:
+                        attempt.usage["validation_code"] = codes[0]
                 if isinstance(exc, ValueError) and str(exc) in {
                     "incomplete_model_response",
                     "empty_model_response",

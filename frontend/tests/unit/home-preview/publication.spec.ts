@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { contracts, documentSchema } from '../../../scripts/export-home-preview-contracts'
+import { contracts, documentSchema, analysisVertexSchema } from '../../../scripts/export-home-preview-contracts'
 import { homePreviewResponseSchema } from '@/lib/api/homePreviewResponse'
 import { homePreviewSchema, recentMatchSchema, recentMatchResult } from '@/lib/api/homePreviewSchema'
 import { homeRecommendationsSchema } from '@/lib/api/homeRecommendationsSchema'
@@ -117,4 +117,9 @@ it('allows a successful attempt to start before its generated publication comple
   expect(homePreviewResponseSchema.safeParse(value).success).toBe(true)
   value.publication.served = 'previous'; value.refresh.state = 'failed'; value.refresh.reason = 'generation_failed'
   expect(homePreviewResponseSchema.safeParse(value).success).toBe(false)
+})
+
+it('keeps the Vertex analysis contract synchronized with player selections', () => {
+  const file = resolve(process.cwd(), '../docs/spec/schemas/home-preview-analysis.vertex.schema.json')
+  expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual(analysisVertexSchema())
 })

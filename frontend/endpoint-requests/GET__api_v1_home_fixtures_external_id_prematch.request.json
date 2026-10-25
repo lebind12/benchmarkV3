@@ -35,7 +35,7 @@
     "invalid_json"
   ],
   "notes_for_be": [
-    "FE-first contract draft; this endpoint is not implemented.",
+    "Implemented locally; production rollout and PRE-12 acceptance remain separate.",
     "DB is the only data source for public GET. No live score or polling.",
     "Strict server schema, source/fixture references, snapshot time and fact verification before saving.",
     "Missing/unverified/error sections require data=null and a public reason code.",
@@ -43,7 +43,8 @@
     "Keep existing broadcast Markdown API behavior while adding a separate stored JSON path.",
     "FE error proposal: invalid parameter 422, unknown fixture 404, existing fixture with no snapshot 200 envelope, database unavailable 503; finalize in PRE-03.",
     "See docs/features/home-preview-contract.md for exact state/time/cup invariants. No automatic generation on GET.",
-    "Unreleased payload v1.1: search_suggestions=null or Google supplied rendered_content + queries; exact supplied style rendered in a no-script sandbox iframe. Never use arbitrary source HTML."
+    "Unreleased payload v1.1: search_suggestions=null or Google supplied rendered_content + queries; exact supplied style rendered in a no-script sandbox iframe. Never use arbitrary source HTML.",
+    "Optional player_spotlights/player_watchpoints fields provide DB-backed player records and ID-based selections. Injury/spotlight photo_url uses stored API/DB URLs; player names use player_translation at read time. Details: docs/features/home-preview-players.md."
   ],
   "payload_schema_ref": "docs/spec/schemas/home-preview-payload.schema.json"
 }

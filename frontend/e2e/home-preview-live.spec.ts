@@ -71,7 +71,10 @@ test('key absences are capped per team, full list expands, and odds follow the s
   const payload = response(90002)
   const preview = payload.preview
   preview.sources.push(...['injury-test', 'usage-test'].map((id, i) => ({ id, fixture_id: 90002, kind: i ? 'db' : 'api', title: id, url: i ? null : 'https://source.example.test/injuries', published_at: null, retrieved_at: preview.as_of })))
-  const rows = [preview.fixture.home, preview.fixture.away].flatMap((team: any, side: number) => [0, 1, 2].map(i => ({ team_id: team.external_id, player_id: 1000 + side * 10 + i, player_name: `${team.name} 선수 ${i + 1}`, availability: 'out', detail: 'Injury', impact: '출전 불가', source_ids: ['injury-test'], importance_evidence: { eligible: true, recent_games: 10, lineup_games: 10, player_games: 10, recent_starts: 5, recent_minutes: 450, seasons: [], source_ids: ['usage-test'] } })))
+  const rows = [preview.fixture.home, preview.fixture.away].flatMap((team: any, side: number) => [0, 1, 2].map(i => ({ team_id: team.external_id, player_id: 1000 + side * 10 + i, player_name: `${team.name} 선수 ${i + 1}`, photo_url: `https://media.api-sports.io/football/players/${1000 + side * 10 + i}.png`, availability: 'out', detail: i === 1 ? 'Red Card' : 'Injury', impact: '출전 불가', source_ids: ['injury-test'], importance_evidence: { eligible: true, recent_games: 10, lineup_games: 10, player_games: 10, recent_starts: 5, recent_minutes: 450, seasons: [], source_ids: ['usage-test'] } })))
+  preview.facts.player_spotlights = { status: 'available', reason: null, as_of: preview.as_of, source_ids: ['usage-test'], data: [{ team_id: preview.fixture.home.external_id, player_id: 2000, player_name: '기록 선수', canonical_name: 'Player', photo_url: 'https://media.api-sports.io/football/players/2000.png', season_year: 2026, appearances: 7, goals: 5, assists: 1, minutes: 500, recent_match_count: 3, scoring_streak: 3, assist_streak: 0, involvement_streak: 3, record_notes: { season_contribution: '2026시즌 7경기 · 5골 · 1도움', scoring_streak: '확인된 최근 팀 3경기에서 연속 득점', assist_streak: null, involvement_streak: '확인된 최근 팀 3경기에서 연속 공격포인트' }, source_ids: ['usage-test'] }] }
+  preview.analysis.player_watchpoints = { status: 'available', reason: null, as_of: preview.as_of, source_ids: ['usage-test'], data: [{ team_id: preview.fixture.home.external_id, player_id: 2000, focus: 'scoring_streak', reason: '득점 흐름이 이어지고 있어 이번 경기의 공격 기여를 눈여겨볼 선수입니다.', evidence_ids: ['usage-test'] }] }
+  await page.route('https://media.api-sports.io/football/players/**', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="gray"/></svg>' }))
   preview.facts.injuries = { status: 'available', reason: null, as_of: preview.as_of, source_ids: ['injury-test'], data: rows }
   preview.analysis.key_absences = { status: 'available', reason: null, as_of: preview.as_of, source_ids: ['injury-test', 'usage-test'], data: rows.filter((_: any, i: number) => i % 3 < 2).map((row: any) => ({ team_id: row.team_id, player_id: row.player_id, reason: '최근 10경기 중 선발 5회', evidence_ids: ['injury-test', 'usage-test'] })) }
   await page.route('**/api/v1/home/**', async route => {
@@ -81,6 +84,31 @@ test('key absences are capped per team, full list expands, and odds follow the s
   await page.goto('/')
   const home = page.getByTestId('home-preview-real')
   await expect(home.getByTestId('key-absence')).toHaveCount(4)
+  await expect(home.getByTestId('key-absence').locator('img')).toHaveCount(4)
+  const watched = home.getByTestId('player-watchpoint')
+  await expect(watched).toHaveCount(1)
+  await expect(watched.locator('img')).toHaveAttribute('src', 'https://media.api-sports.io/football/players/2000.png')
+  const info = watched.getByTestId('player-watchpoint-details')
+  await expect(info).not.toHaveAttribute('open', '')
+  await info.locator('summary').click()
+  await expect(info).toHaveAttribute('open', '')
+  await expect(info).toContainText('왜 눈여겨볼까요?')
+  await expect(info).toContainText('최근 팀 3경기에서 연속 득점')
+  await expect(info).toContainText('2026시즌 7경기 · 5골 · 1도움')
+  await info.locator('summary').click()
+  await expect(info).not.toHaveAttribute('open', '')
+
+  for (const size of [{width:1440,height:1000},{width:390,height:844}]) {
+    await page.setViewportSize(size)
+    const boxes = await home.getByTestId('key-absence').evaluateAll(cards => cards.map(card => { const rect = card.getBoundingClientRect(); return { x: rect.x, y: rect.y, right: rect.right } }))
+    expect(boxes[0]!.y).toBe(boxes[1]!.y)
+    expect(boxes[2]!.y).toBe(boxes[3]!.y)
+    expect(boxes[0]!.x).toBe(boxes[2]!.x)
+    expect(boxes[1]!.x).toBe(boxes[3]!.x)
+    expect(boxes[0]!.x).toBeLessThan(boxes[1]!.x)
+    expect(boxes.every(box => box.right <= size.width)).toBe(true)
+  }
+
   const full = home.getByTestId('all-injuries')
   await expect(full).not.toHaveAttribute('open', '')
   await full.locator('summary').click()
@@ -94,5 +122,6 @@ test('key absences are capped per team, full list expands, and odds follow the s
   const next = response(90001).preview
   await expect(home.locator('#preview-odds .hp-odds').first().locator('span')).toHaveText([`${next.fixture.home.name} 승`, '무승부', `${next.fixture.away.name} 승`])
   await expect(home.getByTestId('key-absence')).toHaveCount(0)
+  await expect(home.getByTestId('player-watchpoint')).toHaveCount(0)
   await expect(full).not.toHaveAttribute('open', '')
 })

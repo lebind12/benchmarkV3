@@ -66,7 +66,11 @@ def selection_reason(evidence):
             numbers.append(f"{season['minutes']}분")
         if numbers:
             parts.append(f"{season['season_year']}시즌 " + "·".join(numbers))
-    return ". ".join(parts) + ". 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+    return (
+        ". ".join(parts) + ". 출전 기록을 근거로 주요 결장 변수로 선별했습니다."
+        if parts
+        else "확인된 선수 정보와 부상·출전 상태를 바탕으로 주요 변수로 선별했습니다."
+    )
 
 
 def enrich_importance(session, payload, *, now):
@@ -123,6 +127,12 @@ def enrich_importance(session, payload, *, now):
                 )
             )
         )
+        known_players = {
+            player.external_id: player
+            for player in session.scalars(
+                select(Player).where(Player.external_id.in_(ids), Player.updated_at <= cutoff)
+            )
+        }
         stats = session.execute(
             select(Player.external_id, PlayerSeasonStat)
             .join(PlayerSeasonStat, PlayerSeasonStat.player_id == Player.id)
@@ -158,10 +168,12 @@ def enrich_importance(session, payload, *, now):
                 ):
                     player_groups.append(group["players"])
                     break
-        observations = [detail.updated_at for detail in details] + [
-            stat.updated_at for _pid, stat in stats
-        ]
-        if not lineups and not player_groups and not stats:
+        observations = (
+            [detail.updated_at for detail in details]
+            + [stat.updated_at for _pid, stat in stats]
+            + [player.updated_at for player in known_players.values()]
+        )
+        if not lineups and not player_groups and not stats and not known_players:
             continue
         sid = f"db-injury-participation-{team_id}"
         observed = max(observations).isoformat()
@@ -170,7 +182,7 @@ def enrich_importance(session, payload, *, now):
                 "id": sid,
                 "fixture_id": fixture.external_id,
                 "kind": "db",
-                "title": f"{payload['fixture'][side]['name']} DB 출전 기록 (최근 최대 10경기·리그 최신 2시즌)",
+                "title": f"{payload['fixture'][side]['name']} DB 선수 정보·출전 기록 (최근 최대 10경기·리그 최신 2시즌)",
                 "url": None,
                 "published_at": None,
                 "retrieved_at": observed,
@@ -209,6 +221,11 @@ def enrich_importance(session, payload, *, now):
                 "seasons": seasons,
                 "source_ids": [sid],
             }
-            evidence["eligible"] = qualifies(evidence) and not injury.get("status_conflict", False)
+            known = known_players.get(pid)
+            if known:
+                evidence["recognition_name"] = known.name
+            evidence["eligible"] = (qualifies(evidence) or known is not None) and not injury.get(
+                "status_conflict", False
+            )
             evidence["selection_reason"] = selection_reason(evidence)
             injury["importance_evidence"] = evidence

@@ -273,13 +273,15 @@
                     },
                     "rendered_content": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "maxLength": 32768
                     },
                     "queries": {
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "maxLength": 500
                       },
                       "maxItems": 10
                     }
@@ -786,6 +788,126 @@
                       ]
                     }
                   }
+                },
+                "player_watchpoints": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "reason",
+                    "as_of",
+                    "source_ids",
+                    "data"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "partial",
+                        "missing",
+                        "unverified",
+                        "error"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_collected",
+                            "insufficient_sample",
+                            "confirmed_no_absences",
+                            "no_source",
+                            "source_unverified",
+                            "upstream_failed",
+                            "outside_generation_window",
+                            "generation_pending",
+                            "generation_failed",
+                            "refresh_failed",
+                            "kickoff_passed",
+                            "no_valid_snapshot",
+                            "budget_deferred"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "as_of": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "team_id",
+                              "player_id",
+                              "focus",
+                              "evidence_ids"
+                            ],
+                            "properties": {
+                              "team_id": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "player_id": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "focus": {
+                                "type": "string",
+                                "enum": [
+                                  "season_contribution",
+                                  "scoring_streak",
+                                  "assist_streak",
+                                  "involvement_streak",
+                                  "recent_contribution"
+                                ]
+                              },
+                              "reason": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 1000
+                              },
+                              "evidence_ids": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "minItems": 1
+                              }
+                            }
+                          },
+                          "maxItems": 4
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
                 }
               }
             },
@@ -798,6 +920,350 @@
                 "away_form"
               ],
               "properties": {
+                "player_spotlights": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status",
+                    "reason",
+                    "as_of",
+                    "source_ids",
+                    "data"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "partial",
+                        "missing",
+                        "unverified",
+                        "error"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_collected",
+                            "insufficient_sample",
+                            "confirmed_no_absences",
+                            "no_source",
+                            "source_unverified",
+                            "upstream_failed",
+                            "outside_generation_window",
+                            "generation_pending",
+                            "generation_failed",
+                            "refresh_failed",
+                            "kickoff_passed",
+                            "no_valid_snapshot",
+                            "budget_deferred"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "as_of": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "team_id",
+                              "player_id",
+                              "player_name",
+                              "canonical_name",
+                              "season_year",
+                              "appearances",
+                              "goals",
+                              "assists",
+                              "minutes",
+                              "recent_match_count",
+                              "scoring_streak",
+                              "assist_streak",
+                              "involvement_streak",
+                              "record_notes",
+                              "source_ids"
+                            ],
+                            "properties": {
+                              "team_id": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "player_id": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "player_name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "photo_url": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "format": "uri"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "canonical_name": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "season_year": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "appearances": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "goals": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "assists": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "minutes": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "recent_form": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "team_match_count",
+                                  "observed_appearances",
+                                  "goals",
+                                  "assists",
+                                  "minutes",
+                                  "goal_samples",
+                                  "assist_samples",
+                                  "minute_samples"
+                                ],
+                                "properties": {
+                                  "team_match_count": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 10
+                                  },
+                                  "observed_appearances": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 10
+                                  },
+                                  "goals": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "assists": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "minutes": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "goal_samples": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 10
+                                  },
+                                  "assist_samples": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 10
+                                  },
+                                  "minute_samples": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 10
+                                  }
+                                }
+                              },
+                              "recent_match_count": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 10
+                              },
+                              "scoring_streak": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 10
+                              },
+                              "assist_streak": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 10
+                              },
+                              "involvement_streak": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 10
+                              },
+                              "record_notes": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "season_contribution",
+                                  "scoring_streak",
+                                  "assist_streak",
+                                  "involvement_streak"
+                                ],
+                                "properties": {
+                                  "recent_contribution": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "season_contribution": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "scoring_streak": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "assist_streak": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "involvement_streak": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "source_ids": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "minItems": 1
+                              }
+                            }
+                          },
+                          "maxItems": 8
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
                 "injuries": {
                   "type": "object",
                   "additionalProperties": false,
@@ -903,6 +1369,10 @@
                                   "source_ids"
                                 ],
                                 "properties": {
+                                  "recognition_name": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
                                   "selection_reason": {
                                     "type": "string",
                                     "minLength": 1
@@ -1001,6 +1471,17 @@
                               "player_name": {
                                 "type": "string",
                                 "minLength": 1
+                              },
+                              "photo_url": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "format": "uri"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               },
                               "availability": {
                                 "type": "string",

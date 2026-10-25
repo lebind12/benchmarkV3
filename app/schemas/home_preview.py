@@ -131,9 +131,67 @@ def validate_payload(v):
         require(injuries["reason"] == "confirmed_no_absences", "unconfirmed_empty_injuries")
     for row in injuries["data"] or []:
         require(
+            not row.get("photo_url") or row["photo_url"].startswith(("http://", "https://")),
+            "unsafe_photo_url",
+        )
+        require(
             row["team_id"] in [fixture[s]["external_id"] for s in ("home", "away")], "injury_team"
         )
         refs(row["source_ids"])
+    spotlights = v["facts"].get("player_spotlights") or {}
+    known, seen_players = {}, set()
+    for player in spotlights.get("data") or []:
+        require(
+            not player.get("photo_url") or player["photo_url"].startswith(("http://", "https://")),
+            "unsafe_photo_url",
+        )
+        key = (player["team_id"], player["player_id"])
+        require(
+            key not in seen_players
+            and key[0] in [fixture[s]["external_id"] for s in ("home", "away")],
+            "invalid_spotlight_identity",
+        )
+        seen_players.add(key)
+        known[key] = player
+        refs(player["source_ids"], ["db"])
+        form = player.get("recent_form")
+        if form:
+            require(
+                form["team_match_count"] == player["recent_match_count"]
+                and form["observed_appearances"] <= form["team_match_count"],
+                "invalid_recent_player_sample",
+            )
+            for field, sample in (
+                ("goals", "goal_samples"),
+                ("assists", "assist_samples"),
+                ("minutes", "minute_samples"),
+            ):
+                require(
+                    form[sample] <= form["observed_appearances"]
+                    and (form[field] is None) == (form[sample] == 0),
+                    "invalid_recent_player_unknowns",
+                )
+        for focus in ("scoring_streak", "assist_streak", "involvement_streak"):
+            require(player[focus] <= player["recent_match_count"], "streak_exceeds_sample")
+            require(
+                not player["record_notes"][focus] or player[focus] >= 2, "unverified_streak_note"
+            )
+    watched, watch_counts = set(), {}
+    for pick in (v["analysis"].get("player_watchpoints") or {}).get("data") or []:
+        key = (pick["team_id"], pick["player_id"])
+        require(
+            key in known and known[key]["record_notes"].get(pick["focus"]),
+            "unknown_player_watchpoint",
+        )
+        require(key not in watched, "duplicate_player_watchpoint")
+        watched.add(key)
+        watch_counts[key[0]] = watch_counts.get(key[0], 0) + 1
+        require(watch_counts[key[0]] <= 2, "player_watchpoint_team_limit")
+        refs(pick["evidence_ids"], ["db"])
+        require(
+            bool(set(pick["evidence_ids"]) & set(known[key]["source_ids"])),
+            "missing_player_record_evidence",
+        )
     selected = v["analysis"].get("key_absences") or {}
     seen, counts = set(), {}
     for pick in selected.get("data") or []:

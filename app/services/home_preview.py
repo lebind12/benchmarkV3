@@ -108,26 +108,32 @@ def eligible_rows(session, *, start=None, end=None, include_unranked=False):
 
 def localize_injury_names(session: Session, preview):
     """Resolve display names in one DB read; leave immutable source evidence untouched."""
-    injuries = preview["facts"]["injuries"]["data"] or []
+    injuries = list(preview["facts"]["injuries"]["data"] or []) + list(
+        (preview["facts"].get("player_spotlights") or {}).get("data") or []
+    )
     if not injuries:
         return
     ids = {row["player_id"] for row in injuries if row.get("player_id") is not None}
     legacy_names = {row["player_name"] for row in injuries if row.get("player_id") is None}
     rows = session.execute(
-        select(Player.external_id, Player.name, PlayerTranslation.name_ko)
+        select(Player.external_id, Player.name, PlayerTranslation.name_ko, Player.photo_url)
         .outerjoin(PlayerTranslation, PlayerTranslation.player_id == Player.id)
         .where(or_(Player.external_id.in_(ids), Player.name.in_(legacy_names)))
     ).all()
-    by_id = {pid: ko for pid, _name, ko in rows}
+    by_id = {pid: (ko, photo) for pid, _name, ko, photo in rows}
     by_name = {}
-    for pid, name, ko in rows:
-        by_name.setdefault(name, []).append((pid, ko))
+    for pid, name, ko, photo in rows:
+        by_name.setdefault(name, []).append((pid, ko, photo))
     for injury in injuries:
         if injury.get("player_id") is not None:
-            translated = by_id.get(injury["player_id"])
+            translated, photo = by_id.get(injury["player_id"], (None, None))
         else:
             matches = by_name.get(injury["player_name"], [])
-            translated = matches[0][1] if len(matches) == 1 else None
+            translated, photo = (
+                (matches[0][1], matches[0][2]) if len(matches) == 1 else (None, None)
+            )
+        if photo:
+            injury["photo_url"] = photo
         if translated and translated.strip():
             injury["player_name"] = translated
 

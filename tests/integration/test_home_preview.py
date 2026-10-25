@@ -523,6 +523,24 @@ def test_injury_names_use_current_translation_by_external_id_with_safe_legacy_fa
         )
         stored = session.scalar(select(HomePreviewVersion))
         assert stored.payload["facts"]["injuries"]["data"][0]["player_name"] == "API abbreviated"
+        player = session.get(Player, players[0].id)
+        player.photo_url = "https://media.api-sports.io/football/players/700.png"
+        session.commit()
+        spotlight_only = {
+            "facts": {
+                "injuries": {"data": None},
+                "player_spotlights": {"data": [{"player_id": 700, "player_name": "Player"}]},
+            }
+        }
+        localize_injury_names(session, spotlight_only)
+        shown = spotlight_only["facts"]["player_spotlights"]["data"][0]
+        assert shown["player_name"] == "수정된 이름" and shown["photo_url"] == player.photo_url
+        assert (
+            read_preview(session, 1557444, now=NOW)["preview"]["facts"]["injuries"]["data"][0][
+                "photo_url"
+            ]
+            == player.photo_url
+        )
 
 
 def test_injury_importance_uses_db_participation_and_excludes_future_records(setup_db):
@@ -567,3 +585,102 @@ def test_injury_importance_uses_db_participation_and_excludes_future_records(set
         ]
         enrich_importance(session, fresh, now=NOW)
         assert "importance_evidence" not in fresh["facts"]["injuries"]["data"][0]
+
+
+def test_verified_identity_can_be_considered_for_recognition_without_invented_minutes(setup_db):
+    from app.models.player import Player
+    from app.services.home_preview_injuries import enrich_importance
+
+    _engine, factory = setup_db
+    with factory() as session:
+        player = Player(
+            external_id=555,
+            name="Recognized Player",
+            slug="recognition-test",
+            updated_at=NOW - timedelta(minutes=1),
+        )
+        session.add(player)
+        session.commit()
+        fixture = session.scalar(select(Fixture).where(Fixture.external_id == 1557444))
+        value = build_db_snapshot(session, fixture, now=NOW)
+        value["facts"]["injuries"]["data"] = [
+            {"team_id": 40, "player_id": 555, "player_name": "R. Player", "source_ids": ["inj"]}
+        ]
+        enrich_importance(session, value, now=NOW)
+        evidence = value["facts"]["injuries"]["data"][0]["importance_evidence"]
+        assert evidence["eligible"] and evidence["recognition_name"] == "Recognized Player"
+        assert evidence["recent_minutes"] is None and evidence["seasons"] == []
+        assert "출전 기록" not in evidence["selection_reason"]
+
+
+def test_player_watchlist_uses_season_and_exact_recent_fixture_sequence(setup_db):
+    from app.models import FixtureDetail
+    from app.models.player import Player, PlayerSeasonStat
+    from app.services.home_preview_players import enrich_player_spotlights
+
+    _engine, factory = setup_db
+    with factory() as session:
+        fixture = session.scalar(select(Fixture).where(Fixture.external_id == 1557444))
+        player = Player(
+            external_id=777,
+            name="Attacker",
+            slug="watchlist-test",
+            updated_at=NOW - timedelta(minutes=1),
+        )
+        session.add(player)
+        session.flush()
+        session.add(
+            PlayerSeasonStat(
+                player_id=player.id,
+                team_id=fixture.home_team_id,
+                league_id=fixture.league_id,
+                season_year=2026,
+                appearances=8,
+                goals=6,
+                assists=2,
+                minutes=600,
+                raw_stats={},
+                updated_at=NOW - timedelta(minutes=1),
+            )
+        )
+        recent = list(
+            session.scalars(
+                select(Fixture)
+                .where(Fixture.external_id.in_([100, 101, 102, 103, 104]))
+                .order_by(Fixture.kickoff_at.desc())
+            )
+        )
+        for i, row in enumerate(recent):
+            session.add(
+                FixtureDetail(
+                    fixture_id=row.id,
+                    players=[
+                        {
+                            "team": {"id": 40},
+                            "players": [
+                                {
+                                    "player": {"id": 777},
+                                    "statistics": [
+                                        {"goals": {"total": 1 if i < 3 else 0, "assists": 0}}
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                    updated_at=NOW - timedelta(minutes=1),
+                    fetched_at=NOW - timedelta(minutes=1),
+                )
+            )
+        session.commit()
+        value = build_db_snapshot(session, fixture, now=NOW)
+        enrich_player_spotlights(session, value, now=NOW)
+        result = value["facts"]["player_spotlights"]["data"][0]
+        assert result["scoring_streak"] == 3 and result["goals"] == 6
+        session.get(FixtureDetail, recent[1].id).fetched_at = NOW + timedelta(minutes=1)
+        session.commit()
+        fresh = build_db_snapshot(session, fixture, now=NOW)
+        enrich_player_spotlights(session, fresh, now=NOW)
+        assert fresh["facts"]["player_spotlights"]["data"][0]["scoring_streak"] == 1
+        assert (
+            fresh["facts"]["player_spotlights"]["data"][0]["record_notes"]["scoring_streak"] is None
+        )

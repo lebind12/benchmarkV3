@@ -433,6 +433,126 @@
           ]
         }
       }
+    },
+    "player_watchpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "partial",
+            "missing",
+            "unverified",
+            "error"
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "not_collected",
+                "insufficient_sample",
+                "confirmed_no_absences",
+                "no_source",
+                "source_unverified",
+                "upstream_failed",
+                "outside_generation_window",
+                "generation_pending",
+                "generation_failed",
+                "refresh_failed",
+                "kickoff_passed",
+                "no_valid_snapshot",
+                "budget_deferred"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "data": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "team_id",
+                  "player_id",
+                  "focus",
+                  "evidence_ids"
+                ],
+                "properties": {
+                  "team_id": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "player_id": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "focus": {
+                    "type": "string",
+                    "enum": [
+                      "season_contribution",
+                      "scoring_streak",
+                      "assist_streak",
+                      "involvement_streak",
+                      "recent_contribution"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "evidence_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1
+                  }
+                }
+              },
+              "maxItems": 4
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     }
   }
 }
