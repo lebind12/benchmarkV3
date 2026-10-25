@@ -194,28 +194,28 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | HOME-JSON-1 | DB/웹/AI 책임·JSON 계약 및 FE 목업 | 사실/외부/분석 분리, 샘플 JSON·AI response schema·Vertex 요청 예제·FE strict validation·본문 JSON 렌더링·누락/편집·잘못된 응답 차단·endpoint-request·검증 기록 | HOME-PREVIEW-1 | cc:완료 [JSON 목업; unit 12/E2E 11/build PASS; BE 미구현] |
-| HOME-JSON-2 | 근거 수집·JSON 생성·DB 저장/조회 BE 명세/구현 | 상위 묶음. 실제 실행/완료 판정은 PRE-01~09·11~12로 세분화. 기존 Markdown 호환, source/사실/시점 검증·Supabase/ORM·격리 검증 | HOME-JSON-1 | cc:TODO [PRE 표 참조; BE 미구현] |
-| HOME-JSON-3 | 저장 JSON 실 연동 검증 | 상위 묶음. 실제 실행/완료 판정은 PRE-10·12. 현재 / 라우트·DB 저장본·동일 fixture·누락/이전본·출처 검증 | HOME-JSON-2 | cc:TODO [PRE 표 참조; 실 연동 전] |
+| HOME-JSON-2 | 근거 수집·JSON 생성·DB 저장/조회 BE 명세/구현 | 상위 묶음. 실제 실행/완료 판정은 PRE-01~09·11~12로 세분화. 기존 Markdown 호환, source/사실/시점 검증·Supabase/ORM·격리 검증 | HOME-JSON-1 | cc:WIP [로컬 BE 구현·검증; PRE-12 인수/리뷰 대기] |
+| HOME-JSON-3 | 저장 JSON 실 연동 검증 | 상위 묶음. 실제 실행/완료 판정은 PRE-10·12. 현재 / 라우트·DB 저장본·동일 fixture·누락/이전본·출처 검증 | HOME-JSON-2 | cc:WIP [실 / 연동·격리 L3 통과; PRE-12 대기] |
 
 ## 메인 구조화 JSON 프리뷰 구현 계획 — PRE 실행 정본 (2026-10-25)
 
-사용자가 요청한 것은 구현 계획 수립이다. 상세 설계·추천 정책·한계·회귀 기준은 `plan.md` §14와 §5.2.1을 따른다. 표의 `완료`는 해당 산출물만 의미하며, 문서/FE 목업 완료를 BE·실 연동·운영 완료로 확대하지 않는다. 현재 새 BE 구현은 시작하지 않았다.
+사용자가 요청한 것은 구현 계획 수립이다. 상세 설계·추천 정책·한계·회귀 기준은 `plan.md` §14와 §5.2.1을 따른다. 표의 `완료`는 해당 산출물만 의미하며, 문서/FE 목업 완료를 BE·실 연동·운영 완료로 확대하지 않는다. 아래 최신 실행 결과가 과거 미착수 기록보다 우선한다.
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | PRE-00 | 현재 코드 대조·구현 계획 수립 | 기존 JSON/DB/생성/인증/스케줄러·migration 현황 대조, plan.md §14 및 본 표 작성, 미정 계약/실응답/운영 경계 명시. 문서 자체 점검 | HOME-JSON-1 | cc:완료 [계획 문서만; 구현 미착수] |
 | PRE-01 | FE 부족 상태·조회/추천 계약 보완 | 생성 전/실패/이전 유효본 envelope·null 생성 시각/공개 reason·컵 폼 기준, 동적 추천 목록/정렬/날짜·상태 시각 요구를 mock/Zod/JSON/endpoint-request로 작성·검증. 기존 디자인 유지 | PRE-00 | cc:완료 [FE 계약/목업; unit 23/E2E 13/build PASS; BE 미구현] |
-| PRE-02 | DB coverage·웹/배당 소스·provider 검증 | 읽기 전용 coverage, 공식/매체/외부 전망 소스 매칭·사용 범위·시각, 부상/배당 MCP 실응답 확인 경로/누락 기록, Vertex 검색/structured output 계약·usage fixture. 탐색 범위/자료 유효기간/검색·비용 상한 명세. 사용자에게 소스 조사 전가 안 함 | PRE-01 | cc:TODO |
-| PRE-03 | BE 명세·Pydantic·테스트 선행·spec review | endpoint-request 기준 GET/저장/생성 경계·오류/권한·상태·시간/사실 검증 명세와 testplan·실패 테스트. JSON Schema/Zod/Pydantic 공통 fixture·drift 검증 계획. 기존 방송 호환·독립 spec review | PRE-01, PRE-02 | cc:TODO |
-| PRE-04 | snapshot·프리뷰·publication 저장 기반 | 실제 baseline 대조 후 Supabase CLI migration/ORM/문서 동기화, 근거/불변 버전/현재 제공본/실행 책임 확정, unique/FK/인덱스·원자 전환·2시즌 보관 정리. 격리 migration·기존 데이터/참조 보존 검증 | PRE-03 | cc:TODO |
-| PRE-05 | DB 사실 조립·추천 정책 서비스 | 기존 경기/번역/최근 경기 재사용, snapshot+킥오프 cutoff·FT/AET/PEN·표본/NULL·source provenance, 활성/허용 시즌·진행 중 우선/확정 순서·동률·KST fallback·중복 제거·모든 중요 경기 접근성 테스트 | PRE-04 | cc:TODO |
-| PRE-06 | 웹 근거·부상·외부 전망·배당 어댑터 | 검증한 원본만 정규화·저장, source registry/grounding·발표/확인 시각·같은 경기·확정/불확실·시장/북메이커, unverified/missing/error 및 상충 보도. URL/시간/크기 제한·출처 지시 격리. 고정 원본+소량 실응답 contract 검증 | PRE-02, PRE-04 | cc:TODO |
-| PRE-07 | schema 강제 AI analysis 생성 | 검증된 근거만 입력·새 JSON 경로, MIME/provider schema+strict Pydantic·근거/필드/시점·원본 사실 대조, 거절/잘림/빈/오류/환각 출처·숫자 테스트. 기존 방송 Markdown 회귀 통과 | PRE-03, PRE-05, PRE-06 | cc:TODO |
-| PRE-08 | 생성 pipeline·publication·내부 실행 | DB→웹→JSON→합성/검증→원자 저장, fingerprint/생성 버전·중복/소유권·제한된 재시도·deadline/예산·중단/복구. 실패 시 이전본 보존, 자료만 있는 부분/미제공 처리, 예정만 생성·킥오프 경계. 내부 CLI/작업으로 검증, 미요청 수동 API 추가 안 함 | PRE-05, PRE-06, PRE-07 | cc:TODO |
-| PRE-09 | 공개 저장본·추천 GET 구현 | 보완한 FE 계약대로 DB 조회만 제공. 정상/일부/이전본/생성본 없음/없는 fixture/DB 장애, is_mock=false·진단 비노출·외부 호출 0. 추천 전환용 fixture identity·동적 활성 리그/날짜·오늘 결과 통합 테스트 | PRE-03, PRE-04, PRE-05, PRE-08 | cc:TODO |
-| PRE-10 | 실제 메인 FE 연동 | 실제 / 라우트에 평가 디자인·저장 JSON GET/Zod 적용, /home/mock 평가 도구 분리, 빠른 연속 전환/늦은 응답 경합·부분/실패/이전본·출처/시각·mobile/dark/reduced motion. L1/L2/build+격리 API L3 | PRE-09 | cc:TODO |
-| PRE-11 | 6시간 갱신의 실제 실행 연결 | 정기 daily-sync와 관리 수동 실행의 종료 경로 대조·공통 후처리, enable 설정·커밋된 성공 snapshot·중복/부분 실패·재기동·예산 이월 검증. 공개 조회/서버 import 생성 0·진행 중 신규 생성 0·전체 API 한도 유지. 운영 설정/재시작 없음 | PRE-08, PRE-09 | cc:TODO |
-| PRE-12 | 전체 인수·독립 리뷰·운영 인계 | 핵심 추천 유형별 근거→JSON→DB→메인, 정상/실제 미제공 coverage·모든 negative case, migration·unit/격리 integration·FE L1~L3/build·스케줄/비용/회귀·독립 review. 외부/DB 환경 부족 skip은 완료 아님. 운영 적용/배포는 별도 기록 | PRE-10, PRE-11 | cc:TODO |
+| PRE-02 | DB coverage·웹/배당 소스·provider 검증 | 읽기 전용 coverage, 공식/매체/외부 전망 소스 매칭·사용 범위·시각, 부상/배당 MCP 실응답 확인 경로/누락 기록, Vertex 검색/structured output 계약·usage fixture. 탐색 범위/자료 유효기간/검색·비용 상한 명세. 사용자에게 소스 조사 전가 안 함 | PRE-01 | cc:WIP [공식 API 실응답·DB/Vertex 확인; MCP 미연결·웹 실원문 coverage 대기] |
+| PRE-03 | BE 명세·Pydantic·테스트 선행·spec review | endpoint-request 기준 GET/저장/생성 경계·오류/권한·상태·시간/사실 검증 명세와 testplan·실패 테스트. JSON Schema/Zod/Pydantic 공통 fixture·drift 검증 계획. 기존 방송 호환·독립 spec review | PRE-01, PRE-02 | cc:WIP [명세/Pydantic/공통 fixture·테스트 구현; 독립 spec review 대기] |
+| PRE-04 | snapshot·프리뷰·publication 저장 기반 | 실제 baseline 대조 후 Supabase CLI migration/ORM/문서 동기화, 근거/불변 버전/현재 제공본/실행 책임 확정, unique/FK/인덱스·원자 전환·2시즌 보관 정리. 격리 migration·기존 데이터/참조 보존 검증 | PRE-03 | cc:완료 [로컬 migration/ORM·원자 저장·FK/unique·보관 정리 검증; 운영 미적용] |
+| PRE-05 | DB 사실 조립·추천 정책 서비스 | 기존 경기/번역/최근 경기 재사용, snapshot+킥오프 cutoff·FT/AET/PEN·표본/NULL·source provenance, 활성/허용 시즌·진행 중 우선/확정 순서·동률·KST fallback·중복 제거·모든 중요 경기 접근성 테스트 | PRE-04 | cc:완료 [로컬 DB 사실·추천 정책 및 경계 테스트] |
+| PRE-06 | 웹 근거·부상·외부 전망·배당 어댑터 | 검증한 원본만 정규화·저장, source registry/grounding·발표/확인 시각·같은 경기·확정/불확실·시장/북메이커, unverified/missing/error 및 상충 보도. URL/시간/크기 제한·출처 지시 격리. 고정 원본+소량 실응답 contract 검증 | PRE-02, PRE-04 | cc:WIP [API 우선/원문 검증 어댑터 구현; 실제 웹·상충 보도 인수 대기] |
+| PRE-07 | schema 강제 AI analysis 생성 | 검증된 근거만 입력·새 JSON 경로, MIME/provider schema+strict Pydantic·근거/필드/시점·원본 사실 대조, 거절/잘림/빈/오류/환각 출처·숫자 테스트. 기존 방송 Markdown 회귀 통과 | PRE-03, PRE-05, PRE-06 | cc:완료 [schema 강제·서버 검증·실제 Vertex JSON 성공; 로컬 검증] |
+| PRE-08 | 생성 pipeline·publication·내부 실행 | DB→웹→JSON→합성/검증→원자 저장, fingerprint/생성 버전·중복/소유권·제한된 재시도·deadline/예산·중단/복구. 실패 시 이전본 보존, 자료만 있는 부분/미제공 처리, 예정만 생성·킥오프 경계. 내부 CLI/작업으로 검증, 미요청 수동 API 추가 안 함 | PRE-05, PRE-06, PRE-07 | cc:완료 [로컬 pipeline/CLI·4슬롯·재시도·원자 publication·실패 보존 검증] |
+| PRE-09 | 공개 저장본·추천 GET 구현 | 보완한 FE 계약대로 DB 조회만 제공. 정상/일부/이전본/생성본 없음/없는 fixture/DB 장애, is_mock=false·진단 비노출·외부 호출 0. 추천 전환용 fixture identity·동적 활성 리그/날짜·오늘 결과 통합 테스트 | PRE-03, PRE-04, PRE-05, PRE-08 | cc:완료 [DB 전용 공개 GET·조회 외부 호출 0 검증] |
+| PRE-10 | 실제 메인 FE 연동 | 실제 / 라우트에 평가 디자인·저장 JSON GET/Zod 적용, /home/mock 평가 도구 분리, 빠른 연속 전환/늦은 응답 경합·부분/실패/이전본·출처/시각·mobile/dark/reduced motion. L1/L2/build+격리 API L3 | PRE-09 | cc:완료 [실 / 연동·unit 24/E2E 16/build·격리 L3 1 PASS] |
+| PRE-11 | 6시간 갱신의 실제 실행 연결 | 정기 daily-sync와 관리 수동 실행의 종료 경로 대조·공통 후처리, enable 설정·커밋된 성공 snapshot·중복/부분 실패·재기동·예산 이월 검증. 공개 조회/서버 import 생성 0·진행 중 신규 생성 0·전체 API 한도 유지. 운영 설정/재시작 없음 | PRE-08, PRE-09 | cc:WIP [현재 커밋 기반 공통 후처리·enable OFF·테스트; 관리 세션 통합 대조 대기] |
+| PRE-12 | 전체 인수·독립 리뷰·운영 인계 | 핵심 추천 유형별 근거→JSON→DB→메인, 정상/실제 미제공 coverage·모든 negative case, migration·unit/격리 integration·FE L1~L3/build·스케줄/비용/회귀·독립 review. 외부/DB 환경 부족 skip은 완료 아님. 운영 적용/배포는 별도 기록 | PRE-10, PRE-11 | cc:WIP [로컬 핵심 흐름 통과; 독립 리뷰·실제 웹 coverage·전체 유형 인수 대기] |
 
 의존 흐름: `PRE-01 → 02 → 03 → 04 → (05,06) → 07 → 08 → 09 → (10,11) → 12`. 괄호는 논리 의존 관계이며 단일 checkout에서 동시 브랜치 편집을 허용하는 뜻이 아니다. 실제 작업은 한 task branch에서 소유 범위를 보존하고 FE/BE 역할을 순차 인계한다.
 
@@ -244,3 +244,7 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 ### PRE-01 실행 결과 — 2026-10-25
 
 메인 전용 worktree `feat/home-preview-json`에서 FE 계약/목업을 보완했다. `docs/features/home-preview-contract.md`가 상세 계약이다. publication/refresh 분리, null 본문·생성 시각, facts-only, 갱신 실패 이전본, 공개 reason enum, FT/AET/PEN, 추천 목록/정렬/KST/기준 시각과 endpoint-request를 검증했다. 생성 구조 JSON Schema와 Zod의 drift 검사 포함. 단위 23개, E2E 13개, production build PASS. E2E는 API 요청 0건을 확인했다. DB/Redis/API-Football/Vertex를 호출하지 않았다. PRE-02가 다음 작업이며 PRE-03 BE spec/test/review 및 실제 구현은 아직 시작하지 않았다. 앞의 미착수 표기는 분리 당시 기록이다.
+
+### PRE-02~11 로컬 구현 기록 — 2026-10-25
+
+메인 전용 경로/브랜치에서만 구현했다. 공식 API endpoint를 먼저 확인하고 부상·배당·자체 전망을 근거로 수집했으며, 실제 Vertex JSON 저장과 공개 DB GET·메인 표시를 검증했다. 최신 상태는 위 PRE 표와 `docs/features/home-preview-implementation.md`를 따른다. 문서의 과거 ‘다음 PRE-01/02’는 당시 기록이다. 독립 승인/운영 인수/배포 완료는 주장하지 않는다. 다른 세션의 관리·AX·인증 변경은 가져오지 않았다.

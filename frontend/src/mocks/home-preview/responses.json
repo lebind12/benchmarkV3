@@ -31,6 +31,7 @@
       },
       "generated_at": "2026-10-25T08:10:00Z",
       "as_of": "2026-10-25T08:00:00Z",
+      "search_suggestions": null,
       "sources": [
         {
           "id": "db-home",
@@ -398,6 +399,7 @@
       },
       "generated_at": "2026-10-25T08:10:00Z",
       "as_of": "2026-10-25T08:00:00Z",
+      "search_suggestions": null,
       "sources": [
         {
           "id": "db-home",
@@ -718,6 +720,7 @@
       },
       "generated_at": "2026-10-25T08:10:00Z",
       "as_of": "2026-10-25T08:00:00Z",
+      "search_suggestions": null,
       "sources": [
         {
           "id": "db-home",
@@ -1136,6 +1139,7 @@
       },
       "generated_at": null,
       "as_of": "2026-10-25T08:00:00Z",
+      "search_suggestions": null,
       "sources": [
         {
           "id": "db-home",

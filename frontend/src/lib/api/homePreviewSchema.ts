@@ -25,6 +25,7 @@ const odds = z.object({ source_id: text, bookmaker: text, market: z.literal('1x2
 export const homePreviewSchema = z.object({
   schema_version: z.literal('1.1'), is_mock: z.boolean(), fixture: z.object({ external_id: id, kickoff_at: time, home: team, away: team }).strict(),
   generated_at: time.nullable(), as_of: time,
+  search_suggestions: z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(10) }).strict().nullable(),
   sources: z.array(z.object({ id: text, fixture_id: id, kind: z.enum(['db', 'web', 'api']), title: text, url: z.string().url().nullable(), published_at: time.nullable(), retrieved_at: time }).strict()),
   analysis: homePreviewAnalysisSchema,
   facts: z.object({ injuries: section(z.array(injury)), home_form: section(form), away_form: section(form) }).strict(),
@@ -90,7 +91,7 @@ export const homePreviewSchema = z.object({
       if (item.evidence_ids.some(ref => !block.source_ids.includes(ref))) fail('Evidence must be included in section sources')
     }
   }
-  for (const item of value.external.predictions.data ?? []) checkRefs([item.source_id], ['web'])
+  for (const item of value.external.predictions.data ?? []) checkRefs([item.source_id], ['web', 'api'])
   for (const item of value.external.odds.data ?? []) {
     checkRefs([item.source_id], ['web', 'api'])
     if (Date.parse(item.collected_at) >= Date.parse(value.fixture.kickoff_at) || Date.parse(item.collected_at) > Date.parse(clock)) fail('Odds collection time is not prematch')

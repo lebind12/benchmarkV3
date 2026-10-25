@@ -1,0 +1,1091 @@
+{
+  "league_coverage": {
+    "get": "leagues",
+    "parameters": {
+      "id": "39",
+      "season": "2026"
+    },
+    "errors": [],
+    "results": 1,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": [
+      {
+        "league": {
+          "id": 39,
+          "name": "Premier League",
+          "type": "League",
+          "logo": "https://media.api-sports.io/football/leagues/39.png"
+        },
+        "country": {
+          "name": "England",
+          "code": "GB-ENG",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        },
+        "seasons": [
+          {
+            "year": 2026,
+            "start": "2026-08-21",
+            "end": "2027-05-30",
+            "current": true,
+            "coverage": {
+              "fixtures": {
+                "events": true,
+                "lineups": true,
+                "statistics_fixtures": true,
+                "statistics_players": true
+              },
+              "standings": true,
+              "players": true,
+              "top_scorers": true,
+              "top_assists": true,
+              "top_cards": true,
+              "injuries": true,
+              "predictions": true,
+              "odds": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "injuries": {
+    "get": "injuries",
+    "parameters": {
+      "fixture": "1557444"
+    },
+    "errors": [],
+    "results": 30,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": [
+      {
+        "player": {
+          "id": 180317,
+          "name": "C. Bradley",
+          "photo": "https://media.api-sports.io/football/players/180317.png",
+          "type": "Missing Fixture",
+          "reason": "Knee Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 174565,
+          "name": "H. Ekitike",
+          "photo": "https://media.api-sports.io/football/players/174565.png",
+          "type": "Missing Fixture",
+          "reason": "Achilles Tendon Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 152654,
+          "name": "J. Frimpong",
+          "photo": "https://media.api-sports.io/football/players/152654.png",
+          "type": "Missing Fixture",
+          "reason": "Muscle Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 409047,
+          "name": "G. Leoni",
+          "photo": "https://media.api-sports.io/football/players/409047.png",
+          "type": "Missing Fixture",
+          "reason": "Knee Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 407032,
+          "name": "A. Nallo",
+          "photo": "https://media.api-sports.io/football/players/407032.png",
+          "type": "Missing Fixture",
+          "reason": "Leg Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 1096,
+          "name": "D. Szoboszlai",
+          "photo": "https://media.api-sports.io/football/players/1096.png",
+          "type": "Missing Fixture",
+          "reason": "Muscle Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 338751,
+          "name": "V. Munoz",
+          "photo": "https://media.api-sports.io/football/players/338751.png",
+          "type": "Questionable",
+          "reason": "Knee Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 282637,
+          "name": "F. Azeez",
+          "photo": "https://media.api-sports.io/football/players/282637.png",
+          "type": "Missing Fixture",
+          "reason": "Abdominal strain"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 129643,
+          "name": "E. Ferguson",
+          "photo": "https://media.api-sports.io/football/players/129643.png",
+          "type": "Missing Fixture",
+          "reason": "Ankle Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 383685,
+          "name": "Y. Minteh",
+          "photo": "https://media.api-sports.io/football/players/383685.png",
+          "type": "Missing Fixture",
+          "reason": "Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 106835,
+          "name": "K. Mitoma",
+          "photo": "https://media.api-sports.io/football/players/106835.png",
+          "type": "Missing Fixture",
+          "reason": "Hamstring Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 343311,
+          "name": "S. Tzimas",
+          "photo": "https://media.api-sports.io/football/players/343311.png",
+          "type": "Missing Fixture",
+          "reason": "Knee Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 92993,
+          "name": "M. Wieffer",
+          "photo": "https://media.api-sports.io/football/players/92993.png",
+          "type": "Missing Fixture",
+          "reason": "Knee Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 524411,
+          "name": "Z. Yohanna",
+          "photo": "https://media.api-sports.io/football/players/524411.png",
+          "type": "Missing Fixture",
+          "reason": "Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 64003,
+          "name": "P. Struijk",
+          "photo": "https://media.api-sports.io/football/players/64003.png",
+          "type": "Questionable",
+          "reason": "Rest"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 180317,
+          "name": "C. Bradley",
+          "photo": "https://media.api-sports.io/football/players/180317.png",
+          "type": "Missing Fixture",
+          "reason": "Knee Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 174565,
+          "name": "H. Ekitike",
+          "photo": "https://media.api-sports.io/football/players/174565.png",
+          "type": "Missing Fixture",
+          "reason": "Achilles Tendon Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 152654,
+          "name": "J. Frimpong",
+          "photo": "https://media.api-sports.io/football/players/152654.png",
+          "type": "Missing Fixture",
+          "reason": "Muscle Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 409047,
+          "name": "G. Leoni",
+          "photo": "https://media.api-sports.io/football/players/409047.png",
+          "type": "Missing Fixture",
+          "reason": "Knee Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 407032,
+          "name": "A. Nallo",
+          "photo": "https://media.api-sports.io/football/players/407032.png",
+          "type": "Missing Fixture",
+          "reason": "Leg Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 1096,
+          "name": "D. Szoboszlai",
+          "photo": "https://media.api-sports.io/football/players/1096.png",
+          "type": "Missing Fixture",
+          "reason": "Muscle Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 338751,
+          "name": "V. Munoz",
+          "photo": "https://media.api-sports.io/football/players/338751.png",
+          "type": "Questionable",
+          "reason": "Knee Injury"
+        },
+        "team": {
+          "id": 40,
+          "name": "Liverpool",
+          "logo": "https://media.api-sports.io/football/teams/40.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 282637,
+          "name": "F. Azeez",
+          "photo": "https://media.api-sports.io/football/players/282637.png",
+          "type": "Missing Fixture",
+          "reason": "Abdominal strain"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 129643,
+          "name": "E. Ferguson",
+          "photo": "https://media.api-sports.io/football/players/129643.png",
+          "type": "Missing Fixture",
+          "reason": "Ankle Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 383685,
+          "name": "Y. Minteh",
+          "photo": "https://media.api-sports.io/football/players/383685.png",
+          "type": "Missing Fixture",
+          "reason": "Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 106835,
+          "name": "K. Mitoma",
+          "photo": "https://media.api-sports.io/football/players/106835.png",
+          "type": "Missing Fixture",
+          "reason": "Hamstring Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 343311,
+          "name": "S. Tzimas",
+          "photo": "https://media.api-sports.io/football/players/343311.png",
+          "type": "Missing Fixture",
+          "reason": "Knee Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 92993,
+          "name": "M. Wieffer",
+          "photo": "https://media.api-sports.io/football/players/92993.png",
+          "type": "Missing Fixture",
+          "reason": "Knee Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 524411,
+          "name": "Z. Yohanna",
+          "photo": "https://media.api-sports.io/football/players/524411.png",
+          "type": "Missing Fixture",
+          "reason": "Injury"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      },
+      {
+        "player": {
+          "id": 64003,
+          "name": "P. Struijk",
+          "photo": "https://media.api-sports.io/football/players/64003.png",
+          "type": "Questionable",
+          "reason": "Rest"
+        },
+        "team": {
+          "id": 51,
+          "name": "Brighton",
+          "logo": "https://media.api-sports.io/football/teams/51.png"
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg"
+        }
+      }
+    ]
+  },
+  "odds_bets": {
+    "get": "odds/bets",
+    "parameters": {
+      "id": "1"
+    },
+    "errors": [],
+    "results": 1,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": [
+      {
+        "id": 1,
+        "name": "Match Winner"
+      }
+    ]
+  },
+  "odds": {
+    "get": "odds",
+    "parameters": {
+      "fixture": "1557444",
+      "bet": "1"
+    },
+    "errors": [],
+    "results": 1,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": [
+      {
+        "league": {
+          "id": 39,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+          "season": 2026
+        },
+        "fixture": {
+          "id": 1557444,
+          "timezone": "UTC",
+          "date": "2026-10-25T14:00:00+00:00",
+          "timestamp": 1792936800
+        },
+        "update": "2026-10-24T21:18:23+00:00",
+        "bookmakers": [
+          {
+            "id": 7,
+            "name": "William Hill",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "2.10"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.70"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "3.10"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 8,
+            "name": "Bet365",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "2.10"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.80"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "3.20"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "name": "Marathonbet",
+            "bets": [
+              {
+                "id": 1,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "2.12"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.98"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "3.24"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "predictions": {
+    "get": "predictions",
+    "parameters": {
+      "fixture": "1557444"
+    },
+    "errors": [],
+    "results": 1,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": [
+      {
+        "predictions": {
+          "winner": {
+            "id": 51,
+            "name": "Brighton",
+            "comment": null
+          },
+          "win_or_draw": false,
+          "under_over": null,
+          "goals": {
+            "home": "-1.5",
+            "away": "-4.5"
+          },
+          "advice": "Winner : Brighton",
+          "percent": {
+            "home": "10%",
+            "draw": "45%",
+            "away": "45%"
+          }
+        },
+        "league": {
+          "id": 39,
+          "name": "Premier League",
+          "country": "England",
+          "logo": "https://media.api-sports.io/football/leagues/39.png",
+          "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+          "season": 2026
+        },
+        "teams": {
+          "home": {
+            "id": 40,
+            "name": "Liverpool"
+          },
+          "away": {
+            "id": 51,
+            "name": "Brighton"
+          }
+        }
+      }
+    ]
+  },
+  "_capture": {
+    "checked_at": "2026-10-24T23:59:30.055482+00:00",
+    "fixture_id": 1557444,
+    "method": "official API read-only; MCP unavailable",
+    "trimmed": "odds limited to original bookmakers 8/7/2; predictions only consumed fields"
+  }
+}

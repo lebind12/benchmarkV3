@@ -13,6 +13,7 @@ import {
 } from 'lucide-vue-next'
 import { hasHomeStandings, useHomeStore } from '@/stores/home'
 import LeagueMark from '@/components/common/LeagueMark.vue'
+import HomeRecommendedSection from '@/components/home-preview/HomeRecommendedSection.vue'
 import { kstTime } from '@/lib/format/datetime'
 import {
   HOME_COMPETITION_OPTIONS,
@@ -46,7 +47,6 @@ const standingsLeagueOptions = HOME_COMPETITION_OPTIONS.filter((league) => hasHo
 const topPlayerLeagueOptions = HOME_COMPETITION_OPTIONS
 
 const fixtureRows = computed(() => home.fixtures.data.value ?? [])
-const featuredFixtures = computed(() => fixtureRows.value.slice(0, 4))
 const scheduleRows = computed(() => fixtureRows.value)
 const standingsRowsAll = computed(() => home.standings.data.value ?? [])
 const standingsRows = computed(() => standingsRowsAll.value.slice(0, 6))
@@ -104,7 +104,7 @@ function logoFor(league: LeagueRef): string | null {
 }
 
 function fixtureCenter(fixture: FixtureSummary): string {
-  if (fixture.goals_home != null && fixture.goals_away != null) {
+  if (['FT', 'AET', 'PEN'].includes(fixture.status_short) && fixture.goals_home != null && fixture.goals_away != null) {
     return `${fixture.goals_home} - ${fixture.goals_away}`
   }
   return kstTime(fixture.kickoff_at)
@@ -243,6 +243,7 @@ function openTournament(leagueId: number) {
 
 <template>
   <div class="candidate-home" data-testid="ui-review-home-candidate">
+    <HomeRecommendedSection />
     <section class="home-toolbar" aria-label="홈 필터">
       <div class="periods" role="tablist" aria-label="기간 필터">
         <button
@@ -303,35 +304,6 @@ function openTournament(leagueId: number) {
         />
         <span>{{ league.label }}</span>
       </button>
-    </section>
-
-    <section class="featured" aria-label="주요 경기">
-      <button
-        v-for="fixture in featuredFixtures"
-        :key="fixture.external_id"
-        type="button"
-        class="featured__item"
-        @click="openFixture(fixture.external_id)"
-      >
-        <span class="featured__league">
-          <LeagueMark
-            :external-id="fixture.league.external_id"
-            :slug="fixture.league.slug"
-            :logo-url="logoFor(fixture.league)"
-            :label="leagueShort(fixture.league)"
-            size="xs"
-          />
-          {{ leagueShort(fixture.league) }}
-        </span>
-        <span class="featured__teams">{{ teamName(fixture.home) }} vs {{ teamName(fixture.away) }}</span>
-        <strong>{{ fixtureCenter(fixture) }}</strong>
-      </button>
-      <div v-if="home.fixtures.data.status === 'loading'" class="featured__placeholder">
-        경기 목록을 불러오는 중
-      </div>
-      <div v-else-if="featuredFixtures.length === 0" class="featured__placeholder">
-        선택한 조건에 예정된 경기가 없습니다
-      </div>
     </section>
 
     <section class="dashboard" aria-label="홈 대시보드">
@@ -551,10 +523,11 @@ function openTournament(leagueId: number) {
 <style scoped>
 .candidate-home {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto;
   gap: 8px;
-  height: 100%;
-  min-height: 0;
+  height: auto;
+  min-height: 100%;
   overflow: hidden;
   padding: 10px;
   background: var(--color-bg);
@@ -834,6 +807,7 @@ function openTournament(leagueId: number) {
 }
 
 .dashboard {
+  height: 720px;
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(230px, 0.85fr);
   grid-template-rows: minmax(0, 1fr) minmax(118px, 0.36fr);

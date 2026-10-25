@@ -2,7 +2,7 @@
 
 현재 세션에서 작성한 홈 관련 내용만 분리한 정본이다. 작성일 2026-10-25. 추천 정책은 §5.2.1, 실행 설계는 §14, Task/DoD/Depends/Status는 `Plans.md`의 HOME/PRE 표를 따른다. 별도 세션의 관리·검색 기획과 구현은 이 브랜치에 포함하지 않는다.
 
-사용자가 구현 착수를 승인했다. 기존 홈 목업/JSON 계약과 PRE-01의 FE 계약 보완은 로컬 검증 상태이며 다음 작업은 PRE-02다. 운영 적용·배포는 별도 명시 요청 전에는 수행하지 않는다.
+사용자가 구현 착수를 승인했다. 기존 홈 목업/JSON 계약과 PRE-01의 FE 계약 보완은 로컬 검증 상태이며 최신 구현 진행은 §14.15를 따른다. 운영 적용·배포는 별도 명시 요청 전에는 수행하지 않는다.
 
 ### 5.2.1 2026-10-25 사용자 확정 — 추천 순서와 진행 중 처리
 
@@ -215,3 +215,11 @@ PRE-09 이후 API는 저장 DB만 읽는다. 조회 dependency에 외부 클라�
 ### 14.14 PRE-01 완료와 현재 실행 기준
 
 2026-10-25, `feat/home-preview-json` 메인 worktree에서 계약/목업 보완을 완료했다. [PRE-01 계약](docs/features/home-preview-contract.md), 추천/프리뷰 endpoint-request, Zod 및 생성 JSON Schema가 현재 BE 입력이다. 저장 본문 v1.1과 조회 envelope v1.0을 구분한다. 단위 23개/E2E 13개/build PASS. 다음은 PRE-02 DB coverage·웹/배당·provider 조사다. 이전 절의 ‘PRE-01 다음’/‘미착수’는 작성 당시 기록이다. BE와 실 `/` 연동·정기 생성은 미구현이며 개발·테스트 이외 외부 실행/원격 push/merge/배포는 수행하지 않았다.
+
+### 14.15 API 우선 구현 결과 — 2026-10-25
+
+사용자 지시대로 API-Football 공식 endpoint·실응답을 먼저 확인했다. 실제 DB coverage, 부상·경기 전 1X2 배당·API 자체 예측을 검증하고 수집 어댑터를 구현했다. DB 최근 경기 → API 우선/선택 검색 보완 → schema 강제 JSON → 원자 저장 → 공개 DB 조회 → 실제 `/` 연동이 메인 전용 worktree에서 동작한다. 상세 기록은 [구현·검증·실행 안내](docs/features/home-preview-implementation.md), [소스 확인](docs/features/home-preview-sources.md), [저장 구조](docs/spec/home-preview-storage.md)를 따른다.
+
+API 자료가 완전하면 analysis 모델 1회, 검색 보완이 필요한 경우 discovery를 더해 2회가 기본이다. 경기당 킥오프 전 24시간의 최대 4개 6시간 슬롯은 유지한다. 실패 슬롯도 포함하며 명시적 재시도는 슬롯당 추가 1회까지만 허용하고 누적 호출량을 기록한다. 자동 생성·검색 기본값은 OFF다. 기존 커밋된 수집 성공 공통 경로에 후처리를 추가했으나 다른 관리 세션 변경을 가져오지 않았으므로 최종 통합 대조가 필요하다.
+
+독립 spec/code review, 실제 웹 원문·상충 보도 coverage 및 전체 추천 유형 인수가 남아 PRE-12 완료로 처리하지 않는다. 운영 DB 적용·push·merge·배포·운영 설정 변경은 하지 않았다. 과거 절의 미착수/브랜치 계획은 당시 기록이며 현재 작업 경로/브랜치는 `/Users/woolee/benchmark-main`의 `feat/home-preview-json`이다.

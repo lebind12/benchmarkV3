@@ -628,3 +628,7 @@ ORDER BY kickoff_at DESC LIMIT 5;
 | 2026-05-13 | 초기 스키마 13 테이블 합의 (메인 세션) |
 | 2026-05-13 | `league.is_active` 컬럼 추가 — ADMIN 이 동적으로 수집 league 추가/제외 가능 (월드컵/유로 등 추후 추가 시나리오) |
 | 2026-08-22 | `team_color` 1:1 브랜드 팔레트 테이블 및 2026/27 EPL 20팀 시드 추가 |
+
+## 메인 구조화 JSON 프리뷰 — 2026-10-25
+
+기존 fixture를 참조하는 전용 네 테이블의 컬럼·제약·보관 책임은 [home-preview-storage.md](home-preview-storage.md)를 따른다. ORM/Supabase CLI migration 동기화와 격리 로컬 적용을 검증했으며 운영 DB 적용은 하지 않았다.

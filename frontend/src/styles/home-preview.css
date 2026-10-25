@@ -115,7 +115,7 @@
 .hp-form-section { padding: 30px 0; }
 .hp-subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .hp-subhead > span { color: var(--color-muted); font-size: 10px; line-height: 1.7; }
-.hp-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+.hp-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px; }
 .hp-form header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0 15px; font-size: 14px; }
 .hp-form header > div { display: flex; gap: 4px; }
 .hp-form-badge { display: inline-grid; place-items: center; width: 23px; height: 23px; border-radius: 4px; background: var(--color-card-hover); color: var(--color-muted); font-size: 10px; }
@@ -123,8 +123,16 @@
 .hp-form-badge--패 { background: #fce9e9; color: #ac3838; }
 .dark .hp-form-badge--승 { background: #20375a; color: #b2cfff; }
 .dark .hp-form-badge--패 { background: #4a2024; color: #ffb9b9; }
-.hp-form table { border-collapse: collapse; width: 100%; font-size: 11px; }
+.hp-form { min-width: 0; }
+.hp-form header > b { min-width: 0; overflow-wrap: anywhere; }
+.hp-form header > div { flex-shrink: 0; }
+.hp-form table { table-layout: fixed; border-collapse: collapse; width: 100%; font-size: 11px; }
 .hp-form th { color: var(--color-muted); font-weight: 500; font-size: 10px; text-align: left; padding: 10px 6px; background: var(--color-card); }
+.hp-form th, .hp-form td { white-space: normal; overflow-wrap: anywhere; }
+.hp-form th:nth-child(1) { width: 17%; }
+.hp-form th:nth-child(2) { width: 28%; }
+.hp-form th:nth-child(3) { width: 37%; }
+.hp-form th:nth-child(4) { width: 18%; }
 .hp-form td { border-bottom: 1px solid var(--color-border); padding: 11px 6px; }
 .hp-form td:first-child { color: var(--color-muted); }
 .hp-form td:last-child, .hp-form th:last-child { text-align: right; }

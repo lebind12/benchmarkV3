@@ -17,6 +17,7 @@ from app.api.v1.broadcast import router as broadcast_router
 from app.api.v1.fixture_detail_analytics import router as fixture_detail_analytics_router
 from app.api.v1.general import router as general_router
 from app.api.v1.home import router as home_router
+from app.api.v1.home_preview import router as home_preview_router
 from app.core.config import get_settings
 from app.core.worker_scheduler import shutdown_worker_scheduler, start_worker_scheduler
 
@@ -66,3 +67,5 @@ app.include_router(admin_router)
 app.include_router(general_router)
 app.include_router(fixture_detail_router)
 app.include_router(fixture_detail_analytics_router)
+
+app.include_router(home_preview_router)

@@ -109,3 +109,12 @@ describe('cup form result policy', () => {
     expect(recentMatchSchema.safeParse({ ...row(), goals_for: 2, penalties: { for: 5, against: 4 } }).success).toBe(false)
   })
 })
+
+
+it('allows a successful attempt to start before its generated publication completes', () => {
+  const value = response()
+  value.refresh.last_attempt_at = new Date(Date.parse(value.preview!.generated_at!) - 1000).toISOString()
+  expect(homePreviewResponseSchema.safeParse(value).success).toBe(true)
+  value.publication.served = 'previous'; value.refresh.state = 'failed'; value.refresh.reason = 'generation_failed'
+  expect(homePreviewResponseSchema.safeParse(value).success).toBe(false)
+})

@@ -32,6 +32,6 @@ export const homePreviewResponseSchema = z.object({
   if (refresh.state === 'failed' && (!refresh.reason || !refresh.last_attempt_at)) fail('Failed refresh requires public reason and attempt time')
   if (refresh.state === 'idle' && refresh.reason !== null) fail('Idle refresh has no failure reason')
   if (refresh.state === 'running' && !refresh.last_attempt_at) fail('Running refresh requires attempt time')
-  if (refresh.last_attempt_at && preview?.generated_at && Date.parse(refresh.last_attempt_at) < Date.parse(preview.generated_at)) fail('Refresh attempt precedes served generation')
+  if (pub.served === 'previous' && refresh.last_attempt_at && preview?.generated_at && Date.parse(refresh.last_attempt_at) < Date.parse(preview.generated_at)) fail('Refresh attempt precedes served generation')
 })
 export type HomePreviewResponse = z.infer<typeof homePreviewResponseSchema>

@@ -42,7 +42,8 @@
     "Generate only analysis; assemble DB/provider facts deterministically.",
     "Keep existing broadcast Markdown API behavior while adding a separate stored JSON path.",
     "FE error proposal: invalid parameter 422, unknown fixture 404, existing fixture with no snapshot 200 envelope, database unavailable 503; finalize in PRE-03.",
-    "See docs/features/home-preview-contract.md for exact state/time/cup invariants. No automatic generation on GET."
+    "See docs/features/home-preview-contract.md for exact state/time/cup invariants. No automatic generation on GET.",
+    "Unreleased payload v1.1: search_suggestions=null or Google supplied rendered_content + queries; exact supplied style rendered in a no-script sandbox iframe. Never use arbitrary source HTML."
   ],
   "payload_schema_ref": "docs/spec/schemas/home-preview-payload.schema.json"
 }

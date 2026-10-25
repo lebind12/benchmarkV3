@@ -137,6 +137,13 @@ class Settings(BaseSettings):
         if vertex_env.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
             self.google_application_credentials_json = vertex_env["GOOGLE_APPLICATION_CREDENTIALS_JSON"]
 
+    # Main preview remains separately configurable from AX/broadcast models.
+    home_preview_enabled: bool = Field(default=False)
+    home_preview_search_enabled: bool = Field(default=False)
+    home_preview_vertex_model: str = Field(default="gemini-3.5-flash")
+    home_preview_vertex_location: str = Field(default="global")
+    home_preview_cycle_limit: int = Field(default=24,ge=1,le=100)
+
     # --- Web clients -------------------------------------------------------
     cors_allow_origins: str = Field(
         default="*",

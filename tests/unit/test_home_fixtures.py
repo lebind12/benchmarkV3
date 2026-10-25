@@ -85,7 +85,7 @@ def client_and_service():
 def test_hf_u01_route_registered_on_main_app():
     from app.main import app
 
-    paths = {route.path for route in app.routes}
+    paths = set(app.openapi()["paths"])
     assert "/api/v1/home/fixtures" in paths
 
 

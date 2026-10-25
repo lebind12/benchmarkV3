@@ -49,3 +49,13 @@ Zod가 런타임 strict 구조와 교차 필드 불변식을 검사한다. `fron
 ## 다음 단계
 
 PRE-02에서 DB coverage와 웹/부상/배당/Vertex 실응답·이용 범위·검색 한도를 조사한다. PRE-03에서 BE spec·실패 테스트·공통 fixture 및 리뷰를 수행한다. Supabase schema/ORM/API/스케줄러/실 메인 연동은 아직 미구현이다. management의 미커밋 인증 기반이나 AX 모델/사전을 가져오지 않는다.
+
+
+## 검색 보완 계약 추가 (미배포 v1.1)
+
+검색으로 검증한 외부 근거를 게시하는 경우 payload.search_suggestions에 Google 제공 rendered_content와 queries를 함께 저장·반환한다. 검색 결과를 사용하지 못했으면 null이다. FE는 제공 HTML/CSS를 바꾸지 않고 script와 same-origin 권한이 없는 iframe으로 표시한다. 임의 원문 HTML을 넣지 않는다. API 부상/배당이 있으면 그 값을 우선 유지하고 검색이 덮어쓰지 않는다. 검색 후보는 URL/공개 목적지/원문/동일 팀과 날짜/발표 시각/인용 근거를 서버가 확인해야 한다. 미확인 후보는 null 데이터와 unverified 상태다.
+
+
+## API-Football 자체 전망의 구분
+
+공식 `/predictions` 실응답을 확인했으므로 외부 전망 source.kind는 web 또는 api를 허용한다. API-Football 알고리즘 전망이라는 출처를 명시하며 자체 AI 예측이나 매체 의견으로 바꾸지 않는다. winner/win_or_draw와 원문 advice만 정규화한다. goals.home/away의 -1.5 같은 임계값을 예상 스코어로 해석하지 않는다. 웹 매체 의견은 web 출처로 따로 보존하고 검색이 API 값을 덮어쓰지 않는다.

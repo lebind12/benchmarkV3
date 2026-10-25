@@ -33,8 +33,15 @@
       "type": "string"
     },
     "as_of": {
-      "type": "string",
-      "format": "date-time"
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "policy_version": {
       "const": "home-priority-2026-10-25",

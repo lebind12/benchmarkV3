@@ -171,6 +171,7 @@
             "fixture",
             "generated_at",
             "as_of",
+            "search_suggestions",
             "sources",
             "analysis",
             "facts",
@@ -254,6 +255,40 @@
             "as_of": {
               "type": "string",
               "format": "date-time"
+            },
+            "search_suggestions": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "provider",
+                    "rendered_content",
+                    "queries"
+                  ],
+                  "properties": {
+                    "provider": {
+                      "const": "google",
+                      "type": "string"
+                    },
+                    "rendered_content": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "queries": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "maxItems": 10
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "sources": {
               "type": "array",

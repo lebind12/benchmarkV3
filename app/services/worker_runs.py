@@ -257,6 +257,15 @@ def start_daily_sync_run(
                     progress=tracker,
                 )
             payload = result.to_log_payload()
+            if not result.has_errors and getattr(get_settings(), "home_preview_enabled", False):
+                try:
+                    from app import db
+                    from app.workers.home_preview import run_cycle
+                    payload["home_preview"] = run_cycle(db.SessionLocal, execute=True)
+                    tracker.log("home-preview: post-sync cycle finished")
+                except Exception:
+                    payload["home_preview"] = {"state": "failed", "reason": "generation_failed"}
+                    tracker.log("home-preview: post-sync cycle failed; previous publications preserved")
             with _lock:
                 run.result = payload
                 run.status = "failed" if result.has_errors else "succeeded"

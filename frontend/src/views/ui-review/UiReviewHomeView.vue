@@ -25,7 +25,8 @@ onBeforeUnmount(() => {
 .candidate-page {
   height: calc(100vh - var(--header-height));
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding-block: 12px;
 }
 </style>

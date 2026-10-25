@@ -17,7 +17,7 @@ const candidate = recommendationFixtureSchema.extend({
 const result = recommendationFixtureSchema.extend({ state: z.literal('finished'), goals_home: z.number().int().nonnegative(), goals_away: z.number().int().nonnegative() }).strict()
 export const homeRecommendationsSchema = z.object({
   schema_version: z.literal('1.0'), requested_date: date, display_date: date, timezone: z.literal('Asia/Seoul'),
-  as_of: time, policy_version: z.literal('home-priority-2026-10-25'), fallback_reason: z.literal('no_eligible_today').nullable(),
+  as_of: time.nullable(), policy_version: z.literal('home-priority-2026-10-25'), fallback_reason: z.literal('no_eligible_today').nullable(),
   items: z.array(candidate), today_results: z.array(result),
 }).strict().superRefine((value, ctx) => {
   const fail = (message: string) => ctx.addIssue({ code: 'custom', message })
@@ -29,7 +29,7 @@ export const homeRecommendationsSchema = z.object({
     if (ids.has(row.fixture_id)) fail('Duplicate fixture in recommendations or results')
     ids.add(row.fixture_id)
     if (row.home.external_id === row.away.external_id) fail('Fixture teams must differ')
-    if (Date.parse(row.status_as_of) > Date.parse(value.as_of)) fail('Fixture state is newer than snapshot')
+    if (!value.as_of || Date.parse(row.status_as_of) > Date.parse(value.as_of)) fail('Fixture state is newer than snapshot')
     if (kstDate(row.kickoff_at) !== ('priority' in row ? value.display_date : value.requested_date)) fail('Fixture belongs to wrong KST date')
   }
   const compare = (a: z.infer<typeof candidate>, b: z.infer<typeof candidate>) => Number(b.state === 'ongoing') - Number(a.state === 'ongoing') || a.priority - b.priority || Date.parse(a.kickoff_at) - Date.parse(b.kickoff_at) || a.fixture_id - b.fixture_id
