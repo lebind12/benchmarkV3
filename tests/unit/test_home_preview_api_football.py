@@ -61,7 +61,7 @@ def test_real_capture_preserves_api_numbers_statuses_and_update_clock():
         clock=lambda: clock(CAPTURE["_capture"]["checked_at"]),
     )
     result, usage = provider(snapshot(), now=clock(CAPTURE["_capture"]["checked_at"]))
-    assert len(result["facts"]["injuries"]["data"]) == 30
+    assert len(result["facts"]["injuries"]["data"]) == 15
     assert {r["availability"] for r in result["facts"]["injuries"]["data"]} == {"out", "doubtful"}
     odds = result["external"]["odds"]["data"]
     assert [r["bookmaker"] for r in odds] == ["Bet365", "William Hill", "Marathonbet"]

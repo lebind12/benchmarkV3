@@ -516,6 +516,115 @@
               ]
             }
           }
+        },
+        "key_absences": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "available",
+                "partial",
+                "missing",
+                "unverified",
+                "error"
+              ]
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "not_collected",
+                    "insufficient_sample",
+                    "confirmed_no_absences",
+                    "no_source",
+                    "source_unverified",
+                    "upstream_failed",
+                    "outside_generation_window",
+                    "generation_pending",
+                    "generation_failed",
+                    "refresh_failed",
+                    "kickoff_passed",
+                    "no_valid_snapshot",
+                    "budget_deferred"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "as_of": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "source_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "data": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "team_id",
+                      "player_id",
+                      "reason",
+                      "evidence_ids"
+                    ],
+                    "properties": {
+                      "team_id": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "player_id": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "evidence_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "minItems": 1
+                      }
+                    }
+                  },
+                  "maxItems": 4
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -615,6 +724,118 @@
                       "player_id": {
                         "type": "integer",
                         "exclusiveMinimum": 0
+                      },
+                      "status_conflict": {
+                        "type": "boolean"
+                      },
+                      "importance_evidence": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "eligible",
+                          "recent_games",
+                          "lineup_games",
+                          "player_games",
+                          "recent_starts",
+                          "recent_minutes",
+                          "seasons",
+                          "source_ids"
+                        ],
+                        "properties": {
+                          "selection_reason": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "eligible": {
+                            "type": "boolean"
+                          },
+                          "recent_games": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10
+                          },
+                          "lineup_games": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10
+                          },
+                          "player_games": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10
+                          },
+                          "recent_starts": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "recent_minutes": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "seasons": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "season_year",
+                                "appearances",
+                                "minutes"
+                              ],
+                              "properties": {
+                                "season_year": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
+                                },
+                                "appearances": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "minutes": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "maxItems": 2
+                          },
+                          "source_ids": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "minItems": 1
+                          }
+                        }
                       },
                       "player_name": {
                         "type": "string",

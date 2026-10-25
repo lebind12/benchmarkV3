@@ -138,7 +138,7 @@
 .hp-form td:last-child, .hp-form th:last-child { text-align: right; }
 .hp-evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; padding: 30px 0; border-top: 1px solid var(--color-border); }
 .hp-external { padding: 15px 0; border-bottom: 1px solid var(--color-border); }
-.hp-external > span { display: block; font-size: 11px; margin-bottom: 8px; }
+.hp-external > span, .hp-external > a { display: block; font-size: 11px; line-height: 1.6; margin-bottom: 8px; overflow-wrap: anywhere; }
 .hp-external > span small { color: var(--color-muted); margin-left: 8px; }
 .hp-external > b { font-size: 14px; }
 .hp-external p { font-size: 12px; line-height: 1.9; color: var(--color-muted); margin: 8px 0; }

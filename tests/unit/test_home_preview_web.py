@@ -117,3 +117,48 @@ def test_private_destinations_and_unapproved_hosts_rejected_before_fetch(monkeyp
     )
     with pytest.raises(ValueError):
         allowed_url("https://www.liverpoolfc.com/news")
+
+
+def test_verified_editorial_excerpt_is_appended_even_with_api_prediction():
+    payload = snapshot()
+    payload["sources"].append(
+        {
+            "id": "api-prediction",
+            "fixture_id": 1557444,
+            "kind": "api",
+            "title": "API-Football",
+            "url": "https://v3.football.api-sports.io/predictions?fixture=1557444",
+            "published_at": None,
+            "retrieved_at": NOW.isoformat(),
+        }
+    )
+    payload["as_of"] = NOW.isoformat()
+    payload["external"]["predictions"] = {
+        "status": "available",
+        "reason": None,
+        "as_of": NOW.isoformat(),
+        "source_ids": ["api-prediction"],
+        "data": [
+            {"source_id": "api-prediction", "outlook": "API outlook", "summary": "API advice"}
+        ],
+    }
+    quote = "We expect Liverpool to have the edge against Brighton."
+    item = {**candidate(), "opinion_excerpt": True, "quote": quote}
+    source = {**page(), "text": "Liverpool Brighton 25 October 2026. " + quote}
+
+    def discover(payload, *, now):
+        _, grounding, tokens = discovery(payload, now=now)
+        return [item], grounding, tokens
+
+    result, usage = WebPreviewEvidence(discover, fetcher=lambda _: source, clock=lambda: NOW)(
+        payload, now=NOW
+    )
+    rows = result["external"]["predictions"]["data"]
+    assert len(rows) == 2 and rows[0]["summary"] == "API advice"
+    assert rows[1]["summary"] == quote and rows[1]["outlook"] == "외부 기사·칼럼 의견"
+    assert usage["model_requests"] == 1
+    item["quote"] = "We expect an invented claim about Liverpool."
+    result, _ = WebPreviewEvidence(discover, fetcher=lambda _: source, clock=lambda: NOW)(
+        payload, now=NOW
+    )
+    assert result["external"]["predictions"]["data"] == payload["external"]["predictions"]["data"]

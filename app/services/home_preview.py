@@ -170,6 +170,27 @@ def read_preview(session: Session, external_id: int, *, now=None):
             "reason": publication.reason,
         }
     if preview is not None:
+        from app.services.home_preview_injuries import deduplicate_injuries, selection_reason
+
+        rows = preview["facts"]["injuries"]["data"]
+        if rows:
+            preview["facts"]["injuries"]["data"] = deduplicate_injuries(rows)
+            if any(row.get("status_conflict") for row in preview["facts"]["injuries"]["data"]):
+                preview["facts"]["injuries"].update(status="partial", reason="source_unverified")
+        for pick in (preview["analysis"].get("key_absences") or {}).get("data") or []:
+            candidate = next(
+                (
+                    row
+                    for row in preview["facts"]["injuries"]["data"] or []
+                    if row.get("player_id") == pick["player_id"]
+                    and row["team_id"] == pick["team_id"]
+                ),
+                None,
+            )
+            if candidate and candidate.get("importance_evidence"):
+                pick["reason"] = candidate["importance_evidence"].get(
+                    "selection_reason"
+                ) or selection_reason(candidate["importance_evidence"])
         localize_injury_names(session, preview)
         complete = all(
             block["status"] == "available"

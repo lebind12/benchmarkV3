@@ -244,26 +244,33 @@ def verified_candidate(candidate, page, payload, *, now, aliases=None):
             "source_ids": [],
         }
     elif kind == "prediction":
-        h, a = candidate.get("home_goals"), candidate.get("away_goals")
-        if (
-            type(h) is not int
-            or type(a) is not int
-            or not 0 <= h <= 30
-            or not 0 <= a <= 30
-            or not all(name.casefold() in low for name in (home, away))
-            or not re.search(r"we say|predict|prediction", low)
-        ):
-            raise ValueError("unverified_prediction")
-        if not re.search(
-            rf"{re.escape(home)}\s+{h}\s*[-–:]\s*{a}\s+{re.escape(away)}", quote, re.IGNORECASE
-        ):
-            raise ValueError("unverified_predicted_score")
-        winner = fixture["home"]["name"] if h > a else fixture["away"]["name"]
-        data = {
-            "source_id": "",
-            "outlook": "무승부 전망" if h == a else f"{winner} 우세 전망",
-            "summary": f"원문 예상 스코어 {fixture['home']['name']} {h}–{a} {fixture['away']['name']}",
-        }
+        if candidate.get("opinion_excerpt") is True:
+            if not any(name.casefold() in low for name in (home, away)) or not re.search(
+                r"predict|expect|favou?r|edge|should|likely|struggle|we say", low
+            ):
+                raise ValueError("unverified_editorial_opinion")
+            data = {"source_id": "", "outlook": "외부 기사·칼럼 의견", "summary": quote}
+        else:
+            h, a = candidate.get("home_goals"), candidate.get("away_goals")
+            if (
+                type(h) is not int
+                or type(a) is not int
+                or not 0 <= h <= 30
+                or not 0 <= a <= 30
+                or not all(name.casefold() in low for name in (home, away))
+                or not re.search(r"we say|predict|prediction", low)
+            ):
+                raise ValueError("unverified_prediction")
+            if not re.search(
+                rf"{re.escape(home)}\s+{h}\s*[-–:]\s*{a}\s+{re.escape(away)}", quote, re.IGNORECASE
+            ):
+                raise ValueError("unverified_predicted_score")
+            winner = fixture["home"]["name"] if h > a else fixture["away"]["name"]
+            data = {
+                "source_id": "",
+                "outlook": "무승부 전망" if h == a else f"{winner} 우세 전망",
+                "summary": f"원문 예상 스코어 {fixture['home']['name']} {h}–{a} {fixture['away']['name']}",
+            }
     else:
         if (
             candidate.get("market") != "1x2_90min"
@@ -331,10 +338,11 @@ class WebPreviewEvidence:
             if len(queries) > 6 or not html or len(html) > 32768:
                 raise ValueError("unusable_grounding_metadata")
             pages = {}
+            fetch_attempts = 0
             accepted = set()
             deadline = time.monotonic() + 50
             for candidate in candidates[:8]:
-                if len(pages) >= 4 or time.monotonic() >= deadline:
+                if fetch_attempts >= 4 or time.monotonic() >= deadline:
                     break
                 kind = candidate.get("kind")
                 block = (
@@ -344,7 +352,9 @@ class WebPreviewEvidence:
                     if kind == "odds"
                     else result["external"]["predictions"]
                 )
-                if block["status"] == "available":
+                if kind == "prediction" and len(block["data"] or []) >= 4:
+                    continue
+                if block["status"] == "available" and kind != "prediction":
                     continue
                 url = candidate.get("url")
                 parsed_url = urlsplit(url) if isinstance(url, str) else None
@@ -358,10 +368,17 @@ class WebPreviewEvidence:
                 if url not in urls and not signed_google_redirect:
                     continue
                 try:
-                    page = (
-                        pages.setdefault(url, self.fetcher(url)) if url not in pages else pages[url]
-                    )
+                    if url not in pages:
+                        fetch_attempts += 1
+                        pages[url] = self.fetcher(url)
+                    page = pages[url]
                     if page["url"] in accepted:
+                        continue
+                    if kind == "prediction" and any(
+                        urlsplit(source["url"]).hostname == urlsplit(page["url"]).hostname
+                        for source in result["sources"]
+                        if source["kind"] == "web" and source["id"] in block["source_ids"]
+                    ):
                         continue
                     checked = self.clock()
                     data, published_at, quote = verified_candidate(
@@ -382,12 +399,14 @@ class WebPreviewEvidence:
                     else:
                         data["source_id"] = sid
                     result["sources"].append(source)
+                    previous_data = list(block["data"] or []) if kind == "prediction" else []
+                    previous_sources = list(block["source_ids"]) if kind == "prediction" else []
                     block.update(
                         status="partial" if kind == "injury" else "available",
                         reason="insufficient_sample" if kind == "injury" else None,
                         as_of=checked.isoformat(),
-                        source_ids=[sid],
-                        data=[data],
+                        source_ids=previous_sources + [sid],
+                        data=previous_data + [data],
                     )
                     accepted.add(page["url"])
                     verification.append(

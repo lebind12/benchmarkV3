@@ -523,3 +523,47 @@ def test_injury_names_use_current_translation_by_external_id_with_safe_legacy_fa
         )
         stored = session.scalar(select(HomePreviewVersion))
         assert stored.payload["facts"]["injuries"]["data"][0]["player_name"] == "API abbreviated"
+
+
+def test_injury_importance_uses_db_participation_and_excludes_future_records(setup_db):
+    from app.models.player import Player, PlayerSeasonStat
+    from app.services.home_preview_injuries import enrich_importance
+
+    _engine, factory = setup_db
+    with factory() as session:
+        fixture = session.scalar(select(Fixture).where(Fixture.external_id == 1557444))
+        player = Player(external_id=700, name="Starter", slug="importance-starter")
+        session.add(player)
+        session.flush()
+        stat = PlayerSeasonStat(
+            player_id=player.id,
+            team_id=fixture.home_team_id,
+            league_id=fixture.league_id,
+            season_year=2026,
+            appearances=12,
+            minutes=900,
+            raw_stats={},
+            updated_at=NOW - timedelta(minutes=1),
+        )
+        session.add(stat)
+        session.commit()
+        value = build_db_snapshot(session, fixture, now=NOW)
+        value["facts"]["injuries"]["data"] = [
+            {"team_id": 40, "player_id": 700, "player_name": "Starter", "source_ids": ["inj"]}
+        ]
+        enrich_importance(session, value, now=NOW)
+        result = value["facts"]["injuries"]["data"][0]["importance_evidence"]
+        assert (
+            result["eligible"]
+            and result["recent_starts"] is None
+            and result["recent_minutes"] is None
+        )
+        assert result["seasons"] == [{"season_year": 2026, "appearances": 12, "minutes": 900}]
+        stat.updated_at = NOW + timedelta(minutes=1)
+        session.commit()
+        fresh = build_db_snapshot(session, fixture, now=NOW)
+        fresh["facts"]["injuries"]["data"] = [
+            {"team_id": 40, "player_id": 700, "player_name": "Starter", "source_ids": ["inj"]}
+        ]
+        enrich_importance(session, fresh, now=NOW)
+        assert "importance_evidence" not in fresh["facts"]["injuries"]["data"][0]

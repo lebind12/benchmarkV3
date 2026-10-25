@@ -33,3 +33,7 @@ API 자료가 모두 있으면 검색을 생략하고 analysis 모델을 1회 �
 - 별도 Google 검색 probe는 JSON 반환, 후보 8개, 검색 질의 4개와 제안 HTML을 확인했다. 같은 팀의 과거 2024년 자료가 섞였고 groundingChunks가 없어 검증된 원문 게시 성공으로 판정하지 않았다. 신뢰된 Google grounding redirect는 서버에서 최종 도메인·원문·날짜·인용을 다시 확인한다. 임의 URL을 믿지 않는다.
 - 원문 접근은 등록 도메인, 공개 IP, HTTPS/redirect 검사, 페이지당 512KB·12초, 최대 4페이지·50초로 제한한다. 7일 이내·킥오프 전 발표와 동일 경기, 원문 인용을 확인한다. 검색 후보는 최대 8개다. 원문/상충 보도의 실제 coverage 인수 검증은 남아 있다.
 - 검색을 켜지 않아도 API 우선 경로는 동작한다. 부상 빈 배열을 무부상으로 바꾸지 않는다. API 장애는 error/upstream_failed로 남기며 누락 자료와 구별한다.
+
+### 후속 실제 매체 원문 검증 성공
+
+검색은 이제 API 전망이 있어도 수행한다. 질의를 기사 우선으로 좁힌 실제 새 슬롯 실행에서 검색 질의 2개로 [Sports Mole의 Hull City–Brentford 프리뷰](https://www.sportsmole.co.uk/football/hull-city/preview/hull-city-vs-brentford-prediction-team-news-lineups_607564.html) 원문을 확인했다. 게시 시각 2026-10-23T17:23:24+01:00, 확인 시각 2026-10-25T03:49:32Z, 원문 예상 1–1을 경기·날짜·인용과 함께 검증해 API 전망에 추가 저장했다. 앞 절의 ‘실원문 성공 없음’은 이전 probe 결과이며 전체 매체/추천 유형 coverage를 의미하지 않는다. 정책은 기본 검색+분석 2회, API 부상·배당은 부족할 때만 검색 보완이다.

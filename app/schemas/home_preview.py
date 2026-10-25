@@ -134,6 +134,41 @@ def validate_payload(v):
             row["team_id"] in [fixture[s]["external_id"] for s in ("home", "away")], "injury_team"
         )
         refs(row["source_ids"])
+    selected = v["analysis"].get("key_absences") or {}
+    seen, counts = set(), {}
+    for pick in selected.get("data") or []:
+        key = (pick["team_id"], pick["player_id"])
+        candidate = next(
+            (
+                row
+                for row in injuries["data"] or []
+                if (row["team_id"], row.get("player_id")) == key
+            ),
+            None,
+        )
+        require(candidate is not None, "unknown_key_absence")
+        require(
+            candidate.get("importance_evidence", {}).get("eligible")
+            and not candidate.get("status_conflict"),
+            "ineligible_key_absence",
+        )
+        expected_reason = candidate["importance_evidence"].get("selection_reason")
+        require(
+            not expected_reason or pick["reason"] == expected_reason, "key_absence_reason_mismatch"
+        )
+        require(key not in seen, "duplicate_key_absence")
+        seen.add(key)
+        counts[key[0]] = counts.get(key[0], 0) + 1
+        require(counts[key[0]] <= 2, "key_absence_team_limit")
+        evidence = set(pick["evidence_ids"])
+        require(
+            bool(evidence & set(candidate["source_ids"]))
+            and bool(evidence & set(candidate["importance_evidence"]["source_ids"])),
+            "key_absence_missing_evidence",
+        )
+    for row in injuries["data"] or []:
+        if row.get("importance_evidence"):
+            refs(row["importance_evidence"]["source_ids"], ["db"])
     for block in v["analysis"].values():
         rows = (
             block["data"]

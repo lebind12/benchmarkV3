@@ -139,7 +139,7 @@ class Settings(BaseSettings):
 
     # Main preview remains separately configurable from AX/broadcast models.
     home_preview_enabled: bool = Field(default=False)
-    home_preview_search_enabled: bool = Field(default=False)
+    home_preview_search_enabled: bool = Field(default=True)
     home_preview_vertex_model: str = Field(default="gemini-3.5-flash")
     home_preview_vertex_location: str = Field(default="global")
     home_preview_cycle_limit: int = Field(default=24,ge=1,le=100)

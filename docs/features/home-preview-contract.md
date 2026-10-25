@@ -63,3 +63,9 @@ PRE-02에서 DB coverage와 웹/부상/배당/Vertex 실응답·이용 범위·�
 ### 부상 선수 표시명 — 2026-10-25
 
 신규 수집 injuries 행은 API-Football 선수 external_id인 선택 필드 `player_id`를 보존한다. 기존 v1.1 저장본은 이 필드 없이도 유효하다. 공개 조회는 `player.external_id → player_translation.player_id`로 `name_ko`를 일괄 조회해 표시명에 적용하며, NULL/빈 번역이면 원문을 유지한다. ID가 있는 행은 이름 추정으로 연결하지 않는다. ID 없는 과거 저장본은 DB player.name과 정확히 일치하는 선수가 전역에서 한 명일 때만 번역을 적용하며 약칭/동명이인은 원문을 유지한다. 저장 원본 JSON/근거·생성 시각을 변경하거나 AI를 다시 호출하지 않는다.
+
+### 주요 결장자 선택 계약 — 2026-10-25
+
+v1.1은 과거 저장본 호환을 위해 선택 필드를 확장한다. injuries 행의 importance_evidence는 DB 근거 source_ids, 최근 표본 수/선발·출전 시간(NULL 허용), 명시된 시즌별 appearances/minutes, 서버 eligible 및 selection_reason을 담는다. analysis.key_absences는 기존 analysis 호출이 작성하는 선택 section으로, data는 team_id/player_id/reason/evidence_ids 배열이다. 팀당 2명·전체 4명, 후보 소속/적격/중복/상태 충돌/부상과 DB 출전 근거를 검증한다. 새 입력의 reason은 서버 selection_reason과 같아야 한다. 기존 데이터는 필드 없이 유효하며 기본 목록은 접힌 전체 명단으로 보여준다. AI는 선별과 순위만 판단하고 수치 설명은 DB 문장을 유지한다.
+
+외부 predictions에는 API 자체 알고리즘과 독립 매체의 검증된 원문 의견을 함께 저장할 수 있다. API 값이 있어도 검색을 생략하지 않는다. 배당 home/draw/away 의미는 유지하며 화면 라벨은 해당 fixture의 팀 이름으로 표시한다. 공개 조회에서 검색/생성하지 않는다.

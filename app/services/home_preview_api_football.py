@@ -10,6 +10,7 @@ from urllib.parse import urlencode
 
 from app.schemas.home_preview import PreviewPayload, clock
 from app.services.home_preview import missing
+from app.services.home_preview_injuries import deduplicate_injuries
 from app.services.home_preview_policy import utcnow
 from app.workers.daily_sync.api import ApiFootballError
 
@@ -114,11 +115,12 @@ class ApiFootballPreviewEvidence:
                             "source_ids": [f"api-football-injuries-{fixture_id}"],
                         }
                     )
+                injuries = deduplicate_injuries(injuries)
                 if injuries:
                     sid = source("injuries", "API-Football 부상·출전 정보", {"fixture": fixture_id})
                     value["facts"]["injuries"] = {
-                        "status": "available",
-                        "reason": None,
+                        "status": "partial" if any(row.get("status_conflict") for row in injuries) else "available",
+                        "reason": "source_unverified" if any(row.get("status_conflict") for row in injuries) else None,
                         "as_of": retrieved,
                         "source_ids": [sid],
                         "data": injuries,

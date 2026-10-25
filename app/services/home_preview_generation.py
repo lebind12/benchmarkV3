@@ -18,7 +18,7 @@ from app.schemas.home_preview import PreviewPayload
 from app.services.home_preview import build_db_snapshot, eligible_rows
 from app.services.home_preview_policy import digest, identity, slot_time, utcnow
 
-GENERATION_VERSION = "home-preview-1.1-prompt-2"
+GENERATION_VERSION = "home-preview-1.1-prompt-4"
 LEASE_SECONDS = 300
 
 
@@ -161,6 +161,10 @@ def process_fixture(
             for key, count in previous_counts.items():
                 if key in evidence_usage:
                     usage[key] = count + evidence_usage[key]
+        from app.services.home_preview_injuries import enrich_importance
+
+        with session_factory() as session:
+            enrich_importance(session, payload, now=now)
         PreviewPayload.model_validate(payload)
         if payload["is_mock"] is not False:
             raise ValueError("mock_payload_not_publishable")

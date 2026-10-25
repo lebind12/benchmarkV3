@@ -1,22 +1,33 @@
 {
+  "required": [
+    "summary",
+    "key_points",
+    "ai_prediction",
+    "key_absences"
+  ],
   "type": "OBJECT",
   "properties": {
     "summary": {
+      "required": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ],
       "type": "OBJECT",
       "properties": {
         "status": {
-          "type": "STRING",
           "enum": [
             "available",
             "partial",
             "missing",
             "unverified",
             "error"
-          ]
+          ],
+          "type": "STRING"
         },
         "reason": {
-          "type": "STRING",
-          "nullable": true,
           "enum": [
             "not_collected",
             "insufficient_sample",
@@ -31,12 +42,14 @@
             "kickoff_passed",
             "no_valid_snapshot",
             "budget_deferred"
-          ]
+          ],
+          "type": "STRING",
+          "nullable": true
         },
         "as_of": {
           "type": "STRING",
-          "nullable": true,
-          "format": "date-time"
+          "format": "date-time",
+          "nullable": true
         },
         "source_ids": {
           "type": "ARRAY",
@@ -45,24 +58,24 @@
           }
         },
         "data": {
+          "required": [
+            "text",
+            "evidence_ids"
+          ],
           "type": "OBJECT",
           "properties": {
             "text": {
               "type": "STRING"
             },
             "evidence_ids": {
+              "minItems": 1,
               "type": "ARRAY",
               "items": {
                 "type": "STRING"
-              },
-              "minItems": 1
+              }
             }
           },
           "propertyOrdering": [
-            "text",
-            "evidence_ids"
-          ],
-          "required": [
             "text",
             "evidence_ids"
           ],
@@ -75,31 +88,29 @@
         "as_of",
         "source_ids",
         "data"
-      ],
+      ]
+    },
+    "key_points": {
       "required": [
         "status",
         "reason",
         "as_of",
         "source_ids",
         "data"
-      ]
-    },
-    "key_points": {
+      ],
       "type": "OBJECT",
       "properties": {
         "status": {
-          "type": "STRING",
           "enum": [
             "available",
             "partial",
             "missing",
             "unverified",
             "error"
-          ]
+          ],
+          "type": "STRING"
         },
         "reason": {
-          "type": "STRING",
-          "nullable": true,
           "enum": [
             "not_collected",
             "insufficient_sample",
@@ -114,12 +125,14 @@
             "kickoff_passed",
             "no_valid_snapshot",
             "budget_deferred"
-          ]
+          ],
+          "type": "STRING",
+          "nullable": true
         },
         "as_of": {
           "type": "STRING",
-          "nullable": true,
-          "format": "date-time"
+          "format": "date-time",
+          "nullable": true
         },
         "source_ids": {
           "type": "ARRAY",
@@ -128,9 +141,14 @@
           }
         },
         "data": {
-          "type": "ARRAY",
           "minItems": 1,
+          "type": "ARRAY",
           "items": {
+            "required": [
+              "title",
+              "description",
+              "evidence_ids"
+            ],
             "type": "OBJECT",
             "properties": {
               "title": {
@@ -140,19 +158,14 @@
                 "type": "STRING"
               },
               "evidence_ids": {
+                "minItems": 1,
                 "type": "ARRAY",
                 "items": {
                   "type": "STRING"
-                },
-                "minItems": 1
+                }
               }
             },
             "propertyOrdering": [
-              "title",
-              "description",
-              "evidence_ids"
-            ],
-            "required": [
               "title",
               "description",
               "evidence_ids"
@@ -167,31 +180,29 @@
         "as_of",
         "source_ids",
         "data"
-      ],
+      ]
+    },
+    "ai_prediction": {
       "required": [
         "status",
         "reason",
         "as_of",
         "source_ids",
         "data"
-      ]
-    },
-    "ai_prediction": {
+      ],
       "type": "OBJECT",
       "properties": {
         "status": {
-          "type": "STRING",
           "enum": [
             "available",
             "partial",
             "missing",
             "unverified",
             "error"
-          ]
+          ],
+          "type": "STRING"
         },
         "reason": {
-          "type": "STRING",
-          "nullable": true,
           "enum": [
             "not_collected",
             "insufficient_sample",
@@ -206,12 +217,14 @@
             "kickoff_passed",
             "no_valid_snapshot",
             "budget_deferred"
-          ]
+          ],
+          "type": "STRING",
+          "nullable": true
         },
         "as_of": {
           "type": "STRING",
-          "nullable": true,
-          "format": "date-time"
+          "format": "date-time",
+          "nullable": true
         },
         "source_ids": {
           "type": "ARRAY",
@@ -220,45 +233,45 @@
           }
         },
         "data": {
-          "type": "OBJECT",
-          "properties": {
-            "home_goals": {
-              "type": "INTEGER",
-              "minimum": 0,
-              "maximum": 30
-            },
-            "away_goals": {
-              "type": "INTEGER",
-              "minimum": 0,
-              "maximum": 30
-            },
-            "confidence": {
-              "type": "STRING",
-              "enum": [
-                "low",
-                "medium",
-                "high"
-              ]
-            },
-            "reason": {
-              "type": "STRING"
-            },
-            "evidence_ids": {
-              "type": "ARRAY",
-              "items": {
-                "type": "STRING"
-              },
-              "minItems": 1
-            }
-          },
-          "propertyOrdering": [
+          "required": [
             "home_goals",
             "away_goals",
             "confidence",
             "reason",
             "evidence_ids"
           ],
-          "required": [
+          "type": "OBJECT",
+          "properties": {
+            "home_goals": {
+              "minimum": 0,
+              "maximum": 30,
+              "type": "INTEGER"
+            },
+            "away_goals": {
+              "minimum": 0,
+              "maximum": 30,
+              "type": "INTEGER"
+            },
+            "confidence": {
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING"
+            },
+            "evidence_ids": {
+              "minItems": 1,
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            }
+          },
+          "propertyOrdering": [
             "home_goals",
             "away_goals",
             "confidence",
@@ -274,8 +287,98 @@
         "as_of",
         "source_ids",
         "data"
-      ],
+      ]
+    },
+    "key_absences": {
       "required": [
+        "status",
+        "reason",
+        "as_of",
+        "source_ids",
+        "data"
+      ],
+      "type": "OBJECT",
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "partial",
+            "missing",
+            "unverified",
+            "error"
+          ],
+          "type": "STRING"
+        },
+        "reason": {
+          "enum": [
+            "not_collected",
+            "insufficient_sample",
+            "confirmed_no_absences",
+            "no_source",
+            "source_unverified",
+            "upstream_failed",
+            "outside_generation_window",
+            "generation_pending",
+            "generation_failed",
+            "refresh_failed",
+            "kickoff_passed",
+            "no_valid_snapshot",
+            "budget_deferred"
+          ],
+          "type": "STRING",
+          "nullable": true
+        },
+        "as_of": {
+          "type": "STRING",
+          "format": "date-time",
+          "nullable": true
+        },
+        "source_ids": {
+          "type": "ARRAY",
+          "items": {
+            "type": "STRING"
+          }
+        },
+        "data": {
+          "maxItems": 4,
+          "type": "ARRAY",
+          "items": {
+            "required": [
+              "team_id",
+              "player_id",
+              "reason",
+              "evidence_ids"
+            ],
+            "type": "OBJECT",
+            "properties": {
+              "team_id": {
+                "type": "INTEGER"
+              },
+              "player_id": {
+                "type": "INTEGER"
+              },
+              "reason": {
+                "type": "STRING"
+              },
+              "evidence_ids": {
+                "minItems": 1,
+                "type": "ARRAY",
+                "items": {
+                  "type": "STRING"
+                }
+              }
+            },
+            "propertyOrdering": [
+              "team_id",
+              "player_id",
+              "reason",
+              "evidence_ids"
+            ]
+          },
+          "nullable": true
+        }
+      },
+      "propertyOrdering": [
         "status",
         "reason",
         "as_of",
@@ -287,11 +390,7 @@
   "propertyOrdering": [
     "summary",
     "key_points",
-    "ai_prediction"
-  ],
-  "required": [
-    "summary",
-    "key_points",
-    "ai_prediction"
+    "ai_prediction",
+    "key_absences"
   ]
 }

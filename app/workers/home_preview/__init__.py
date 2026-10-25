@@ -75,14 +75,7 @@ def run_cycle(
                 if api_evidence:
                     payload, api_usage = api_evidence(payload, now=now)
                     usage.update(api_usage)
-                if web_evidence and any(
-                    block["data"] is None
-                    for block in (
-                        payload["facts"]["injuries"],
-                        payload["external"]["predictions"],
-                        payload["external"]["odds"],
-                    )
-                ):
+                if web_evidence:
                     payload, web_usage = web_evidence(payload, now=clock())
                     usage.update(web_usage)
                 return payload, usage
