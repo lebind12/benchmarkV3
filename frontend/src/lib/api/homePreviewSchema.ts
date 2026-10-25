@@ -23,20 +23,24 @@ export const recentMatchSchema = z.object({ fixture_id: id, kickoff_at: time, op
 })
 const form = z.object({ team_id: id, expected_count: z.literal(5), matches: z.array(recentMatchSchema).max(5) }).strict()
 const importance = z.object({ recognition_name: text.optional(), selection_reason: text.optional(), eligible: z.boolean(), recent_games: z.number().int().min(0).max(10), lineup_games: z.number().int().min(0).max(10), player_games: z.number().int().min(0).max(10), recent_starts: z.number().int().nonnegative().nullable(), recent_minutes: z.number().int().nonnegative().nullable(), seasons: z.array(z.object({ season_year: id, appearances: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable() }).strict()).max(2), source_ids: refs }).strict()
-const injury = z.object({ team_id: id, player_id: id.optional(), status_conflict: z.boolean().optional(), importance_evidence: importance.optional(), player_name: text, photo_url: z.string().url().nullable().optional(), availability: z.enum(['out', 'doubtful']), detail: text, impact: text, source_ids: refs }).strict()
+const absenceCause = z.object({ code: z.enum(['hamstring', 'groin', 'thigh', 'knee', 'acl', 'ankle', 'calf', 'achilles', 'muscle', 'hip', 'foot', 'shin', 'shoulder', 'illness', 'red_card', 'yellow_cards']), label: text.max(32), occurred_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(), occurred_month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable() }).strict()
+const injury = z.object({ cause: section(absenceCause).optional(), team_id: id, player_id: id.optional(), status_conflict: z.boolean().optional(), importance_evidence: importance.optional(), player_name: text, photo_url: z.string().url().nullable().optional(), availability: z.enum(['out', 'doubtful']), detail: text, impact: text, source_ids: refs }).strict()
 const recentPlayerForm = z.object({ team_match_count: z.number().int().min(0).max(10), observed_appearances: z.number().int().min(0).max(10), goals: z.number().int().nonnegative().nullable(), assists: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable(), goal_samples: z.number().int().min(0).max(10), assist_samples: z.number().int().min(0).max(10), minute_samples: z.number().int().min(0).max(10) }).strict()
 const recordNotes = z.object({ recent_contribution: text.nullable().optional(), season_contribution: text.nullable(), scoring_streak: text.nullable(), assist_streak: text.nullable(), involvement_streak: text.nullable() }).strict()
-const spotlight = z.object({ team_id: id, player_id: id, player_name: text, photo_url: z.string().url().nullable().optional(), canonical_name: text, season_year: id, appearances: z.number().int().nonnegative().nullable(), goals: z.number().int().nonnegative().nullable(), assists: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable(), recent_form: recentPlayerForm.optional(), recent_match_count: z.number().int().min(0).max(10), scoring_streak: z.number().int().min(0).max(10), assist_streak: z.number().int().min(0).max(10), involvement_streak: z.number().int().min(0).max(10), record_notes: recordNotes, source_ids: refs }).strict()
+const spotlight = z.object({ team_id: id, player_id: id, player_name: text, photo_url: z.string().url().nullable().optional(), canonical_name: text, competition_name: text.optional(), season_year: id, appearances: z.number().int().nonnegative().nullable(), goals: z.number().int().nonnegative().nullable(), assists: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable(), recent_form: recentPlayerForm.optional(), recent_match_count: z.number().int().min(0).max(10), scoring_streak: z.number().int().min(0).max(10), assist_streak: z.number().int().min(0).max(10), involvement_streak: z.number().int().min(0).max(10), record_notes: recordNotes, source_ids: refs }).strict()
 const externalPrediction = z.object({ source_id: text, outlook: text, summary: text }).strict()
+const forecastCoverage = z.object({ target_count: z.literal(3), web_source_count: z.number().int().min(0).max(4), candidate_count: z.number().int().min(0).max(12), checked_at: time.nullable(), reason_codes: z.array(z.enum(['no_verified_source', 'original_unavailable', 'wrong_match', 'unverified_publication', 'unverified_quote', 'unusable_grounding', 'duplicate_publisher', 'budget_reached'])).max(8) }).strict()
+const forecastSection = section(z.array(externalPrediction).min(1)).extend({ coverage: forecastCoverage.optional() }).strict()
 const odds = z.object({ source_id: text, bookmaker: text, market: z.literal('1x2_90min'), format: z.literal('decimal'), home: z.number().gt(1), draw: z.number().gt(1), away: z.number().gt(1), collected_at: time }).strict()
 export const homePreviewSchema = z.object({
   schema_version: z.literal('1.1'), is_mock: z.boolean(), fixture: z.object({ external_id: id, kickoff_at: time, home: team, away: team }).strict(),
   generated_at: time.nullable(), as_of: time,
-  search_suggestions: z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(10) }).strict().nullable(),
+  search_suggestions: z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(20) }).strict().nullable(),
+  search_suggestions_extra: z.array(z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(20) }).strict()).max(1).optional(),
   sources: z.array(z.object({ id: text, fixture_id: id, kind: z.enum(['db', 'web', 'api']), title: text, url: z.string().url().nullable(), published_at: time.nullable(), retrieved_at: time }).strict()),
   analysis: homePreviewAnalysisSchema,
   facts: z.object({ player_spotlights: section(z.array(spotlight).max(8)).optional(), injuries: section(z.array(injury)), home_form: section(form), away_form: section(form) }).strict(),
-  external: z.object({ predictions: section(z.array(externalPrediction).min(1)), odds: section(z.array(odds).min(1)) }).strict(),
+  external: z.object({ predictions: forecastSection, odds: section(z.array(odds).min(1)) }).strict(),
 }).strict().superRefine((value, context) => {
   const fail = (message: string) => context.addIssue({ code: z.ZodIssueCode.custom, message })
   const clock = value.generated_at ?? value.as_of
@@ -134,6 +138,16 @@ export const homePreviewSchema = z.object({
     for (const ref of item.importance_evidence?.source_ids ?? []) if (sources.get(ref)?.kind !== 'db') fail('Participation evidence must reference DB sources')
     if (![value.fixture.home.external_id, value.fixture.away.external_id].includes(item.team_id)) fail('Injury team mismatch')
     checkRefs(item.source_ids, ['db', 'web', 'api'])
+    if (item.cause) {
+      const cause = item.cause; checkRefs(cause.source_ids, ['web'])
+      if (cause.data) {
+        if (cause.status !== 'available' || !cause.as_of || !cause.source_ids.length) fail('Verified cause requires original web evidence')
+        if (cause.data.occurred_on && cause.data.occurred_month) fail('Cause occurrence must have one precision')
+        const occurred = cause.data.occurred_on ?? (cause.data.occurred_month ? `${cause.data.occurred_month}-01` : null)
+        if (occurred && (Number.isNaN(Date.parse(occurred)) || Date.parse(occurred) > Date.parse(cause.as_of ?? ''))) fail('Cause occurrence cannot be in the future')
+        if (cause.data.occurred_on && new Date(cause.data.occurred_on).toISOString().slice(0, 10) !== cause.data.occurred_on) fail('Invalid cause occurrence date')
+      } else if (!['missing', 'unverified', 'error'].includes(cause.status) || !cause.reason) fail('Unverified cause must remain empty')
+    }
   }
   if (value.facts.injuries.status === 'available' && value.facts.injuries.data?.length === 0 && value.facts.injuries.reason !== 'confirmed_no_absences') fail('Empty verified injury list needs explicit confirmed_no_absences')
   for (const block of [value.analysis.summary, value.analysis.key_points, value.analysis.ai_prediction]) {
@@ -142,6 +156,12 @@ export const homePreviewSchema = z.object({
       checkRefs(item.evidence_ids)
       if (item.evidence_ids.some(ref => !block.source_ids.includes(ref))) fail('Evidence must be included in section sources')
     }
+  }
+  if (value.external.predictions.coverage) {
+    const coverage = value.external.predictions.coverage
+    const publishers = new Set((value.external.predictions.data ?? []).map(row => sources.get(row.source_id)).filter(source => source?.kind === 'web' && source.url).map(source => new URL(source!.url!).hostname.replace(/^www\./, '').replace(/^bbc\.co\.uk$/, 'bbc.com')))
+    if (coverage.web_source_count !== publishers.size) fail('Forecast coverage must count independent web publishers only')
+    if (publishers.size < 3 && value.external.predictions.status === 'available') fail('Three verified publishers required for complete forecasts')
   }
   for (const item of value.external.predictions.data ?? []) checkRefs([item.source_id], ['web', 'api'])
   for (const item of value.external.odds.data ?? []) {

@@ -11,6 +11,8 @@ test('isolated API and DB publication reaches the real main page', async ({ page
   await home.locator('.hp-match-strip button[data-fixture-id="1557445"]').click()
   await expect(home.getByTestId('selected-preview')).toHaveAttribute('data-fixture-id', '1557445')
   await expect(home.locator('.hp-preview-empty')).toHaveCount(0)
+  await expect(home.getByTestId('preview-detail-link')).toHaveAttribute('href', '/fixtures/1557445')
+  await expect(home.getByTestId('forecast-coverage')).toContainText('매체 0/3곳 확인')
   await expect(home.locator('#preview-injuries')).toContainText('API-Football')
   await expect(home.locator('#preview-odds')).toContainText('Bet365')
   await expect(home.locator('.hp-form tbody tr')).toHaveCount(10)

@@ -5,9 +5,10 @@ below enforce provenance and publication invariants beyond JSON Schema.
 """
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from jsonschema import Draft202012Validator, FormatChecker
 from pydantic import RootModel, model_validator
@@ -138,6 +139,33 @@ def validate_payload(v):
             row["team_id"] in [fixture[s]["external_id"] for s in ("home", "away")], "injury_team"
         )
         refs(row["source_ids"])
+        cause = row.get("cause")
+        if cause:
+            refs(cause["source_ids"], ["web"])
+            if cause["data"]:
+                require(
+                    cause["status"] == "available" and cause["as_of"] and cause["source_ids"],
+                    "unverified_cause_data",
+                )
+                require(clock(cause["as_of"]) <= generated, "future_cause_observation")
+                value = cause["data"]
+                require(
+                    not (value["occurred_on"] and value["occurred_month"]),
+                    "mixed_occurrence_precision",
+                )
+                incident = value["occurred_on"] or (
+                    value["occurred_month"] + "-01" if value["occurred_month"] else None
+                )
+                if incident:
+                    require(
+                        date.fromisoformat(incident) <= clock(cause["as_of"]).date(),
+                        "future_occurrence",
+                    )
+            else:
+                require(
+                    cause["status"] in ("missing", "unverified", "error") and cause["reason"],
+                    "unverified_cause_state",
+                )
     spotlights = v["facts"].get("player_spotlights") or {}
     known, seen_players = {}, set()
     for player in spotlights.get("data") or []:
@@ -238,6 +266,20 @@ def validate_payload(v):
         for row in rows:
             refs(row["evidence_ids"])
             require(set(row["evidence_ids"]) <= set(block["source_ids"]), "unregistered_evidence")
+    coverage = v["external"]["predictions"].get("coverage")
+    if coverage:
+        publishers = {
+            (urlsplit(sources[row["source_id"]]["url"]).hostname or "")
+            .removeprefix("www.")
+            .replace("bbc.co.uk", "bbc.com")
+            for row in v["external"]["predictions"]["data"] or []
+            if sources.get(row["source_id"], {}).get("kind") == "web"
+        }
+        require(coverage["web_source_count"] == len(publishers), "invalid_forecast_web_count")
+        require(
+            len(publishers) >= 3 or v["external"]["predictions"]["status"] != "available",
+            "insufficient_forecast_publishers",
+        )
     for row in v["external"]["predictions"]["data"] or []:
         refs([row["source_id"]], ["web", "api"])
     for row in v["external"]["odds"]["data"] or []:

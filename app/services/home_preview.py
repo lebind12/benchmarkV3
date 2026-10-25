@@ -177,6 +177,10 @@ def read_preview(session: Session, external_id: int, *, now=None):
         }
     if preview is not None:
         from app.services.home_preview_injuries import deduplicate_injuries, selection_reason
+        from app.services.home_preview_web import update_prediction_coverage
+
+        if not preview["external"]["predictions"].get("coverage"):
+            update_prediction_coverage(preview)
 
         rows = preview["facts"]["injuries"]["data"]
         if rows:

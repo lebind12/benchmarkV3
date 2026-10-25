@@ -44,7 +44,8 @@
     "FE error proposal: invalid parameter 422, unknown fixture 404, existing fixture with no snapshot 200 envelope, database unavailable 503; finalize in PRE-03.",
     "See docs/features/home-preview-contract.md for exact state/time/cup invariants. No automatic generation on GET.",
     "Unreleased payload v1.1: search_suggestions=null or Google supplied rendered_content + queries; exact supplied style rendered in a no-script sandbox iframe. Never use arbitrary source HTML.",
-    "Optional player_spotlights/player_watchpoints fields provide DB-backed player records and ID-based selections. Injury/spotlight photo_url uses stored API/DB URLs; player names use player_translation at read time. Details: docs/features/home-preview-players.md."
+    "Optional player_spotlights/player_watchpoints fields provide DB-backed player records and ID-based selections. Injury/spotlight photo_url uses stored API/DB URLs; player names use player_translation at read time. Details: docs/features/home-preview-players.md.",
+    "Optional selected injury cause: verified short Korean label + occurred_on or occurred_month, unknown dates null, web source IDs. Research ONLY final key_absences, max 2/team. Predictions.coverage targets 3 distinct web publishers, API algorithm excluded; partial if fewer. Main detail button uses existing fixture-detail route, no new API. Details: docs/features/home-preview-research.md."
   ],
   "payload_schema_ref": "docs/spec/schemas/home-preview-payload.schema.json"
 }

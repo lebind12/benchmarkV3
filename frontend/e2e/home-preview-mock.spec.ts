@@ -109,7 +109,7 @@ test('single, empty and next-date fallback states', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '아직 추천할 경기가 없습니다' })).toBeVisible()
 })
 test('missing information, pending, failed retry, previous valid preview, and missing crest', async ({ page }) => {
-  await expect(page.locator('.hp-evidence-grid')).toContainText('확인한 외부 전망이 없습니다')
+  await expect(page.locator('.hp-evidence-grid')).toContainText('확인된 매체 전망이 아직 없습니다')
   for (const state of ['pending', 'failed']) {
     await tools(page); await page.getByLabel('프리뷰 상태', { exact: true }).selectOption(state)
     await page.getByText('평가 도구', { exact: true }).click()

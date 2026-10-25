@@ -20,7 +20,7 @@ from app.schemas.home_preview import PreviewPayload
 from app.services.home_preview import build_db_snapshot, eligible_rows, localize_injury_names
 from app.services.home_preview_policy import digest, identity, slot_time, utcnow
 
-GENERATION_VERSION = "home-preview-1.1-prompt-8"
+GENERATION_VERSION = "home-preview-1.1-prompt-9"
 LEASE_SECONDS = 300
 
 
@@ -52,6 +52,7 @@ def process_fixture(
     *,
     provider=None,
     evidence_provider=None,
+    cause_provider=None,
     clock=utcnow,
     model="facts-only",
     retry_failed=False,
@@ -207,6 +208,58 @@ def process_fixture(
                 payload["generated_at"] = clock().isoformat()
                 usage.update(model_usage)
             PreviewPayload.model_validate(payload)
+            if (
+                cause_provider
+                and (payload["analysis"].get("key_absences") or {}).get("data")
+                and clock() - now < timedelta(seconds=LEASE_SECONDS - 90)
+            ):
+                before_causes = deepcopy(payload)
+                usage["model_requests"] = usage.get("model_requests", 0) + 1
+                payload, cause_usage = cause_provider(deepcopy(payload), now=clock())
+
+                def without_causes(value):
+                    value = deepcopy(value)
+                    for row in value["facts"]["injuries"]["data"] or []:
+                        row.pop("cause", None)
+                    return value["facts"]
+
+                if (
+                    payload["sources"][: len(before_causes["sources"])] != before_causes["sources"]
+                    or payload["is_mock"] is not False
+                    or payload["analysis"] != before_causes["analysis"]
+                    or payload["fixture"] != before_causes["fixture"]
+                    or payload["external"] != before_causes["external"]
+                    or without_causes(payload) != without_causes(before_causes)
+                ):
+                    raise ValueError("cause_research_changed_selection")
+                for key in ("api_football_requests", "search_queries"):
+                    usage[key] = usage.get(key, 0) + cause_usage.get(key, 0)
+                usage["_evidence"] = usage.get("_evidence", []) + cause_usage.pop("_evidence", [])
+                usage.update(
+                    {
+                        key: value
+                        for key, value in cause_usage.items()
+                        if key not in ("model_requests", "api_football_requests", "search_queries")
+                    }
+                )
+                evidence_snapshot["verification"] = usage.get("_evidence", [])
+                evidence_snapshot["post_selection_causes"] = {
+                    "players": [
+                        {
+                            "team_id": row["team_id"],
+                            "player_id": row.get("player_id"),
+                            "cause": row["cause"],
+                        }
+                        for row in payload["facts"]["injuries"]["data"] or []
+                        if row.get("cause")
+                    ],
+                    "sources": [
+                        row
+                        for row in payload["sources"]
+                        if row["id"] not in {source["id"] for source in before_causes["sources"]}
+                    ],
+                }
+            PreviewPayload.model_validate(payload)
         finished = clock()
         with session_factory() as session:
             fixture = session.scalar(
@@ -251,7 +304,15 @@ def process_fixture(
                         for k, b in payload[g].items()
                     }
                     if any(
-                        b["status"] == "available" and new_blocks[k]["status"] != "available"
+                        b["status"] == "available"
+                        and new_blocks[k]["status"] != "available"
+                        and not (
+                            k == "external.predictions"
+                            and new_blocks[k].get("coverage")
+                            and {row["source_id"] for row in b["data"] or []}.issubset(
+                                {row["source_id"] for row in new_blocks[k]["data"] or []}
+                            )
+                        )
                         for k, b in old_blocks.items()
                     ):
                         raise ValueError("degraded_refresh")

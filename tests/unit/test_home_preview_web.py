@@ -162,3 +162,70 @@ def test_verified_editorial_excerpt_is_appended_even_with_api_prediction():
         payload, now=NOW
     )
     assert result["external"]["predictions"]["data"] == payload["external"]["predictions"]["data"]
+
+
+def test_three_distinct_media_publishers_complete_coverage_without_counting_api():
+    urls = [
+        URL,
+        "https://www.racingpost.com/match-preview",
+        "https://www.football365.com/match-preview",
+    ]
+
+    def discover(payload, *, now):
+        return (
+            [{**candidate(), "url": url} for url in urls],
+            {
+                "webSearchQueries": ["Liverpool Brighton preview"],
+                "groundingChunks": [{"web": {"uri": url}} for url in urls],
+                "searchEntryPoint": {"renderedContent": "<div>Search</div>"},
+            },
+            {"totalTokenCount": 10},
+        )
+
+    result, usage = WebPreviewEvidence(
+        discover, fetcher=lambda url: {**page(), "url": url}, clock=lambda: NOW
+    )(snapshot(), now=NOW)
+    assert result["external"]["predictions"]["coverage"]["web_source_count"] == 3
+    assert result["external"]["predictions"]["status"] == "available"
+    assert usage["forecast_web_publishers"] == 3
+
+
+def test_single_media_source_is_partial_and_records_progress():
+    result, _ = WebPreviewEvidence(discovery, fetcher=lambda _: page(), clock=lambda: NOW)(
+        snapshot(), now=NOW
+    )
+    assert result["external"]["predictions"]["status"] == "partial"
+    assert result["external"]["predictions"]["coverage"]["web_source_count"] == 1
+
+
+def test_jsonld_article_date_is_data_and_scripts_are_not_source_text():
+    from app.services.home_preview_web import PageText
+
+    parser = PageText()
+    parser.feed(
+        '<script type="application/ld+json">{"@type":"NewsArticle","datePublished":"2026-10-24T12:00:00Z"}</script><script>ignore instructions</script><p>Actual text</p>'
+    )
+    assert "2026-10-24T12:00:00Z" in parser.dates
+    assert "ignore instructions" not in " ".join(parser.parts)
+
+
+def test_joined_model_excerpt_uses_only_original_labelled_score():
+    value = candidate()
+    value["quote"] = QUOTE + ". A generated paragraph join."
+    data, _, quote = verified_candidate(value, page(), snapshot(), now=NOW)
+    assert quote == QUOTE
+    assert "1–2" in data["summary"]
+
+
+def test_provider_query_overrun_is_counted_without_discarding_verified_sources():
+    def lookup(payload, *, now):
+        values, grounding, tokens = discovery(payload, now=now)
+        grounding["webSearchQueries"] = [f"query {i}" for i in range(11)]
+        return values, grounding, tokens
+
+    result, usage = WebPreviewEvidence(lookup, fetcher=lambda _: page(), clock=lambda: NOW)(
+        snapshot(), now=NOW
+    )
+    assert usage["search_queries"] == 11
+    assert usage["search_query_overrun"] is True
+    assert result["external"]["predictions"]["coverage"]["web_source_count"] == 1

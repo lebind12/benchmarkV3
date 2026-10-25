@@ -5,6 +5,7 @@ from datetime import timedelta
 from app.core.config import get_settings
 from app.services.home_preview import eligible_rows
 from app.services.home_preview_api_football import ApiFootballPreviewEvidence
+from app.services.home_preview_causes import WebAbsenceCauses
 from app.services.home_preview_generation import process_fixture
 from app.services.home_preview_policy import utcnow
 from app.services.home_preview_vertex import VertexPreviewProvider
@@ -70,6 +71,17 @@ def run_cycle(
                 else None
             )
 
+            def discover_causes(payload, *, targets, now, names=fixture_aliases):
+                return vertex.discover_absence_causes(
+                    payload, targets=targets, now=now, aliases=names
+                )
+
+            cause_evidence = (
+                WebAbsenceCauses(discover_causes, aliases=fixture_aliases, clock=clock)
+                if vertex and settings.home_preview_search_enabled
+                else None
+            )
+
             def collect(payload, *, now, api_evidence=api_evidence, web_evidence=web_evidence):
                 usage = {}
                 if api_evidence:
@@ -86,6 +98,7 @@ def run_cycle(
                     external_id,
                     provider=vertex.analysis if vertex else None,
                     evidence_provider=collect,
+                    cause_provider=cause_evidence,
                     clock=clock,
                     retry_failed=retry_failed,
                     model=settings.home_preview_vertex_model if vertex else "facts-only",

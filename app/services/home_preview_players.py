@@ -2,7 +2,7 @@
 
 from sqlalchemy import select
 
-from app.models import Fixture, FixtureDetail, Team
+from app.models import Fixture, FixtureDetail, League, LeagueTranslation, Team
 from app.models.player import Player, PlayerSeasonStat, PlayerTranslation
 from app.services.home_preview_injuries import groups
 from app.services.home_preview_policy import FINISHED
@@ -83,9 +83,14 @@ def record_notes(player):
         ("minutes", "분"),
     ):
         if player[field] is not None:
-            season.append(f"{player[field]}{unit}")
+            season.append(
+                f"출전 시간 {player[field]}{unit}"
+                if field == "minutes"
+                else f"{player[field]}{unit}"
+            )
     notes = {
-        "season_contribution": f"{player['season_year']}시즌 이 대회에서 " + " · ".join(season)
+        "season_contribution": f"{player['season_year']}시즌 {player.get('competition_name') or '확인된 대회'}에서 "
+        + " · ".join(season)
         if season
         else None
     }
@@ -118,6 +123,9 @@ def enrich_player_spotlights(session, payload, *, now):
         select(Fixture).where(Fixture.external_id == payload["fixture"]["external_id"])
     )
     cutoff = min(now, fixture.kickoff_at)
+    league = session.get(League, fixture.league_id)
+    league_tr = session.get(LeagueTranslation, fixture.league_id)
+    competition_name = league_tr.name_ko if league_tr and league_tr.name_ko else league.name
     all_candidates, source_ids, observed_times = [], [], []
     unavailable = {
         (row["team_id"], row.get("player_id"))
@@ -194,6 +202,7 @@ def enrich_player_spotlights(session, payload, *, now):
                 "player_name": name_ko or player.name,
                 "photo_url": player.photo_url,
                 "canonical_name": player.name,
+                "competition_name": competition_name,
                 "season_year": stats.season_year,
                 **{
                     field: nonnegative(getattr(stats, field))

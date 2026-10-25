@@ -684,3 +684,140 @@ def test_player_watchlist_uses_season_and_exact_recent_fixture_sequence(setup_db
         assert (
             fresh["facts"]["player_spotlights"]["data"][0]["record_notes"]["scoring_streak"] is None
         )
+
+
+@pytest.mark.parametrize("mutate_selection", [False, True])
+def test_post_selection_causes_keep_identity_and_count_the_extra_search(setup_db, mutate_selection):
+    from copy import deepcopy
+
+    from app.models.player import Player, PlayerSeasonStat
+
+    _engine, factory = setup_db
+    with factory() as session:
+        fixture = session.scalar(select(Fixture).where(Fixture.external_id == 1557444))
+        player = Player(
+            external_id=777,
+            name="Known Player",
+            slug="cause-hook-test",
+            updated_at=NOW - timedelta(minutes=1),
+        )
+        session.add(player)
+        session.flush()
+        session.add(
+            PlayerSeasonStat(
+                player_id=player.id,
+                team_id=fixture.home_team_id,
+                league_id=fixture.league_id,
+                season_year=2026,
+                appearances=12,
+                minutes=900,
+                raw_stats={},
+                updated_at=NOW - timedelta(minutes=1),
+            )
+        )
+        session.commit()
+
+    def evidence(payload, *, now):
+        payload["as_of"] = now.isoformat()
+        payload["sources"].append(
+            {
+                "id": "api-injury",
+                "fixture_id": 1557444,
+                "kind": "api",
+                "title": "Injury",
+                "url": "https://v3.football.api-sports.io/injuries?fixture=1557444",
+                "published_at": None,
+                "retrieved_at": now.isoformat(),
+            }
+        )
+        payload["facts"]["injuries"] = {
+            "status": "available",
+            "reason": None,
+            "as_of": now.isoformat(),
+            "source_ids": ["api-injury"],
+            "data": [
+                {
+                    "team_id": 40,
+                    "player_id": 777,
+                    "player_name": "Known Player",
+                    "availability": "out",
+                    "detail": "Muscle Injury",
+                    "impact": "Out",
+                    "source_ids": ["api-injury"],
+                }
+            ],
+        }
+        return payload, {"model_requests": 1, "api_football_requests": 4}
+
+    def model(payload):
+        analysis = deepcopy(payload["analysis"])
+        row = payload["facts"]["injuries"]["data"][0]
+        refs = row["source_ids"] + row["importance_evidence"]["source_ids"]
+        analysis["key_absences"] = {
+            "status": "available",
+            "reason": None,
+            "as_of": payload["as_of"],
+            "source_ids": refs,
+            "data": [
+                {
+                    "team_id": 40,
+                    "player_id": 777,
+                    "reason": row["importance_evidence"]["selection_reason"],
+                    "evidence_ids": refs,
+                }
+            ],
+        }
+        return analysis, {}
+
+    def causes(payload, *, now):
+        if mutate_selection:
+            payload["analysis"]["key_absences"]["data"][0]["player_id"] = 999
+        payload["sources"].append(
+            {
+                "id": "cause-web",
+                "fixture_id": 1557444,
+                "kind": "web",
+                "title": "Club news",
+                "url": "https://www.liverpoolfc.com/news/club",
+                "published_at": None,
+                "retrieved_at": now.isoformat(),
+            }
+        )
+        payload["facts"]["injuries"]["data"][0]["cause"] = {
+            "status": "available",
+            "reason": None,
+            "as_of": now.isoformat(),
+            "source_ids": ["cause-web"],
+            "data": {
+                "code": "muscle",
+                "label": "근육 부상",
+                "occurred_on": "2026-10-18",
+                "occurred_month": None,
+            },
+        }
+        return payload, {
+            "model_requests": 1,
+            "cause_search_requests": 1,
+            "search_queries": 2,
+            "_evidence": [],
+        }
+
+    result = process_fixture(
+        factory,
+        1557444,
+        clock=lambda: NOW,
+        provider=model,
+        evidence_provider=evidence,
+        cause_provider=causes,
+    )
+    assert result["state"] == ("failed" if mutate_selection else "succeeded")
+    with factory() as session:
+        usage = session.scalar(select(HomePreviewAttempt)).usage
+        assert usage["model_requests"] == 3
+        if not mutate_selection:
+            assert (
+                read_preview(session, 1557444, now=NOW)["preview"]["facts"]["injuries"]["data"][0][
+                    "cause"
+                ]["data"]["occurred_on"]
+                == "2026-10-18"
+            )

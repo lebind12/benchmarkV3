@@ -213,3 +213,6 @@
 .hp-source-links span { color: var(--color-muted); }
 .hp-json-tools textarea { min-height: 200px; font-size: 10px; line-height: 1.7; }
 .hp-json-tools > label { margin: 12px 0; }
+
+.hp-detail-link { white-space: nowrap; margin-left: auto; align-self: center; }
+@media (max-width: 600px) { .hp-section-head { flex-wrap: wrap; } }
