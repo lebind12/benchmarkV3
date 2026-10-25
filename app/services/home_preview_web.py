@@ -50,6 +50,9 @@ ALLOWED_HOSTS = {
     "hullcitytigers.com",
     "wearehullcity.co.uk",
     "brentfordfc.com",
+    "thisisanfield.com",
+    "besoccer.com",
+    "rotowire.com",
 }
 ALIASES = {
     40: "Liverpool",
@@ -69,13 +72,24 @@ class PageText(HTMLParser):
         self.parts = []
         self.dates = []
         self.primary_dates = []
+        self.publication_dates = []
         self.title = []
         self.in_title = False
         self.in_head = False
         self.ldjson = None
+        self.passages = []
+        self.heading = ""
+        self.heading_level = 0
+        self.block_tag = None
+        self.block_parts = []
+        self.links = []
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
+        if tag == "a" and attrs.get("href"):
+            self.links.append(attrs["href"])
+        if tag in ("p", "h1", "h2", "h3") and not self.skip:
+            self.block_tag, self.block_parts = tag, []
         if tag == "head":
             self.in_head = True
         if tag == "script" and attrs.get("type", "").lower() == "application/ld+json":
@@ -92,12 +106,28 @@ class PageText(HTMLParser):
             "date",
         ):
             self.dates.append(attrs.get("content", ""))
-            if self.in_head:
-                self.primary_dates.append(attrs.get("content", ""))
+            key = attrs.get("property", attrs.get("name", ""))
+            if key in ("article:published_time", "datePublished", "date"):
+                self.publication_dates.append(attrs.get("content", ""))
+                if self.in_head:
+                    self.primary_dates.append(attrs.get("content", ""))
         if tag == "time" and attrs.get("datetime"):
             self.dates.append(attrs["datetime"])
 
     def handle_endtag(self, tag):
+        if tag == self.block_tag:
+            value = normalized(" ".join(self.block_parts))
+            if tag in ("h1", "h2", "h3"):
+                self.heading, self.heading_level = value, int(tag[1])
+            elif value and len(self.passages) < 1000:
+                self.passages.append(
+                    {
+                        "heading": self.heading,
+                        "heading_level": self.heading_level,
+                        "text": value[:8000],
+                    }
+                )
+            self.block_tag, self.block_parts = None, []
         if tag == "head":
             self.in_head = False
         if tag == "script" and self.ldjson is not None:
@@ -121,6 +151,8 @@ class PageText(HTMLParser):
                                 for key in ("datePublished", "dateModified")
                                 if isinstance(value.get(key), str)
                             )
+                            if isinstance(value.get("datePublished"), str):
+                                self.publication_dates.append(value["datePublished"])
                         for item in list(value.values())[:64]:
                             if isinstance(item, (dict, list)):
                                 dates(item, depth + 1)
@@ -139,6 +171,8 @@ class PageText(HTMLParser):
             self.ldjson += text[: 65536 - len(self.ldjson)]
         if not self.skip:
             self.parts.append(text)
+            if self.block_tag:
+                self.block_parts.append(text)
         if self.in_title:
             self.title.append(text)
 
@@ -220,16 +254,18 @@ def fetch_page(url):
                 html = b"".join(chunks).decode("utf-8", errors="replace")
                 parser = PageText()
                 parser.feed(html)
-                # JSON-LD publication dates are metadata, never executable instructions.
-                parser.dates.extend(
-                    re.findall(r'"date(?:Published|Modified)"\s*:\s*"([^"<>]+)"', html)
-                )
+                # Never scan arbitrary hydration scripts for dates: fixture kickoff
+                # and recommendation timestamps are not article publication dates.
                 return {
                     "url": current,
                     "text": normalized(" ".join(parser.parts)),
                     "title": normalized(" ".join(parser.title))[:180],
-                    "dates": parser.primary_dates or parser.dates,
+                    "dates": parser.primary_dates
+                    or parser.publication_dates[:1]
+                    or parser.dates[:1],
                     "digest": sha256(html.encode()).hexdigest(),
+                    "passages": parser.passages,
+                    "links": [urljoin(current, link) for link in parser.links[:2000]],
                 }
         raise ValueError("too_many_source_redirects")
 

@@ -28,3 +28,6 @@ Fingerprint includes six-hour freshness slot, semantic evidence and explicit mod
 
 
 최신 구현 정정: 실제 중복 일시 오류로 단계당 추가1회/전체 모델6회, lease1200초를 적용했다. responseSchema 원인 검색과 등록 원문 URL 검증, 선택 단계 재개를 포함한다. 최종 실제4경기 흐름과 원문 누락 범위는 `docs/features/home-preview-generation-verification.md` 참조. 이전4회/900초는 중간 기록이다.
+
+
+2026-10-25 후속 계약: source.published_on(선택,YYYY-MM-DD)은 일 단위 게시일을 보존하며 published_at이 없는 경우 시각을 창작하지 않는다. 부상 원인 검색은 실제 URL 확보/원문 수집 후 짧은 출처 ID로 JSON 추출하며 다중 인용/동일 사건/발생일과 발표일을 분리 검증한다. 정상 최대4회·단계 최대3요청·슬롯 전체6회·lease1200초. 실제4경기 생성 흐름 오류0이나 매체3곳/자동 발생일 목표는 미완료이며 최신 generation-verification.md 참조.

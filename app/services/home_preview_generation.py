@@ -21,7 +21,7 @@ from app.services.home_preview import build_db_snapshot, eligible_rows, localize
 from app.services.home_preview_policy import digest, identity, slot_time, utcnow
 from app.services.home_preview_retry import failure_details
 
-GENERATION_VERSION = "home-preview-1.1-prompt-11"
+GENERATION_VERSION = "home-preview-1.1-prompt-13"
 LEASE_SECONDS = 1200
 
 
@@ -57,6 +57,7 @@ def process_fixture(
     clock=utcnow,
     model="facts-only",
     retry_failed=False,
+    retry_research=False,
     runtime=None,
 ):
     now = clock()
@@ -105,12 +106,26 @@ def process_fixture(
                 HomePreviewAttempt.fixture_id == fixture.id, HomePreviewAttempt.slot == slot
             )
         )
+        research_incomplete = False
+        if retry_research and publication.version_id:
+            from app.services.home_preview_causes import targets_from
+
+            previous_body = session.get(HomePreviewVersion, publication.version_id).payload
+            research_incomplete = any(
+                not row.get("cause", {}).get("data")
+                or not (
+                    row["cause"]["data"]["occurred_on"] or row["cause"]["data"]["occurred_month"]
+                )
+                for row in targets_from(previous_body)
+            )
         optional_retry = bool(
-            existing and existing.state == "succeeded" and existing.usage.get("cause_search_failed")
+            existing
+            and existing.state == "succeeded"
+            and (existing.usage.get("cause_search_failed") or research_incomplete)
         )
         retry = bool(
             existing
-            and retry_failed
+            and (retry_failed or retry_research)
             and (existing.state in ("failed", "interrupted") or optional_retry)
             and (not runtime or existing.usage.get("model_requests", 0) < 6)
             and existing.usage.get("executions", 1) < 2
@@ -140,6 +155,8 @@ def process_fixture(
             attempt.finished_at = None
             attempt.reason = None
             initial_usage = {**attempt.usage, "executions": attempt.usage.get("executions", 1) + 1}
+            if retry_research:
+                initial_usage["research_retries"] = initial_usage.get("research_retries", 0) + 1
         else:
             initial_usage = {"executions": 1, "model_requests": 0}
             attempt = HomePreviewAttempt(
@@ -156,6 +173,7 @@ def process_fixture(
         attempt_id = attempt.id
         fixture_id = fixture.id
         expected_identity = identity(fixture)
+        previous_publication_id = publication.version_id
         snapshot = build_db_snapshot(session, fixture, now=now)
         session.commit()
     usage = dict(initial_usage)
@@ -353,14 +371,34 @@ def process_fixture(
             PreviewPayload.model_validate(payload)
             if resumed_analysis is None:
                 save_checkpoint("analysis", payload, input_hash=input_hash)
-            resumed_causes = load_checkpoint("causes", input_hash=input_hash)
+            resumed_causes = (
+                None if retry_research else load_checkpoint("causes", input_hash=input_hash)
+            )
+            if optional_retry and previous_publication_id:
+                with session_factory() as reuse_session:
+                    previous_payload = deepcopy(
+                        reuse_session.get(HomePreviewVersion, previous_publication_id).payload
+                    )
+
+                def facts_without_causes(value):
+                    value = deepcopy(value["facts"])
+                    for row in value["injuries"]["data"] or []:
+                        row.pop("cause", None)
+                    return value
+
+                if (
+                    previous_payload["analysis"] == payload["analysis"]
+                    and previous_payload["external"] == payload["external"]
+                    and facts_without_causes(previous_payload) == facts_without_causes(payload)
+                ):
+                    payload = previous_payload
             if resumed_causes is not None:
                 payload = resumed_causes
             if (
                 resumed_causes is None
                 and cause_provider
                 and (payload["analysis"].get("key_absences") or {}).get("data")
-                and clock() - now < timedelta(seconds=LEASE_SECONDS - 210)
+                and clock() - now < timedelta(seconds=LEASE_SECONDS - 480)
             ):
                 before_causes = deepcopy(payload)
                 usage["model_requests"] = usage.get("model_requests", 0) + 1

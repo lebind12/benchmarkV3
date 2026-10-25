@@ -14,6 +14,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--retry-failed", action="store_true")
+    parser.add_argument(
+        "--retry-research",
+        action="store_true",
+        help="Explicitly resume incomplete selected-player research within the same slot budget",
+    )
     parser.add_argument("--search", action="store_true")
     parser.add_argument("--prune", action="store_true")
     parser.add_argument("--fixture-id", type=int)
@@ -41,6 +46,7 @@ def main():
                 execute=args.execute,
                 fixture_id=args.fixture_id,
                 retry_failed=args.retry_failed,
+                retry_research=args.retry_research,
             )
         print(json.dumps(report, ensure_ascii=False))
     finally:

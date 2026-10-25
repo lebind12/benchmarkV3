@@ -37,7 +37,7 @@ export const homePreviewSchema = z.object({
   generated_at: time.nullable(), as_of: time,
   search_suggestions: z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(100) }).strict().nullable(),
   search_suggestions_extra: z.array(z.object({ provider: z.literal('google'), rendered_content: z.string().min(1).max(32768), queries: z.array(z.string().min(1).max(500)).max(100) }).strict()).max(1).optional(),
-  sources: z.array(z.object({ id: text, fixture_id: id, kind: z.enum(['db', 'web', 'api']), title: text, url: z.string().url().nullable(), published_at: time.nullable(), retrieved_at: time }).strict()),
+  sources: z.array(z.object({ id: text, fixture_id: id, kind: z.enum(['db', 'web', 'api']), title: text, url: z.string().url().nullable(), published_at: time.nullable(), published_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), retrieved_at: time }).strict()),
   analysis: homePreviewAnalysisSchema,
   facts: z.object({ player_spotlights: section(z.array(spotlight).max(8)).optional(), injuries: section(z.array(injury)), home_form: section(form), away_form: section(form) }).strict(),
   external: z.object({ predictions: forecastSection, odds: section(z.array(odds).min(1)) }).strict(),
@@ -51,6 +51,10 @@ export const homePreviewSchema = z.object({
   if (Date.parse(value.as_of) > Date.parse(clock)) fail('Data snapshot is newer than generation')
   if (Date.parse(clock) >= Date.parse(value.fixture.kickoff_at)) fail('Prematch generation must precede kickoff')
   for (const source of value.sources) {
+    if (source.published_on) {
+      const parsed = new Date(source.published_on + 'T00:00:00Z')
+      if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0,10) !== source.published_on || source.published_on > source.retrieved_at.slice(0,10)) fail('Invalid publication day')
+    }
     if (source.fixture_id !== value.fixture.external_id) fail('Source fixture mismatch')
     if (Date.parse(source.retrieved_at) > Date.parse(clock)) fail('Source retrieved after generation')
     if (Date.parse(source.retrieved_at) > Date.parse(value.as_of)) fail('Source retrieved after data snapshot')

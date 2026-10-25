@@ -76,6 +76,11 @@ def validate_payload(v):
     for source in sources.values():
         require(source["fixture_id"] == fixture["external_id"], "source_fixture_mismatch")
         require(clock(source["retrieved_at"]) <= as_of, "future_source")
+        if source.get("published_on"):
+            require(
+                date.fromisoformat(source["published_on"]) <= clock(source["retrieved_at"]).date(),
+                "future_publication_day",
+            )
         if source["published_at"]:
             require(
                 clock(source["published_at"]) <= clock(source["retrieved_at"])

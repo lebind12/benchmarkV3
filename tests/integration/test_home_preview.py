@@ -687,7 +687,8 @@ def test_player_watchlist_uses_season_and_exact_recent_fixture_sequence(setup_db
 
 
 @pytest.mark.parametrize(
-    "mutate_selection,resume_optional", [(False, False), (True, False), (False, True)]
+    "mutate_selection,resume_optional",
+    [(False, False), (True, False), (False, True), (False, "incomplete")],
 )
 def test_post_selection_causes_keep_identity_and_count_the_extra_search(
     setup_db, mutate_selection, resume_optional
@@ -704,6 +705,8 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(
         else None
     )
     calls = {"evidence": 0, "analysis": 0, "causes": 0}
+    if resume_optional == "incomplete":
+        factory = sessionmaker(bind=_engine)
     with factory() as session:
         fixture = session.scalar(select(Fixture).where(Fixture.external_id == 1557444))
         player = Player(
@@ -791,7 +794,7 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(
         if run:
 
             def operation(_):
-                if calls["causes"] == 1:
+                if calls["causes"] == 1 and resume_optional is True:
                     raise ValueError("invalid_cause_discovery_response")
 
             try:
@@ -804,17 +807,18 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(
                 }
         if mutate_selection:
             payload["analysis"]["key_absences"]["data"][0]["player_id"] = 999
-        payload["sources"].append(
-            {
-                "id": "cause-web",
-                "fixture_id": 1557444,
-                "kind": "web",
-                "title": "Club news",
-                "url": "https://www.liverpoolfc.com/news/club",
-                "published_at": None,
-                "retrieved_at": now.isoformat(),
-            }
-        )
+        if not any(source["id"] == "cause-web" for source in payload["sources"]):
+            payload["sources"].append(
+                {
+                    "id": "cause-web",
+                    "fixture_id": 1557444,
+                    "kind": "web",
+                    "title": "Club news",
+                    "url": "https://www.liverpoolfc.com/news/club",
+                    "published_at": None,
+                    "retrieved_at": now.isoformat(),
+                }
+            )
         payload["facts"]["injuries"]["data"][0]["cause"] = {
             "status": "available",
             "reason": None,
@@ -827,6 +831,8 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(
                 "occurred_month": None,
             },
         }
+        if resume_optional == "incomplete" and calls["causes"] == 1:
+            payload["facts"]["injuries"]["data"][0]["cause"]["data"]["occurred_on"] = None
         return payload, {
             "model_requests": 1,
             "cause_search_requests": 1,
@@ -847,7 +853,9 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(
     if resume_optional:
         with factory() as session:
             old_id = session.scalar(select(HomePreviewPublication)).version_id
-            assert session.scalar(select(HomePreviewAttempt)).usage["cause_search_failed"] is True
+            assert bool(
+                session.scalar(select(HomePreviewAttempt)).usage.get("cause_search_failed")
+            ) == (resume_optional is True)
         run = ModelRun(clock=lambda: NOW, sleep=lambda _: None, jitter=lambda: 0)
         result = process_fixture(
             factory,
@@ -858,17 +866,19 @@ def test_post_selection_causes_keep_identity_and_count_the_extra_search(
             cause_provider=causes,
             runtime=run,
             retry_failed=True,
+            retry_research=resume_optional == "incomplete",
         )
         assert result["state"] == "succeeded"
         assert calls == {"evidence": 1, "analysis": 1, "causes": 2}
         with factory() as session:
             assert session.scalar(select(HomePreviewPublication)).version_id != old_id
-            assert (
-                "cause"
-                not in session.get(HomePreviewVersion, old_id).payload["facts"]["injuries"]["data"][
-                    0
-                ]
-            )
+            old_injury = session.get(HomePreviewVersion, old_id).payload["facts"]["injuries"][
+                "data"
+            ][0]
+            if resume_optional == "incomplete":
+                assert old_injury["cause"]["data"]["occurred_on"] is None
+            else:
+                assert "cause" not in old_injury
     with factory() as session:
         usage = session.scalar(select(HomePreviewAttempt)).usage
         assert usage["model_requests"] == (4 if resume_optional else 3)

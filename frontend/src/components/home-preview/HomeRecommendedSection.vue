@@ -67,7 +67,7 @@ const dataGaps = computed(() => [...missingData.value, ...partialData.value])
 const customNotice = ''
 const formData = (side: number) => side ? preview.value?.facts.away_form.data : preview.value?.facts.home_form.data
 const defaultNotice = computed(() => dataGaps.value.map(item => ['homeForm', 'awayForm'].includes(item.key) && dataStatus.value[item.key] === 'partial' ? `${item.label}는 5경기 중 ${formData(item.key === 'awayForm' ? 1 : 0)?.matches.length ?? 0}경기만 확인됐습니다.` : `${item.label}: ${dataStatus.value[item.key] === 'error' ? '조회 실패' : dataStatus.value[item.key] === 'unverified' ? '미확인' : '자료 없음'}`).join(' · '))
-const visibleSources = computed(() => { if (!preview.value || !blocks.value) return []; const ids = new Set(Object.values(blocks.value).filter(block => block.data !== null).flatMap(block => block.source_ids)); return preview.value.sources.filter(source => ids.has(source.id)) })
+const visibleSources = computed(() => { if (!preview.value || !blocks.value) return []; const ids = new Set(Object.values(blocks.value).filter(block => block.data !== null).flatMap(block => block.source_ids)); for (const row of preview.value.facts.injuries.data ?? []) for (const id of row.cause?.source_ids ?? []) ids.add(id); return preview.value.sources.filter(source => ids.has(source.id)) })
 const availableSources = computed(() => visibleSources.value.map(source => source.title).join(' · '))
 const prediction = computed(() => preview.value?.analysis.ai_prediction.data)
 function formatTime(value: string | null | undefined) { return value ? new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value)) : '확인 시각 없음' }

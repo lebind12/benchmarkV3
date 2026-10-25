@@ -1,9 +1,10 @@
 """Post-collection home preview execution. No independent polling worker."""
 
+from copy import deepcopy
 from datetime import timedelta
 
 from app.core.config import get_settings
-from app.services.home_preview import eligible_rows
+from app.services.home_preview import eligible_rows, localize_injury_names
 from app.services.home_preview_api_football import ApiFootballPreviewEvidence
 from app.services.home_preview_causes import WebAbsenceCauses
 from app.services.home_preview_generation import process_fixture
@@ -22,6 +23,7 @@ def run_cycle(
     clock=utcnow,
     fixture_id=None,
     retry_failed=False,
+    retry_research=False,
 ):
     settings = settings or get_settings()
     now = clock()
@@ -49,7 +51,7 @@ def run_cycle(
         if settings.api_football_key
         else None
     )
-    vertex = VertexPreviewProvider(settings) if settings.google_cloud_project else None
+    vertex = VertexPreviewProvider(settings, clock=clock) if settings.google_cloud_project else None
     results = []
     try:
         evidence_cache = {}
@@ -73,12 +75,26 @@ def run_cycle(
             )
 
             def discover_causes(payload, *, targets, now, names=fixture_aliases):
+                localized = deepcopy(payload)
+                with session_factory() as name_session:
+                    localize_injury_names(name_session, localized)
+                selected_ids = {row["player_id"] for row in targets}
+                names_ko = {
+                    row["player_id"]: row["player_name"]
+                    for row in localized["facts"]["injuries"]["data"] or []
+                    if row.get("player_id") in selected_ids
+                }
                 return vertex.discover_absence_causes(
-                    payload, targets=targets, now=now, aliases=names
+                    payload, targets=targets, now=now, aliases=names, names_ko=names_ko
                 )
 
             cause_evidence = (
-                WebAbsenceCauses(discover_causes, aliases=fixture_aliases, clock=clock)
+                WebAbsenceCauses(
+                    discover_causes,
+                    aliases=fixture_aliases,
+                    clock=clock,
+                    fetcher=vertex.fetch_research_page,
+                )
                 if vertex and settings.home_preview_search_enabled
                 else None
             )
@@ -106,6 +122,7 @@ def run_cycle(
                     runtime=runtime,
                     clock=clock,
                     retry_failed=retry_failed,
+                    retry_research=retry_research,
                     model=settings.home_preview_vertex_model if vertex else "facts-only",
                 )
             )

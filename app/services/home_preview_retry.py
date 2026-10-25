@@ -101,7 +101,7 @@ class ModelRun:
             if self.requests >= 6:
                 raise ValueError("model_request_budget_exhausted")
             stage_requests = sum(event["stage"] == stage for event in self.events)
-            if stage_requests >= 2:
+            if stage_requests >= 3:
                 raise ValueError("model_stage_budget_exhausted")
             remaining = (self.deadline - self.clock()).total_seconds()
             if remaining < 5:
@@ -129,22 +129,28 @@ class ModelRun:
                 self.persist(self.summary())
                 delay = event.get(
                     "retry_after_seconds",
-                    (30 if event.get("http_status") == 429 else 10) + self.jitter(),
+                    (30 if event.get("http_status") == 429 else 10) * (2**stage_requests)
+                    + self.jitter(),
                 )
                 remaining = (self.deadline - self.clock()).total_seconds()
                 if (
                     not event["retryable"]
                     or self.retries >= 3
                     or self.requests >= 6
-                    or stage_requests >= 1
-                    or delay > 60
+                    or stage_requests >= 2
+                    or delay > 90
                     or remaining < delay + timeout + 5
                 ):
                     raise
                 self.retries += 1
                 event["retry_delay_seconds"] = delay
                 self.persist(self.summary())
-                self.sleep(delay)
+                waited = 0
+                while waited < delay:
+                    chunk = min(30, delay - waited)
+                    self.sleep(chunk)
+                    waited += chunk
+                    self.guard()
                 continue
             event.update(state="succeeded", elapsed_ms=round((time.monotonic() - started) * 1000))
             self.persist(self.summary())

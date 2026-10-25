@@ -51,3 +51,9 @@ ReadTimeout은 현재 httpx의 60초 응답 읽기 제한에서 발생했다. �
 - 기존 불변 HomePreviewSnapshot에 evidence/analysis/causes checkpoint를 비공개 저장하고 attempt에는 ID를 기록한다. DB 스키마 변경은 없다. 같은 attempt/slot의 재개는 identity/model/prompt/attempt/input hash·6시간 범위를 검증하고 성공한 API/검색/분석 단계를 재호출하지 않는다. 원인만 실패한 부분 성공도 남은 예산에서 명시적으로 재개할 수 있고 과거 version을 수정하지 않는다.
 - 원인 discovery에도 실제 responseSchema로 코드 enum/필드/nullable 값을 제한한다. 등록된 HTTPS 원문 기사 URL은 Google redirect와 별개로 원문 fetch·DNS/redirect 안전 검사·선수/구단/날짜/인용 검증 후에만 채택한다. 홈페이지만 반환한 후보/미등록 호스트는 거절한다. API와 충돌하거나 검증되지 않은 원인·발생일은 창작하지 않는다.
 - 일반 GET은 DB만 읽고 자동 생성 OFF·6시간/최대4슬롯·진행 중 신규 생성 금지를 유지한다. 실제4경기 결과/검증 정본은 `home-preview-generation-verification.md`다. 전체 생성 성공과 모든 외부 사실 확보를 구분한다.
+
+## 원문 우선 검색 및 재시도 보완 — 후속 구현
+
+이 절이 위 정상3회/단계2회/최대60초 대기 설명을 대체한다. 정상 최대4회(전망·분석·부상 검색·원문 JSON 추출), 단계당 최대3요청, 전체 슬롯 최대6요청이다. 자동 재시도 합계 최대3회도 전체6회 안에 포함한다.429는30/60초, 기타 일시 오류10/20초에0~5초 jitter, Retry-After 우선 및90초 초과/잔여 시간 부족 시 중단한다. 원인 검색과 추출 모두180초, lease1200초를 유지한다. 실패·명시적 재개도 카운터를 초기화하지 않는다.
+
+검색은 일반 Google Search로 실제 출처를 찾은 후 원문을 fetch하고, 별도 JSON 요청으로 짧은 출처 ID와 인용을 추출한다. 긴 URL enum에서 발생한400은 요청 수정 전 자동 반복하지 않았다. JSON URL 창작·404를 검색 성공으로 처리하지 않는다. 실제 횟수와 원인/날짜 확보 여부는 실행별 보고서에 기록한다.

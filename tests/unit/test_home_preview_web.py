@@ -241,3 +241,14 @@ def test_registered_original_article_can_be_verified_without_exact_redirect_uri(
         snapshot(), now=NOW
     )
     assert result["external"]["predictions"]["coverage"]["web_source_count"] == 1
+
+
+def test_publication_metadata_is_separate_from_fixture_and_modified_dates():
+    from app.services.home_preview_web import PageText
+
+    parser = PageText()
+    parser.feed(
+        '<head><meta property="article:modified_time" content="2026-10-25T10:00:00Z"><meta property="article:published_time" content="2026-10-17T10:00:00Z"></head><script type="application/json">{"fixture":{"dateModified":"2026-10-25T14:00:00Z"}}</script>'
+    )
+    assert parser.primary_dates == ["2026-10-17T10:00:00Z"]
+    assert parser.publication_dates == ["2026-10-17T10:00:00Z"]

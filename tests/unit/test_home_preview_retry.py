@@ -48,8 +48,7 @@ def test_transient_retry_is_bounded_per_stage_and_diagnostics_are_safe():
     assert "secret" not in str(run.summary())
     with pytest.raises(httpx.HTTPStatusError):
         run.request("analysis", lambda _: (_ for _ in ()).throw(status(503)), timeout=90)
-    assert run.requests == 4 and run.retries == 2
-    assert run.request("causes", lambda _: "done", timeout=180) == "done"
+    assert run.requests == 5 and run.retries == 3
     assert run.request("causes", lambda _: "done", timeout=180) == "done"
     with pytest.raises(ValueError, match="model_request_budget_exhausted"):
         run.request("causes", lambda _: "bad", timeout=180)
@@ -105,7 +104,7 @@ def test_guard_rechecked_after_wait_and_persisted_budget_survives_restart():
     assert restored.requests == 1 and restored.retries == 1
     with pytest.raises(httpx.ReadTimeout):
         restored.request("causes", fail, timeout=180)
-    assert restored.requests == 2 and restored.retries == 1
+    assert restored.requests == 3 and restored.retries == 2
     with pytest.raises(ValueError, match="model_stage_budget_exhausted"):
         restored.request("causes", fail, timeout=180)
 

@@ -21,7 +21,8 @@ function causeDate(row: typeof selected.value[number]) {
   return `${parts[0] === year ? '' : parts[0] + '년 '}${Number(parts[1])}월${cause.occurred_on ? ' ' + Number(parts[2]) + '일' : ''} 발생`
 }
 const fallbackCause = (detail: string) => (({ 'Injury':'부상 · 세부 원인 미확인', 'Muscle Injury':'근육 부상', 'Thigh Injury':'허벅지 부상', 'Knee Injury':'무릎 부상', 'Ankle Injury':'발목 부상', 'Hamstring Injury':'햄스트링 부상', 'Calf Injury':'종아리 부상', 'Red Card':'퇴장 징계', 'Yellow Cards':'경고 누적 징계', 'Illness':'질병' } as Record<string, string>)[detail] ?? detail)
-const causeUrl = (ids: string[]) => props.preview?.sources.find(source => ids.includes(source.id) && source.kind === 'web')?.url
+const causeSources = (ids: string[]) => props.preview?.sources.filter(source => ids.includes(source.id) && source.kind === 'web') ?? []
+const publicationDay = (value: string | undefined) => value ? `${Number(value.slice(5,7))}월 ${Number(value.slice(8,10))}일 게시` : ''
 function compactRecord(row: typeof selected.value[number]) {
   const record = row.importance_evidence
   if (!record) return row.explanation
@@ -45,7 +46,7 @@ function compactRecord(row: typeof selected.value[number]) {
             <article v-if="slot.injury" class="hp-injury-card" data-testid="key-absence" :data-team-id="slot.team.external_id">
               <div class="hp-injury-player"><div class="hp-injury-identity"><span class="hp-tag" :class="{ 'hp-tag--uncertain': slot.injury.availability === 'doubtful' }">{{ slot.injury.availability === 'out' ? '확정 결장' : '출전 불확실' }}</span>
               <h4>{{ slot.injury.player_name }}</h4><span class="hp-injury-cause">{{ slot.injury.cause?.data?.label ?? fallbackCause(slot.injury.detail) }}</span><small v-if="slot.injury.cause" class="hp-cause-date">{{ causeDate(slot.injury) }}</small></div><PreviewPlayerPhoto :name="slot.injury.player_name" :photo-url="slot.injury.photo_url" /></div>
-              <p :title="slot.injury.explanation">{{ compactRecord(slot.injury) }}</p><small>{{ sources(slot.injury.source_ids) }} <a v-if="slot.injury.cause?.data" :href="causeUrl(slot.injury.cause.source_ids) ?? undefined" target="_blank" rel="noopener noreferrer">원인 출처</a></small>
+              <p :title="slot.injury.explanation">{{ compactRecord(slot.injury) }}</p><small>{{ sources(slot.injury.source_ids) }} <template v-if="slot.injury.cause?.data"><span v-for="(source, index) in causeSources(slot.injury.cause.source_ids)" :key="source.id" class="hp-cause-source"><a :href="source.url ?? undefined" target="_blank" rel="noopener noreferrer">{{ index === 0 ? '원인 출처' : '발생 시점 출처' }}</a><span v-if="source.published_on"> · {{ publicationDay(source.published_on) }}</span></span></template></small>
             </article>
             <div v-else class="hp-injury-card hp-injury-card--empty" data-testid="empty-absence"><span>추가 주요 변수 없음</span></div>
           </template>
@@ -76,6 +77,7 @@ function compactRecord(row: typeof selected.value[number]) {
 .hp-injury-cause { font-size: 12px; color: var(--color-muted); overflow-wrap: anywhere; }
 .hp-injury-card p { margin: 0; line-height: 1.7; }
 .hp-injury-card small { margin-top: auto; color: var(--color-muted); font-size: 10px; line-height: 1.6; }
+.hp-cause-source { display: block; }
 .hp-injury-card--empty { justify-content: center; align-items: center; border-style: dashed; color: var(--color-muted); font-size: 12px; }
 .hp-all-injuries { margin-top: 20px; border-top: 1px solid var(--color-border); padding-top: 16px; font-size: 12px; }
 summary { cursor: pointer; color: var(--color-muted); }

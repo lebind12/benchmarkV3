@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -115,3 +116,33 @@ def test_parent_evidence_index_is_completed_only_from_registered_source_ids(unkn
         assert result["summary"]["source_ids"] == ["real-db-b", "real-db-a"]
         assert result["summary"]["data"] == analysis["summary"]["data"]
         assert usage["analysis_source_indexes_completed"] == 1
+
+
+def test_selected_injury_search_uses_individual_surname_official_domain_and_korean_fallback():
+    adapter = VertexPreviewProvider(SETTINGS)
+    captured = {}
+
+    def request(body):
+        captured.update(body)
+        return json.dumps({"candidates": []}), {}, {}
+
+    adapter.request = request
+    target = {
+        "team_id": 40,
+        "player_id": 1096,
+        "player_name": "D. Szoboszlai",
+        "availability": "out",
+        "detail": "Muscle Injury",
+        "importance_evidence": {"recognition_name": "D. Szoboszlai"},
+    }
+    adapter.discover_absence_causes(
+        snapshot(),
+        targets=[target],
+        now=datetime(2026, 10, 25, tzinfo=UTC),
+        aliases={40: "Liverpool"},
+        names_ko={1096: "도미니크 소보슬라이"},
+    )
+    prompt = json.loads(captured["contents"][0]["parts"][0]["text"])
+    assert prompt["preferred_queries"] == ['"Szoboszlai" injury site:liverpoolfc.com']
+    assert "도미니크 소보슬라이" in prompt["fallback_queries"][0]
+    assert "verbatim" in captured["systemInstruction"]["parts"][0]["text"]
