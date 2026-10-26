@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Activity, CalendarDays, FileText, MapPin, MonitorPlay, RefreshCw, Shield, Swords, Trophy, UsersRound, X } from 'lucide-vue-next'
+import { Activity, CalendarDays, FileText, MapPin, RefreshCw, Shield, Swords, Trophy, UsersRound, X } from 'lucide-vue-next'
 import {
   createMatchPreview,
   getLeagueStandings,
@@ -25,11 +25,13 @@ import type {
 } from '@/types/fixtureDetail'
 import { resolveFormation } from '@/lib/formations'
 
+import BroadcastPickerButton from '@/components/common/BroadcastPickerButton.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
-const canOpenBroadcast = computed(
-  () => typeof localStorage !== 'undefined' && localStorage.getItem('mockRole') === 'ADMIN',
-)
+const canOpenBroadcast = computed(() => auth.canOpenBroadcast)
 
 const match = ref<MatchDetail | null>(null)
 const lineups = ref<{ home: TeamLineup; away: TeamLineup } | null>(null)
@@ -40,7 +42,6 @@ const statistics = ref<{ home: TeamStat; away: TeamStat } | null>(null)
 const standings = ref<LeagueStandingsPayload | null>(null)
 const status = ref<'idle' | 'loading' | 'ok' | 'error'>('idle')
 const error = ref<string | null>(null)
-const isBroadcastPickerOpen = ref(false)
 const isMatchPreviewOpen = ref(false)
 const matchPreviewMarkdown = ref('')
 const matchPreviewStatus = ref<'idle' | 'loading' | 'ok' | 'error'>('idle')
@@ -103,16 +104,6 @@ const combinedPitchPlayers = computed(() =>
 const hasScore = computed(() =>
   Boolean(match.value && (match.value.goals_home != null || match.value.goals_away != null)),
 )
-const broadcastQuery = computed(() => {
-  if (!match.value) return ''
-  const query = new URLSearchParams({
-    fixtureId: String(match.value.external_id),
-    league: match.value.league.slug,
-  })
-  return query.toString()
-})
-const watchTogetherHref = computed(() => `/broadcast.html?${broadcastQuery.value}`)
-const programHref = computed(() => `/broadcast-program.html?${broadcastQuery.value}`)
 const renderedMatchPreviewMarkdown = computed(() => renderMarkdown(matchPreviewMarkdown.value))
 
 function kstDate(iso: string): string {
@@ -460,15 +451,6 @@ function goPlayer(slug: string) {
   void router.push(`/players/${slug}`)
 }
 
-function openBroadcastPicker() {
-  if (!canOpenBroadcast.value) return
-  isBroadcastPickerOpen.value = true
-}
-
-function closeBroadcastPicker() {
-  isBroadcastPickerOpen.value = false
-}
-
 function openMatchPreview() {
   if (!canOpenBroadcast.value) return
   isMatchPreviewOpen.value = true
@@ -500,7 +482,6 @@ async function generateMatchPreview() {
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key !== 'Escape') return
-  closeBroadcastPicker()
   closeMatchPreview()
 }
 
@@ -546,18 +527,9 @@ onMounted(() => {
   void loadFixture()
 })
 
-watch(isBroadcastPickerOpen, (isOpen) => {
-  if (typeof window === 'undefined') return
-  if (isOpen || isMatchPreviewOpen.value) {
-    window.addEventListener('keydown', onKeydown)
-    return
-  }
-  window.removeEventListener('keydown', onKeydown)
-})
-
 watch(isMatchPreviewOpen, (isOpen) => {
   if (typeof window === 'undefined') return
-  if (isOpen || isBroadcastPickerOpen.value) {
+  if (isOpen) {
     window.addEventListener('keydown', onKeydown)
     return
   }
@@ -597,16 +569,7 @@ onBeforeUnmount(() => {
             <FileText :size="16" aria-hidden="true" />
             <span>경기 프리뷰</span>
           </button>
-          <button
-            type="button"
-            class="streaming-button"
-            :aria-expanded="isBroadcastPickerOpen"
-            aria-controls="ui-review-broadcast-picker"
-            @click="openBroadcastPicker"
-          >
-            <MonitorPlay :size="16" aria-hidden="true" />
-            <span>스트리밍</span>
-          </button>
+          <BroadcastPickerButton :fixture-id="match.external_id" :league-slug="match.league.slug" :match-label="`${teamName(match.home)} 대 ${teamName(match.away)}`" />
         </div>
         <div class="team-block">
           <img v-if="match.home.logo_url" :src="match.home.logo_url" :alt="teamName(match.home)" />
@@ -690,63 +653,6 @@ onBeforeUnmount(() => {
                 <span>{{ matchPreviewStatus === 'loading' ? '생성 중' : '프리뷰 생성' }}</span>
               </button>
             </div>
-          </div>
-        </section>
-      </div>
-
-      <div
-        v-if="isBroadcastPickerOpen"
-        class="broadcast-picker"
-        role="presentation"
-        @click.self="closeBroadcastPicker"
-      >
-        <section
-          id="ui-review-broadcast-picker"
-          class="broadcast-picker__panel"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="ui-review-broadcast-picker-title"
-        >
-          <div class="broadcast-picker__header">
-            <div>
-              <p>STREAMING</p>
-              <h2 id="ui-review-broadcast-picker-title">방송 화면 선택</h2>
-            </div>
-            <button type="button" aria-label="닫기" @click="closeBroadcastPicker">
-              <X :size="18" aria-hidden="true" />
-            </button>
-          </div>
-          <div class="broadcast-picker__options">
-            <a
-              class="broadcast-picker__option broadcast-picker__option--program"
-              :href="programHref"
-              target="_blank"
-              rel="noopener noreferrer"
-              @click="closeBroadcastPicker"
-            >
-              <span class="broadcast-picker__icon" aria-hidden="true">
-                <MonitorPlay :size="22" />
-              </span>
-              <span class="broadcast-picker__copy">
-                <strong>TV 중계 화면</strong>
-                <em>경기 화면 + 하단 배너</em>
-              </span>
-            </a>
-            <a
-              class="broadcast-picker__option"
-              :href="watchTogetherHref"
-              target="_blank"
-              rel="noopener noreferrer"
-              @click="closeBroadcastPicker"
-            >
-              <span class="broadcast-picker__icon" aria-hidden="true">
-                <UsersRound :size="22" />
-              </span>
-              <span class="broadcast-picker__copy">
-                <strong>같이보기 화면</strong>
-                <em>캐릭터 중심 방송 레이아웃</em>
-              </span>
-            </a>
           </div>
         </section>
       </div>
@@ -1497,135 +1403,6 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: var(--color-bg);
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 68%, transparent);
-}
-
-.broadcast-picker {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: color-mix(in srgb, var(--color-bg) 78%, #020617 22%);
-}
-
-.broadcast-picker__panel {
-  width: min(520px, 100%);
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
-  border-radius: 8px;
-  color: var(--color-fg);
-  background: var(--color-card);
-  box-shadow: 0 28px 84px rgba(15, 23, 42, 0.38);
-}
-
-.broadcast-picker__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg);
-}
-
-.broadcast-picker__header p {
-  margin: 0 0 4px;
-  color: var(--color-primary);
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: 0.12em;
-}
-
-.broadcast-picker__header h2 {
-  margin: 0;
-  font-size: 18px;
-  line-height: 1.25;
-}
-
-.broadcast-picker__header button {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  color: var(--color-fg);
-  background: var(--color-card);
-  cursor: pointer;
-}
-
-.broadcast-picker__header button:hover,
-.broadcast-picker__header button:focus-visible {
-  border-color: var(--color-primary);
-  outline: none;
-}
-
-.broadcast-picker__options {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  padding: 16px;
-}
-
-.broadcast-picker__option {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  min-height: 92px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 14px;
-  color: var(--color-fg);
-  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-bg));
-  text-decoration: none;
-}
-
-.broadcast-picker__option--program {
-  background: color-mix(in srgb, #0ea5e9 8%, var(--color-bg));
-}
-
-.broadcast-picker__option:hover,
-.broadcast-picker__option:focus-visible {
-  border-color: var(--color-primary);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.broadcast-picker__icon {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  color: #fff;
-  background: color-mix(in srgb, var(--color-primary) 88%, #111827);
-}
-
-.broadcast-picker__copy {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.broadcast-picker__copy strong {
-  overflow: hidden;
-  font-size: 14px;
-  font-weight: 950;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.broadcast-picker__copy em {
-  overflow: hidden;
-  color: var(--color-muted);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .match-score b {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import BroadcastPickerButton from '@/components/common/BroadcastPickerButton.vue'
+import { slugFromId } from '@/lib/league-colors'
 import HomePlayerWatchpoints from '@/components/home-preview/HomePlayerWatchpoints.vue'
 import HomeExternalPredictions from '@/components/home-preview/HomeExternalPredictions.vue'
 import HomeInjurySummary from '@/components/home-preview/HomeInjurySummary.vue'
@@ -125,7 +127,10 @@ watch([() => selectedRow.value?.fixture_id, response], async () => { await nextT
     <div class="hp-container">
       <header class="hp-heading">
         <div><p class="hp-date">{{ dateLabel }} <span>한국 시간</span></p><h1>오늘의 매치</h1></div>
-        <RouterLink to="/fixtures" class="hp-text-link">전체 경기 <ArrowRight :size="16" /></RouterLink>
+        <div class="hp-heading-actions">
+          <BroadcastPickerButton :fixture-id="selectedRow?.fixture_id" :league-slug="slugFromId(selectedRow?.competition.external_id)" :match-label="selectedRow ? `${selectedRow.home.name} 대 ${selectedRow.away.name}` : undefined" />
+          <RouterLink to="/fixtures" class="hp-text-link">전체 경기 <ArrowRight :size="16" /></RouterLink>
+        </div>
       </header>
       <p v-if="isDevelopment" class="hp-freshness"><RouterLink to="/home/single-call/1557445" data-testid="single-call-review-link">이전 1회 호출 실험 보기 · 과거 파일 →</RouterLink></p>
       <p v-if="replayDate" class="hp-freshness" data-testid="local-replay-date">로컬 재현 · {{ replayDate }}</p>
@@ -200,6 +205,8 @@ watch([() => selectedRow.value?.fixture_id, response], async () => { await nextT
   </section>
 </template>
 <style scoped>
+.hp-heading { flex-wrap: wrap; }
+.hp-heading-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .hp-generation-time { display: flex; align-items: center; gap: 8px; margin: 16px 0; color: var(--color-muted); font-size: 12px; }
 .hp-sources summary { cursor: pointer; font-weight: 700; }
 .hp-live-section { height: auto; overflow: visible; }

@@ -433,3 +433,7 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
 | HOME-SCROLL-FIX | 홈 중첩 높이/스크롤·장식 overflow 제거, 불필요한 대시보드 요청 정리 | 스크롤owner1개·빈화면 초과0px·장식containment·키보드스크롤·FE233/E2E24/build PASS | HOME-MAIN-INTEGRATION | cc:완료 [docs/features/home-preview-merge.verification.md 후속 절; cc38953 로컬 main 반영 완료] |
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| HOME-BROADCAST-BUTTON | 전체경기 왼쪽 중계 선택 버튼, 상세와 권한/선택창 공유 | 인증된ADMIN표시·선택fixture연결·TV/같이보기·모바일배치·FE239/E2E28/build PASS | HOME-SCROLL-FIX | cc:완료 [공용 BroadcastPickerButton; 상세의 현재 ADMIN 전용 API 권한 유지] |

@@ -44,3 +44,11 @@
 스크롤 후속 커밋 시 main은 다른 세션이 `/Users/woolee/benchmark`에 체크아웃했고, 메인 전용 worktree는80be026의 detached HEAD인 상태였다. 공용 checkout/HEAD/인덱스/파일을 변경하지 않고 수정 커밋을 `feat/home-preview-json`에 보존했다. 이 스크롤 후속 변경의 main 반영은 아직 하지 않았다.
 
 2026-10-26 후속 사용자 승인으로 `/Users/woolee/benchmark`의 main checkout이 clean함을 확인하고 `feat/home-preview-json`의 cc38953을 fast-forward했다. 병합 직후 main과 검증 브랜치의 Git tree가 일치하고 작업 디렉터리가 clean함을 확인했다. 코드는 기존 FE233/E2E24/build를 통과한 것과 동일하며 원격push·배포·서비스재시작은 하지 않았다.
+
+## 2026-10-26 홈 중계 버튼
+
+사용자 요청에 따라 ‘전체 경기’ 왼쪽에 ‘스트리밍’ 버튼을 추가했다. 경기 상세의 실제 중계 API와 같은 ADMIN 전용 권한을 유지하고, 홈/상세/기존 MatchHeader의 표시 조건을 인증 store의 `verified && role === ADMIN`으로 통일했다. 브라우저 mockRole 값만으로는 표시하지 않는다. 서버 방송 권한을 확대하거나 API를 변경하지 않았다.
+
+홈과 현재 경기 상세는 공용 `BroadcastPickerButton`을 사용한다. TV중계·같이보기 두 목적지, 현재 선택한 fixtureId와 알려진 리그 slug, 새 탭 열기를 유지한다. 선택 경기가 없으면 버튼을 비활성화한다. native modal dialog로 키보드 focus 제한/Escape/닫은 후 trigger focus 복귀를 제공하고 모바일에서는 두 선택지를 한 열로 배치한다.
+
+FE 전체 unit239 PASS, TypeScript/Vite build PASS, 홈 브라우저28 PASS. 공개/USER/STREAMER/ADMIN의 홈·상세 표시 일치, 위조 ADMIN 캐시 무시, 경기 전환 후 URL, 모바일/데스크톱 버튼 순서, 새 탭 속성, Escape와 focus 복귀를 검증했다. ADMIN 시각/너비 추가 검증1개 PASS 및390/1440 screenshot 확인. DB쓰기·모델호출·원격push·배포·서비스재시작은 하지 않았다.

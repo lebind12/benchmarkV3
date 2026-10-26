@@ -227,3 +227,62 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     expect(metrics.extraX).toBe(0)
   })
 }
+
+for (const role of ['public', 'USER', 'STREAMER', 'ADMIN'] as const) {
+  test(`home and match detail share broadcast permission: ${role}`, async ({ page }) => {
+    // Cached ADMIN values must not replace the user returned by the session endpoint.
+    const user = { id: 1, email: 'viewer@example.test', role, nickname: 'Viewer', is_active: true }
+    await page.addInitScript(({ authenticated }) => {
+      localStorage.setItem('mockRole', 'ADMIN')
+      if (authenticated) localStorage.setItem('authUser', JSON.stringify({ role: 'ADMIN' }))
+    }, { authenticated: role !== 'public' })
+    await page.route('**/api/v1/auth/**', route => route.fulfill({ json: { user, access_token: 'fixture-session' } }))
+    await page.route('**/api/v1/home/**', async route => {
+      const path = new URL(route.request().url()).pathname
+      await route.fulfill({ json: path.endsWith('/recommendations') ? recommendations : path.endsWith('/prematch') ? response(Number(path.split('/').at(-2))) : { items: [], rows: [] } })
+    })
+    const detail = JSON.parse(readFileSync(new URL('../src/mocks/data/fixture-detail/match.1000001.json', import.meta.url), 'utf8'))
+    await page.route('**/api/v1/fixtures/**', route => {
+      const path = new URL(route.request().url()).pathname
+      return /\/fixtures\/\d+$/.test(path) ? route.fulfill({ json: detail }) : route.fulfill({ status: 503, json: { detail: 'Fixture subsection unavailable' } })
+    })
+    await page.goto('/')
+    if (role !== 'public') await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible()
+    await expect(page.getByTestId('home-preview-real').locator('.hp-lead')).not.toHaveText('')
+    const trigger = page.getByTestId('broadcast-picker-trigger')
+    await expect(trigger).toHaveCount(role === 'ADMIN' ? 1 : 0)
+    if (role === 'ADMIN') {
+      for (const size of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+        await page.setViewportSize(size)
+        const left = await trigger.boundingBox(), right = await page.getByRole('link', { name: '전체 경기', exact: true }).boundingBox()
+        expect(left!.x + left!.width).toBeLessThanOrEqual(right!.x)
+        await trigger.click()
+        const picker = page.getByRole('dialog', { name: '방송 화면 선택' })
+        await expect(picker).toBeVisible()
+        await expect(picker.getByTestId('program-link')).toHaveAttribute('href', '/broadcast-program.html?fixtureId=90002&league=premier-league')
+        await expect(picker.getByTestId('watch-together-link')).toHaveAttribute('href', '/broadcast.html?fixtureId=90002&league=premier-league')
+        await expect(picker.getByTestId('program-link')).toHaveAttribute('target', '_blank')
+        const box = await picker.boundingBox()
+        expect(box!.x).toBeGreaterThanOrEqual(0)
+        expect(box!.x + box!.width).toBeLessThanOrEqual(size.width)
+        await page.screenshot({ path: `../out/home-preview/broadcast-button/picker-${size.width}.png` })
+        await page.keyboard.press('Escape')
+        await expect(picker).not.toBeVisible()
+        await expect(trigger).toBeFocused()
+      }
+      await page.getByRole('button', { name: '다음 추천 경기', exact: true }).click()
+      await trigger.click()
+      await expect(page.getByTestId('program-link')).toHaveAttribute('href', '/broadcast-program.html?fixtureId=90001&league=premier-league')
+      await page.getByTestId('broadcast-picker-close').click()
+    }
+    await page.goto('/fixtures/1000001')
+    await expect(page.getByTestId('ui-review-fixture-preview-page').locator('.match-hero')).toBeVisible()
+    if (role !== 'public') await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible()
+    await expect(trigger).toHaveCount(role === 'ADMIN' ? 1 : 0)
+    if (role === 'ADMIN') {
+      await trigger.click()
+      await expect(page.getByRole('dialog', { name: '방송 화면 선택' })).toBeVisible()
+      await expect(page.getByTestId('program-link')).toHaveAttribute('href', '/broadcast-program.html?fixtureId=1000001&league=premier-league')
+    }
+  })
+}

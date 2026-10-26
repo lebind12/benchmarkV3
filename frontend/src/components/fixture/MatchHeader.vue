@@ -3,12 +3,12 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { FileText, MonitorPlay, UsersRound, X } from 'lucide-vue-next'
 import type { MatchDetail } from '@/types/fixtureDetail'
 import GoalHistoryInline from './GoalHistoryInline.vue'
+import { useAuthStore } from '@/stores/auth'
 
+const auth = useAuthStore()
 const props = defineProps<{ match: MatchDetail }>()
 const isBroadcastPickerOpen = ref(false)
-const canOpenBroadcast = computed(
-  () => typeof localStorage !== 'undefined' && localStorage.getItem('mockRole') === 'ADMIN',
-)
+const canOpenBroadcast = computed(() => auth.canOpenBroadcast)
 
 const isFinished = computed(() =>
   ['FT', 'AET', 'PEN'].includes(props.match.status_short),

@@ -13,6 +13,7 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isStreamer: (s) => s.role === 'STREAMER',
     isAdmin: (s) => s.role === 'ADMIN',
+    canOpenBroadcast: (s) => s.verified && s.role === 'ADMIN',
     isLoggedIn: (s) => s.verified && s.role !== 'public',
   },
   actions: {

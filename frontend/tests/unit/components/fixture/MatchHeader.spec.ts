@@ -1,13 +1,17 @@
-import { afterEach, describe, it, expect } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { useAuthStore } from '@/stores/auth'
 import MatchHeader from '@/components/fixture/MatchHeader.vue'
 import match1 from '@/mocks/data/fixture-detail/match.1000001.json'
 import match2 from '@/mocks/data/fixture-detail/match.1000002.json'
 import type { MatchDetail } from '@/types/fixtureDetail'
 
 describe('MatchHeader', () => {
+  beforeEach(() => setActivePinia(createPinia()))
   afterEach(() => {
     localStorage.removeItem('mockRole')
+    localStorage.removeItem('authUser')
   })
 
   it('renders score for FT match', () => {
@@ -50,7 +54,7 @@ describe('MatchHeader', () => {
   })
 
   it('opens a streaming picker with watch-together and program page links', async () => {
-    localStorage.setItem('mockRole', 'ADMIN')
+    useAuthStore().setUser({ id: 1, email: 'admin@example.test', role: 'ADMIN', nickname: 'Admin', is_active: true })
     const w = mount(MatchHeader, {
       props: { match: match1 as unknown as MatchDetail },
     })
@@ -77,7 +81,7 @@ describe('MatchHeader', () => {
   })
 
   it('closes the streaming picker from the close button', async () => {
-    localStorage.setItem('mockRole', 'ADMIN')
+    useAuthStore().setUser({ id: 1, email: 'admin@example.test', role: 'ADMIN', nickname: 'Admin', is_active: true })
     const w = mount(MatchHeader, {
       props: { match: match1 as unknown as MatchDetail },
     })
