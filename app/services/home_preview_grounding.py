@@ -100,6 +100,11 @@ def claim_grounding(raw, grounding):
                 "quote",
                 "timing_text",
                 "date_basis",
+                "label",
+                "detail",
+                "outlook",
+                "occurred_on",
+                "occurred_month",
             }:
                 links.append(
                     {
@@ -142,7 +147,7 @@ def source_quotes(value, source_id):
 def publisher_matches(publisher, url):
     key = re.sub(r"[^a-z0-9]", "", folded(publisher))
     host = (urlsplit(url).hostname or "").removeprefix("www.")
-    aliases = {"sportsillustrated": {"si.com"}, "goalcom": {"goal.com"}}
+    aliases = {"sportsillustrated": {"si.com"}, "goalcom": {"goal.com"}, "theguardian": {"theguardian.com"}}
     if key in aliases:
         return any(host == domain or host.endswith("." + domain) for domain in aliases[key])
     labels = host.split(".")

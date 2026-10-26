@@ -16,6 +16,17 @@
       "const": "1.0",
       "type": "string"
     },
+    "generation_due_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "fixture_id": {
       "type": "integer",
       "exclusiveMinimum": 0
@@ -1462,24 +1473,31 @@
                                         ],
                                         "properties": {
                                           "code": {
-                                            "type": "string",
-                                            "enum": [
-                                              "hamstring",
-                                              "groin",
-                                              "thigh",
-                                              "knee",
-                                              "acl",
-                                              "ankle",
-                                              "calf",
-                                              "achilles",
-                                              "muscle",
-                                              "hip",
-                                              "foot",
-                                              "shin",
-                                              "shoulder",
-                                              "illness",
-                                              "red_card",
-                                              "yellow_cards"
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                                "enum": [
+                                                  "hamstring",
+                                                  "groin",
+                                                  "thigh",
+                                                  "knee",
+                                                  "acl",
+                                                  "ankle",
+                                                  "calf",
+                                                  "achilles",
+                                                  "muscle",
+                                                  "hip",
+                                                  "foot",
+                                                  "shin",
+                                                  "shoulder",
+                                                  "illness",
+                                                  "red_card",
+                                                  "yellow_cards"
+                                                ]
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
                                             ]
                                           },
                                           "label": {
@@ -2155,6 +2173,11 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 4
+                        },
+                        "total_source_count": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 5
                         },
                         "candidate_count": {
                           "type": "integer",

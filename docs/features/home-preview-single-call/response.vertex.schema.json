@@ -1,443 +1,1557 @@
 {
   "type": "OBJECT",
+  "required": [
+    "schema_version",
+    "is_mock",
+    "fixture",
+    "generated_at",
+    "as_of",
+    "search_suggestions",
+    "sources",
+    "analysis",
+    "facts",
+    "external"
+  ],
   "properties": {
-    "fixture_id": {
-      "type": "INTEGER"
-    },
-    "summary": {
-      "type": "OBJECT",
-      "properties": {
-        "text": {
-          "type": "STRING"
-        },
-        "evidence_ids": {
-          "type": "ARRAY",
-          "items": {
-            "type": "STRING"
-          }
-        }
-      },
-      "required": [
-        "text",
-        "evidence_ids"
+    "schema_version": {
+      "type": "STRING",
+      "enum": [
+        "1.1"
       ]
     },
-    "key_points": {
-      "type": "ARRAY",
-      "items": {
-        "type": "OBJECT",
-        "properties": {
-          "text": {
-            "type": "STRING"
-          },
-          "evidence_ids": {
-            "type": "ARRAY",
-            "items": {
+    "is_mock": {
+      "type": "BOOLEAN"
+    },
+    "fixture": {
+      "type": "OBJECT",
+      "required": [
+        "external_id",
+        "kickoff_at",
+        "home",
+        "away"
+      ],
+      "properties": {
+        "external_id": {
+          "type": "INTEGER"
+        },
+        "kickoff_at": {
+          "type": "STRING"
+        },
+        "home": {
+          "type": "OBJECT",
+          "required": [
+            "external_id",
+            "name"
+          ],
+          "properties": {
+            "external_id": {
+              "type": "INTEGER"
+            },
+            "name": {
               "type": "STRING"
             }
-          }
-        },
-        "required": [
-          "text",
-          "evidence_ids"
-        ]
-      },
-      "maxItems": 2
-    },
-    "ai_prediction": {
-      "type": "OBJECT",
-      "properties": {
-        "label": {
-          "type": "STRING",
-          "enum": [
-            "AI 경기 예측"
+          },
+          "propertyOrdering": [
+            "external_id",
+            "name"
           ]
         },
-        "text": {
+        "away": {
+          "type": "OBJECT",
+          "required": [
+            "external_id",
+            "name"
+          ],
+          "properties": {
+            "external_id": {
+              "type": "INTEGER"
+            },
+            "name": {
+              "type": "STRING"
+            }
+          },
+          "propertyOrdering": [
+            "external_id",
+            "name"
+          ]
+        }
+      },
+      "propertyOrdering": [
+        "external_id",
+        "kickoff_at",
+        "home",
+        "away"
+      ]
+    },
+    "generated_at": {
+      "type": "STRING",
+      "nullable": true
+    },
+    "as_of": {
+      "type": "STRING"
+    },
+    "search_suggestions": {
+      "type": "OBJECT",
+      "required": [
+        "provider",
+        "rendered_content",
+        "queries"
+      ],
+      "nullable": true,
+      "properties": {
+        "provider": {
+          "type": "STRING",
+          "enum": [
+            "google"
+          ]
+        },
+        "rendered_content": {
           "type": "STRING"
         },
-        "predicted_score": {
-          "type": "STRING",
-          "nullable": true
-        },
-        "evidence_ids": {
+        "queries": {
           "type": "ARRAY",
           "items": {
             "type": "STRING"
           }
         }
       },
-      "required": [
-        "label",
-        "text",
-        "predicted_score",
-        "evidence_ids"
+      "propertyOrdering": [
+        "provider",
+        "rendered_content",
+        "queries"
       ]
     },
-    "key_absences": {
+    "search_suggestions_extra": {
       "type": "ARRAY",
       "items": {
         "type": "OBJECT",
-        "properties": {
-          "team_id": {
-            "type": "INTEGER"
-          },
-          "player_id": {
-            "type": "INTEGER"
-          },
-          "selection_reason": {
-            "type": "STRING"
-          },
-          "evidence_ids": {
-            "type": "ARRAY",
-            "items": {
-              "type": "STRING"
-            }
-          },
-          "cause": {
-            "type": "STRING",
-            "nullable": true
-          },
-          "event_type": {
-            "type": "STRING",
-            "enum": [
-              "initial",
-              "recurrence",
-              "aggravation",
-              "suspension",
-              "unknown"
-            ]
-          },
-          "date_precision": {
-            "type": "STRING",
-            "enum": [
-              "day",
-              "month",
-              "text",
-              "unknown"
-            ]
-          },
-          "occurred_on": {
-            "type": "STRING",
-            "nullable": true
-          },
-          "occurred_month": {
-            "type": "STRING",
-            "nullable": true
-          },
-          "timing_text": {
-            "type": "STRING",
-            "nullable": true
-          },
-          "date_basis": {
-            "type": "STRING",
-            "nullable": true
-          },
-          "cause_evidence": {
-            "type": "ARRAY",
-            "items": {
-              "type": "OBJECT",
-              "properties": {
-                "source_id": {
-                  "type": "STRING"
-                },
-                "claim": {
-                  "type": "STRING"
-                },
-                "quote": {
-                  "type": "STRING"
-                }
-              },
-              "required": [
-                "source_id",
-                "claim",
-                "quote"
-              ]
-            }
-          },
-          "timing_evidence": {
-            "type": "ARRAY",
-            "items": {
-              "type": "OBJECT",
-              "properties": {
-                "source_id": {
-                  "type": "STRING"
-                },
-                "claim": {
-                  "type": "STRING"
-                },
-                "quote": {
-                  "type": "STRING"
-                }
-              },
-              "required": [
-                "source_id",
-                "claim",
-                "quote"
-              ]
-            }
-          },
-          "source_ids": {
-            "type": "ARRAY",
-            "items": {
-              "type": "STRING"
-            }
-          },
-          "missing_reason": {
-            "type": "STRING",
-            "nullable": true
-          }
-        },
         "required": [
-          "team_id",
-          "player_id",
-          "selection_reason",
-          "evidence_ids",
-          "cause",
-          "event_type",
-          "date_precision",
-          "occurred_on",
-          "occurred_month",
-          "timing_text",
-          "date_basis",
-          "cause_evidence",
-          "timing_evidence",
-          "source_ids",
-          "missing_reason"
-        ]
-      },
-      "maxItems": 4
-    },
-    "player_watchpoints": {
-      "type": "ARRAY",
-      "items": {
-        "type": "OBJECT",
+          "provider",
+          "rendered_content",
+          "queries"
+        ],
         "properties": {
-          "team_id": {
-            "type": "INTEGER"
-          },
-          "player_id": {
-            "type": "INTEGER"
-          },
-          "focus": {
+          "provider": {
             "type": "STRING",
             "enum": [
-              "season_contribution",
-              "scoring_streak",
-              "assist_streak",
-              "involvement_streak"
+              "google"
             ]
           },
-          "reason": {
+          "rendered_content": {
             "type": "STRING"
           },
-          "evidence_ids": {
+          "queries": {
             "type": "ARRAY",
             "items": {
               "type": "STRING"
             }
           }
         },
-        "required": [
-          "team_id",
-          "player_id",
-          "focus",
-          "reason",
-          "evidence_ids"
+        "propertyOrdering": [
+          "provider",
+          "rendered_content",
+          "queries"
         ]
-      },
-      "maxItems": 4
+      }
     },
-    "external_forecasts": {
-      "type": "OBJECT",
-      "properties": {
-        "target_count": {
-          "type": "INTEGER"
-        },
-        "items": {
-          "type": "ARRAY",
-          "items": {
-            "type": "OBJECT",
-            "properties": {
-              "publisher": {
-                "type": "STRING"
-              },
-              "summary": {
-                "type": "STRING"
-              },
-              "predicted_score": {
-                "type": "STRING",
-                "nullable": true
-              },
-              "source_ids": {
-                "type": "ARRAY",
-                "items": {
-                  "type": "STRING"
-                }
-              },
-              "evidence": {
-                "type": "ARRAY",
-                "items": {
-                  "type": "OBJECT",
-                  "properties": {
-                    "source_id": {
-                      "type": "STRING"
-                    },
-                    "claim": {
-                      "type": "STRING"
-                    },
-                    "quote": {
-                      "type": "STRING"
-                    }
-                  },
-                  "required": [
-                    "source_id",
-                    "claim",
-                    "quote"
-                  ]
-                }
-              }
-            },
-            "required": [
-              "publisher",
-              "summary",
-              "predicted_score",
-              "source_ids",
-              "evidence"
-            ]
-          }
-        },
-        "searched_publishers": {
-          "type": "ARRAY",
-          "items": {
-            "type": "STRING"
-          }
-        },
-        "shortfall_reason": {
-          "type": "STRING",
-          "nullable": true
-        }
-      },
-      "required": [
-        "target_count",
-        "items",
-        "searched_publishers",
-        "shortfall_reason"
-      ]
-    },
-    "odds_binding": {
-      "type": "OBJECT",
-      "properties": {
-        "home_team_id": {
-          "type": "INTEGER"
-        },
-        "away_team_id": {
-          "type": "INTEGER"
-        },
-        "db_source_ids": {
-          "type": "ARRAY",
-          "items": {
-            "type": "STRING"
-          }
-        }
-      },
-      "required": [
-        "home_team_id",
-        "away_team_id",
-        "db_source_ids"
-      ]
-    },
-    "source_catalog": {
+    "sources": {
       "type": "ARRAY",
       "items": {
         "type": "OBJECT",
+        "required": [
+          "id",
+          "fixture_id",
+          "kind",
+          "title",
+          "url",
+          "published_at",
+          "retrieved_at"
+        ],
         "properties": {
           "id": {
+            "type": "STRING"
+          },
+          "fixture_id": {
+            "type": "INTEGER"
+          },
+          "kind": {
             "type": "STRING"
           },
           "title": {
             "type": "STRING"
           },
-          "publisher": {
-            "type": "STRING"
-          }
-        },
-        "required": [
-          "id",
-          "title",
-          "publisher"
-        ]
-      }
-    },
-    "conflicts": {
-      "type": "ARRAY",
-      "items": {
-        "type": "OBJECT",
-        "properties": {
-          "player_id": {
-            "type": "INTEGER"
-          },
-          "field": {
-            "type": "STRING"
-          },
-          "db_value": {
+          "url": {
             "type": "STRING",
             "nullable": true
           },
-          "web_claim": {
+          "published_at": {
+            "type": "STRING",
+            "nullable": true
+          },
+          "published_on": {
             "type": "STRING"
           },
-          "source_ids": {
-            "type": "ARRAY",
-            "items": {
-              "type": "STRING"
-            }
+          "retrieved_at": {
+            "type": "STRING"
           }
         },
-        "required": [
-          "player_id",
-          "field",
-          "db_value",
-          "web_claim",
-          "source_ids"
+        "propertyOrdering": [
+          "id",
+          "fixture_id",
+          "kind",
+          "title",
+          "url",
+          "published_at",
+          "published_on",
+          "retrieved_at"
         ]
       }
     },
-    "missing_data": {
-      "type": "ARRAY",
-      "items": {
-        "type": "OBJECT",
-        "properties": {
-          "section": {
-            "type": "STRING"
+    "analysis": {
+      "type": "OBJECT",
+      "required": [
+        "summary",
+        "key_points",
+        "ai_prediction"
+      ],
+      "properties": {
+        "summary": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "OBJECT",
+              "required": [
+                "text",
+                "evidence_ids"
+              ],
+              "nullable": true,
+              "properties": {
+                "text": {
+                  "type": "STRING"
+                },
+                "evidence_ids": {
+                  "type": "ARRAY",
+                  "items": {
+                    "type": "STRING"
+                  }
+                }
+              },
+              "propertyOrdering": [
+                "text",
+                "evidence_ids"
+              ]
+            }
           },
-          "player_id": {
-            "type": "INTEGER",
-            "nullable": true
-          },
-          "reason": {
-            "type": "STRING"
-          }
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
         },
-        "required": [
-          "section",
-          "player_id",
-          "reason"
-        ]
-      }
+        "key_points": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "ARRAY",
+              "nullable": true,
+              "items": {
+                "type": "OBJECT",
+                "required": [
+                  "title",
+                  "description",
+                  "evidence_ids"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "STRING"
+                  },
+                  "description": {
+                    "type": "STRING"
+                  },
+                  "evidence_ids": {
+                    "type": "ARRAY",
+                    "items": {
+                      "type": "STRING"
+                    }
+                  }
+                },
+                "propertyOrdering": [
+                  "title",
+                  "description",
+                  "evidence_ids"
+                ]
+              }
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        },
+        "ai_prediction": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "OBJECT",
+              "required": [
+                "home_goals",
+                "away_goals",
+                "confidence",
+                "reason",
+                "evidence_ids"
+              ],
+              "nullable": true,
+              "properties": {
+                "home_goals": {
+                  "type": "INTEGER"
+                },
+                "away_goals": {
+                  "type": "INTEGER"
+                },
+                "confidence": {
+                  "type": "STRING"
+                },
+                "reason": {
+                  "type": "STRING"
+                },
+                "evidence_ids": {
+                  "type": "ARRAY",
+                  "items": {
+                    "type": "STRING"
+                  }
+                }
+              },
+              "propertyOrdering": [
+                "home_goals",
+                "away_goals",
+                "confidence",
+                "reason",
+                "evidence_ids"
+              ]
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        },
+        "key_absences": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "ARRAY",
+              "nullable": true,
+              "items": {
+                "type": "OBJECT",
+                "required": [
+                  "team_id",
+                  "player_id",
+                  "reason",
+                  "evidence_ids"
+                ],
+                "properties": {
+                  "team_id": {
+                    "type": "INTEGER"
+                  },
+                  "player_id": {
+                    "type": "INTEGER"
+                  },
+                  "reason": {
+                    "type": "STRING"
+                  },
+                  "evidence_ids": {
+                    "type": "ARRAY",
+                    "items": {
+                      "type": "STRING"
+                    }
+                  }
+                },
+                "propertyOrdering": [
+                  "team_id",
+                  "player_id",
+                  "reason",
+                  "evidence_ids"
+                ]
+              }
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        },
+        "player_watchpoints": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "ARRAY",
+              "nullable": true,
+              "items": {
+                "type": "OBJECT",
+                "required": [
+                  "team_id",
+                  "player_id",
+                  "focus",
+                  "evidence_ids"
+                ],
+                "properties": {
+                  "team_id": {
+                    "type": "INTEGER"
+                  },
+                  "player_id": {
+                    "type": "INTEGER"
+                  },
+                  "focus": {
+                    "type": "STRING"
+                  },
+                  "reason": {
+                    "type": "STRING"
+                  },
+                  "evidence_ids": {
+                    "type": "ARRAY",
+                    "items": {
+                      "type": "STRING"
+                    }
+                  }
+                },
+                "propertyOrdering": [
+                  "team_id",
+                  "player_id",
+                  "focus",
+                  "reason",
+                  "evidence_ids"
+                ]
+              }
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        }
+      },
+      "propertyOrdering": [
+        "summary",
+        "key_points",
+        "ai_prediction",
+        "key_absences",
+        "player_watchpoints"
+      ]
+    },
+    "facts": {
+      "type": "OBJECT",
+      "required": [
+        "injuries",
+        "home_form",
+        "away_form"
+      ],
+      "properties": {
+        "player_spotlights": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "ARRAY",
+              "nullable": true,
+              "items": {
+                "type": "OBJECT",
+                "required": [
+                  "team_id",
+                  "player_id",
+                  "player_name",
+                  "canonical_name",
+                  "season_year",
+                  "appearances",
+                  "goals",
+                  "assists",
+                  "minutes",
+                  "recent_match_count",
+                  "scoring_streak",
+                  "assist_streak",
+                  "involvement_streak",
+                  "record_notes",
+                  "source_ids"
+                ],
+                "properties": {
+                  "team_id": {
+                    "type": "INTEGER"
+                  },
+                  "player_id": {
+                    "type": "INTEGER"
+                  },
+                  "player_name": {
+                    "type": "STRING"
+                  },
+                  "photo_url": {
+                    "type": "STRING",
+                    "nullable": true
+                  },
+                  "canonical_name": {
+                    "type": "STRING"
+                  },
+                  "competition_name": {
+                    "type": "STRING"
+                  },
+                  "season_year": {
+                    "type": "INTEGER"
+                  },
+                  "appearances": {
+                    "type": "INTEGER",
+                    "nullable": true
+                  },
+                  "goals": {
+                    "type": "INTEGER",
+                    "nullable": true
+                  },
+                  "assists": {
+                    "type": "INTEGER",
+                    "nullable": true
+                  },
+                  "minutes": {
+                    "type": "INTEGER",
+                    "nullable": true
+                  },
+                  "recent_form": {
+                    "type": "OBJECT",
+                    "required": [
+                      "team_match_count",
+                      "observed_appearances",
+                      "goals",
+                      "assists",
+                      "minutes",
+                      "goal_samples",
+                      "assist_samples",
+                      "minute_samples"
+                    ],
+                    "properties": {
+                      "team_match_count": {
+                        "type": "INTEGER"
+                      },
+                      "observed_appearances": {
+                        "type": "INTEGER"
+                      },
+                      "goals": {
+                        "type": "INTEGER",
+                        "nullable": true
+                      },
+                      "assists": {
+                        "type": "INTEGER",
+                        "nullable": true
+                      },
+                      "minutes": {
+                        "type": "INTEGER",
+                        "nullable": true
+                      },
+                      "goal_samples": {
+                        "type": "INTEGER"
+                      },
+                      "assist_samples": {
+                        "type": "INTEGER"
+                      },
+                      "minute_samples": {
+                        "type": "INTEGER"
+                      }
+                    },
+                    "propertyOrdering": [
+                      "team_match_count",
+                      "observed_appearances",
+                      "goals",
+                      "assists",
+                      "minutes",
+                      "goal_samples",
+                      "assist_samples",
+                      "minute_samples"
+                    ]
+                  },
+                  "recent_match_count": {
+                    "type": "INTEGER"
+                  },
+                  "scoring_streak": {
+                    "type": "INTEGER"
+                  },
+                  "assist_streak": {
+                    "type": "INTEGER"
+                  },
+                  "involvement_streak": {
+                    "type": "INTEGER"
+                  },
+                  "record_notes": {
+                    "type": "OBJECT",
+                    "required": [
+                      "season_contribution",
+                      "scoring_streak",
+                      "assist_streak",
+                      "involvement_streak"
+                    ],
+                    "properties": {
+                      "recent_contribution": {
+                        "type": "STRING",
+                        "nullable": true
+                      },
+                      "season_contribution": {
+                        "type": "STRING",
+                        "nullable": true
+                      },
+                      "scoring_streak": {
+                        "type": "STRING",
+                        "nullable": true
+                      },
+                      "assist_streak": {
+                        "type": "STRING",
+                        "nullable": true
+                      },
+                      "involvement_streak": {
+                        "type": "STRING",
+                        "nullable": true
+                      }
+                    },
+                    "propertyOrdering": [
+                      "recent_contribution",
+                      "season_contribution",
+                      "scoring_streak",
+                      "assist_streak",
+                      "involvement_streak"
+                    ]
+                  },
+                  "source_ids": {
+                    "type": "ARRAY",
+                    "items": {
+                      "type": "STRING"
+                    }
+                  }
+                },
+                "propertyOrdering": [
+                  "team_id",
+                  "player_id",
+                  "player_name",
+                  "photo_url",
+                  "canonical_name",
+                  "competition_name",
+                  "season_year",
+                  "appearances",
+                  "goals",
+                  "assists",
+                  "minutes",
+                  "recent_form",
+                  "recent_match_count",
+                  "scoring_streak",
+                  "assist_streak",
+                  "involvement_streak",
+                  "record_notes",
+                  "source_ids"
+                ]
+              }
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        },
+        "injuries": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "ARRAY",
+              "nullable": true,
+              "items": {
+                "type": "OBJECT",
+                "required": [
+                  "team_id",
+                  "player_name",
+                  "availability",
+                  "detail",
+                  "impact",
+                  "source_ids"
+                ],
+                "properties": {
+                  "cause": {
+                    "type": "OBJECT",
+                    "required": [
+                      "status",
+                      "reason",
+                      "as_of",
+                      "source_ids",
+                      "data"
+                    ],
+                    "properties": {
+                      "status": {
+                        "type": "STRING"
+                      },
+                      "reason": {
+                        "type": "STRING",
+                        "nullable": true
+                      },
+                      "as_of": {
+                        "type": "STRING",
+                        "nullable": true
+                      },
+                      "source_ids": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        }
+                      },
+                      "data": {
+                        "type": "OBJECT",
+                        "required": [
+                          "code",
+                          "label",
+                          "occurred_on",
+                          "occurred_month"
+                        ],
+                        "nullable": true,
+                        "properties": {
+                          "code": {
+                            "type": "STRING"
+                          },
+                          "label": {
+                            "type": "STRING"
+                          },
+                          "occurred_on": {
+                            "type": "STRING",
+                            "nullable": true
+                          },
+                          "occurred_month": {
+                            "type": "STRING",
+                            "nullable": true
+                          }
+                        },
+                        "propertyOrdering": [
+                          "code",
+                          "label",
+                          "occurred_on",
+                          "occurred_month"
+                        ]
+                      }
+                    },
+                    "propertyOrdering": [
+                      "status",
+                      "reason",
+                      "as_of",
+                      "source_ids",
+                      "data"
+                    ]
+                  },
+                  "team_id": {
+                    "type": "INTEGER"
+                  },
+                  "player_id": {
+                    "type": "INTEGER"
+                  },
+                  "status_conflict": {
+                    "type": "BOOLEAN"
+                  },
+                  "importance_evidence": {
+                    "type": "OBJECT",
+                    "required": [
+                      "eligible",
+                      "recent_games",
+                      "lineup_games",
+                      "player_games",
+                      "recent_starts",
+                      "recent_minutes",
+                      "seasons",
+                      "source_ids"
+                    ],
+                    "properties": {
+                      "recognition_name": {
+                        "type": "STRING"
+                      },
+                      "selection_reason": {
+                        "type": "STRING"
+                      },
+                      "eligible": {
+                        "type": "BOOLEAN"
+                      },
+                      "recent_games": {
+                        "type": "INTEGER"
+                      },
+                      "lineup_games": {
+                        "type": "INTEGER"
+                      },
+                      "player_games": {
+                        "type": "INTEGER"
+                      },
+                      "recent_starts": {
+                        "type": "INTEGER",
+                        "nullable": true
+                      },
+                      "recent_minutes": {
+                        "type": "INTEGER",
+                        "nullable": true
+                      },
+                      "seasons": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "OBJECT",
+                          "required": [
+                            "season_year",
+                            "appearances",
+                            "minutes"
+                          ],
+                          "properties": {
+                            "season_year": {
+                              "type": "INTEGER"
+                            },
+                            "appearances": {
+                              "type": "INTEGER",
+                              "nullable": true
+                            },
+                            "minutes": {
+                              "type": "INTEGER",
+                              "nullable": true
+                            }
+                          },
+                          "propertyOrdering": [
+                            "season_year",
+                            "appearances",
+                            "minutes"
+                          ]
+                        }
+                      },
+                      "source_ids": {
+                        "type": "ARRAY",
+                        "items": {
+                          "type": "STRING"
+                        }
+                      }
+                    },
+                    "propertyOrdering": [
+                      "recognition_name",
+                      "selection_reason",
+                      "eligible",
+                      "recent_games",
+                      "lineup_games",
+                      "player_games",
+                      "recent_starts",
+                      "recent_minutes",
+                      "seasons",
+                      "source_ids"
+                    ]
+                  },
+                  "player_name": {
+                    "type": "STRING"
+                  },
+                  "photo_url": {
+                    "type": "STRING",
+                    "nullable": true
+                  },
+                  "availability": {
+                    "type": "STRING"
+                  },
+                  "detail": {
+                    "type": "STRING"
+                  },
+                  "impact": {
+                    "type": "STRING"
+                  },
+                  "source_ids": {
+                    "type": "ARRAY",
+                    "items": {
+                      "type": "STRING"
+                    }
+                  }
+                },
+                "propertyOrdering": [
+                  "cause",
+                  "team_id",
+                  "player_id",
+                  "status_conflict",
+                  "importance_evidence",
+                  "player_name",
+                  "photo_url",
+                  "availability",
+                  "detail",
+                  "impact",
+                  "source_ids"
+                ]
+              }
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        },
+        "home_form": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "OBJECT",
+              "required": [
+                "team_id",
+                "expected_count",
+                "matches"
+              ],
+              "nullable": true,
+              "properties": {
+                "team_id": {
+                  "type": "INTEGER"
+                },
+                "expected_count": {
+                  "type": "NUMBER",
+                  "minimum": 5,
+                  "maximum": 5
+                },
+                "matches": {
+                  "type": "ARRAY",
+                  "items": {
+                    "type": "OBJECT",
+                    "required": [
+                      "fixture_id",
+                      "kickoff_at",
+                      "opponent",
+                      "competition",
+                      "goals_for",
+                      "goals_against",
+                      "status",
+                      "penalties"
+                    ],
+                    "properties": {
+                      "fixture_id": {
+                        "type": "INTEGER"
+                      },
+                      "kickoff_at": {
+                        "type": "STRING"
+                      },
+                      "opponent": {
+                        "type": "STRING"
+                      },
+                      "competition": {
+                        "type": "STRING"
+                      },
+                      "goals_for": {
+                        "type": "INTEGER"
+                      },
+                      "goals_against": {
+                        "type": "INTEGER"
+                      },
+                      "status": {
+                        "type": "STRING"
+                      },
+                      "penalties": {
+                        "type": "OBJECT",
+                        "required": [
+                          "for",
+                          "against"
+                        ],
+                        "nullable": true,
+                        "properties": {
+                          "for": {
+                            "type": "INTEGER"
+                          },
+                          "against": {
+                            "type": "INTEGER"
+                          }
+                        },
+                        "propertyOrdering": [
+                          "for",
+                          "against"
+                        ]
+                      }
+                    },
+                    "propertyOrdering": [
+                      "fixture_id",
+                      "kickoff_at",
+                      "opponent",
+                      "competition",
+                      "goals_for",
+                      "goals_against",
+                      "status",
+                      "penalties"
+                    ]
+                  }
+                }
+              },
+              "propertyOrdering": [
+                "team_id",
+                "expected_count",
+                "matches"
+              ]
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        },
+        "away_form": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "OBJECT",
+              "required": [
+                "team_id",
+                "expected_count",
+                "matches"
+              ],
+              "nullable": true,
+              "properties": {
+                "team_id": {
+                  "type": "INTEGER"
+                },
+                "expected_count": {
+                  "type": "NUMBER",
+                  "minimum": 5,
+                  "maximum": 5
+                },
+                "matches": {
+                  "type": "ARRAY",
+                  "items": {
+                    "type": "OBJECT",
+                    "required": [
+                      "fixture_id",
+                      "kickoff_at",
+                      "opponent",
+                      "competition",
+                      "goals_for",
+                      "goals_against",
+                      "status",
+                      "penalties"
+                    ],
+                    "properties": {
+                      "fixture_id": {
+                        "type": "INTEGER"
+                      },
+                      "kickoff_at": {
+                        "type": "STRING"
+                      },
+                      "opponent": {
+                        "type": "STRING"
+                      },
+                      "competition": {
+                        "type": "STRING"
+                      },
+                      "goals_for": {
+                        "type": "INTEGER"
+                      },
+                      "goals_against": {
+                        "type": "INTEGER"
+                      },
+                      "status": {
+                        "type": "STRING"
+                      },
+                      "penalties": {
+                        "type": "OBJECT",
+                        "required": [
+                          "for",
+                          "against"
+                        ],
+                        "nullable": true,
+                        "properties": {
+                          "for": {
+                            "type": "INTEGER"
+                          },
+                          "against": {
+                            "type": "INTEGER"
+                          }
+                        },
+                        "propertyOrdering": [
+                          "for",
+                          "against"
+                        ]
+                      }
+                    },
+                    "propertyOrdering": [
+                      "fixture_id",
+                      "kickoff_at",
+                      "opponent",
+                      "competition",
+                      "goals_for",
+                      "goals_against",
+                      "status",
+                      "penalties"
+                    ]
+                  }
+                }
+              },
+              "propertyOrdering": [
+                "team_id",
+                "expected_count",
+                "matches"
+              ]
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        }
+      },
+      "propertyOrdering": [
+        "player_spotlights",
+        "injuries",
+        "home_form",
+        "away_form"
+      ]
+    },
+    "external": {
+      "type": "OBJECT",
+      "required": [
+        "predictions",
+        "odds"
+      ],
+      "properties": {
+        "predictions": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "ARRAY",
+              "nullable": true,
+              "items": {
+                "type": "OBJECT",
+                "required": [
+                  "source_id",
+                  "outlook",
+                  "summary"
+                ],
+                "properties": {
+                  "source_id": {
+                    "type": "STRING"
+                  },
+                  "outlook": {
+                    "type": "STRING"
+                  },
+                  "summary": {
+                    "type": "STRING"
+                  }
+                },
+                "propertyOrdering": [
+                  "source_id",
+                  "outlook",
+                  "summary"
+                ]
+              }
+            },
+            "coverage": {
+              "type": "OBJECT",
+              "required": [
+                "target_count",
+                "web_source_count",
+                "candidate_count",
+                "checked_at",
+                "reason_codes"
+              ],
+              "properties": {
+                "target_count": {
+                  "type": "NUMBER",
+                  "minimum": 3,
+                  "maximum": 3
+                },
+                "web_source_count": {
+                  "type": "INTEGER"
+                },
+                "candidate_count": {
+                  "type": "INTEGER"
+                },
+                "checked_at": {
+                  "type": "STRING",
+                  "nullable": true
+                },
+                "reason_codes": {
+                  "type": "ARRAY",
+                  "items": {
+                    "type": "STRING"
+                  }
+                }
+              },
+              "propertyOrdering": [
+                "target_count",
+                "web_source_count",
+                "candidate_count",
+                "checked_at",
+                "reason_codes"
+              ]
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data",
+            "coverage"
+          ]
+        },
+        "odds": {
+          "type": "OBJECT",
+          "required": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ],
+          "properties": {
+            "status": {
+              "type": "STRING"
+            },
+            "reason": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "as_of": {
+              "type": "STRING",
+              "nullable": true
+            },
+            "source_ids": {
+              "type": "ARRAY",
+              "items": {
+                "type": "STRING"
+              }
+            },
+            "data": {
+              "type": "ARRAY",
+              "nullable": true,
+              "items": {
+                "type": "OBJECT",
+                "required": [
+                  "source_id",
+                  "bookmaker",
+                  "market",
+                  "format",
+                  "home",
+                  "draw",
+                  "away",
+                  "collected_at"
+                ],
+                "properties": {
+                  "source_id": {
+                    "type": "STRING"
+                  },
+                  "bookmaker": {
+                    "type": "STRING"
+                  },
+                  "market": {
+                    "type": "STRING",
+                    "enum": [
+                      "1x2_90min"
+                    ]
+                  },
+                  "format": {
+                    "type": "STRING",
+                    "enum": [
+                      "decimal"
+                    ]
+                  },
+                  "home": {
+                    "type": "NUMBER"
+                  },
+                  "draw": {
+                    "type": "NUMBER"
+                  },
+                  "away": {
+                    "type": "NUMBER"
+                  },
+                  "collected_at": {
+                    "type": "STRING"
+                  }
+                },
+                "propertyOrdering": [
+                  "source_id",
+                  "bookmaker",
+                  "market",
+                  "format",
+                  "home",
+                  "draw",
+                  "away",
+                  "collected_at"
+                ]
+              }
+            }
+          },
+          "propertyOrdering": [
+            "status",
+            "reason",
+            "as_of",
+            "source_ids",
+            "data"
+          ]
+        }
+      },
+      "propertyOrdering": [
+        "predictions",
+        "odds"
+      ]
     }
   },
-  "required": [
-    "fixture_id",
-    "summary",
-    "key_points",
-    "ai_prediction",
-    "key_absences",
-    "player_watchpoints",
-    "external_forecasts",
-    "odds_binding",
-    "source_catalog",
-    "conflicts",
-    "missing_data"
+  "propertyOrdering": [
+    "schema_version",
+    "is_mock",
+    "fixture",
+    "generated_at",
+    "as_of",
+    "search_suggestions",
+    "search_suggestions_extra",
+    "sources",
+    "analysis",
+    "facts",
+    "external"
   ]
 }

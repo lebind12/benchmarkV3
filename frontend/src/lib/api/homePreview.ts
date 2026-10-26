@@ -7,8 +7,8 @@ async function get(path: string, signal?: AbortSignal) {
   if (!response.ok) throw new Error(`home_preview_http_${response.status}`)
   return response.json()
 }
-export async function getHomeRecommendations(signal?: AbortSignal) {
-  return homeRecommendationsSchema.parse(await get('/api/v1/home/recommendations', signal))
+export async function getHomeRecommendations(signal?: AbortSignal, date?: string) {
+  return homeRecommendationsSchema.parse(await get(`/api/v1/home/recommendations${date ? `?date=${encodeURIComponent(date)}` : ''}`, signal))
 }
 export async function getHomePreview(fixtureId: number, signal?: AbortSignal) {
   const response = homePreviewResponseSchema.parse(await get(`/api/v1/home/fixtures/${fixtureId}/prematch`, signal))

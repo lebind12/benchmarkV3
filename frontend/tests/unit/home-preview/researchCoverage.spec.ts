@@ -11,28 +11,28 @@ function preview() {
   return value
 }
 describe('independent media forecast target', () => {
-  it('does not count API-Football as a media source or invent missing sources', () => {
+  it('counts API-Football once without miscounting it as a web publisher', () => {
     const value=preview(); expect(homePreviewSchema.safeParse(value).success).toBe(true)
     const view=mount(HomeExternalPredictions,{props:{preview:value}})
-    expect(view.get('[data-testid="forecast-coverage"]').text()).toContain('0/3')
+    expect(view.get('[data-testid="forecast-coverage"]').text()).toContain('1/3')
     expect(view.findAll('[data-testid="media-forecast"]')).toHaveLength(0)
     expect(view.findAll('[data-testid="algorithm-forecast"]')).toHaveLength(1)
     value.external.predictions.coverage.web_source_count=1
     expect(homePreviewSchema.safeParse(value).success).toBe(false)
   })
-  it('counts three different verified publishers and keeps the API separate', () => {
+  it('completes three forecasts with two web publishers and one API prediction', () => {
     const value=preview()
-    for(const [i,host] of ['sportsmole.co.uk','racingpost.com','football365.com'].entries()) {
+    for(const [i,host] of ['sportsmole.co.uk','football365.com'].entries()) {
       const id=`media-${i}`
       value.sources.push({id,fixture_id:value.fixture.external_id,kind:'web',title:host,url:`https://${host}/preview`,published_at:null,retrieved_at:value.as_of})
       value.external.predictions.source_ids.push(id)
       value.external.predictions.data.push({source_id:id,outlook:'Media view',summary:'Original verified opinion'})
     }
-    value.external.predictions.coverage.web_source_count=3;value.external.predictions.status='available';value.external.predictions.reason=null
+    value.external.predictions.coverage.web_source_count=2;value.external.predictions.status='available';value.external.predictions.reason=null
     expect(homePreviewSchema.safeParse(value).success).toBe(true)
     const view=mount(HomeExternalPredictions,{props:{preview:value}})
     expect(view.get('[data-testid="forecast-coverage"]').text()).toContain('3/3')
-    expect(view.findAll('[data-testid="media-forecast"]')).toHaveLength(3)
+    expect(view.findAll('[data-testid="media-forecast"]')).toHaveLength(2)
     expect(view.findAll('[data-testid="algorithm-forecast"]')).toHaveLength(1)
   })
 })

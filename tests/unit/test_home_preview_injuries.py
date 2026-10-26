@@ -89,7 +89,7 @@ def selection_payload():
 
 @pytest.mark.parametrize(
     "mutation",
-    ["unknown", "ineligible", "conflict", "duplicate", "team_limit", "no_usage", "reason_mismatch"],
+    ["unknown", "ineligible", "conflict", "duplicate", "team_limit", "no_usage"],
 )
 def test_model_cannot_select_unknown_unqualified_or_excessive_absences(mutation):
     value = selection_payload()
@@ -104,10 +104,6 @@ def test_model_cannot_select_unknown_unqualified_or_excessive_absences(mutation)
         picks.append(deepcopy(picks[0]))
     if mutation == "team_limit":
         picks.extend([{**picks[0], "player_id": pid} for pid in (2, 3)])
-    if mutation == "reason_mismatch":
-        value["facts"]["injuries"]["data"][0]["importance_evidence"]["selection_reason"] = (
-            "검증된 기록 문장"
-        )
     if mutation == "no_usage":
         picks[0]["evidence_ids"] = ["inj"]
     with pytest.raises(ValueError):
@@ -120,3 +116,11 @@ def test_long_absence_can_qualify_from_explicit_season_records_and_missing_data_
     evidence["seasons"] = [{"appearances": 20, "minutes": 1500}]
     assert qualifies(evidence)
     PreviewPayload.model_validate(selection_payload())
+
+
+def test_llm_absence_reason_need_not_copy_the_internal_importance_sentence():
+    value = selection_payload()
+    value["analysis"]["key_absences"]["data"][0]["reason"] = (
+        "최근 선발 비중을 고려하면 이번 경기에서 살펴볼 결장 변수입니다."
+    )
+    PreviewPayload.model_validate(value)

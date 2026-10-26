@@ -22,7 +22,8 @@
     "fixture_id": "positive integer",
     "publication": "state ready|partial|pending|failed|unavailable; served current|previous|null; reason enum|null; generated_at/as_of ISO|null",
     "refresh": "state idle|queued|running|failed; last_attempt_at ISO|null; reason enum|null",
-    "preview": "stored HomePreview payload|null; facts-only generated_at=null and all analysis.data=null"
+    "preview": "stored HomePreview payload|null; facts-only generated_at=null and all analysis.data=null",
+    "generation_due_at": "ISO|null; kickoff 직전 마지막 KST 00/06/12/18 정기수집 시작시각, 우선순위/활성대상만 제공"
   },
   "scenarios_used": [
     "ready",
@@ -39,14 +40,15 @@
     "DB is the only data source for public GET. No live score or polling.",
     "Strict server schema, source/fixture references, snapshot time and fact verification before saving.",
     "Missing/unverified/error sections require data=null and a public reason code.",
-    "Generate only analysis; assemble DB/provider facts deterministically.",
+    "Worker supplies immutable DB/API facts plus the full storage schema; LLM returns the complete payload JSON. Validate and store unchanged; do not extract dates/causes from prose.",
     "Keep existing broadcast Markdown API behavior while adding a separate stored JSON path.",
     "FE error proposal: invalid parameter 422, unknown fixture 404, existing fixture with no snapshot 200 envelope, database unavailable 503; finalize in PRE-03.",
     "See docs/features/home-preview-contract.md for exact state/time/cup invariants. No automatic generation on GET.",
     "Unreleased payload v1.1: search_suggestions=null or Google supplied rendered_content + queries; exact supplied style rendered in a no-script sandbox iframe. Never use arbitrary source HTML.",
     "Optional player_spotlights/player_watchpoints fields provide DB-backed player records and ID-based selections. Injury/spotlight photo_url uses stored API/DB URLs; player names use player_translation at read time. Details: docs/features/home-preview-players.md.",
-    "Optional selected injury cause: verified short Korean label + occurred_on or occurred_month, unknown dates null, web source IDs. Research ONLY final key_absences, max 2/team. Predictions.coverage targets 3 distinct web publishers, API algorithm excluded; partial if fewer. Main detail button uses existing fixture-detail route, no new API. Details: docs/features/home-preview-research.md.",
-    "Optional sources[].published_on preserves a verified YYYY-MM-DD publication day when no exact timestamp is available; published_at stays null. Claim verification can use multiple original passages; current injury facts and incident/publication dates remain separate."
+    "Optional selected injury cause: verified short Korean label + occurred_on or occurred_month, unknown dates null, web source IDs. Research ONLY final key_absences, max 2/team. Predictions.coverage targets 3 total forecasts: API-Football counts once plus distinct web publishers; partial if fewer. Main detail button uses existing fixture-detail route, no new API. Details: docs/features/home-preview-research.md.",
+    "Optional sources[].published_on preserves a verified YYYY-MM-DD publication day when no exact timestamp is available; published_at stays null. Claim verification can use multiple original passages; current injury facts and incident/publication dates remain separate.",
+    "2026-10-26: 킥오프6시간이내 마지막 정기수집에서1회 생성; 전망은 API-Football포함 총3; LLM전체JSON을 변형없이 저장."
   ],
   "payload_schema_ref": "docs/spec/schemas/home-preview-payload.schema.json"
 }

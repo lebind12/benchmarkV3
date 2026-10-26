@@ -478,20 +478,24 @@ def update_prediction_coverage(payload, *, candidate_count=0, checked_at=None, r
         for row in block["data"] or []
         if registry[row["source_id"]]["kind"] == "web"
     }
+    from app.services.home_preview_forecasts import forecast_source_keys
+    _, algorithms = forecast_source_keys(payload)
+    total = len(publishers) + len(algorithms)
     reasons = set(reason_codes)
-    if not publishers:
+    if not total:
         reasons.add("no_verified_source")
     block["coverage"] = {
         "target_count": 3,
         "web_source_count": len(publishers),
+        "total_source_count": total,
         "candidate_count": candidate_count,
         "checked_at": checked_at.isoformat() if checked_at else None,
         "reason_codes": sorted(reasons),
     }
     if block["data"] is not None:
         block.update(
-            status="available" if len(publishers) >= 3 else "partial",
-            reason=None if len(publishers) >= 3 else "insufficient_sample",
+            status="available" if total >= 3 else "partial",
+            reason=None if total >= 3 else "insufficient_sample",
         )
 
 
@@ -541,7 +545,7 @@ class WebPreviewEvidence:
                     if kind == "odds"
                     else result["external"]["predictions"]
                 )
-                if kind == "prediction" and len(block["data"] or []) >= 4:
+                if kind == "prediction" and len(block["data"] or []) >= 3:
                     continue
                 if block["status"] == "available" and kind != "prediction":
                     continue

@@ -13,6 +13,10 @@ import { recentMatchResult } from '@/lib/api/homePreviewSchema'
 import '@/styles/home-preview.css'
 
 const isDevelopment = import.meta.env.DEV
+const replayParams = import.meta.env.DEV ? new URLSearchParams(window.location.search) : null
+const replayDateValue = replayParams?.get('previewDate') ?? ''
+const replayDate = /^\d{4}-\d{2}-\d{2}$/.test(replayDateValue) ? replayDateValue : undefined
+const replayFixtureId = Number(replayParams?.get('fixtureId'))
 const scrollPage = ref<HTMLElement | null>(null)
 const recommendationResponse = ref<HomeRecommendations | null>(null)
 const response = ref<HomePreviewResponse | null>(null)
@@ -36,7 +40,7 @@ async function loadRecommendations() {
   recommendationRequest = new AbortController()
   const current = recommendationRequest
   recommendationsLoading.value = true; recommendationsError.value = false
-  try { const value = await getHomeRecommendations(current.signal); if (current === recommendationRequest && !current.signal.aborted) { recommendationResponse.value = value; index.value = 0 } }
+  try { const value = await getHomeRecommendations(current.signal, replayDate); if (current === recommendationRequest && !current.signal.aborted) { recommendationResponse.value = value; index.value = Math.max(0, value.items.findIndex(row => row.fixture_id === replayFixtureId)) } }
   catch { if (!current.signal.aborted && current === recommendationRequest) recommendationsError.value = true }
   finally { if (current === recommendationRequest) recommendationsLoading.value = false }
 }
@@ -123,8 +127,9 @@ watch([() => selectedRow.value?.fixture_id, response], async () => { await nextT
         <div><p class="hp-date">{{ dateLabel }} <span>한국 시간</span></p><h1>오늘의 매치</h1></div>
         <RouterLink to="/fixtures" class="hp-text-link">전체 경기 <ArrowRight :size="16" /></RouterLink>
       </header>
-      <p v-if="isDevelopment" class="hp-freshness"><RouterLink to="/home/single-call/1557445" data-testid="single-call-review-link">맨유–본머스 · 1회 호출 결과 보기 →</RouterLink></p>
-      <p class="hp-freshness"><Clock3 :size="14" />경기 상태 기준 {{ formatTime(recommendationResponse?.as_of) }} KST · 6시간 간격 갱신</p>
+      <p v-if="isDevelopment" class="hp-freshness"><RouterLink to="/home/single-call/1557445" data-testid="single-call-review-link">이전 1회 호출 실험 보기 · 과거 파일 →</RouterLink></p>
+      <p v-if="replayDate" class="hp-freshness" data-testid="local-replay-date">로컬 재현 · {{ replayDate }}</p>
+      <details class="hp-freshness"><summary>경기 자료 시점</summary><p>경기 상태 기준 {{ formatTime(recommendationResponse?.as_of) }} KST · 6시간 간격 수집</p></details>
       <div v-if="recommendationResponse?.fallback_reason" class="hp-date-notice"><Info :size="18" /><span>오늘 추천할 경기가 없어 <b>{{ selection.day.replaceAll('-', '.') }}</b>의 가장 가까운 예정 경기를 보여드립니다.</span></div>
 
       <template v-if="match">
@@ -152,15 +157,12 @@ watch([() => selectedRow.value?.fixture_id, response], async () => { await nextT
         <div class="hp-preview-stage" :style="{ '--home-tint': match.home.color, '--away-tint': match.away.color }">
         <section class="hp-preview" :key="`preview-${match.id}`" aria-labelledby="preview-heading" data-testid="selected-preview" :data-fixture-id="match.id">
           <header class="hp-section-head hp-reveal"><h2 id="preview-heading">경기 전 프리뷰</h2><RouterLink :to="{ name: 'fixture-detail', params: { externalId: match.id } }" class="hp-action hp-detail-link" data-testid="preview-detail-link">경기 상세 보기<ArrowRight :size="15" /></RouterLink></header>
-          <div v-if="response?.publication.served === 'previous'" class="hp-state-note" data-testid="previous-publication"><Info :size="18" />{{ response.refresh.state === 'failed' ? '갱신에 실패하여 이전 유효본을 표시합니다.' : '갱신 중이므로 이전 유효본을 표시합니다.' }} 생성 {{ formatTime(response.publication.generated_at) }} · 자료 {{ formatTime(response.publication.as_of) }} KST</div>
-          <section v-if="readable && dataGaps.length" class="hp-data-summary" aria-labelledby="data-gap-heading" data-testid="data-gap-summary">
-            <header><Info :size="18" /><h3 id="data-gap-heading">자료 확인 현황</h3><span>미제공 {{ missingData.length }} · 일부 제공 {{ partialData.length }}</span></header>
-            <ul><li v-for="item in dataGaps" :key="item.key"><button @click="openData(item.target)"><b>{{ item.label }}</b><span>{{ dataStatus[item.key] === 'missing' ? '미제공' : dataStatus[item.key] === 'unverified' ? '미확인' : dataStatus[item.key] === 'error' ? '조회 실패' : ['homeForm', 'awayForm'].includes(item.key) ? `${formData(item.key === 'awayForm' ? 1 : 0)?.matches.length ?? 0} / 5경기` : '일부 제공' }}</span><ArrowRight :size="13" /></button></li></ul>
-            <p aria-live="polite">{{ customNotice.trim() || defaultNotice }}</p>
-          </section>
+          <p class="hp-freshness">경기 시작 전 6시간 이내의 마지막 정기 수집에서 한 번 생성됩니다.</p>
+          <p class="hp-generation-time" data-testid="preview-generation-time"><Clock3 :size="14" />{{ preview?.generated_at ? `프리뷰 생성 ${formatTime(preview.generated_at)} KST` : response?.generation_due_at ? `프리뷰 생성 예정 ${formatTime(response.generation_due_at)} KST · 정기 수집 완료 후` : '킥오프 6시간 이내 마지막 정기 수집에서 프리뷰를 생성합니다.' }}</p>
+          <details v-if="response?.publication.served === 'previous'" class="hp-state-note" data-testid="previous-publication"><summary>프리뷰 갱신 현황</summary><Info :size="18" />{{ response.refresh.state === 'failed' ? '갱신에 실패하여 이전 유효본을 표시합니다.' : '갱신 중이므로 이전 유효본을 표시합니다.' }} 생성 {{ formatTime(response.publication.generated_at) }} · 자료 {{ formatTime(response.publication.as_of) }} KST</details>
           <div v-if="!readable" class="hp-preview-empty" role="status">
             <ShieldAlert v-if="previewState === 'failed'" :size="32" /><Clock3 v-else :size="32" />
-            <h3>{{ previewLoading ? '저장된 프리뷰를 불러오는 중입니다' : previewState === 'failed' ? '프리뷰를 불러오지 못했습니다' : response?.publication.reason === 'outside_generation_window' ? '킥오프 24시간 전부터 프리뷰를 준비합니다' : previewState === 'unavailable' ? '경기 전 저장된 프리뷰가 없습니다' : '이 경기의 프리뷰를 준비하고 있습니다' }}</h3>
+            <h3>{{ previewLoading ? '저장된 프리뷰를 불러오는 중입니다' : previewState === 'failed' ? '프리뷰를 불러오지 못했습니다' : response?.publication.reason === 'outside_generation_window' ? '킥오프 6시간 이내의 정기 수집에서 프리뷰를 생성합니다' : previewState === 'unavailable' ? '경기 전 저장된 프리뷰가 없습니다' : '이 경기의 프리뷰를 준비하고 있습니다' }}</h3>
             <p>{{ previewState === 'failed' ? '잠시 후 저장된 프리뷰를 다시 확인해주세요.' : '자료가 준비되면 관전 포인트와 경기 전망을 확인할 수 있습니다.' }}</p>
             <button v-if="previewState !== 'unavailable' && !previewLoading" class="hp-action" @click="loadPreview()"><RotateCw :size="15" />다시 확인</button>
           </div>
@@ -168,7 +170,7 @@ watch([() => selectedRow.value?.fixture_id, response], async () => { await nextT
             <p id="preview-summary" tabindex="-1" class="hp-lead hp-reveal">{{ preview?.analysis.summary.data?.text || '한줄 전망 자료가 없습니다.' }}</p>
             <div class="hp-analysis-grid hp-reveal">
               <article id="preview-points" tabindex="-1" class="hp-points"><h3>관전 포인트</h3><ol v-if="preview?.analysis.key_points.data"><li v-for="(point, i) in preview.analysis.key_points.data" :key="i"><b>{{ point.title }}</b><p>{{ point.description }}</p></li></ol><p v-else class="hp-unavailable">관전 포인트 자료가 없습니다.</p></article>
-              <aside id="preview-ai" tabindex="-1" class="hp-prediction"><span>AI 경기 예측</span><p v-if="!prediction" class="hp-unavailable">AI 경기 예측 자료가 없습니다.</p><template v-else><div class="hp-prediction__score"><b>{{ prediction.home_goals }}</b><span>:</span><b>{{ prediction.away_goals }}</b></div><strong>{{ prediction.home_goals === prediction.away_goals ? '무승부 예상' : `${prediction.home_goals > prediction.away_goals ? match.home.name : match.away.name} 우세 예상` }}</strong><p>{{ prediction.reason }}</p></template></aside>
+              <aside id="preview-ai" tabindex="-1" class="hp-prediction"><span>AI 경기 예측</span><p v-if="!prediction" class="hp-unavailable">AI 경기 예측 자료가 없습니다.</p><template v-else><div class="hp-prediction__score"><b>{{ prediction.home_goals }}</b><span>:</span><b>{{ prediction.away_goals }}</b></div><small data-testid="prediction-confidence">예측 신뢰도 {{ ({ low: '낮음', medium: '보통', high: '높음' })[prediction.confidence] }}</small><strong>{{ prediction.home_goals === prediction.away_goals ? '무승부 예상' : `${prediction.home_goals > prediction.away_goals ? match.home.name : match.away.name} 우세 예상` }}</strong><p>{{ prediction.reason }}</p></template></aside>
             </div>
 
             <HomePlayerWatchpoints :preview="preview" />
@@ -176,22 +178,29 @@ watch([() => selectedRow.value?.fixture_id, response], async () => { await nextT
 
             <section id="preview-form" tabindex="-1" class="hp-form-section hp-reveal"><header class="hp-subhead"><h3>최근 5경기</h3><span>킥오프 이전 완료 경기 · 모든 대회</span></header><div class="hp-form-grid"><article v-for="(team, side) in [match.home, match.away]" :key="team.id" class="hp-form"><header><b>{{ team.name }}</b><div><span v-for="(row, r) in formRows(side)" :key="r" :class="['hp-form-badge', `hp-form-badge--${row.result}`]">{{ row.result }}</span></div></header><p v-if="formRows(side).length === 0" class="hp-unavailable">최근 경기 자료가 없습니다.</p><template v-else><p v-if="formRows(side).length < 5" class="hp-inline-note">확인 가능한 완료 경기 {{ formRows(side).length }}개만 표시합니다.</p><table><caption class="hp-sr-only">{{ team.name }} 최근 5경기</caption><thead><tr><th>날짜</th><th>대회</th><th>상대</th><th>결과</th></tr></thead><tbody><tr v-for="row in formRows(side)" :key="row.date"><td>{{ row.date }}</td><td>{{ row.competition }}</td><td>{{ row.opponent }}</td><td><b>{{ row.score }}</b></td></tr></tbody></table></template></article></div></section>
 
-            <div class="hp-evidence-grid hp-reveal"><HomeExternalPredictions :preview="preview" /><section id="preview-odds" tabindex="-1"><header class="hp-subhead"><h3>경기 전 배당</h3><span>90분 승무패 · Decimal</span></header><p v-if="!preview?.external.odds.data" class="hp-unavailable">이 경기의 경기 전 배당이 없습니다.</p><template v-else><article v-for="(item, i) in preview.external.odds.data" :key="i"><p class="hp-inline-note">{{ item.bookmaker }}</p><div class="hp-odds"><div><span>{{ preview?.fixture.home.name }} 승</span><b>{{ item.home.toFixed(2) }}</b></div><div><span>무승부</span><b>{{ item.draw.toFixed(2) }}</b></div><div><span>{{ preview?.fixture.away.name }} 승</span><b>{{ item.away.toFixed(2) }}</b></div></div><p class="hp-inline-note">제공자 자료 {{ formatTime(preview.external.odds.as_of) }} KST · 수집 {{ formatTime(item.collected_at) }} KST</p></article></template></section></div>
+            <div class="hp-evidence-grid hp-reveal"><HomeExternalPredictions :preview="preview" /><section id="preview-odds" tabindex="-1"><header class="hp-subhead"><h3>경기 전 배당</h3><span>90분 승무패 · Decimal</span></header><p v-if="!preview?.external.odds.data" class="hp-unavailable">이 경기의 경기 전 배당이 없습니다.</p><template v-else><article v-for="(item, i) in preview.external.odds.data" :key="i"><p class="hp-inline-note">{{ item.bookmaker }}</p><div class="hp-odds"><div><span>{{ preview?.fixture.home.name }} 승</span><b>{{ item.home.toFixed(2) }}</b></div><div><span>무승부</span><b>{{ item.draw.toFixed(2) }}</b></div><div><span>{{ preview?.fixture.away.name }} 승</span><b>{{ item.away.toFixed(2) }}</b></div></div><details class="hp-inline-note"><summary>배당 자료 시점</summary><p>제공자 자료 {{ formatTime(preview.external.odds.as_of) }} KST · 수집 {{ formatTime(item.collected_at) }} KST</p></details></article></template></section></div>
             <iframe v-if="preview?.search_suggestions" title="Google 검색 제안" :srcdoc="preview.search_suggestions.rendered_content" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:150px;border:0" loading="lazy" />
             <iframe v-for="(suggestion, i) in preview?.search_suggestions_extra ?? []" :key="i" :title="`Google 검색 제안 ${i + 2}`" :srcdoc="suggestion.rendered_content" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:150px;border:0" loading="lazy" />
-            <footer class="hp-sources hp-reveal"><h3>출처와 자료 시점</h3><p>{{ availableSources || '표시할 출처가 없습니다.' }}</p><ul v-if="visibleSources.some(source => source.url)" class="hp-source-links"><template v-for="source in visibleSources" :key="source.id"><li v-if="source.url"><a :href="source.url" target="_blank" rel="noopener noreferrer">{{ source.title }}</a><span> · 확인 {{ formatTime(source.retrieved_at) }} KST</span></li></template></ul><p>자료 기준 {{ formatTime(preview?.as_of) }} KST / {{ preview?.generated_at ? `생성 ${formatTime(preview.generated_at)} KST` : 'AI 분석 미생성' }}</p></footer>
+            <details class="hp-sources hp-reveal" data-testid="preview-sources"><summary>출처와 자료 시점</summary>          <section v-if="readable && dataGaps.length" class="hp-data-summary" aria-labelledby="data-gap-heading" data-testid="data-gap-summary">
+            <header><Info :size="18" /><h3 id="data-gap-heading">자료 확인 현황</h3><span>미제공 {{ missingData.length }} · 일부 제공 {{ partialData.length }}</span></header>
+            <ul><li v-for="item in dataGaps" :key="item.key"><button @click="openData(item.target)"><b>{{ item.label }}</b><span>{{ dataStatus[item.key] === 'missing' ? '미제공' : dataStatus[item.key] === 'unverified' ? '미확인' : dataStatus[item.key] === 'error' ? '조회 실패' : ['homeForm', 'awayForm'].includes(item.key) ? `${formData(item.key === 'awayForm' ? 1 : 0)?.matches.length ?? 0} / 5경기` : '일부 제공' }}</span><ArrowRight :size="13" /></button></li></ul>
+            <p aria-live="polite">{{ customNotice.trim() || defaultNotice }}</p>
+          </section>
+<p>{{ availableSources || '표시할 출처가 없습니다.' }}</p><ul v-if="visibleSources.some(source => source.url)" class="hp-source-links"><template v-for="source in visibleSources" :key="source.id"><li v-if="source.url"><a :href="source.url" target="_blank" rel="noopener noreferrer">{{ source.title }}</a><span> · 확인 {{ formatTime(source.retrieved_at) }} KST</span></li></template></ul><p>자료 기준 {{ formatTime(preview?.as_of) }} KST / {{ preview?.generated_at ? `생성 ${formatTime(preview.generated_at)} KST` : 'AI 분석 미생성' }}</p></details>
           </template>
         </section>
         </div>
       </template>
       <section v-else class="hp-empty"><Clock3 :size="36" /><h2>{{ recommendationsLoading ? '추천 경기를 불러오는 중입니다' : recommendationsError ? '추천 경기를 불러오지 못했습니다' : '아직 추천할 경기가 없습니다' }}</h2><p>{{ recommendationsError ? '저장된 경기 목록을 다시 확인해주세요.' : '예정 경기가 준비되면 이곳에서 확인할 수 있습니다.' }}</p><button v-if="recommendationsError" class="hp-action" @click="loadRecommendations">다시 확인</button><RouterLink to="/fixtures" class="hp-text-link">전체 일정 확인 <ArrowRight :size="16" /></RouterLink></section>
 
-      <section class="hp-results" aria-labelledby="results-heading"><header class="hp-subhead"><h2 id="results-heading">오늘 결과</h2><span>저장된 종료 경기</span></header><div v-if="selection.results.length" class="hp-results__list"><article v-for="result in selection.results" :key="result.id"><span>{{ result.league }} · 종료</span><strong>{{ result.home.name }} <b>{{ result.score }}</b> {{ result.away.name }}</strong><small>{{ result.time }} KST</small></article></div><p v-else class="hp-inline-note">아직 저장된 종료 경기가 없습니다.</p></section>
+
 
     </div>
   </section>
 </template>
 <style scoped>
+.hp-generation-time { display: flex; align-items: center; gap: 8px; margin: 16px 0; color: var(--color-muted); font-size: 12px; }
+.hp-sources summary { cursor: pointer; font-weight: 700; }
 .hp-live-section { height: auto; overflow: visible; }
 .hp-live-section .hp-container { padding: 18px 0 28px; }
 </style>

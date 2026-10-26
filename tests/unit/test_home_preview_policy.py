@@ -39,3 +39,18 @@ def test_fingerprint_ignores_observation_noise_but_refreshes_on_sla_slot():
     first = snapshot_fingerprint(value, model="test", now=clock("2026-10-25T00:00:00Z"))
     assert first == snapshot_fingerprint(later, model="test", now=clock("2026-10-25T00:01:00Z"))
     assert first != snapshot_fingerprint(later, model="test", now=clock("2026-10-25T03:00:00Z"))
+
+
+def test_generation_due_is_last_regular_collection_strictly_before_kickoff():
+    from datetime import timedelta
+
+    from app.services.home_preview_policy import generation_due_at, in_generation_window
+
+    for hour in (3, 9, 15, 21):
+        kickoff = clock(f"2026-10-25T{hour:02}:00:00Z")
+        assert generation_due_at(kickoff) == kickoff - timedelta(hours=6)
+        assert generation_due_at(kickoff + timedelta(seconds=1)) == kickoff
+        assert in_generation_window(kickoff, kickoff - timedelta(hours=6))
+        assert not in_generation_window(kickoff, kickoff - timedelta(hours=6, seconds=1))
+        assert not in_generation_window(kickoff, kickoff)
+        assert not in_generation_window(kickoff, kickoff + timedelta(seconds=1))

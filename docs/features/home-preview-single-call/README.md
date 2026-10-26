@@ -92,3 +92,22 @@ PYTHONPATH=. .venv/bin/python scripts/resolve_home_preview_single_call.py \
 ```
 
 기술 근거: Google GenerateContentResponse의 GroundingSupport/Segment는 출처 인덱스와 UTF-8 바이트 구간을 제공한다. https://cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1/GenerateContentResponse
+
+
+## 2026-10-25 후속: 기존 공개 JSON 계약 복원
+
+이 절은 앞의 별도 실험 응답 형식 설명을 대체한다. `system.md`와 요청 생성 도구는 이제 `docs/spec/schemas/home-preview-payload.schema.json`에서 변환한 Vertex 스키마를 사용한다. 기존 `analysis/facts/external/sources` 필드·자료형·null 정책을 보존한다. AI 경기 예측은 `analysis.ai_prediction.data`의 `home_goals/away_goals/confidence/reason/evidence_ids`를 채우며, 문자열 스코어·null 스코어·API 알고리즘 소개로 대신하지 않는다. 실제 요청과 최종 저장본에 기존 JSON Schema 및 BE 의미 검증을 적용한다.
+
+DB 폼·선수 기록·번역명·사진·부상 후보의 출전 상태·배당·DB/API 근거는 원본과 대조한다. 선택한 부상 선수만 기존 `cause` 필드에 원인/확인된 발생일을 담으며, 출처 메타데이터는 서버에서 연결한다. 카드에서는 선수·출전 상태·부상/원인·확인된 발생일만 표시한다. 출처와 선정 기록은 내부 데이터에 보존하며, 카드의 출전 기록/출처/미확인 날짜 줄은 제거했다.
+
+실행 도구: `python -m scripts.run_home_preview_existing_contract --fixture-id 1557445 --output-dir <실행 폴더> --env-file <인증 파일> [--as-of <로컬 재현 기준 시각>] [--publish]`. TEST_DATABASE_URL은 전용 로컬 127.0.0.1:55441/home_preview_test만 허용한다. `--prepare-only`는 요청 파일만 작성하며 모델 호출/DB 쓰기가 없다. 정상 완료 모델 요청1회, 실패 시 최대3회로 제한하고 모든 시도 원문·사용량·실제 실행 시각을 보존한다. 출처가 연결되지 않은 부상 원인/날짜는 확인된 값으로 저장하지 않는다. 새 버전 저장과 publication 포인터 갱신은 한 트랜잭션이며, 기존 버전을 보존하고 저장 전후 fixture/포인터 변경을 검사한다.
+
+맨유–본머스는 작업 도중 실제 킥오프(2026-10-25 14:00 UTC)를 지났다. 정상 생성 정책을 우회하거나 생성 시각을 조용히 바꾸지 않는다. 테스트 시계 고정 재현은 사용자 확인 후 실행하고 실제 호출/생성 시각을 snapshot 및 실행 기록에 별도로 보존한다. 프롬프트 수정·테스트 완료와 실제 새 생성·DB 반영 완료는 구분한다.
+
+## 2026-10-26 최신: 직접 저장과3회 연속 성공
+
+최신 동작/목표 정본은 [targets.md](targets.md)다. 앞선 URL resolver·문장 파싱·저장 전 문구 검사 설명은 이번 직접 저장 회귀에 적용하지 않는다. 실제 생성 회귀 실행기는 `scripts/run_home_preview_direct_regression.py`이며, 저장용 계약 전체를 프롬프트 입력에 포함한다. 수집 원문 재사용과 새 브라우저 검색 실행은 구분한다. 완료 여부는 실제 execution.json으로 판정한다.
+
+### 최종 직접 저장 검증
+
+2026-10-26 맨유–본머스의 DB입력값 검증3회 연속 성공(version49/50/51). 최종 실행은 유효후보3개/HTTP4요청(429전송재시도1개)다. 응답후 원인·날짜·이유를 추출/교체하지 않고 JSONB에 원문객체를 저장하며, 새DB session·실제HTTP·화면과 대조했다. 실제결과·파일·판정기준·전송재시도 구분은 [직접 저장 검증](direct-storage-verification.md)을 따른다. BE104/FE33/E2E17/build PASS. 기존수집원문을 재사용한 로컬과거재현이며 정상worker전환/운영적용과 구분한다.

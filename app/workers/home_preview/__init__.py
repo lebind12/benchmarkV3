@@ -1,17 +1,15 @@
 """Post-collection home preview execution. No independent polling worker."""
 
-from copy import deepcopy
 from datetime import timedelta
 
 from app.core.config import get_settings
-from app.services.home_preview import eligible_rows, localize_injury_names
+from app.services.home_preview import eligible_rows
 from app.services.home_preview_api_football import ApiFootballPreviewEvidence
-from app.services.home_preview_causes import WebAbsenceCauses
 from app.services.home_preview_generation import process_fixture
 from app.services.home_preview_policy import utcnow
+from app.services.home_preview_production import ProductionPreviewGenerator
 from app.services.home_preview_retry import ModelRun
 from app.services.home_preview_vertex import VertexPreviewProvider
-from app.services.home_preview_web import WebPreviewEvidence
 from app.workers.daily_sync.api import ApiFootballClient
 
 
@@ -30,8 +28,9 @@ def run_cycle(
     with session_factory() as session:
         rows = [
             row
-            for row in eligible_rows(session, start=now, end=now + timedelta(hours=24))
+            for row in eligible_rows(session, start=now, end=now + timedelta(hours=6))
             if row[0].status_short == "NS"
+            and now < row[0].kickoff_at
             and (fixture_id is None or row[0].external_id == fixture_id)
         ]
         rows.sort(key=lambda row: (row[4], row[0].kickoff_at, row[0].external_id))
@@ -46,6 +45,8 @@ def run_cycle(
             "candidates": [row[0] for row in candidates],
             "model": settings.home_preview_vertex_model,
         }
+    if not settings.google_cloud_project or not settings.home_preview_search_enabled:
+        return {"state": "not_configured", "candidates": [row[0] for row in candidates]}
     client = (
         ApiFootballClient(api_key=settings.api_football_key, requests_per_minute=60)
         if settings.api_football_key
@@ -63,51 +64,14 @@ def run_cycle(
                 )
             api_evidence = evidence_cache.get(key)
 
-            fixture_aliases = aliases.get(external_id)
-
-            def discover(payload, *, now, names=fixture_aliases):
-                return vertex.discover(payload, now=now, aliases=names)
-
-            web_evidence = (
-                WebPreviewEvidence(discover, aliases=aliases.get(external_id), clock=clock)
-                if vertex and settings.home_preview_search_enabled
+            generator = (
+                ProductionPreviewGenerator(vertex, clock=clock, aliases=aliases.get(external_id))
+                if vertex
                 else None
             )
 
-            def discover_causes(payload, *, targets, now, names=fixture_aliases):
-                localized = deepcopy(payload)
-                with session_factory() as name_session:
-                    localize_injury_names(name_session, localized)
-                selected_ids = {row["player_id"] for row in targets}
-                names_ko = {
-                    row["player_id"]: row["player_name"]
-                    for row in localized["facts"]["injuries"]["data"] or []
-                    if row.get("player_id") in selected_ids
-                }
-                return vertex.discover_absence_causes(
-                    payload, targets=targets, now=now, aliases=names, names_ko=names_ko
-                )
-
-            cause_evidence = (
-                WebAbsenceCauses(
-                    discover_causes,
-                    aliases=fixture_aliases,
-                    clock=clock,
-                    fetcher=vertex.fetch_research_page,
-                )
-                if vertex and settings.home_preview_search_enabled
-                else None
-            )
-
-            def collect(payload, *, now, api_evidence=api_evidence, web_evidence=web_evidence):
-                usage = {}
-                if api_evidence:
-                    payload, api_usage = api_evidence(payload, now=now)
-                    usage.update(api_usage)
-                if web_evidence:
-                    payload, web_usage = web_evidence(payload, now=clock())
-                    usage.update(web_usage)
-                return payload, usage
+            def collect(payload, *, now, api_evidence=api_evidence):
+                return api_evidence(payload, now=now) if api_evidence else (payload, {})
 
             runtime = ModelRun(clock=clock) if vertex else None
             if vertex:
@@ -116,9 +80,8 @@ def run_cycle(
                 process_fixture(
                     session_factory,
                     external_id,
-                    provider=vertex.analysis if vertex else None,
+                    payload_provider=generator,
                     evidence_provider=collect,
-                    cause_provider=cause_evidence,
                     runtime=runtime,
                     clock=clock,
                     retry_failed=retry_failed,

@@ -11,30 +11,19 @@ const selected = computed(() => (props.preview?.analysis.key_absences?.data ?? [
 const teams = computed(() => props.preview ? [props.preview.fixture.home, props.preview.fixture.away] : [])
 const teamName = (id: number) => teams.value.find(team => team.external_id === id)?.name ?? ''
 const slots = computed(() => [0, 1].flatMap(rank => teams.value.map(team => ({ team, rank, injury: selected.value.filter(row => row.team_id === team.external_id).slice(0, 2)[rank] }))))
-const sources = (ids: string[]) => props.preview?.sources.filter(source => ids.includes(source.id)).map(source => source.title.replace('API-Football 부상·출전 정보', 'API-Football')).join(' · ')
 function causeDate(row: typeof selected.value[number]) {
   const cause = row.cause?.data
-  if (!cause) return '발생 시점 미확인'
+  if (!cause) return null
   const value = cause.occurred_on ?? cause.occurred_month
-  if (!value) return '발생 시점 미확인'
+  if (!value) return null
   const parts=value.split('-'); const year=props.preview?.fixture.kickoff_at.slice(0,4)
   return `${parts[0] === year ? '' : parts[0] + '년 '}${Number(parts[1])}월${cause.occurred_on ? ' ' + Number(parts[2]) + '일' : ''} 발생`
 }
-const fallbackCause = (detail: string) => (({ 'Injury':'부상 · 세부 원인 미확인', 'Muscle Injury':'근육 부상', 'Thigh Injury':'허벅지 부상', 'Knee Injury':'무릎 부상', 'Ankle Injury':'발목 부상', 'Hamstring Injury':'햄스트링 부상', 'Calf Injury':'종아리 부상', 'Red Card':'퇴장 징계', 'Yellow Cards':'경고 누적 징계', 'Illness':'질병' } as Record<string, string>)[detail] ?? detail)
-const causeSources = (ids: string[]) => props.preview?.sources.filter(source => ids.includes(source.id) && source.kind === 'web') ?? []
-const publicationDay = (value: string | undefined) => value ? `${Number(value.slice(5,7))}월 ${Number(value.slice(8,10))}일 게시` : ''
-function compactRecord(row: typeof selected.value[number]) {
-  const record = row.importance_evidence
-  if (!record) return row.explanation
-  const season = record.seasons.find(season => season.minutes !== null || season.appearances !== null)
-  if (season) return `${season.season_year}시즌 ${season.appearances !== null ? `${season.appearances}경기 출전` : ''}${season.appearances === null && season.minutes !== null ? `출전 시간 ${season.minutes}분` : ''}`
-  if (record.recent_starts !== null) return `확인된 최근 ${record.lineup_games}경기 중 선발 ${record.recent_starts}회`
-  return '부상·출전 상태를 확인한 주요 선수'
-}
+const fallbackCause = (detail: string) => (({ 'Injury':'부상', 'Muscle Injury':'근육 부상', 'Thigh Injury':'허벅지 부상', 'Knee Injury':'무릎 부상', 'Ankle Injury':'발목 부상', 'Hamstring Injury':'햄스트링 부상', 'Calf Injury':'종아리 부상', 'Red Card':'퇴장 징계', 'Yellow Cards':'경고 누적 징계', 'Illness':'질병' } as Record<string, string>)[detail] ?? detail)
 </script>
 <template>
   <section id="preview-injuries" tabindex="-1" class="hp-injuries hp-reveal hp-injury-summary">
-    <header class="hp-injury-heading"><h3>주요 부상·출전 변수</h3><p>양팀에서 주목할 결장·출전 변수를 모았습니다.</p></header>
+    <header class="hp-injury-heading"><h3>주요 부상·출전 변수</h3></header>
     <p v-if="!preview?.facts.injuries.data" class="hp-unavailable hp-injury-empty">부상·출전 정보가 없습니다.</p>
     <p v-else-if="rows.length === 0" class="hp-inline-note">확인된 결장자가 없습니다.</p>
     <template v-else>
@@ -45,8 +34,8 @@ function compactRecord(row: typeof selected.value[number]) {
           <template v-for="slot in slots" :key="`${slot.team.external_id}:${slot.rank}`">
             <article v-if="slot.injury" class="hp-injury-card" data-testid="key-absence" :data-team-id="slot.team.external_id">
               <div class="hp-injury-player"><div class="hp-injury-identity"><span class="hp-tag" :class="{ 'hp-tag--uncertain': slot.injury.availability === 'doubtful' }">{{ slot.injury.availability === 'out' ? '확정 결장' : '출전 불확실' }}</span>
-              <h4>{{ slot.injury.player_name }}</h4><span class="hp-injury-cause">{{ slot.injury.cause?.data?.label ?? fallbackCause(slot.injury.detail) }}</span><small v-if="slot.injury.cause" class="hp-cause-date">{{ causeDate(slot.injury) }}</small></div><PreviewPlayerPhoto :name="slot.injury.player_name" :photo-url="slot.injury.photo_url" /></div>
-              <p :title="slot.injury.explanation">{{ compactRecord(slot.injury) }}</p><small>{{ sources(slot.injury.source_ids) }} <template v-if="slot.injury.cause?.data"><span v-for="(source, index) in causeSources(slot.injury.cause.source_ids)" :key="source.id" class="hp-cause-source"><a :href="source.url ?? undefined" target="_blank" rel="noopener noreferrer">{{ index === 0 ? '원인 출처' : '발생 시점 출처' }}</a><span v-if="source.published_on"> · {{ publicationDay(source.published_on) }}</span></span></template></small>
+              <h4>{{ slot.injury.player_name }}</h4><span class="hp-injury-cause">{{ slot.injury.cause?.data?.label ?? fallbackCause(slot.injury.detail) }}</span><small v-if="causeDate(slot.injury)" class="hp-cause-date">{{ causeDate(slot.injury) }}</small></div><PreviewPlayerPhoto :name="slot.injury.player_name" :photo-url="slot.injury.photo_url" /></div>
+
             </article>
             <div v-else class="hp-injury-card hp-injury-card--empty" data-testid="empty-absence"><span>추가 주요 변수 없음</span></div>
           </template>
@@ -56,7 +45,7 @@ function compactRecord(row: typeof selected.value[number]) {
         <summary>전체 부상·출전 정보 {{ rows.length }}명</summary>
         <div class="hp-all-injuries-grid"><article v-for="(injury, i) in rows" :key="`${injury.team_id}:${injury.player_id ?? i}`" class="hp-injury-item">
           <small>{{ teamName(injury.team_id) }}</small><b>{{ injury.player_name }}</b>
-          <span>{{ injury.status_conflict ? '출전 상태 확인 필요' : injury.availability === 'out' ? '확정 결장' : '출전 불확실' }} · {{ injury.detail }}</span><small>{{ sources(injury.source_ids) }}</small>
+          <span>{{ injury.status_conflict ? '출전 상태 확인 필요' : injury.availability === 'out' ? '확정 결장' : '출전 불확실' }} · {{ injury.detail }}</span>
         </article></div>
       </details>
     </template>

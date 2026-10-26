@@ -11,12 +11,14 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.models import League, LeagueTranslation, Team
-from app.models.home_preview import HomePreviewPublication, HomePreviewVersion
+from app.models.home_preview import HomePreviewPublication, HomePreviewSnapshot, HomePreviewVersion
 from app.schemas.home_preview import clock
 from app.services.home_preview import build_db_snapshot, fixture_by_external, localize_injury_names
 from app.services.home_preview_injuries import enrich_importance
 from app.services.home_preview_players import enrich_player_spotlights
 from app.services.home_preview_policy import utcnow
+from app.services.home_preview_single_call import order_for_schema, payload_vertex_schema
+from app.services.home_preview_targets import form_metrics
 
 ROOT = Path(__file__).resolve().parents[1]
 PROMPTS = ROOT / "docs/features/home-preview-single-call"
@@ -35,6 +37,10 @@ def build_input(session, fixture_id, *, now):
     # Reuse only collected API facts. Never feed previous LLM prose or web conclusions back in.
     if version:
         old = version.payload
+        evidence = session.get(HomePreviewSnapshot, version.snapshot_id)
+        if evidence and evidence.payload.get("mode") in {"local_replay", "local_single_call"}:
+            # Re-read the original collected API input, not newly generated injury prose.
+            old = evidence.payload["input"]["output_template"]
         if old["fixture"] != payload["fixture"]:
             raise ValueError("saved_fixture_identity_mismatch")
         api_sources = [deepcopy(s) for s in old["sources"] if s["kind"] == "api"]
@@ -77,7 +83,27 @@ def build_input(session, fixture_id, *, now):
     for block in ("injuries", "player_spotlights"):
         for row in (facts.get(block) or {}).get("data") or []:
             row.pop("photo_url", None)
+    template = deepcopy(payload)
+    template["external"]["odds"] = deepcopy(saved.get("odds", template["external"]["odds"]))
+    template["external"]["predictions"] = deepcopy(
+        saved.get("api_algorithm_predictions", template["external"]["predictions"])
+    )
+    template = order_for_schema(template, payload_vertex_schema())
     return {
+        "output_template": template,
+        "verified_form_metrics": form_metrics(template),
+        "incident_fixture_lookup": [
+            {
+                "team_id": template["fixture"][side]["external_id"],
+                "fixture_id": m["fixture_id"],
+                "opponent": m["opponent"],
+                "kickoff_at": m["kickoff_at"],
+                "goals_for": m["goals_for"],
+                "goals_against": m["goals_against"],
+            }
+            for side in ("home", "away")
+            for m in (template["facts"][side + "_form"].get("data") or {}).get("matches", [])
+        ],
         "task": "맨유–본머스 단일 호출 프리뷰 실험"
         if fixture_id == 1557445
         else "단일 호출 프리뷰 실험",
@@ -98,12 +124,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture-id", type=int, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--as-of", help="Explicit local replay clock; actual execution time is audited separately"
+    )
     args = parser.parse_args()
     url = os.environ.get("TEST_DATABASE_URL")
     if not url:
         parser.error("TEST_DATABASE_URL is required; no default/production DB is selected")
     engine = create_engine(url)
-    now = utcnow()
+    now = clock(args.as_of) if args.as_of else utcnow()
     with Session(engine, autoflush=False) as session:
         session.execute(text("SET TRANSACTION READ ONLY"))
         data = build_input(session, args.fixture_id, now=now)
@@ -111,7 +140,7 @@ def main():
     engine.dispose()
     config = Settings(_env_file=None)
     system = (PROMPTS / "system.md").read_text()
-    schema = json.loads((PROMPTS / "response.vertex.schema.json").read_text())
+    schema = payload_vertex_schema()
     user = (
         "다음 DB 입력과 시스템 지침에 따라 웹 검색·판단·JSON 생성을 이 요청 안에서 완료하세요.\n"
         + json.dumps(data, ensure_ascii=False, indent=2)

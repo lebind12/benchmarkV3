@@ -47,7 +47,7 @@ def setup_db(isolated_db):
             season_year=2026,
             home_team_id=home.id,
             away_team_id=away.id,
-            kickoff_at=NOW + timedelta(hours=23),
+            kickoff_at=NOW + timedelta(hours=5),
             status_short="NS",
             updated_at=NOW - timedelta(minutes=10),
         )
@@ -120,7 +120,7 @@ def test_migration_and_public_db_only_round_trip(setup_db, monkeypatch):
         app.dependency_overrides.clear()
 
 
-def test_failed_refresh_preserves_saved_version_and_duplicate_slot(setup_db):
+def test_failed_explicit_retry_preserves_saved_version_and_duplicate_slot(setup_db):
     _, factory = setup_db
     assert process_fixture(factory, 1557444, clock=lambda: NOW)["state"] == "succeeded"
     assert process_fixture(factory, 1557444, clock=lambda: NOW)["state"] == "already_processed"
@@ -133,9 +133,18 @@ def test_failed_refresh_preserves_saved_version_and_duplicate_slot(setup_db):
     def failed(_):
         raise RuntimeError("private provider details must never be public")
 
-    later = NOW + timedelta(hours=6)
+    with factory() as session:
+        attempt = session.scalar(select(HomePreviewAttempt))
+        attempt.state = (
+            "failed"  # repair an interrupted publication without discarding its saved version
+        )
+        session.commit()
+    later = NOW + timedelta(hours=1)
     assert (
-        process_fixture(factory, 1557444, provider=failed, clock=lambda: later)["state"] == "failed"
+        process_fixture(factory, 1557444, provider=failed, clock=lambda: later, retry_failed=True)[
+            "state"
+        ]
+        == "failed"
     )
     with factory() as session:
         result = read_preview(session, 1557444, now=later)
@@ -195,7 +204,7 @@ def test_source_cutoff_penalty_and_mock_storage_rejection(setup_db):
         assert read_preview(session, 1557444, now=NOW)["preview"] is None
 
 
-def test_max_four_primary_slots_and_busy_owner(setup_db):
+def test_one_primary_slot_and_busy_owner(setup_db):
     _, factory = setup_db
 
     def nested(payload):
@@ -206,17 +215,21 @@ def test_max_four_primary_slots_and_busy_owner(setup_db):
         process_fixture(factory, 1557444, provider=nested, model="test", clock=lambda: NOW)["state"]
         == "succeeded"
     )
-    for hours in (6, 12, 18):
-        assert process_fixture(
-            factory, 1557444, model="test", clock=lambda hours=hours: NOW + timedelta(hours=hours)
-        )["state"] in ("succeeded", "unchanged")
+    for hours in (1, 2, 4):
+        assert (
+            process_fixture(
+                factory,
+                1557444,
+                model="test",
+                clock=lambda hours=hours: NOW + timedelta(hours=hours),
+            )["state"]
+            == "already_processed"
+        )
     with factory() as session:
-        f = session.scalar(select(Fixture).where(Fixture.external_id == 1557444))
-        f.kickoff_at = NOW + timedelta(hours=40)
-        session.commit()
+        assert len(list(session.scalars(select(HomePreviewAttempt)))) == 1
     assert (
-        process_fixture(factory, 1557444, clock=lambda: NOW + timedelta(hours=24))["state"]
-        == "limit_reached"
+        process_fixture(factory, 1557444, clock=lambda: NOW + timedelta(hours=5))["state"]
+        == "outside_window"
     )
 
 
@@ -297,6 +310,10 @@ def test_publication_update_failure_rolls_back_new_version_and_keeps_old_facts(s
         row = session.scalar(select(Fixture).where(Fixture.external_id == 100))
         row.goals_home = 9
         session.commit()
+    with factory() as session:
+        attempt = session.scalar(select(HomePreviewAttempt))
+        attempt.state = "failed"
+        session.commit()
     state = {"raised": False}
 
     def fail_pointer(conn, cursor, statement, parameters, context, executemany):
@@ -310,12 +327,14 @@ def test_publication_update_failure_rolls_back_new_version_and_keeps_old_facts(s
 
     event.listen(engine, "before_cursor_execute", fail_pointer)
     try:
-        result = process_fixture(factory, 1557444, clock=lambda: NOW + timedelta(hours=6))
+        result = process_fixture(
+            factory, 1557444, clock=lambda: NOW + timedelta(hours=1), retry_failed=True
+        )
     finally:
         event.remove(engine, "before_cursor_execute", fail_pointer)
     assert result["state"] == "failed" and state["raised"]
     with factory() as session:
-        assert read_preview(session, 1557444, now=NOW + timedelta(hours=6))["preview"] == old
+        assert read_preview(session, 1557444, now=NOW + timedelta(hours=1))["preview"] == old
         assert session.scalar(select(func.count()).select_from(HomePreviewVersion)) == 1
         assert session.scalar(select(func.count()).select_from(HomePreviewSnapshot)) == 1
 
@@ -962,3 +981,101 @@ def test_durable_model_retry_resumes_valid_checkpoint_and_invalidates_changed_mo
         assert usage["api_football_requests"] == (4 if changed_model else 2)
         assert "failure_type" not in usage and usage["previous_failures"]
         assert set(usage["checkpoints"]) == {"evidence", "analysis", "causes"}
+
+
+def test_direct_worker_json_survives_checkpoint_retry_and_fresh_db_read(setup_db):
+    from copy import deepcopy
+
+    from sqlalchemy import event
+
+    from app.models.home_preview import HomePreviewSnapshot
+    from app.services.home_preview_retry import ModelRun
+    from app.services.home_preview_web import update_prediction_coverage
+
+    engine, factory = setup_db
+    calls, raw = [], []
+
+    def provider(payload):
+        result = deepcopy(payload)
+        result["generated_at"] = NOW.isoformat()
+        update_prediction_coverage(result, candidate_count=0, checked_at=NOW)
+        calls.append(1)
+        raw.append(deepcopy(result))
+        return result, {
+            "_direct_generation": {
+                "raw_llm_response": deepcopy(result),
+                "raw_llm_text": __import__("json").dumps(result),
+            }
+        }
+
+    def fail_pointer(_conn, _cursor, statement, _params, _context, _many):
+        if statement.startswith("UPDATE home_preview_publication") and "version_id=" in statement:
+            raise RuntimeError("publication write interrupted")
+
+    event.listen(engine, "before_cursor_execute", fail_pointer)
+    try:
+        result = process_fixture(
+            factory,
+            1557444,
+            payload_provider=provider,
+            model="test",
+            clock=lambda: NOW,
+            runtime=ModelRun(clock=lambda: NOW),
+        )
+        assert result["state"] == "failed"
+    finally:
+        event.remove(engine, "before_cursor_execute", fail_pointer)
+    assert (
+        process_fixture(
+            factory,
+            1557444,
+            payload_provider=provider,
+            model="test",
+            clock=lambda: NOW,
+            runtime=ModelRun(clock=lambda: NOW),
+            retry_failed=True,
+        )["state"]
+        == "succeeded"
+    )
+    assert len(calls) == 1
+    with factory() as session:
+        version = session.scalar(select(HomePreviewVersion))
+        audit = session.get(HomePreviewSnapshot, version.snapshot_id).payload["direct_generation"]
+        assert version.payload == raw[0] == audit["raw_llm_response"]
+        assert read_preview(session, 1557444, now=NOW)["preview"] == raw[0]
+    assert (
+        process_fixture(factory, 1557444, payload_provider=provider, clock=lambda: NOW)["state"]
+        == "already_processed"
+    )
+
+
+def test_worker_candidates_are_six_hour_priority_window_only(setup_db):
+    from types import SimpleNamespace
+
+    from app.workers.home_preview import run_cycle
+
+    _, factory = setup_db
+    settings = SimpleNamespace(
+        home_preview_vertex_model="test", google_cloud_project="", home_preview_search_enabled=True
+    )
+    assert run_cycle(factory, settings=settings, clock=lambda: NOW)["candidates"] == [1557444]
+    assert (
+        run_cycle(factory, settings=settings, execute=True, clock=lambda: NOW)["state"]
+        == "not_configured"
+    )
+    with factory() as session:
+        assert session.scalar(select(HomePreviewAttempt)) is None
+        fixture = session.scalar(select(Fixture).where(Fixture.external_id == 1557444))
+        fixture.kickoff_at = NOW + timedelta(hours=6, seconds=1)
+        session.commit()
+    assert run_cycle(factory, settings=settings, clock=lambda: NOW)["candidates"] == []
+    with factory() as session:
+        fixture = session.scalar(select(Fixture).where(Fixture.external_id == 1557444))
+        fixture.kickoff_at = NOW + timedelta(hours=6)
+        session.commit()
+        assert read_preview(session, 1557444, now=NOW)["generation_due_at"] is not None
+    assert run_cycle(factory, settings=settings, clock=lambda: NOW)["candidates"] == [1557444]
+    assert (
+        run_cycle(factory, settings=settings, clock=lambda: NOW + timedelta(hours=6))["candidates"]
+        == []
+    )

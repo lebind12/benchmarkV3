@@ -243,10 +243,6 @@ def validate_payload(v):
             and not candidate.get("status_conflict"),
             "ineligible_key_absence",
         )
-        expected_reason = candidate["importance_evidence"].get("selection_reason")
-        require(
-            not expected_reason or pick["reason"] == expected_reason, "key_absence_reason_mismatch"
-        )
         require(key not in seen, "duplicate_key_absence")
         seen.add(key)
         counts[key[0]] = counts.get(key[0], 0) + 1
@@ -281,8 +277,12 @@ def validate_payload(v):
             if sources.get(row["source_id"], {}).get("kind") == "web"
         }
         require(coverage["web_source_count"] == len(publishers), "invalid_forecast_web_count")
+        from app.services.home_preview_forecasts import forecast_source_keys
+        web, api = forecast_source_keys(v)
+        total = len(web) + len(api)
+        require(coverage.get("total_source_count", total) == total, "invalid_forecast_total_count")
         require(
-            len(publishers) >= 3 or v["external"]["predictions"]["status"] != "available",
+            total >= 3 or v["external"]["predictions"]["status"] != "available",
             "insufficient_forecast_publishers",
         )
     for row in v["external"]["predictions"]["data"] or []:

@@ -13,6 +13,17 @@ describe('structured home preview contract', () => {
     expect(value.facts.home_form.data?.matches).toHaveLength(3)
     expect(value.external.odds.data?.[0]?.market).toBe('1x2_90min')
   })
+  it('preserves a grounded LLM absence reason without requiring the internal sentence verbatim', () => {
+    const value: any = fresh()
+    const row = value.facts.injuries.data[0]
+    const dbRef = value.sources.find((source: any) => source.kind === 'db').id
+    row.player_id = 123
+    row.importance_evidence = { eligible: true, selection_reason: '내부 집계 문장', recent_games: 10, lineup_games: 10, player_games: 10, recent_starts: 6, recent_minutes: 500, seasons: [], source_ids: [dbRef] }
+    const reason = '최근 선발 출전 비중을 고려하면 이번 경기에서 살펴볼 주요 결장 변수입니다.'
+    value.analysis.key_absences = { status: 'available', reason: null, as_of: value.as_of, source_ids: [...row.source_ids, dbRef], data: [{ team_id: row.team_id, player_id: 123, reason, evidence_ids: [...row.source_ids, dbRef] }] }
+    const parsed = homePreviewSchema.parse(value)
+    expect(parsed.analysis.key_absences?.data?.[0]?.reason).toBe(reason)
+  })
   it('rejects Markdown, unknown fields and cross-fixture imports', () => {
     expect(() => parsePreviewFile('## 한줄 전망', 90001)).toThrow()
     expect(() => parsePreviewFile(JSON.stringify({ ...fresh(), unexpected: true }), 90001)).toThrow()

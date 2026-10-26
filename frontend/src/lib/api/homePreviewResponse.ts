@@ -3,7 +3,7 @@ import { homePreviewSchema, publicPreviewReason } from './homePreviewSchema'
 
 const time = z.string().datetime({ offset: true })
 export const homePreviewResponseSchema = z.object({
-  schema_version: z.literal('1.0'), fixture_id: z.number().int().positive(),
+  schema_version: z.literal('1.0'), generation_due_at: time.nullable().optional(), fixture_id: z.number().int().positive(),
   publication: z.object({
     state: z.enum(['ready', 'partial', 'pending', 'failed', 'unavailable']),
     served: z.enum(['current', 'previous']).nullable(), reason: publicPreviewReason.nullable(),

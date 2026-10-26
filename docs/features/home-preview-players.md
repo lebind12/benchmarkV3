@@ -9,7 +9,7 @@
 - 부상 후보의 `importance_evidence.recognition_name`은 DB에 확인된 선수 정식 이름이다. 기존 출전 수치 기준에 더해 cutoff 이전 DB 선수 identity가 확인되면 후보로 검토할 수 있다. LLM은 인지도를 순위의 보조 판단에 사용하지만 수상/이적료/전술/포지션/부상 기간 등을 모델 지식으로 사실처럼 추가하지 않는다. 상태 충돌은 계속 제외한다. 시즌·최근 출전 수치와 선정 근거 문장은 서버가 조립한다.
 - `facts.player_spotlights`는 DB의 해당 대회·시즌 선수 기록, 선수 identity, 최대 최근 10개 완료 팀 경기의 players payload에서 조립한다. 현재 팀이 다른 것으로 확인된 선수 및 확정 결장·상태 충돌 선수는 후보에서 제외한다. team별 최대 4명/합계 8명 입력을 제공하고 기존 analysis 호출이 `analysis.player_watchpoints`를 팀당 최대 2명/합계 4명 선택한다.
 - 시즌 goals/assists/appearances/minutes는 원래 NULL을 유지한다. 선수별 최근 팀 경기의 연속 득점·도움·공격포인트는 최신 경기부터 계산하며 0/미출전/불명확/누락/사후 수집된 상세가 있으면 멈춘다. 누락을 건너뛰거나 표본 전체를 역대 기록으로 확장하지 않는다. 2경기 이상 확인될 때만 연속 기록 문장을 제공한다.
-- `record_notes`는 서버가 수치에서 만든 문장이다. LLM은 존재하는 player_id/team_id/focus/DB evidence_ids를 선택하고 선수별 reason을 한국어 3~5문장으로 작성한다. reason은 제공된 기록만 해석하며 전술·능력·심리·확정 선발·새 기록 수치를 추가하지 않는다. 화면의 선정 이유는 저장된 LLM reason을 그대로 표시하고 사실 기록은 서버가 만든 record_notes를 별도로 표시한다. 최초/최다/역대 신기록이나 리그 전체 순위는 자료 없이 주장하지 않는다. 근거가 없으면 내용을 만들지 않는다.
+- `record_notes`는 서버가 수치에서 만든 문장이다. LLM은 존재하는 player_id/team_id/focus/DB evidence_ids를 선택하고 선수별 reason을 서로 다른 확인 기록을 연결한 자연스러운 한국어 문장으로 작성한다. reason은 제공된 기록만 해석하며 전술·능력·심리·확정 선발·새 기록 수치를 추가하지 않는다. 화면의 선정 이유는 저장된 LLM reason을 그대로 표시하고 사실 기록은 서버가 만든 record_notes를 별도로 표시한다. 최초/최다/역대 신기록이나 리그 전체 순위는 자료 없이 주장하지 않는다. 근거가 없으면 내용을 만들지 않는다.
 - fixture/detail/player/season stat의 관찰 시각과 킥오프 cutoff를 지킨다. 공개 GET은 저장본과 DB 선수 이름/사진만 읽는다. 검색+분석 기존 2회에 통합하며 세 번째 LLM 요청을 추가하지 않는다.
 
 ## 한글 이름·사진

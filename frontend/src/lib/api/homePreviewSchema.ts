@@ -23,13 +23,13 @@ export const recentMatchSchema = z.object({ fixture_id: id, kickoff_at: time, op
 })
 const form = z.object({ team_id: id, expected_count: z.literal(5), matches: z.array(recentMatchSchema).max(5) }).strict()
 const importance = z.object({ recognition_name: text.optional(), selection_reason: text.optional(), eligible: z.boolean(), recent_games: z.number().int().min(0).max(10), lineup_games: z.number().int().min(0).max(10), player_games: z.number().int().min(0).max(10), recent_starts: z.number().int().nonnegative().nullable(), recent_minutes: z.number().int().nonnegative().nullable(), seasons: z.array(z.object({ season_year: id, appearances: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable() }).strict()).max(2), source_ids: refs }).strict()
-const absenceCause = z.object({ code: z.enum(['hamstring', 'groin', 'thigh', 'knee', 'acl', 'ankle', 'calf', 'achilles', 'muscle', 'hip', 'foot', 'shin', 'shoulder', 'illness', 'red_card', 'yellow_cards']), label: text.max(32), occurred_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(), occurred_month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable() }).strict()
+const absenceCause = z.object({ code: z.enum(['hamstring', 'groin', 'thigh', 'knee', 'acl', 'ankle', 'calf', 'achilles', 'muscle', 'hip', 'foot', 'shin', 'shoulder', 'illness', 'red_card', 'yellow_cards']).nullable(), label: text.max(32), occurred_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(), occurred_month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable() }).strict()
 const injury = z.object({ cause: section(absenceCause).optional(), team_id: id, player_id: id.optional(), status_conflict: z.boolean().optional(), importance_evidence: importance.optional(), player_name: text, photo_url: z.string().url().nullable().optional(), availability: z.enum(['out', 'doubtful']), detail: text, impact: text, source_ids: refs }).strict()
 const recentPlayerForm = z.object({ team_match_count: z.number().int().min(0).max(10), observed_appearances: z.number().int().min(0).max(10), goals: z.number().int().nonnegative().nullable(), assists: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable(), goal_samples: z.number().int().min(0).max(10), assist_samples: z.number().int().min(0).max(10), minute_samples: z.number().int().min(0).max(10) }).strict()
 const recordNotes = z.object({ recent_contribution: text.nullable().optional(), season_contribution: text.nullable(), scoring_streak: text.nullable(), assist_streak: text.nullable(), involvement_streak: text.nullable() }).strict()
 const spotlight = z.object({ team_id: id, player_id: id, player_name: text, photo_url: z.string().url().nullable().optional(), canonical_name: text, competition_name: text.optional(), season_year: id, appearances: z.number().int().nonnegative().nullable(), goals: z.number().int().nonnegative().nullable(), assists: z.number().int().nonnegative().nullable(), minutes: z.number().int().nonnegative().nullable(), recent_form: recentPlayerForm.optional(), recent_match_count: z.number().int().min(0).max(10), scoring_streak: z.number().int().min(0).max(10), assist_streak: z.number().int().min(0).max(10), involvement_streak: z.number().int().min(0).max(10), record_notes: recordNotes, source_ids: refs }).strict()
 const externalPrediction = z.object({ source_id: text, outlook: text, summary: text }).strict()
-const forecastCoverage = z.object({ target_count: z.literal(3), web_source_count: z.number().int().min(0).max(4), candidate_count: z.number().int().min(0).max(12), checked_at: time.nullable(), reason_codes: z.array(z.enum(['no_verified_source', 'original_unavailable', 'wrong_match', 'unverified_publication', 'unverified_quote', 'unusable_grounding', 'duplicate_publisher', 'budget_reached'])).max(8) }).strict()
+const forecastCoverage = z.object({ target_count: z.literal(3), web_source_count: z.number().int().min(0).max(4), total_source_count: z.number().int().min(0).max(5).optional(), candidate_count: z.number().int().min(0).max(12), checked_at: time.nullable(), reason_codes: z.array(z.enum(['no_verified_source', 'original_unavailable', 'wrong_match', 'unverified_publication', 'unverified_quote', 'unusable_grounding', 'duplicate_publisher', 'budget_reached'])).max(8) }).strict()
 const forecastSection = section(z.array(externalPrediction).min(1)).extend({ coverage: forecastCoverage.optional() }).strict()
 const odds = z.object({ source_id: text, bookmaker: text, market: z.literal('1x2_90min'), format: z.literal('decimal'), home: z.number().gt(1), draw: z.number().gt(1), away: z.number().gt(1), collected_at: time }).strict()
 export const homePreviewSchema = z.object({
@@ -131,7 +131,6 @@ export const homePreviewSchema = z.object({
     const key = `${pick.team_id}:${pick.player_id}`
     const candidate = value.facts.injuries.data?.find(row => row.player_id === pick.player_id && row.team_id === pick.team_id)
     if (!candidate?.importance_evidence?.eligible || candidate.status_conflict) fail('Key absence must be an eligible known injury')
-    if (candidate?.importance_evidence?.selection_reason && pick.reason !== candidate.importance_evidence.selection_reason) fail('Key absence reason must preserve verified participation facts')
     if (selectedIds.has(key)) fail('Duplicate key absence')
     selectedIds.add(key); teamCounts.set(pick.team_id, (teamCounts.get(pick.team_id) ?? 0) + 1)
     if (teamCounts.get(pick.team_id)! > 2) fail('At most two key absences per team')
@@ -165,7 +164,10 @@ export const homePreviewSchema = z.object({
     const coverage = value.external.predictions.coverage
     const publishers = new Set((value.external.predictions.data ?? []).map(row => sources.get(row.source_id)).filter(source => source?.kind === 'web' && source.url).map(source => new URL(source!.url!).hostname.replace(/^www\./, '').replace(/^bbc\.co\.uk$/, 'bbc.com')))
     if (coverage.web_source_count !== publishers.size) fail('Forecast coverage must count independent web publishers only')
-    if (publishers.size < 3 && value.external.predictions.status === 'available') fail('Three verified publishers required for complete forecasts')
+    const apiCount = (value.external.predictions.data ?? []).some(row => { const source=sources.get(row.source_id); if(source?.kind!=='api'||!source.url)return false; const url=new URL(source.url); return url.hostname==='v3.football.api-sports.io'&&url.pathname==='/predictions' }) ? 1 : 0
+    const total = publishers.size + apiCount
+    if (coverage.total_source_count !== undefined && coverage.total_source_count !== total) fail('Forecast total coverage mismatch')
+    if (total < 3 && value.external.predictions.status === 'available') fail('Three forecast sources required including API-Football')
   }
   for (const item of value.external.predictions.data ?? []) checkRefs([item.source_id], ['web', 'api'])
   for (const item of value.external.odds.data ?? []) {

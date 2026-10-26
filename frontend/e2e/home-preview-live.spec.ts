@@ -10,7 +10,7 @@ function response(fixtureId: number) {
   return { schema_version: '1.0', fixture_id: fixtureId, publication: { state: 'ready', served: 'current', reason: null, generated_at: preview.generated_at, as_of: preview.as_of }, refresh: { state: 'idle', last_attempt_at: null, reason: null }, preview }
 }
 
-test('real home loads stored JSON with no mock tools and retains the existing dashboard', async ({ page }) => {
+test('real home loads stored JSON with no mock tools and shows generation time and removes the previous dashboard', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.route('**/api/v1/home/**', async route => {
@@ -24,7 +24,12 @@ test('real home loads stored JSON with no mock tools and retains the existing da
   await expect(home.getByRole('heading', { name: '오늘의 매치', exact: true })).toBeVisible()
   await expect(home.locator('.hp-lead')).not.toHaveText('')
   await expect(home.locator('.hp-tools')).toHaveCount(0)
-  await expect(page.getByText('일정 타임라인', { exact: true })).toHaveCount(1)
+  await expect(page.getByText('일정 타임라인', { exact: true })).toHaveCount(0)
+  await expect(home.getByTestId('preview-generation-time')).toContainText('생성')
+  const sources = home.getByTestId('preview-sources')
+  await expect(sources).not.toHaveAttribute('open', '')
+  await sources.locator('summary').first().click()
+  await expect(sources).toHaveAttribute('open', '')
   await expect(home.getByTestId('selected-preview')).toHaveAttribute('data-fixture-id', '90002')
   await home.getByRole('button', { name: '다음 추천 경기', exact: true }).click()
   await expect(home.getByTestId('selected-preview')).toHaveAttribute('data-fixture-id', '90001')
@@ -91,7 +96,8 @@ test('key absences are capped per team, full list expands, and odds follow the s
   await expect(home.getByTestId('key-absence').first()).toContainText('햄스트링 부상')
   await expect(home.getByTestId('key-absence').first()).toContainText('10월 18일 발생')
   await expect(home.getByTestId('key-absence').nth(1)).toContainText('9월 발생')
-  await expect(home.getByTestId('key-absence').first().getByRole('link',{name:'원인 출처'})).toHaveAttribute('href','https://www.liverpoolfc.com/news/club')
+  await expect(home.getByTestId('key-absence').locator('a')).toHaveCount(0)
+  await expect(home.getByTestId('key-absence').first()).not.toContainText('DB 기준')
   await expect(home.getByTestId('key-absence').locator('img')).toHaveCount(4)
   const watched = home.getByTestId('player-watchpoint')
   await expect(watched).toHaveCount(1)
@@ -135,4 +141,24 @@ test('key absences are capped per team, full list expands, and odds follow the s
   await expect(full).not.toHaveAttribute('open', '')
   await home.getByTestId('preview-detail-link').click()
   await expect(page).toHaveURL(/\/fixtures\/90001$/)
+})
+
+
+test('pending preview displays the scheduled collection time', async ({ page }) => {
+  await page.route('**/api/v1/home/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path.endsWith('/recommendations')) return route.fulfill({ json: recommendations })
+    if (!path.endsWith('/prematch')) return route.fulfill({ json: { items: [], rows: [] } })
+    const value: any = response(Number(path.split('/').at(-2)))
+    value.preview = null
+    value.generation_due_at = '2026-10-25T03:00:00Z'
+    value.publication = { state: 'pending', served: null, reason: 'generation_pending', generated_at: null, as_of: null }
+    await route.fulfill({ json: value })
+  })
+  await page.goto('/')
+  const time = page.getByTestId('preview-generation-time')
+  await expect(time).toContainText('프리뷰 생성 예정')
+  await expect(time).toContainText('12:00 KST')
+  await expect(time).toContainText('정기 수집 완료 후')
+  await expect(page.locator('.candidate-home, .home-toolbar')).toHaveCount(0)
 })

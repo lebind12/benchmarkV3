@@ -15,6 +15,7 @@ from app.services.home_preview_policy import (
     KST,
     ONGOING,
     category,
+    generation_due_at,
     identity,
     priority,
     utcnow,
@@ -176,7 +177,7 @@ def read_preview(session: Session, external_id: int, *, now=None):
             "reason": publication.reason,
         }
     if preview is not None:
-        from app.services.home_preview_injuries import deduplicate_injuries, selection_reason
+        from app.services.home_preview_injuries import deduplicate_injuries
         from app.services.home_preview_web import update_prediction_coverage
 
         if not preview["external"]["predictions"].get("coverage"):
@@ -187,20 +188,6 @@ def read_preview(session: Session, external_id: int, *, now=None):
             preview["facts"]["injuries"]["data"] = deduplicate_injuries(rows)
             if any(row.get("status_conflict") for row in preview["facts"]["injuries"]["data"]):
                 preview["facts"]["injuries"].update(status="partial", reason="source_unverified")
-        for pick in (preview["analysis"].get("key_absences") or {}).get("data") or []:
-            candidate = next(
-                (
-                    row
-                    for row in preview["facts"]["injuries"]["data"] or []
-                    if row.get("player_id") == pick["player_id"]
-                    and row["team_id"] == pick["team_id"]
-                ),
-                None,
-            )
-            if candidate and candidate.get("importance_evidence"):
-                pick["reason"] = candidate["importance_evidence"].get(
-                    "selection_reason"
-                ) or selection_reason(candidate["importance_evidence"])
         localize_injury_names(session, preview)
         complete = all(
             block["status"] == "available"
@@ -217,7 +204,7 @@ def read_preview(session: Session, external_id: int, *, now=None):
     else:
         # A stale publication belongs to a changed identity and cannot leak into the new fixture.
         failed = refresh["state"] == "failed"
-        before_window = fixture.kickoff_at > now + timedelta(hours=24)
+        before_window = fixture.kickoff_at > now + timedelta(hours=6)
         kickoff_passed = fixture.kickoff_at <= now or fixture.status_short != "NS"
         unavailable = (
             before_window or kickoff_passed or bool(publication and publication.version_id)
@@ -242,10 +229,24 @@ def read_preview(session: Session, external_id: int, *, now=None):
             "generated_at": None,
             "as_of": None,
         }
+    league = session.get(League, fixture.league_id)
+    home = session.get(Team, fixture.home_team_id)
+    away = session.get(Team, fixture.away_team_id)
+    scheduled = bool(
+        league
+        and league.is_active
+        and home
+        and away
+        and (fixture.league_id, fixture.season_year) in active_pairs(session)
+        and priority(league, home.external_id, away.external_id, fixture.round) is not None
+    )
     return PreviewResponse.model_validate(
         {
             "schema_version": "1.0",
             "fixture_id": external_id,
+            "generation_due_at": generation_due_at(fixture.kickoff_at).isoformat()
+            if scheduled
+            else None,
             "publication": pub,
             "refresh": refresh,
             "preview": preview,

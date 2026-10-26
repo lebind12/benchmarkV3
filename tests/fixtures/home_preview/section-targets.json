@@ -1,0 +1,1084 @@
+{
+  "fixture_kind": "Synthetic regression input; NOT a real generated or verified football preview",
+  "template": {
+    "schema_version": "1.1",
+    "is_mock": false,
+    "fixture": {
+      "external_id": 90001,
+      "kickoff_at": "2026-10-25T13:00:00+00:00",
+      "home": {
+        "external_id": 42,
+        "name": "아스널"
+      },
+      "away": {
+        "external_id": 40,
+        "name": "리버풀"
+      }
+    },
+    "generated_at": "2026-10-25T08:10:00Z",
+    "as_of": "2026-10-25T08:00:00Z",
+    "sources": [
+      {
+        "id": "db-form-home",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "db-form-away",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "api-injuries",
+        "fixture_id": 90001,
+        "kind": "api",
+        "title": "테스트 근거",
+        "url": "https://v3.football.api-sports.io/injuries?fixture=90001",
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "db-player-42",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "db-part-42",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "db-player-40",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "db-part-40",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "api-odds",
+        "fixture_id": 90001,
+        "kind": "api",
+        "title": "테스트 근거",
+        "url": "https://v3.football.api-sports.io/odds?fixture=90001",
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      }
+    ],
+    "analysis": {
+      "summary": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-form-home",
+          "db-form-away"
+        ],
+        "data": {
+          "text": "양 팀은 서로 다른 최근 흐름을 바탕으로 이번 맞대결을 준비하고 있습니다. 홈팀은 최근 경기의 득점 흐름을 개선해야 하고 원정팀은 최근 성과를 이번 경기에서도 이어갈 수 있을지 주목됩니다. 확인된 선수 기록과 결장 변수를 함께 살펴볼 필요가 있는 경기입니다.",
+          "evidence_ids": [
+            "db-form-home",
+            "db-form-away"
+          ]
+        }
+      },
+      "key_points": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-form-home"
+        ],
+        "data": [
+          {
+            "title": "아스널의 득점 과제",
+            "description": "아스널는 최근 5경기 중 5경기에서 1득점 이하를 기록했습니다. 이번 경기에서 득점 흐름을 바꿀 수 있을지 주목됩니다.",
+            "evidence_ids": [
+              "db-form-home"
+            ]
+          }
+        ]
+      },
+      "key_absences": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "api-injuries",
+          "db-part-42",
+          "db-part-40"
+        ],
+        "data": [
+          {
+            "team_id": 42,
+            "player_id": 9100,
+            "reason": "테스트 출전 기록으로 선정",
+            "evidence_ids": [
+              "api-injuries",
+              "db-part-42"
+            ]
+          },
+          {
+            "team_id": 40,
+            "player_id": 9101,
+            "reason": "테스트 출전 기록으로 선정",
+            "evidence_ids": [
+              "api-injuries",
+              "db-part-40"
+            ]
+          }
+        ]
+      },
+      "player_watchpoints": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-player-42",
+          "db-player-40"
+        ],
+        "data": [
+          {
+            "team_id": 42,
+            "player_id": 9000,
+            "focus": "scoring_streak",
+            "reason": "테스트 홈 선수는 이번 시즌 테스트 리그 7경기에서 3골 1도움을 기록하며 공격포인트를 쌓았습니다. 최근 2경기 연속 득점 흐름은 이번 경기에서도 이어질지 지켜볼 만한 기록입니다. 시즌 기여와 최근 연속 기록이 함께 확인되는 만큼 팀의 이번 경기 득점 흐름을 살펴볼 선수입니다.",
+            "evidence_ids": [
+              "db-player-42"
+            ]
+          },
+          {
+            "team_id": 40,
+            "player_id": 9001,
+            "focus": "scoring_streak",
+            "reason": "테스트 원정 선수는 이번 시즌 테스트 리그 7경기에서 3골 1도움을 기록하며 공격포인트를 쌓았습니다. 최근 2경기 연속 득점 흐름은 이번 경기에서도 이어질지 지켜볼 만한 기록입니다. 시즌 기여와 최근 연속 기록이 함께 확인되는 만큼 팀의 이번 경기 득점 흐름을 살펴볼 선수입니다.",
+            "evidence_ids": [
+              "db-player-40"
+            ]
+          }
+        ]
+      },
+      "ai_prediction": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-form-home",
+          "db-form-away"
+        ],
+        "data": {
+          "home_goals": 1,
+          "away_goals": 2,
+          "confidence": "medium",
+          "reason": "최근 득점 흐름을 고려하면 홈팀보다는 원정팀이 득점 기회를 살릴 가능성을 높게 예상합니다. 양팀의 주요 결장 선수와 확인된 부상 경위는 경기 준비에서 함께 살펴봐야 할 변수입니다. 다만 홈팀이 최근의 득점 부진을 끊고 먼저 득점하는 경우에는 원정팀 우세 예상과 다른 결과가 나올 수 있습니다.",
+          "evidence_ids": [
+            "db-form-home",
+            "db-form-away"
+          ]
+        }
+      }
+    },
+    "facts": {
+      "home_form": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-form-home"
+        ],
+        "data": {
+          "team_id": 42,
+          "expected_count": 5,
+          "matches": [
+            {
+              "fixture_id": 80000,
+              "kickoff_at": "2026-10-21T12:00:00Z",
+              "opponent": "샘플 팀 A",
+              "competition": "UCL",
+              "goals_for": 1,
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80001,
+              "kickoff_at": "2026-10-17T12:00:00Z",
+              "opponent": "샘플 팀 B",
+              "competition": "EPL",
+              "goals_for": 1,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80002,
+              "kickoff_at": "2026-10-10T12:00:00Z",
+              "opponent": "샘플 팀 C",
+              "competition": "EPL",
+              "goals_for": 0,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80003,
+              "kickoff_at": "2026-10-06T12:00:00Z",
+              "opponent": "샘플 팀 D",
+              "competition": "UCL",
+              "goals_for": 1,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80004,
+              "kickoff_at": "2026-10-02T12:00:00Z",
+              "opponent": "샘플 팀 E",
+              "competition": "EPL",
+              "goals_for": 1,
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
+            }
+          ]
+        }
+      },
+      "away_form": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-form-away"
+        ],
+        "data": {
+          "team_id": 40,
+          "expected_count": 5,
+          "matches": [
+            {
+              "fixture_id": 80100,
+              "kickoff_at": "2026-10-21T12:00:00Z",
+              "opponent": "샘플 팀 A",
+              "competition": "UCL",
+              "goals_for": 3,
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80101,
+              "kickoff_at": "2026-10-17T12:00:00Z",
+              "opponent": "샘플 팀 B",
+              "competition": "EPL",
+              "goals_for": 2,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80102,
+              "kickoff_at": "2026-10-10T12:00:00Z",
+              "opponent": "샘플 팀 C",
+              "competition": "EPL",
+              "goals_for": 3,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80103,
+              "kickoff_at": "2026-10-06T12:00:00Z",
+              "opponent": "샘플 팀 D",
+              "competition": "UCL",
+              "goals_for": 1,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80104,
+              "kickoff_at": "2026-10-02T12:00:00Z",
+              "opponent": "샘플 팀 E",
+              "competition": "EPL",
+              "goals_for": 0,
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
+            }
+          ]
+        }
+      },
+      "injuries": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "api-injuries"
+        ],
+        "data": [
+          {
+            "team_id": 42,
+            "player_id": 9100,
+            "player_name": "테스트 결장 선수 0",
+            "photo_url": "https://example.test/players/9100.png",
+            "availability": "out",
+            "detail": "Injury",
+            "impact": "출전 불가",
+            "source_ids": [
+              "api-injuries"
+            ],
+            "importance_evidence": {
+              "eligible": true,
+              "recent_games": 5,
+              "lineup_games": 5,
+              "player_games": 5,
+              "recent_starts": 4,
+              "recent_minutes": 300,
+              "seasons": [
+                {
+                  "season_year": 2026,
+                  "appearances": 7,
+                  "minutes": 600
+                }
+              ],
+              "source_ids": [
+                "db-part-42"
+              ],
+              "selection_reason": "테스트 출전 기록으로 선정"
+            }
+          },
+          {
+            "team_id": 40,
+            "player_id": 9101,
+            "player_name": "테스트 결장 선수 1",
+            "photo_url": "https://example.test/players/9101.png",
+            "availability": "out",
+            "detail": "Injury",
+            "impact": "출전 불가",
+            "source_ids": [
+              "api-injuries"
+            ],
+            "importance_evidence": {
+              "eligible": true,
+              "recent_games": 5,
+              "lineup_games": 5,
+              "player_games": 5,
+              "recent_starts": 4,
+              "recent_minutes": 300,
+              "seasons": [
+                {
+                  "season_year": 2026,
+                  "appearances": 7,
+                  "minutes": 600
+                }
+              ],
+              "source_ids": [
+                "db-part-40"
+              ],
+              "selection_reason": "테스트 출전 기록으로 선정"
+            }
+          }
+        ]
+      },
+      "player_spotlights": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-player-42",
+          "db-player-40"
+        ],
+        "data": [
+          {
+            "team_id": 42,
+            "player_id": 9000,
+            "player_name": "테스트 홈 선수",
+            "canonical_name": "Test Player 0",
+            "photo_url": "https://example.test/players/9000.png",
+            "competition_name": "테스트 리그",
+            "season_year": 2026,
+            "appearances": 7,
+            "goals": 3,
+            "assists": 1,
+            "minutes": 600,
+            "recent_match_count": 5,
+            "scoring_streak": 2,
+            "assist_streak": 0,
+            "involvement_streak": 2,
+            "record_notes": {
+              "season_contribution": "2026시즌 테스트 리그 7경기 3골 1도움",
+              "recent_contribution": null,
+              "scoring_streak": "최근 2경기 연속 득점",
+              "assist_streak": null,
+              "involvement_streak": "최근 2경기 연속 공격포인트"
+            },
+            "source_ids": [
+              "db-player-42"
+            ]
+          },
+          {
+            "team_id": 40,
+            "player_id": 9001,
+            "player_name": "테스트 원정 선수",
+            "canonical_name": "Test Player 1",
+            "photo_url": "https://example.test/players/9001.png",
+            "competition_name": "테스트 리그",
+            "season_year": 2026,
+            "appearances": 7,
+            "goals": 3,
+            "assists": 1,
+            "minutes": 600,
+            "recent_match_count": 5,
+            "scoring_streak": 2,
+            "assist_streak": 0,
+            "involvement_streak": 2,
+            "record_notes": {
+              "season_contribution": "2026시즌 테스트 리그 7경기 3골 1도움",
+              "recent_contribution": null,
+              "scoring_streak": "최근 2경기 연속 득점",
+              "assist_streak": null,
+              "involvement_streak": "최근 2경기 연속 공격포인트"
+            },
+            "source_ids": [
+              "db-player-40"
+            ]
+          }
+        ]
+      }
+    },
+    "external": {
+      "predictions": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "press-a",
+          "press-b"
+        ],
+        "data": [
+          {
+            "source_id": "press-a",
+            "outlook": "아스널 근소 우세",
+            "summary": "홈 경기 운영을 주요 변수로 보는 전망입니다."
+          },
+          {
+            "source_id": "press-b",
+            "outlook": "접전 예상 · 1 : 1",
+            "summary": "중원 경합과 득점 기회 제한에 주목합니다."
+          }
+        ]
+      },
+      "odds": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "api-odds"
+        ],
+        "data": [
+          {
+            "source_id": "api-odds",
+            "bookmaker": "가상 북메이커",
+            "market": "1x2_90min",
+            "format": "decimal",
+            "home": 2.1,
+            "draw": 3.4,
+            "away": 3.2,
+            "collected_at": "2026-10-25T08:00:00Z"
+          }
+        ]
+      }
+    },
+    "search_suggestions": null
+  },
+  "payload": {
+    "schema_version": "1.1",
+    "is_mock": false,
+    "fixture": {
+      "external_id": 90001,
+      "kickoff_at": "2026-10-25T13:00:00+00:00",
+      "home": {
+        "external_id": 42,
+        "name": "아스널"
+      },
+      "away": {
+        "external_id": 40,
+        "name": "리버풀"
+      }
+    },
+    "generated_at": "2026-10-25T08:10:00Z",
+    "as_of": "2026-10-25T08:00:00Z",
+    "sources": [
+      {
+        "id": "db-form-home",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "db-form-away",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "api-injuries",
+        "fixture_id": 90001,
+        "kind": "api",
+        "title": "테스트 근거",
+        "url": "https://v3.football.api-sports.io/injuries?fixture=90001",
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "db-player-42",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "db-part-42",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "db-player-40",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "db-part-40",
+        "fixture_id": 90001,
+        "kind": "db",
+        "title": "테스트 근거",
+        "url": null,
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "api-odds",
+        "fixture_id": 90001,
+        "kind": "api",
+        "title": "테스트 근거",
+        "url": "https://v3.football.api-sports.io/odds?fixture=90001",
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "web-sportsmole",
+        "fixture_id": 90001,
+        "kind": "web",
+        "title": "Sports Mole | Test fixture preview",
+        "url": "https://www.sportsmole.co.uk/football/test-preview.html",
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "web-football365",
+        "fixture_id": 90001,
+        "kind": "web",
+        "title": "Football365 | Test fixture preview",
+        "url": "https://www.football365.com/match-preview/test-preview",
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      },
+      {
+        "id": "web-si",
+        "fixture_id": 90001,
+        "kind": "web",
+        "title": "Sports Illustrated | Test fixture preview",
+        "url": "https://www.si.com/soccer/test-preview",
+        "published_at": null,
+        "retrieved_at": "2026-10-25T08:00:00Z"
+      }
+    ],
+    "analysis": {
+      "summary": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-form-home",
+          "db-form-away"
+        ],
+        "data": {
+          "text": "양 팀은 서로 다른 최근 흐름을 바탕으로 이번 맞대결을 준비하고 있습니다. 홈팀은 최근 경기의 득점 흐름을 개선해야 하고 원정팀은 최근 성과를 이번 경기에서도 이어갈 수 있을지 주목됩니다. 확인된 선수 기록과 결장 변수를 함께 살펴볼 필요가 있는 경기입니다.",
+          "evidence_ids": [
+            "db-form-home",
+            "db-form-away"
+          ]
+        }
+      },
+      "key_points": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-form-home"
+        ],
+        "data": [
+          {
+            "title": "아스널의 득점 과제",
+            "description": "아스널는 최근 5경기 중 5경기에서 1득점 이하를 기록했습니다. 이번 경기에서 득점 흐름을 바꿀 수 있을지 주목됩니다.",
+            "evidence_ids": [
+              "db-form-home"
+            ]
+          }
+        ]
+      },
+      "key_absences": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "api-injuries",
+          "db-part-42",
+          "db-part-40"
+        ],
+        "data": [
+          {
+            "team_id": 42,
+            "player_id": 9100,
+            "reason": "테스트 출전 기록으로 선정",
+            "evidence_ids": [
+              "api-injuries",
+              "db-part-42"
+            ]
+          },
+          {
+            "team_id": 40,
+            "player_id": 9101,
+            "reason": "테스트 출전 기록으로 선정",
+            "evidence_ids": [
+              "api-injuries",
+              "db-part-40"
+            ]
+          }
+        ]
+      },
+      "player_watchpoints": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-player-42",
+          "db-player-40"
+        ],
+        "data": [
+          {
+            "team_id": 42,
+            "player_id": 9000,
+            "focus": "scoring_streak",
+            "reason": "테스트 홈 선수는 이번 시즌 테스트 리그 7경기에서 3골 1도움을 기록하며 공격포인트를 쌓았습니다. 최근 2경기 연속 득점 흐름은 이번 경기에서도 이어질지 지켜볼 만한 기록입니다. 시즌 기여와 최근 연속 기록이 함께 확인되는 만큼 팀의 이번 경기 득점 흐름을 살펴볼 선수입니다.",
+            "evidence_ids": [
+              "db-player-42"
+            ]
+          },
+          {
+            "team_id": 40,
+            "player_id": 9001,
+            "focus": "scoring_streak",
+            "reason": "테스트 원정 선수는 이번 시즌 테스트 리그 7경기에서 3골 1도움을 기록하며 공격포인트를 쌓았습니다. 최근 2경기 연속 득점 흐름은 이번 경기에서도 이어질지 지켜볼 만한 기록입니다. 시즌 기여와 최근 연속 기록이 함께 확인되는 만큼 팀의 이번 경기 득점 흐름을 살펴볼 선수입니다.",
+            "evidence_ids": [
+              "db-player-40"
+            ]
+          }
+        ]
+      },
+      "ai_prediction": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-form-home",
+          "db-form-away"
+        ],
+        "data": {
+          "home_goals": 1,
+          "away_goals": 2,
+          "confidence": "medium",
+          "reason": "최근 득점 흐름을 고려하면 홈팀보다는 원정팀이 득점 기회를 살릴 가능성을 높게 예상합니다. 양팀의 주요 결장 선수와 확인된 부상 경위는 경기 준비에서 함께 살펴봐야 할 변수입니다. 다만 홈팀이 최근의 득점 부진을 끊고 먼저 득점하는 경우에는 원정팀 우세 예상과 다른 결과가 나올 수 있습니다.",
+          "evidence_ids": [
+            "db-form-home",
+            "db-form-away"
+          ]
+        }
+      }
+    },
+    "facts": {
+      "home_form": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-form-home"
+        ],
+        "data": {
+          "team_id": 42,
+          "expected_count": 5,
+          "matches": [
+            {
+              "fixture_id": 80000,
+              "kickoff_at": "2026-10-21T12:00:00Z",
+              "opponent": "샘플 팀 A",
+              "competition": "UCL",
+              "goals_for": 1,
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80001,
+              "kickoff_at": "2026-10-17T12:00:00Z",
+              "opponent": "샘플 팀 B",
+              "competition": "EPL",
+              "goals_for": 1,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80002,
+              "kickoff_at": "2026-10-10T12:00:00Z",
+              "opponent": "샘플 팀 C",
+              "competition": "EPL",
+              "goals_for": 0,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80003,
+              "kickoff_at": "2026-10-06T12:00:00Z",
+              "opponent": "샘플 팀 D",
+              "competition": "UCL",
+              "goals_for": 1,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80004,
+              "kickoff_at": "2026-10-02T12:00:00Z",
+              "opponent": "샘플 팀 E",
+              "competition": "EPL",
+              "goals_for": 1,
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
+            }
+          ]
+        }
+      },
+      "away_form": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-form-away"
+        ],
+        "data": {
+          "team_id": 40,
+          "expected_count": 5,
+          "matches": [
+            {
+              "fixture_id": 80100,
+              "kickoff_at": "2026-10-21T12:00:00Z",
+              "opponent": "샘플 팀 A",
+              "competition": "UCL",
+              "goals_for": 3,
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80101,
+              "kickoff_at": "2026-10-17T12:00:00Z",
+              "opponent": "샘플 팀 B",
+              "competition": "EPL",
+              "goals_for": 2,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80102,
+              "kickoff_at": "2026-10-10T12:00:00Z",
+              "opponent": "샘플 팀 C",
+              "competition": "EPL",
+              "goals_for": 3,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80103,
+              "kickoff_at": "2026-10-06T12:00:00Z",
+              "opponent": "샘플 팀 D",
+              "competition": "UCL",
+              "goals_for": 1,
+              "goals_against": 1,
+              "status": "FT",
+              "penalties": null
+            },
+            {
+              "fixture_id": 80104,
+              "kickoff_at": "2026-10-02T12:00:00Z",
+              "opponent": "샘플 팀 E",
+              "competition": "EPL",
+              "goals_for": 0,
+              "goals_against": 0,
+              "status": "FT",
+              "penalties": null
+            }
+          ]
+        }
+      },
+      "injuries": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "api-injuries"
+        ],
+        "data": [
+          {
+            "team_id": 42,
+            "player_id": 9100,
+            "player_name": "테스트 결장 선수 0",
+            "photo_url": "https://example.test/players/9100.png",
+            "availability": "out",
+            "detail": "테스트 경기 중 부상 · 부위 미공개 · 2026-10-10 발생",
+            "impact": "출전 불가",
+            "source_ids": [
+              "api-injuries",
+              "web-sportsmole"
+            ],
+            "importance_evidence": {
+              "eligible": true,
+              "recent_games": 5,
+              "lineup_games": 5,
+              "player_games": 5,
+              "recent_starts": 4,
+              "recent_minutes": 300,
+              "seasons": [
+                {
+                  "season_year": 2026,
+                  "appearances": 7,
+                  "minutes": 600
+                }
+              ],
+              "source_ids": [
+                "db-part-42"
+              ],
+              "selection_reason": "테스트 출전 기록으로 선정"
+            }
+          },
+          {
+            "team_id": 40,
+            "player_id": 9101,
+            "player_name": "테스트 결장 선수 1",
+            "photo_url": "https://example.test/players/9101.png",
+            "availability": "out",
+            "detail": "허벅지 부상",
+            "impact": "출전 불가",
+            "source_ids": [
+              "api-injuries",
+              "web-sportsmole"
+            ],
+            "importance_evidence": {
+              "eligible": true,
+              "recent_games": 5,
+              "lineup_games": 5,
+              "player_games": 5,
+              "recent_starts": 4,
+              "recent_minutes": 300,
+              "seasons": [
+                {
+                  "season_year": 2026,
+                  "appearances": 7,
+                  "minutes": 600
+                }
+              ],
+              "source_ids": [
+                "db-part-40"
+              ],
+              "selection_reason": "테스트 출전 기록으로 선정"
+            },
+            "cause": {
+              "status": "available",
+              "reason": null,
+              "as_of": "2026-10-25T08:00:00Z",
+              "source_ids": [
+                "web-sportsmole"
+              ],
+              "data": {
+                "code": "thigh",
+                "label": "대표팀 경기 중 허벅지 부상",
+                "occurred_on": "2026-10-03",
+                "occurred_month": null
+              }
+            }
+          }
+        ]
+      },
+      "player_spotlights": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "db-player-42",
+          "db-player-40"
+        ],
+        "data": [
+          {
+            "team_id": 42,
+            "player_id": 9000,
+            "player_name": "테스트 홈 선수",
+            "canonical_name": "Test Player 0",
+            "photo_url": "https://example.test/players/9000.png",
+            "competition_name": "테스트 리그",
+            "season_year": 2026,
+            "appearances": 7,
+            "goals": 3,
+            "assists": 1,
+            "minutes": 600,
+            "recent_match_count": 5,
+            "scoring_streak": 2,
+            "assist_streak": 0,
+            "involvement_streak": 2,
+            "record_notes": {
+              "season_contribution": "2026시즌 테스트 리그 7경기 3골 1도움",
+              "recent_contribution": null,
+              "scoring_streak": "최근 2경기 연속 득점",
+              "assist_streak": null,
+              "involvement_streak": "최근 2경기 연속 공격포인트"
+            },
+            "source_ids": [
+              "db-player-42"
+            ]
+          },
+          {
+            "team_id": 40,
+            "player_id": 9001,
+            "player_name": "테스트 원정 선수",
+            "canonical_name": "Test Player 1",
+            "photo_url": "https://example.test/players/9001.png",
+            "competition_name": "테스트 리그",
+            "season_year": 2026,
+            "appearances": 7,
+            "goals": 3,
+            "assists": 1,
+            "minutes": 600,
+            "recent_match_count": 5,
+            "scoring_streak": 2,
+            "assist_streak": 0,
+            "involvement_streak": 2,
+            "record_notes": {
+              "season_contribution": "2026시즌 테스트 리그 7경기 3골 1도움",
+              "recent_contribution": null,
+              "scoring_streak": "최근 2경기 연속 득점",
+              "assist_streak": null,
+              "involvement_streak": "최근 2경기 연속 공격포인트"
+            },
+            "source_ids": [
+              "db-player-40"
+            ]
+          }
+        ]
+      }
+    },
+    "external": {
+      "predictions": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "web-sportsmole",
+          "web-football365",
+          "web-si"
+        ],
+        "data": [
+          {
+            "source_id": "web-sportsmole",
+            "outlook": "원정팀 2-1 승리 예상",
+            "summary": "테스트 매체는 최근 양 팀의 득점 흐름과 주요 선수의 출전 변수를 함께 고려하여 원정팀의 우세를 전망했습니다."
+          },
+          {
+            "source_id": "web-football365",
+            "outlook": "원정팀 2-1 승리 예상",
+            "summary": "테스트 매체는 최근 양 팀의 득점 흐름과 주요 선수의 출전 변수를 함께 고려하여 원정팀의 우세를 전망했습니다."
+          },
+          {
+            "source_id": "web-si",
+            "outlook": "원정팀 2-1 승리 예상",
+            "summary": "테스트 매체는 최근 양 팀의 득점 흐름과 주요 선수의 출전 변수를 함께 고려하여 원정팀의 우세를 전망했습니다."
+          }
+        ]
+      },
+      "odds": {
+        "status": "available",
+        "reason": null,
+        "as_of": "2026-10-25T08:00:00Z",
+        "source_ids": [
+          "api-odds"
+        ],
+        "data": [
+          {
+            "source_id": "api-odds",
+            "bookmaker": "가상 북메이커",
+            "market": "1x2_90min",
+            "format": "decimal",
+            "home": 2.1,
+            "draw": 3.4,
+            "away": 3.2,
+            "collected_at": "2026-10-25T08:00:00Z"
+          }
+        ]
+      }
+    },
+    "search_suggestions": null
+  }
+}

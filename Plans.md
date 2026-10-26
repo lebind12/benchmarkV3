@@ -323,3 +323,24 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 |HOME-SINGLE-GROUNDING|모델 URL 생성 제거·Google 실제 출처/원문 인용 연결·재호출·로컬 검토|UTF-8 문장 범위 검증/실제 URL·원문 인용/3곳 전망·실패 기록·브라우저 대조|HOME-SINGLE-PROMPT|cc:완료 [로컬실험 BE46/FE29/build/브라우저 PASS; 부상2건 원문 연결 미확인·production worker 전환 별도]|
 
 실제 새 호출은429 실패1회 후 성공1회, 정상 흐름1요청. Google 출처5·문장 연결9·전망3곳 인용 일치. 첫 원문과 수정 없는 재호출 원문을 보존하고 실제 URL은 별도 resolved.json에 연결한다. 근거와 검증 정본은 docs/features/home-preview-single-call/README.md의 실제 호출 절. DB/운영/정상 worker/6시간 정책은 변경하지 않았다.
+
+
+|Task|내용|DoD|Depends|Status|
+|---|---|---|---|---|
+|HOME-SINGLE-EXISTING-CONTRACT|1회 호출의 기존 공개 JSON 양식 복원·부상 카드 핵심 정보 표시·맨유 본머스 로컬 저장|기존 스키마 강제/DB 사실·배당 불변/득점·신뢰도·근거 복원/부상·원인·확인일만 표시/실제 호출→로컬 DB→GET→메인 확인|HOME-SINGLE-GROUNDING|cc:WIP [프롬프트·코드/BE53·FE31·build PASS, 요청 준비 완료; 킥오프 경과로 테스트 시계 고정 로컬 재현 확인 대기, 새 생성·저장 미완료]|
+
+### 2026-10-26 직접 JSON 저장 회귀 — 최신 사용자 지시
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| HOME-DIRECT-JSON | 저장용 전체 스키마를 LLM 입력에 포함, 응답 객체 그대로 JSONB commit 후 새 DB session·공개 GET 비교 | 정규식/문장 파싱·날짜 이동·보정 없이 저장. nullable cause.code와 확인 날짜 보존. 섹션 내용/원문 대조 포함 **3회 연속 성공**까지 계속, 실패 시0 초기화 | HOME-SINGLE-PROMPT | cc:완료 [맨유–본머스 로컬 DB값검증3연속 성공:49/50/51; 최종API4회·429재시도1회; 운영 전환/독립 인수 별도] |
+
+최신 세부 기준은 `docs/features/home-preview-single-call/targets.md`. `scripts/run_home_preview_direct_regression.py`는 격리 로컬DB55441과 승인된 과거 기준 시각으로 실행하며 기존 수집 기사 원문을 재사용한다. 자연어 의미는 원문과 직접 대조한다. 자동 필드 검사만 통과한 실행을 최종 성공으로 세지 않는다. 일반 worker 전환/운영 배포/새 검색 수집 품질 인수는 이 로컬 저장 회귀와 구분한다.
+
+### 2026-10-26 운영 홈과 킥오프 직전 수집 정책
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| HOME-FINAL-SYNC | 우선순위 경기6시간창1회·범용 전체JSON 생성·API포함 전망3개·생성 예정/실제 시각·홈 단순화 | 수집 성공후 공통hook/중복방지/스키마동기화/원문JSON checkpoint재개/DB왕복/생성시각과접는출처/기존dashboard제거 | HOME-DIRECT-JSON, PRE-11 | cc:구현완료 [BE단위127·격리DB통합30·FE단위33·build PASS; E2E18개 PASS. 배포·운영활성화·실제새검색 coverage 인수 별도] |
+
+최신 결정은 `docs/decisions/2026-10-26-home-final-sync.md`. 과거 PRE/실험의24시간·4회·API제외웹3곳 비용/호출수는 당시 기록이다. 현재 예정슬롯은 킥오프 직전 KST00/06/12/18 시작기준이며 수집 완료 뒤 게시한다. 관리/AX checkout, 운영환경과 운영DB는 변경하지 않았다. PRE-12 독립 인수는 완료로 전이하지 않는다.

@@ -23,6 +23,8 @@ def json_schema(schema):
             value["additionalProperties"] = False
     if value.pop("nullable", False):
         value["type"] = [value["type"], "null"]
+        if "enum" in value and None not in value["enum"]:
+            value["enum"].append(None)
     return value
 
 

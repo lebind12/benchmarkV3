@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from app.models import Fixture
@@ -18,10 +18,10 @@ from app.models.home_preview import (
 )
 from app.schemas.home_preview import PreviewPayload
 from app.services.home_preview import build_db_snapshot, eligible_rows, localize_injury_names
-from app.services.home_preview_policy import digest, identity, slot_time, utcnow
+from app.services.home_preview_policy import digest, generation_due_at, identity, slot_time, utcnow
 from app.services.home_preview_retry import failure_details
 
-GENERATION_VERSION = "home-preview-1.1-prompt-13"
+GENERATION_VERSION = "home-preview-1.1-final-sync-raw-14"
 LEASE_SECONDS = 1200
 
 
@@ -52,6 +52,7 @@ def process_fixture(
     external_id,
     *,
     provider=None,
+    payload_provider=None,
     evidence_provider=None,
     cause_provider=None,
     clock=utcnow,
@@ -68,12 +69,10 @@ def process_fixture(
         )
         if fixture is None:
             return {"state": "not_found"}
-        if fixture.status_short != "NS" or not now < fixture.kickoff_at <= now + timedelta(
-            hours=24
-        ):
+        if fixture.status_short != "NS" or not now < fixture.kickoff_at <= now + timedelta(hours=6):
             return {"state": "outside_window"}
         if fixture.id not in {
-            row[0].id for row in eligible_rows(session, start=now, end=now + timedelta(hours=24))
+            row[0].id for row in eligible_rows(session, start=now, end=now + timedelta(hours=6))
         }:
             return {"state": "ineligible"}
         session.execute(
@@ -100,7 +99,7 @@ def process_fixture(
                 attempt.state = "interrupted"
                 attempt.finished_at = now
                 attempt.reason = "generation_failed"
-        slot = slot_time(now)
+        slot = generation_due_at(fixture.kickoff_at)
         existing = session.scalar(
             select(HomePreviewAttempt).where(
                 HomePreviewAttempt.fixture_id == fixture.id, HomePreviewAttempt.slot == slot
@@ -123,24 +122,19 @@ def process_fixture(
             and existing.state == "succeeded"
             and (existing.usage.get("cause_search_failed") or research_incomplete)
         )
+        changed_identity = publication.identity != identity(fixture)
+        if existing and changed_identity:
+            existing.usage = {}
         retry = bool(
             existing
-            and (retry_failed or retry_research)
-            and (existing.state in ("failed", "interrupted") or optional_retry)
+            and (retry_failed or retry_research or changed_identity)
+            and (existing.state in ("failed", "interrupted") or optional_retry or changed_identity)
             and (not runtime or existing.usage.get("model_requests", 0) < 6)
             and existing.usage.get("executions", 1) < 2
         )
         if existing and not retry:
             session.commit()
             return {"state": "already_processed"}
-        count = session.scalar(
-            select(func.count())
-            .select_from(HomePreviewAttempt)
-            .where(HomePreviewAttempt.fixture_id == fixture.id)
-        )
-        if not retry and count >= 4:
-            session.commit()
-            return {"state": "limit_reached"}
         if publication.identity != identity(fixture):
             publication.version_id = None
             publication.identity = identity(fixture)
@@ -203,6 +197,7 @@ def process_fixture(
         ):
             usage.pop(key, None)
     checkpoints = deepcopy(usage.get("checkpoints", {}))
+    direct_audit = {}
 
     def persist_runtime(metadata):
         usage.update(metadata)
@@ -230,7 +225,7 @@ def process_fixture(
             if fixture_id not in {
                 row[0].id
                 for row in eligible_rows(
-                    check_session, start=current, end=current + timedelta(hours=24)
+                    check_session, start=current, end=current + timedelta(hours=6)
                 )
             }:
                 raise ValueError("target_disabled")
@@ -258,6 +253,8 @@ def process_fixture(
                 hours=6
             ):
                 return None
+            if stage == "analysis" and record.payload.get("direct_generation"):
+                direct_audit.update(deepcopy(record.payload["direct_generation"]))
             return candidate
 
     def save_checkpoint(stage, body, *, input_hash=None):
@@ -286,7 +283,15 @@ def process_fixture(
             record = HomePreviewSnapshot(
                 fixture_id=fixture_id,
                 fingerprint=digest({"checkpoint": meta, "preview": body, "owner": owner}),
-                payload={"preview": deepcopy(body), "checkpoint": meta},
+                payload={
+                    "preview": deepcopy(body),
+                    "checkpoint": meta,
+                    **(
+                        {"direct_generation": deepcopy(direct_audit)}
+                        if stage == "analysis" and direct_audit
+                        else {}
+                    ),
+                },
                 as_of=datetime.fromisoformat(body["as_of"]),
             )
             cp_session.add(record)
@@ -355,7 +360,19 @@ def process_fixture(
             resumed_analysis = load_checkpoint("analysis", input_hash=input_hash)
             if resumed_analysis is not None:
                 payload = resumed_analysis
-            if provider and payload["sources"] and resumed_analysis is None:
+                if direct_audit:
+                    evidence_snapshot["direct_generation"] = deepcopy(direct_audit)
+            if payload_provider and resumed_analysis is None:
+                model_input = deepcopy(payload)
+                with session_factory() as session:
+                    localize_injury_names(session, model_input)
+                payload, model_usage = payload_provider(model_input)
+                direct_audit.update(model_usage.pop("_direct_generation"))
+                if direct_audit["raw_llm_response"] != payload:
+                    raise ValueError("direct_response_changed_before_storage")
+                evidence_snapshot["direct_generation"] = deepcopy(direct_audit)
+                usage.update(model_usage)
+            elif provider and payload["sources"] and resumed_analysis is None:
                 usage["model_requests"] = usage.get("model_requests", 0) + 1
                 model_input = deepcopy(payload)
                 with session_factory() as session:
@@ -369,6 +386,8 @@ def process_fixture(
                 payload["generated_at"] = clock().isoformat()
                 usage.update(model_usage)
             PreviewPayload.model_validate(payload)
+            if payload["fixture"] != snapshot["fixture"] or payload["is_mock"] is not False:
+                raise ValueError("generated_identity_or_mock_changed")
             if resumed_analysis is None:
                 save_checkpoint("analysis", payload, input_hash=input_hash)
             resumed_causes = (
@@ -397,6 +416,7 @@ def process_fixture(
             if (
                 resumed_causes is None
                 and cause_provider
+                and not payload_provider
                 and (payload["analysis"].get("key_absences") or {}).get("data")
                 and clock() - now < timedelta(seconds=LEASE_SECONDS - 480)
             ):
@@ -469,9 +489,7 @@ def process_fixture(
                 raise ValueError("generation_no_longer_eligible")
             if fixture.id not in {
                 row[0].id
-                for row in eligible_rows(
-                    session, start=finished, end=finished + timedelta(hours=24)
-                )
+                for row in eligible_rows(session, start=finished, end=finished + timedelta(hours=6))
             }:
                 raise ValueError("target_disabled")
             if previous_id is not None:

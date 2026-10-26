@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 KST = ZoneInfo("Asia/Seoul")
@@ -77,3 +77,12 @@ def slot_time(now):
     return local.replace(hour=local.hour // 6 * 6, minute=0, second=0, microsecond=0).astimezone(
         UTC
     )
+
+
+def generation_due_at(kickoff):
+    """Last scheduled KST 00/06/12/18 sync strictly before kickoff."""
+    return slot_time(kickoff - timedelta(microseconds=1))
+
+
+def in_generation_window(kickoff, now):
+    return now < kickoff <= now + timedelta(hours=6)
