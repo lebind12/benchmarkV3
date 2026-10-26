@@ -42,3 +42,5 @@
 검증: FE 전체unit233 PASS, TypeScript/Vite build PASS. 기존 홈E2E18+데스크톱/모바일 ready/pending 스크롤4=22 PASS; 이어 빈 화면2 PASS로 총24개 브라우저 검증. 새 검증은 단일 main/세로스크롤 owner1개, 숨긴스크롤바·PageDown·상세링크 접근, 가로넘침 없음, 짧은 프리뷰 장식 containment, 빈 화면 가로/세로 초과0px 및 대시보드 API 요청 부재를 확인한다. 이미지/측정/로그는 `out/home-preview/scroll-diagnosis/`에 보존했다. Git 공백 검사 PASS. 운영DB/배포/원격push/서비스재시작은 수행하지 않았다.
 
 스크롤 후속 커밋 시 main은 다른 세션이 `/Users/woolee/benchmark`에 체크아웃했고, 메인 전용 worktree는80be026의 detached HEAD인 상태였다. 공용 checkout/HEAD/인덱스/파일을 변경하지 않고 수정 커밋을 `feat/home-preview-json`에 보존했다. 이 스크롤 후속 변경의 main 반영은 아직 하지 않았다.
+
+2026-10-26 후속 사용자 승인으로 `/Users/woolee/benchmark`의 main checkout이 clean함을 확인하고 `feat/home-preview-json`의 cc38953을 fast-forward했다. 병합 직후 main과 검증 브랜치의 Git tree가 일치하고 작업 디렉터리가 clean함을 확인했다. 코드는 기존 FE233/E2E24/build를 통과한 것과 동일하며 원격push·배포·서비스재시작은 하지 않았다.

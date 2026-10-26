@@ -432,4 +432,4 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
-| HOME-SCROLL-FIX | 홈 중첩 높이/스크롤·장식 overflow 제거, 불필요한 대시보드 요청 정리 | 스크롤owner1개·빈화면 초과0px·장식containment·키보드스크롤·FE233/E2E24/build PASS | HOME-MAIN-INTEGRATION | cc:완료 [docs/features/home-preview-merge.verification.md 후속 절; feat/home-preview-json, main 반영 별도] |
+| HOME-SCROLL-FIX | 홈 중첩 높이/스크롤·장식 overflow 제거, 불필요한 대시보드 요청 정리 | 스크롤owner1개·빈화면 초과0px·장식containment·키보드스크롤·FE233/E2E24/build PASS | HOME-MAIN-INTEGRATION | cc:완료 [docs/features/home-preview-merge.verification.md 후속 절; cc38953 로컬 main 반영 완료] |
