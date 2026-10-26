@@ -441,3 +441,7 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
 | HOME-CUP-LATE-ROUNDS | 카라바오48/FA45 홈 추천·생성 대상은 준결승/결승만 | 8강이하·미정·진행중 제외, 기존 빅6순위 유지, 추천/생성 동일정책, BE161/FE241/E2E28/build PASS | HOME-BROADCAST-BUTTON | cc:완료 [docs/decisions/2026-10-25-home-preview-json.md 후속 절] |
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| MGMT-HOME-PRODUCTION-RELEASE | 관리·홈 통합 push, Koyeb/Vercel production 배포, 실제 운영 UI/API 검증 | 소스74f3370 push·VercelREADY/KoyebHEALTHY·공개API200·관리401가드·실제로그인4탭/검색/refresh·홈중계/스크롤/생성시각·오류0 | HOME-CUP-LATE-ROUNDS, HOME-MAIN-INTEGRATION | cc:완료 [docs/features/production-release-2026-10-26.md, 명시적 사용자 배포 승인] |

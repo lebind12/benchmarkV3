@@ -1,0 +1,142 @@
+{
+  "verified_at": "2026-10-26T09:07:54.279509+00:00",
+  "deployed_source_sha": "74f3370b4a5b158087d3c529eacaa193396e4031",
+  "frontend": {
+    "url": "https://benchmark-v3-steel.vercel.app",
+    "deployment_id": "dpl_4QcuH8M9dxg99dBsRnAG6VBQmTff",
+    "target": "production",
+    "state": "READY"
+  },
+  "backend": {
+    "url": "https://benchmark-v3-lebind12-19f488ae.koyeb.app",
+    "deployment_id": "86bb5a96-429c-442f-987e-e877bd8050b8",
+    "state": "HEALTHY",
+    "home_preview_enabled": true,
+    "jwt_secret_reference_configured": true,
+    "redis_prefix": "prod:"
+  },
+  "public_browser": {
+    "origin": "https://benchmark-v3-steel.vercel.app",
+    "views": [
+      {
+        "mainCount": 1,
+        "extraX": 0,
+        "scrollbar": "none",
+        "fixture": 1557450,
+        "generationTime": "킥오프 6시간 이내 마지막 정기 수집에서 프리뷰를 생성합니다.",
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        }
+      },
+      {
+        "mainCount": 1,
+        "extraX": 0,
+        "scrollbar": "none",
+        "fixture": 1557450,
+        "generationTime": "킥오프 6시간 이내 마지막 정기 수집에서 프리뷰를 생성합니다.",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        }
+      }
+    ],
+    "pageErrors": [],
+    "apiResponses": [
+      {
+        "path": "/api/v1/home/recommendations",
+        "status": 200
+      },
+      {
+        "path": "/api/v1/home/fixtures/1557450/prematch",
+        "status": 200
+      },
+      {
+        "path": "/api/v1/fixtures/1557450",
+        "status": 200
+      },
+      {
+        "path": "/api/v1/fixtures/1557450/league-standings",
+        "status": 200
+      },
+      {
+        "path": "/api/v1/fixtures/1557450/matchup-insights",
+        "status": 200
+      },
+      {
+        "path": "/api/v1/fixtures/1557450/team-recent",
+        "status": 200
+      },
+      {
+        "path": "/api/v1/fixtures/1557450/lineups",
+        "status": 200
+      },
+      {
+        "path": "/api/v1/fixtures/1557450/statistics",
+        "status": 200
+      },
+      {
+        "path": "/api/v1/home/recommendations",
+        "status": 200
+      }
+    ],
+    "detailPage": true,
+    "passed": true
+  },
+  "generation_clock": {
+    "status": 200,
+    "fixture": 1557450,
+    "due": "2026-10-31T09:00:00+00:00",
+    "display": "프리뷰 생성 예정 10. 31. 18:00 KST · 정기 수집 완료 후",
+    "passed": true
+  },
+  "authenticated_browser": {
+    "verification": "User-signed-in existing Chrome session, real production APIs; no mocked responses",
+    "management_tabs": [
+      "targets",
+      "execution",
+      "history",
+      "translations"
+    ],
+    "player_translation_search": "브루노 returned 19 records including player1485",
+    "session_survives_reload": true,
+    "admin_home_broadcast_picker": true,
+    "broadcast_urls_fixture_id": 1557450,
+    "console_errors": 0,
+    "data_changes_submitted": false
+  },
+  "runtime_scan": {
+    "backend_lines": 1009,
+    "backend_error_lines": 0,
+    "vercel_error_records": 0,
+    "authenticated_http_statuses": {
+      "GET /api/v1/admin/management/targets": [
+        200,
+        401
+      ],
+      "POST /api/v1/auth/refresh": [
+        200,
+        401
+      ],
+      "POST /api/v1/auth/login": [
+        200
+      ],
+      "GET /api/v1/auth/me": [
+        200
+      ],
+      "GET /api/v1/admin/management/catalog": [
+        200
+      ],
+      "GET /api/v1/admin/management/translations": [
+        200
+      ],
+      "GET /api/v1/admin/management/runs": [
+        200
+      ],
+      "GET /api/v1/admin/management/translations/affiliation-filters": [
+        200
+      ]
+    }
+  },
+  "passed": true
+}
