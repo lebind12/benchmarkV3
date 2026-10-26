@@ -1,8 +1,15 @@
 {
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://benchmark-v3-lebind12-19f488ae.koyeb.app/api/:path*"
+    },
+    {
       "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist"
 }
