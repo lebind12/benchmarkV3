@@ -464,16 +464,19 @@ _LIST_ACTIVE_SYNC_TARGETS = text(
         st.include_details,
         st.include_players,
         st.include_standings,
-        st.fixture_limit
+        st.fixture_limit,
+        c.seasons AS catalog_seasons
     FROM league_sync_target st
     JOIN league l ON l.id = st.league_id
-    WHERE st.is_active = true
+    LEFT JOIN api_football_league_catalog c ON c.external_id = l.external_id
+    WHERE st.is_active = true AND l.is_active = true
     ORDER BY l.external_id, st.season_year DESC
     """
 )
 
 
 def list_active_sync_specs(session) -> list[LeagueSyncSpec]:
+    from app.workers.daily_sync.mappers import select_latest_two_actual_seasons
     rows = session.execute(_LIST_ACTIVE_SYNC_TARGETS).mappings().all()
     return [
         LeagueSyncSpec(
@@ -485,6 +488,7 @@ def list_active_sync_specs(session) -> list[LeagueSyncSpec]:
             fixture_limit=int(row["fixture_limit"]) if row["fixture_limit"] is not None else None,
         )
         for row in rows
+        if "catalog_seasons" not in row or int(row["season_year"]) in select_latest_two_actual_seasons({"seasons": row["catalog_seasons"] or []})
     ]
 
 

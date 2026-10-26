@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -176,6 +176,8 @@ def sync_api_football_league_catalog(
     country: str | None = None,
     current: bool | None = None,
 ) -> dict[str, Any]:
+    if not session.scalar(text('SELECT pg_try_advisory_xact_lock(202610250002)')):
+        raise RuntimeError('catalog_sync_running')
     raw_entries = _raw_api_football_leagues(
         search=search,
         external_id=external_id,
@@ -226,6 +228,9 @@ def sync_api_football_league_catalog(
             },
         )
         session.execute(statement)
+    from app.services.management import reconcile_league
+    for league_id in session.scalars(select(LeagueSyncTarget.league_id).distinct()).all():
+        reconcile_league(session, league_id)
     session.commit()
     total = session.execute(select(func.count()).select_from(ApiFootballLeagueCatalog)).scalar_one()
     return {
@@ -290,6 +295,8 @@ def upsert_sync_target(
         for season in (catalog.seasons or [])
         if isinstance(season, dict) and season.get("year")
     }
+    from app.workers.daily_sync.mappers import select_latest_two_actual_seasons
+    season_years = set(select_latest_two_actual_seasons({"seasons": catalog.seasons}))
     if season_year not in season_years:
         raise ValueError("api_football_season_not_found")
 
@@ -310,6 +317,9 @@ def upsert_sync_target(
     target.include_players = options.include_players
     target.include_standings = options.include_standings
     target.fixture_limit = options.fixture_limit
+    session.flush()
+    from app.services.management import reconcile_league
+    reconcile_league(session, league_id)
     session.commit()
     session.refresh(target)
     return get_sync_target(session, target.id)
@@ -353,8 +363,14 @@ def update_sync_target(
     if target is None:
         raise ValueError("sync_target_not_found")
     for key, value in changes.items():
-        if value is not None:
+        if value is not None or key == "fixture_limit":
             setattr(target, key, value)
+    session.flush()
+    from app.services.management import reconcile_league
+    reconcile_league(session, target.league_id)
+    if changes.get('is_active') and not target.is_active:
+        session.rollback()
+        raise ValueError('season_outside_retention')
     session.commit()
     session.refresh(target)
     return get_sync_target(session, target.id)
@@ -365,4 +381,7 @@ def delete_sync_target(session: Session, target_id: int) -> None:
     if target is None:
         raise ValueError("sync_target_not_found")
     session.delete(target)
+    session.flush()
+    from app.services.management import reconcile_league
+    reconcile_league(session, target.league_id)
     session.commit()

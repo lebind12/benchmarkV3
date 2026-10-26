@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from app.models.app_user import AppUser
+from app.models.management import ManagementRun, TranslationAudit
 from app.models.base import Base
 from app.models.broadcast_momentum import BroadcastMomentumState
 from app.models.coach import Coach, CoachTranslation, TeamCoach
@@ -19,6 +20,8 @@ from app.models.worker_sync_log import WorkerSyncLog
 
 __all__ = [
     "Base",
+    "ManagementRun",
+    "TranslationAudit",
     "BroadcastMomentumState",
     "League",
     "LeagueTranslation",

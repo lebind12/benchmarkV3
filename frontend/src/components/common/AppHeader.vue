@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { logoutSession } from '@/lib/api/session'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -16,7 +17,7 @@ const tabs = computed(() => {
     { path: '/stats', label: '스탯' },
     { path: '/news', label: '뉴스' },
   ]
-  if (auth.isAdmin) {
+  if (auth.isAdmin || auth.isStreamer) {
     base.push({ path: '/admin', label: '관리' })
   }
   return base
@@ -27,16 +28,20 @@ function toggleTheme() {
   localStorage.setItem('theme', isDark ? 'dark' : 'light')
 }
 
+const logoutError = ref('')
 async function logout() {
+  logoutError.value = ''
   try {
-    await router.push('/')
-  } finally {
+    await logoutSession()
     auth.logout()
-  }
+    await router.push('/')
+  } catch (error) { logoutError.value = error instanceof Error ? error.message : '로그아웃에 실패했습니다.' }
 }
+
 </script>
 <template>
   <header class="hdr" role="banner">
+    <p v-if="logoutError" role="alert">{{ logoutError }}</p>
     <div class="hdr__inner app-container">
       <div class="hdr__logo">⚽ 벤치마크</div>
       <nav class="hdr__nav" aria-label="주요 메뉴">

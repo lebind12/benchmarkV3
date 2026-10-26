@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { LogIn, Mail, LockKeyhole } from 'lucide-vue-next'
 import { login } from '@/lib/api/auth'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 
 const form = reactive({
@@ -27,7 +28,7 @@ function errorMessage(code: string): string {
     invalid_credentials: '이메일 또는 비밀번호가 올바르지 않습니다.',
     inactive_user: '비활성화된 계정입니다. 관리자에게 문의해주세요.',
     invalid_email: '이메일 형식을 확인해주세요.',
-  }[code] ?? '로그인에 실패했습니다.'
+  }[code] ?? (/[가-힣]/.test(code) ? code : '로그인에 실패했습니다.')
 }
 
 async function onSubmit() {
@@ -47,7 +48,7 @@ async function onSubmit() {
     auth.setUser(result.user)
     success.value = '로그인되었습니다.'
     window.setTimeout(() => {
-      void router.push('/')
+      void router.push(typeof route.query.next === 'string' && route.query.next.startsWith('/') && !route.query.next.startsWith('//') ? route.query.next : '/')
     }, 500)
   } catch (err) {
     error.value = errorMessage((err as Error).message)

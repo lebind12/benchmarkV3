@@ -19,6 +19,7 @@ function makeRouter() {
     routes: [
       { path: '/', name: 'home', component: { template: '<div />' } },
       { path: '/auth/signup', name: 'signup', component: SignupView },
+      { path: '/auth/login', name: 'login', component: { template: '<div />' } },
     ],
   })
 }
@@ -30,7 +31,7 @@ afterEach(() => {
 })
 
 describe('SignupView', () => {
-  it('submits signup, stores USER auth state, and shows success', async () => {
+  it('submits signup and requests login instead of storing an unverified session', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
       user: {
         id: 7,
@@ -69,11 +70,8 @@ describe('SignupView', () => {
       }),
     }))
     expect(wrapper.get('[data-testid=signup-success]').text()).toContain('가입이 완료')
-    expect(localStorage.getItem('mockRole')).toBe('USER')
-    expect(JSON.parse(localStorage.getItem('authUser') ?? '{}')).toMatchObject({
-      email: 'new@example.com',
-      role: 'USER',
-    })
+    expect(localStorage.getItem('authUser')).toBeNull()
+    expect(router.currentRoute.value.path).toBe('/auth/login')
   })
 
   it('shows duplicate email errors from the signup API', async () => {

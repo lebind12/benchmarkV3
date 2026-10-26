@@ -1,0 +1,49 @@
+{
+  "read_only": true,
+  "alembic_versions": [
+    "0017_streamer_management"
+  ],
+  "missing_columns": {},
+  "rls": {
+    "management_run": true,
+    "translation_audit": true
+  },
+  "human_translation_triggers": [
+    "coach_translation_protect",
+    "league_translation_protect",
+    "player_translation_protect",
+    "team_translation_protect"
+  ],
+  "required_indexes": true,
+  "translation_protection_function": true,
+  "data_integrity": {
+    "active_runs": 0,
+    "orphan_run_actors": 0,
+    "orphan_audit_editors": 0
+  },
+  "read_smoke": {
+    "아시안컵": {
+      "total": 7,
+      "returned": 3
+    },
+    "동아시아": {
+      "total": 2,
+      "returned": 2
+    },
+    "EPL": {
+      "total": 1,
+      "returned": 1
+    },
+    "player": {
+      "matching": 847,
+      "league_options": 7,
+      "team_options": 23
+    },
+    "coach": {
+      "matching": 46,
+      "league_options": 7,
+      "team_options": 23
+    }
+  },
+  "schema_matches_0017": true
+}

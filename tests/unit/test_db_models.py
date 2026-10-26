@@ -81,6 +81,7 @@ def _import_models():
 
 
 EXPECTED_TABLES = {
+    "management_run", "translation_audit",
     "league",
     "league_translation",
     "api_football_league_catalog",

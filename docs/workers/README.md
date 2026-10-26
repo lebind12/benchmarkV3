@@ -15,10 +15,13 @@
 <worker_id>.md
 ```
 
-`worker_id` 는 kebab-case. AGENTS.md §4 에 정의된 3종:
+`worker_id` 는 kebab-case. AGENTS.md §4 에 정의된 4종:
 - `daily-sync.md`
-- `live-poll.md`
 - `translation-filler.md`
+- `news-fetcher.md`
+- `news-translator.md`
+
+라이브 조회는 워커가 아니라 방송 API에서 처리한다. 2026-10-24 코드 대조상 앱 scheduler에는 daily-sync만 연결되어 있으며 나머지는 실행 코드/CLI와 실제 주기 등록을 구분해야 한다. 실행 연결·공통 관리 권한 변경·번역 보호 요구는 [plan.md](../../plan.md)와 [결정 기록](../decisions/2026-10-24-streamer-management-and-ax.md)을 따른다. 주기는 기존 정책을 유지한다.
 
 (향후 워커 추가 시 동일 규약)
 

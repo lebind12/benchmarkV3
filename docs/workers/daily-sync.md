@@ -8,6 +8,8 @@ status: requirements-only
 
 ## 1. 목적
 
+2026-10-24 갱신: 수집 대상 관리·수동 실행은 인증된 STREAMER / ADMIN에게 제공하고 전체 서비스에 공통 적용한다. 아래 기존 단계 설명은 요구사항 이력이며 모두 구현됐다는 뜻은 아니다. [plan.md](../../plan.md)의 코드 대조와 AX 작업을 우선 참고한다. 특히 최신 2시즌 등록/실행 제한·보관 정리, active 정합, 최초 전체 수집/갱신 구분, 실패 상세의 기존 값 보존, 선택·취소·복원은 후속 구현 범위다. injury/transfer/H2H는 모델·조회 코드와 달리 현행 daily-sync 적재 호출이 확인되지 않았다.
+
 API-Football 의 기본 5리그 데이터를 6시간 주기로 Supabase DB 에 적재한다. 운영 배치에서는 2026 월드컵(`league=1`, `season=2026`)도 함께 적재할 수 있다. 일반 사용자 화면이 제공하는 모든 비실시간 데이터(경기 일정/결과, 팀/선수 메타, 순위표 등) 의 정본을 만든다.
 
 ## 2. 스케줄
@@ -36,8 +38,8 @@ API-Football 의 기본 5리그 데이터를 6시간 주기로 Supabase DB 에 �
   - `GET /fixtures/headtohead?h2h={team1_id}-{team2_id}&last=5` (추가)
 
 ### 입력 파라미터
-- **크롤링 target 동적 조회**: `SELECT * FROM league_sync_target WHERE is_active = true`. ADMIN 페이지/API 에서 리그+시즌 단위로 추가/제외한다.
-- fallback: target 이 비어있는 초기 환경에서는 기본 5리그 + 2026 월드컵 계획을 사용할 수 있다.
+- **크롤링 target 동적 조회**: 활성 리그·시즌 target을 공통 관리 화면/API에서 STREAMER / ADMIN이 추가/제외한다. 최신 허용 2시즌·league active와 일치해야 한다. 현재 코드는 target active만 조회하며 정합화 전이다.
+- fallback: 초기 환경용 명시적 기본 계획과 운영자가 모든 대상을 비활성화한 상태를 구분해야 한다. 운영 중 수집 제외를 기본 계획으로 되살리지 않는다.
 - 초기 seed: 기존 활성 리그 기준으로 기본 5리그는 현재/직전 시즌, 월드컵은 2026 시즌 target 을 생성한다.
 
 ### 수동 실행
@@ -125,7 +127,7 @@ Step 9. *_translation 신규 row 보장 (DB-only)
 
 #### Step 3. fixture 목록
 - 5리그 × 2시즌 각각 `GET /fixtures?league={external_id}&season={year}`
-- 응답 중 `kickoff_at >= now() - 3 days` 인 fixture 만 이번 사이클 처리 대상으로 삼는다. 즉, 과거 경기는 최근 3일까지만 다시 갱신하고 미래 fixture 는 계속 갱신한다.
+- 현재 코드는 응답 중 `kickoff_at >= now() - 3 days` 인 fixture만 처리한다. 이는 갱신 모드의 기본 window로 활용하되, 신규 target의 최초 수집은 허용 시즌 전체를 대상으로 분리해야 한다. 경기 수 제한·세부 데이터 미포함 시 부분 적재임을 기록한다.
 - 이번 사이클 처리 대상 fixture 마다 fixture 테이블 upsert:
   - status / score / kickoff_at / venue / home_team / away_team 모두 전체 덮어쓰기
   - 컵 추첨 미정 라운드 → `home_team_id` / `away_team_id` = NULL (API 응답에서 teams.home.id / teams.away.id 가 null/0 일 때)
@@ -256,7 +258,7 @@ fixture.kickoff_at >= now() - INTERVAL '3 days'
 - `errors`: 오류 분류별 카운트
 
 DB 적재:
-- ADMIN 수동 실행 / 스케줄러 실행이 끝나면 `worker_sync_log` 에 최종 run payload 를 저장한다.
+- 인증된 STREAMER / ADMIN 수동 실행과 스케줄러 실행이 끝나면 `worker_sync_log`에 최종 run payload를 저장한다. 현재 종료 로그만으로는 실행 중 복원을 제공하지 못하므로 DB 실행 원장·heartbeat는 AX-4에서 보완한다.
 - 보관 기간은 최대 7일이다. 새 로그 저장 직후 `created_at < now() - 7 days` 로그를 삭제한다.
 - in-memory run registry 는 현재 실행/폴링용이고, `worker_sync_log` 는 재시작 후에도 남는 운영 기록이다.
 
@@ -341,4 +343,8 @@ DB 적재:
 - 알람 채널 (Slack / email / 로그만): 미정. 운영 후 결정
 - 컵 추첨 미정 라운드의 빈 슬롯 의도: API 응답에서 home/away 가 null/0 일 때 NULL 로 저장. 추첨 결과 나오면 다음 사이클에서 채워짐
 - 시즌 전환 (예: EPL 8월 새 시즌 시작): API 의 seasons[] 의 current=true 가 자동으로 새 year 가리킴. Step 1 에서 자연스럽게 반영됨. 이때 옛 시즌의 직전 시즌 = 변경 X
-- 최신 2시즌 보관 정책: 사이클 종료 후 별도 cleanup step 없이, 어차피 daily-sync 는 최신 2시즌만 sync 함. 더 오래된 row 가 DB 에 있어도 본 워커가 관여 안 함 (필요 시 별도 cleanup 워커 또는 운영 SQL)
+- 최신 2시즌 보관 정책: 등록·실행 제한과 보관 정리는 별개로 검증해야 한다. 현재 오래된 row 정리 경로는 확인되지 않았으며, AX-3에서 허용 시즌 산정·종속 데이터 dry-run·안전한 정리 절차를 명세한다. 최근 2시즌만 sync하는 것으로 보관 정책을 충족했다고 간주하지 않는다.
+
+## 2026-10-25 관리 실행 연결
+
+수동/정기 실행은 `management_runs`의 DB snapshot/heartbeat/cancel·기존 advisory lock을 공유한다. 최초 수집은 시즌 전체, 갱신은 기존 3일 이후 필터다. API 요청 전/commit 경계에서 취소를 확인하고 현재 미완료 트랜잭션을 rollback한다. 저장된 단위는 유지하며 재실행은 외부 ID upsert를 사용한다. 실패한 상세 endpoint로 기존 상세를 빈 배열로 덮지 않는다. API 최대 3회 지수 재시도·전역 client semaphore 6·공유 paced limiter와 기존 DB deadlock 재시도를 유지한다. 성공한 대상 리그의 season 자료에 최신 두 실제 개최 시즌 보관 정리를 적용했다. 운영 실행·배포는 하지 않았다.

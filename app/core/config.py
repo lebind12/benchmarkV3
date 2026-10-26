@@ -4,6 +4,7 @@ Loaded once at import; used by FastAPI, alembic, and workers. Values come
 from ``.env`` (local) or process env (Koyeb / CI). Real secrets are never
 checked in — see ``.env.example``.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -102,6 +103,11 @@ class Settings(BaseSettings):
         description="Paced API-Football request-start limit. Ultra plan hard cap is 450 req/min.",
     )
 
+    jwt_secret_key: str | None = Field(default=None)
+    auth_cookie_name: str = Field(default="benchmark_refresh", pattern="^[a-zA-Z0-9_]+$")
+    auth_cookie_secure: bool = Field(default=True)
+    auth_cookie_samesite: str = Field(default="lax", pattern="^(lax|strict|none)$")
+
     # --- Cache / session helpers ------------------------------------------
     upstash_redis_rest_url: str | None = Field(default=None)
     upstash_redis_rest_token: str | None = Field(default=None)
@@ -135,7 +141,9 @@ class Settings(BaseSettings):
         if vertex_env.get("VERTEX_AI_MODEL"):
             self.vertex_ai_model = vertex_env["VERTEX_AI_MODEL"]
         if vertex_env.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
-            self.google_application_credentials_json = vertex_env["GOOGLE_APPLICATION_CREDENTIALS_JSON"]
+            self.google_application_credentials_json = vertex_env[
+                "GOOGLE_APPLICATION_CREDENTIALS_JSON"
+            ]
 
     # --- Web clients -------------------------------------------------------
     cors_allow_origins: str = Field(
@@ -170,3 +178,14 @@ def database_engine_kwargs(settings: Settings | None = None) -> dict[str, object
         "pool_timeout": resolved.db_pool_timeout,
         "pool_recycle": resolved.db_pool_recycle,
     }
+
+
+def allowed_web_origins(settings: Settings | None = None) -> list[str]:
+    """One explicit origin policy shared by CORS and cookie-auth CSRF checks."""
+    resolved = settings or get_settings()
+    origins = [
+        origin.strip() for origin in resolved.cors_allow_origins.split(",") if origin.strip()
+    ]
+    if not origins or "*" in origins:
+        return ["http://localhost:5173", "http://127.0.0.1:5173"]
+    return list(dict.fromkeys(origins))

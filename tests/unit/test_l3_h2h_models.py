@@ -41,6 +41,7 @@ def _has_unique(tbl, column_name):
 
 
 EXPECTED_TABLES = {
+    "management_run", "translation_audit",
     "api_football_league_catalog",
     "league", "league_translation", "venue", "team", "team_color", "team_translation",
     "team_season", "coach", "coach_translation", "team_coach",

@@ -2,6 +2,8 @@
 
 본 문서는 데이터베이스 스키마의 정본 (SSOT) 이다. SQLAlchemy 모델과 alembic 마이그레이션은 항상 본 문서와 동기 상태를 유지한다.
 
+2026-10-24 대조 메모: 아래 초기 테이블 목록만으로 현재 스키마·실제 데이터 coverage를 판단하지 않는다. 현재 모델에는 카탈로그·수집 target·coach/team_coach·worker_sync_log 등 후속 구조가 있으며, 당시에는 직접 번역 검수 메타데이터가 없었다. 2026-10-25의 관리 추가 스키마는 아래 추가 절과 0017 마이그레이션을 따른다. 관리 추가 DB는 아래 0017 스키마가 구현 정본이다. 검색·프리뷰의 미구현 DB 항목은 [plan.md](../../plan.md)의 제안이며 별도 확정이 필요하다. 구현 시 Supabase CLI 기준선과 기존 Alembic 이력을 연결해 중복 적용을 피하고 ORM·이 문서를 갱신한다. 최신 2시즌 보관 정리와 H2H 과거 데이터 설명의 충돌도 AX-3에서 정리한다.
+
 상위 결정:
 - 도메인 / 데이터 정책: `@AGENTS.md`
 - 워커 운영: `@docs/workers/`
@@ -628,3 +630,14 @@ ORDER BY kickoff_at DESC LIMIT 5;
 | 2026-05-13 | 초기 스키마 13 테이블 합의 (메인 세션) |
 | 2026-05-13 | `league.is_active` 컬럼 추가 — ADMIN 이 동적으로 수집 league 추가/제외 가능 (월드컵/유로 등 추후 추가 시나리오) |
 | 2026-08-22 | `team_color` 1:1 브랜드 팔레트 테이블 및 2026/27 EPL 20팀 시드 추가 |
+
+## 2026-10-25 관리 추가 스키마 (0017, 로컬 검증)
+
+DDL 정본: `supabase/migrations/20261024212510_streamer_management.sql`; Alembic bridge: `0017_streamer_management` (down_revision 0016). 초기 로컬 검증 후 기존 연결 Supabase에도 0017 head 반영을 확인했다. 앱 배포는 하지 않았다.
+
+- `league_sync_target`: `initial_status text`(default 미수집), `last_sync timestamptz`. 기존 적재가 있으나 전체 최초 수집 근거가 없는 대상은 범위 확인 필요로 구분한다.
+- `league/team/player/coach_translation`: `version integer default 1`, `human_modified boolean default false`, `editor_id bigint FK app_user`. 직접 수정은 expected_version 검사 + row lock + 감사 INSERT와 한 트랜잭션이다. `protect_human_translation` trigger는 자동 작업/import에서 보호된 이름과 NULL을 보존하고 실제 수정 시 version을 증가시킨다.
+- `management_run`: `id text PK`, `status`, `actor_id FK`, `payload jsonb`(scope snapshot, target 결과, tail logs, 전체 원인 counters), `cancel_requested_at`, `heartbeat_at`, `created_at`. 활성 상태 unique partial index. RLS 활성, backend 관리 API만 제공.
+- `translation_audit`: `id bigint identity PK`, `entity_type`, `entity_id`, `version`, `editor_id FK`, `editor_name` snapshot, `before/after jsonb`, `created_at`. 앱에서는 append-only. RLS 활성. 실행 로그 7일 보관과 분리한다.
+
+보관: 성공한 수집 리그의 최신 두 실제 개최 시즌 밖 season 자료를 한정 삭제하며 공유 원본/번역은 보존한다. 개별 수집 대상 삭제는 이 정리와 별개이고 경기 자료를 직접 지우지 않는다.

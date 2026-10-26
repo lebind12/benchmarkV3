@@ -1,7 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+vi.mock('@/lib/api/session', () => ({ logoutSession: vi.fn().mockResolvedValue(undefined), setAccessToken: vi.fn() }))
 import AppHeader from '@/components/common/AppHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -75,6 +76,7 @@ describe('AppHeader', () => {
     const wrapper = mount(AppHeader, {
       global: { plugins: [pinia, router] },
     })
+    expect(wrapper.find('[href="/admin/mock"]').exists()).toBe(false)
 
     expect(wrapper.find('[data-testid=nav-관리]').exists()).toBe(true)
     expect(wrapper.find('[data-testid=nav-방송]').exists()).toBe(false)
