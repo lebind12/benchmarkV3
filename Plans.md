@@ -437,3 +437,7 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
 | HOME-BROADCAST-BUTTON | 전체경기 왼쪽 중계 선택 버튼, 상세와 권한/선택창 공유 | 인증된ADMIN표시·선택fixture연결·TV/같이보기·모바일배치·FE239/E2E28/build PASS | HOME-SCROLL-FIX | cc:완료 [공용 BroadcastPickerButton; 상세의 현재 ADMIN 전용 API 권한 유지] |
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| HOME-CUP-LATE-ROUNDS | 카라바오48/FA45 홈 추천·생성 대상은 준결승/결승만 | 8강이하·미정·진행중 제외, 기존 빅6순위 유지, 추천/생성 동일정책, BE161/FE241/E2E28/build PASS | HOME-BROADCAST-BUTTON | cc:완료 [docs/decisions/2026-10-25-home-preview-json.md 후속 절] |

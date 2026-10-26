@@ -31,6 +31,7 @@ HTTP 제안: 잘못된 경로/날짜 422, DB에 없는 fixture 404, 존재하지
 - ongoing → scheduled, 우선순위 1~8, kickoff_at, fixture_id 순. 최신 정책은 plan.md §5.2.1이다. 모든 자격 충족 경기를 반환하고 4개로 자르지 않는다. 중복·오늘 결과와 겹침·동일 팀끼리의 fixture를 거부한다.
 - 오늘 자격 경기 없음: 보관 중인 활성 최신 2시즌의 미래 DB 일정에서 가장 가까운 자격 충족 예정 날짜. fallback은 scheduled만 허용한다. 미래 일정에도 없으면 빈 items, display_date=requested_date, fallback_reason=null이다. 미래 검색은 DB 조회이며 시즌 전체 AI 생성이 아니다.
 - 동적 리그의 external_id/name/category/round를 전달한다. domestic_cup은 수집 대상 메타데이터에서 판정하며 초기 5개 ID/화면 이름으로 제한하지 않는다. 새 대회의 추천 자격 자체는 기존 우선순위 정책을 따른다.
+- 2026-10-26 후속: 카라바오컵48/FA컵45는 준결승·결승만 기존 추천 자격을 평가한다. 8강 이하·미정은 ongoing도 제외하며 빅6·나머지 순위는 유지한다. 같은 조건으로 프리뷰 생성 후보를 제한한다.
 - preview 요약에는 coverage state, served, generated_at/as_of만 담는다. 본문은 선택 fixture 조회에서 가져온다. 미생성 summary에 가짜 시각을 넣지 않는다.
 - today_results는 요청 KST 날짜의 종료 경기와 DB 최종 점수다. ongoing 추천에는 점수를 제공하지 않는다. polling/카운트다운을 추가하지 않는다.
 

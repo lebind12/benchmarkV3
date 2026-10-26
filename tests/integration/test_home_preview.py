@@ -1079,3 +1079,39 @@ def test_worker_candidates_are_six_hour_priority_window_only(setup_db):
         run_cycle(factory, settings=settings, clock=lambda: NOW + timedelta(hours=6))["candidates"]
         == []
     )
+
+
+@pytest.mark.parametrize("cup_id", [45, 48])
+def test_domestic_cup_late_round_rule_controls_home_and_generation(setup_db, cup_id):
+    from types import SimpleNamespace
+
+    from app.workers.home_preview import run_cycle
+
+    _, factory = setup_db
+    settings = SimpleNamespace(home_preview_vertex_model="test")
+    for round_, eligible in [
+        ("Round of 16", False),
+        ("Quarter-finals", False),
+        ("Semi-finals", True),
+        ("Final", True),
+    ]:
+        with factory() as session:
+            cup = session.scalar(select(League))
+            cup.external_id = cup_id
+            cup.type = "Cup"
+            fixture = session.scalar(select(Fixture).where(Fixture.external_id == 1557444))
+            fixture.round = round_
+            session.commit()
+            expected = [1557444] if eligible else []
+            assert [
+                row["fixture_id"] for row in recommendations(session, NOW.date(), now=NOW)["items"]
+            ] == expected
+            assert (
+                read_preview(session, 1557444, now=NOW)["generation_due_at"] is not None
+            ) is eligible
+        assert run_cycle(factory, settings=settings, clock=lambda: NOW)["candidates"] == expected
+        if not eligible:
+            assert process_fixture(factory, 1557444, clock=lambda: NOW)["state"] == "ineligible"
+    with factory() as session:
+        assert session.scalar(select(HomePreviewAttempt)) is None
+    assert process_fixture(factory, 1557444, clock=lambda: NOW)["state"] == "succeeded"

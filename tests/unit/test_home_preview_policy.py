@@ -54,3 +54,23 @@ def test_generation_due_is_last_regular_collection_strictly_before_kickoff():
         assert not in_generation_window(kickoff, kickoff - timedelta(hours=6, seconds=1))
         assert not in_generation_window(kickoff, kickoff)
         assert not in_generation_window(kickoff, kickoff + timedelta(seconds=1))
+
+
+def test_fa_and_carabao_exclude_early_rounds_without_changing_other_cups():
+    for cup_id in (45, 48):
+        for round_ in (None, "Round of 32", "Round of 16", "Quarter-finals", "8강"):
+            assert priority(league(cup_id), 40, 51, round_) is None
+        for round_ in (
+            "Semi-finals",
+            "Semi-finals - 1st Leg",
+            "Semi-finals - 2nd Leg",
+            "준결승",
+            "4강",
+            "Final",
+            "결승",
+        ):
+            assert priority(league(cup_id), 40, 51, round_) == 7
+        # The existing big-six eligibility is retained; the new rule only limits rounds.
+        assert priority(league(cup_id), 51, 66, "Final") is None
+    assert priority(league(3), 40, 51, "Round of 16") == 7
+    assert priority(league(999), 40, 51, "Round of 16") == 7

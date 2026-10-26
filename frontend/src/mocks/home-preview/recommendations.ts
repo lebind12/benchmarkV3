@@ -5,7 +5,7 @@ import { buildMockResponse } from './response'
 
 const asOf = '2026-10-25T10:20:00Z'
 function fixture(match: Match) {
-  const identity = match.league === 'EPL' ? [39, 'epl'] : match.league === 'UCL' ? [2, 'ucl'] : match.league === 'UEL' ? [3, 'uel'] : [45, 'domestic_cup']
+  const identity = match.league === 'EPL' ? [39, 'epl'] : match.league === 'UCL' ? [2, 'ucl'] : match.league === 'UEL' ? [3, 'uel'] : match.league === '카라바오컵' ? [48, 'domestic_cup'] : [45, 'domestic_cup']
   return { fixture_id: match.id, kickoff_at: `${match.day}T${match.time}:00+09:00`, status_as_of: asOf,
     competition: { external_id: identity[0], category: identity[1], name: match.league, round: match.round },
     home: { external_id: match.home.id, name: match.home.name }, away: { external_id: match.away.id, name: match.away.name } }

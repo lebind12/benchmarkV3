@@ -30,3 +30,16 @@ describe('home recommendation policy', () => {
     expect(selectRecommendations([sampleMatches[9]!], sampleDay)).toEqual({ day: sampleDay, matches: [], results: [sampleMatches[9]!] })
   })
 })
+
+it.each(['FA컵', '카라바오컵'])('limits %s home recommendations to semi-finals and final', league => {
+  const base = { ...sampleMatches[7]!, league }
+  for (const round of ['Round of 32', '16강', '8강', 'Quarter-finals', '미정']) {
+    expect(rank({ ...base, round })).toBe(Infinity)
+  }
+  for (const round of ['4강', '준결승', 'Semi-finals', 'Semi-finals - 2nd Leg', '결승', 'Final']) {
+    expect(rank({ ...base, round })).toBe(7)
+  }
+  const excluded = { ...base, id: 1, round: '8강', state: 'ongoing' as const }
+  const included = { ...base, id: 2, round: '결승' }
+  expect(selectRecommendations([excluded, included], sampleDay).matches.map(row => row.id)).toEqual([2])
+})

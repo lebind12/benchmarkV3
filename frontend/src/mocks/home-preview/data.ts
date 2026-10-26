@@ -26,7 +26,7 @@ export const sampleMatches: Match[] = [
   { id: 90005, home: t.bayern!, away: t.inter!, league: 'UCL', round: '결승', day: sampleDay, time: '20:00', state: 'scheduled', preview: 'ready' },
   { id: 90006, home: t.inter!, away: t.bayern!, league: 'UCL', round: '4강', day: sampleDay, time: '18:00', state: 'scheduled', preview: 'partial' },
   { id: 90007, home: t.brighton!, away: t.inter!, league: 'UEL', round: '결승', day: sampleDay, time: '18:00', state: 'scheduled', preview: 'failed' },
-  { id: 90008, home: t.united!, away: t.villa!, league: 'FA컵', round: '8강', day: sampleDay, time: '18:00', state: 'scheduled', preview: 'ready' },
+  { id: 90008, home: t.united!, away: t.villa!, league: 'FA컵', round: '4강', day: sampleDay, time: '18:00', state: 'scheduled', preview: 'ready' },
   { id: 90009, home: t.inter!, away: t.bayern!, league: 'UCL', round: '8강', day: sampleDay, time: '18:00', state: 'scheduled', preview: 'ready' },
   { id: 90010, home: t.spurs!, away: t.united!, league: 'EPL', round: '샘플 라운드', day: sampleDay, time: '16:00', state: 'finished', score: '2 : 1', preview: 'ready' },
   { id: 90011, home: t.arsenal!, away: t.chelsea!, league: 'EPL', round: '샘플 라운드', day: '2026-10-27', time: '04:00', state: 'scheduled', preview: 'unavailable' },
@@ -34,12 +34,13 @@ export const sampleMatches: Match[] = [
 const bigSix = new Set([40, 50, 33, 47, 49, 42])
 export function rank(match: Match): number {
   const big = bigSix.has(match.home.id) || bigSix.has(match.away.id)
+  if (['FA컵', '카라바오컵'].includes(match.league) && !['4강', '준결승', '결승', 'semi-finals', 'semi-final', 'semifinals', 'final'].includes(match.round.toLowerCase().trim().split(' - ')[0]!)) return Infinity
   if (match.league === 'EPL') return big ? 1 : 2
   if (match.league === 'UCL' && ['8강', '4강', '결승'].includes(match.round) && big) return 3
   if (match.league === 'UCL' && match.round === '결승') return 4
   if (match.league === 'UCL' && match.round === '4강') return 5
   if (match.league === 'UEL' && match.round === '결승' && !big) return 6
-  if ((match.league === 'UEL' || match.league === 'FA컵' || match.competitionType === 'domestic_cup') && big) return 7
+  if ((match.league === 'UEL' || match.league === 'FA컵' || match.league === '카라바오컵' || match.competitionType === 'domestic_cup') && big) return 7
   if (match.league === 'UCL' && match.round === '8강') return 8
   return Infinity
 }

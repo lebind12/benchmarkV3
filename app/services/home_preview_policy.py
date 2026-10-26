@@ -52,6 +52,16 @@ def priority(league, home_id, away_id, round_):
     big = home_id in BIG_SIX or away_id in BIG_SIX
     kind = category(league)
     stage = (round_ or "").lower().strip()
+    if league.external_id in {45, 48} and stage.split(" - ", 1)[0] not in {
+        "4강",
+        "준결승",
+        "semi-finals",
+        "semi-final",
+        "semifinals",
+        "결승",
+        "final",
+    }:
+        return None
     quarter = stage in {"8강", "quarter-finals", "quarter-final", "quarterfinals"}
     semi = stage in {"4강", "semi-finals", "semi-final", "semifinals"}
     final = stage in {"결승", "final"}
