@@ -429,3 +429,7 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
 | HOME-MAIN-INTEGRATION | 홈 남은 변경 커밋, 관리278d152 보존 충돌 해결, 신규 수집 후처리 연결 및 운영DDL | BE534/FE233/홈E2E18/관리실제E2E10/build 통과, Alembic0018·홈4테이블 운영 적용·readonly검증, local main 양쪽 ancestry 확인 | HOME-FINAL-SYNC, AX-BE/FE 관리 통합 | cc:통합검증완료 [검증 정본 docs/features/home-preview-merge.verification.md; 원격push/배포/재시작 없음] |
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| HOME-SCROLL-FIX | 홈 중첩 높이/스크롤·장식 overflow 제거, 불필요한 대시보드 요청 정리 | 스크롤owner1개·빈화면 초과0px·장식containment·키보드스크롤·FE233/E2E24/build PASS | HOME-MAIN-INTEGRATION | cc:완료 [docs/features/home-preview-merge.verification.md 후속 절; feat/home-preview-json, main 반영 별도] |

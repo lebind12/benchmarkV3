@@ -222,6 +222,7 @@ function swipe(event: TouchEvent) {
         </nav>
 
         <div class="hp-preview-stage" :style="{ '--home-tint': match.home.color, '--away-tint': match.away.color }">
+          <div class="hp-preview-backdrop" aria-hidden="true"></div>
         <section class="hp-preview" :key="`preview-${match.id}`" aria-labelledby="preview-heading" data-testid="selected-preview" :data-fixture-id="match.id">
           <header class="hp-section-head hp-reveal"><h2 id="preview-heading">경기 전 프리뷰</h2></header>
           <div v-if="response?.publication.served === 'previous'" class="hp-state-note" data-testid="previous-publication"><Info :size="18" />갱신에 실패하여 이전 유효본을 표시합니다. 생성 {{ formatTime(response.publication.generated_at) }} · 자료 {{ formatTime(response.publication.as_of) }} KST</div>

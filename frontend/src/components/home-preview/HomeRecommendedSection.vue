@@ -155,6 +155,7 @@ watch([() => selectedRow.value?.fixture_id, response], async () => { await nextT
         </nav>
 
         <div class="hp-preview-stage" :style="{ '--home-tint': match.home.color, '--away-tint': match.away.color }">
+          <div class="hp-preview-backdrop" aria-hidden="true"></div>
         <section class="hp-preview" :key="`preview-${match.id}`" aria-labelledby="preview-heading" data-testid="selected-preview" :data-fixture-id="match.id">
           <header class="hp-section-head hp-reveal"><h2 id="preview-heading">경기 전 프리뷰</h2><RouterLink :to="{ name: 'fixture-detail', params: { externalId: match.id } }" class="hp-action hp-detail-link" data-testid="preview-detail-link">경기 상세 보기<ArrowRight :size="15" /></RouterLink></header>
           <p class="hp-freshness">경기 시작 전 6시간 이내의 마지막 정기 수집에서 한 번 생성됩니다.</p>

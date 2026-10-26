@@ -32,3 +32,13 @@
 ## 최종 Git 반영 방식
 
 관리·AX의 checkout/HEAD/인덱스/파일은 수정하지 않는다. 검증된 통합 merge commit을 만든 다음 이 worktree에서 로컬 main을 fast-forward한다. 최종 main SHA와 관리/홈 양쪽 ancestry는 Git으로 확인하여 사용자에게 보고한다. 원격 반영과 배포는 별도다.
+
+## 2026-10-26 홈 스크롤 정비 후속
+
+사용자 요청으로 main의 중첩 스크롤을 정리했다. 바깥 `UiReviewHomeView`만 높이/스크롤을 소유하고 공통 `panel-scroll`을 사용한다. 안쪽 래퍼는 고유 클래스의 div로 바꿔 부모 scoped CSS가 자식 루트에 같은 고정 높이/패딩을 적용하지 않도록 했다. `100dvh`로 모바일 viewport 높이를 반영하며 키보드 진입/스크롤을 지원한다. 짧은 내용에서도 생기던24px 외부 넘침을 제거했다.
+
+글래스 색상 장식은 절대 위치의 별도 backdrop에 넣고 해당 레이어에만 `overflow:clip`을 적용한다. 음수 위치와 고정 높이가 본문 scrollHeight/scrollWidth를 늘리지 않으면서 카드 그림자·glass·스크롤 reveal은 유지한다. 공유 CSS를 사용하는 목업도 같은 레이어 구조를 적용했다. 제거된 대시보드용 home store bootstrap/teardown을 빼고 추천/저장프리뷰 요청만 사용한다.
+
+검증: FE 전체unit233 PASS, TypeScript/Vite build PASS. 기존 홈E2E18+데스크톱/모바일 ready/pending 스크롤4=22 PASS; 이어 빈 화면2 PASS로 총24개 브라우저 검증. 새 검증은 단일 main/세로스크롤 owner1개, 숨긴스크롤바·PageDown·상세링크 접근, 가로넘침 없음, 짧은 프리뷰 장식 containment, 빈 화면 가로/세로 초과0px 및 대시보드 API 요청 부재를 확인한다. 이미지/측정/로그는 `out/home-preview/scroll-diagnosis/`에 보존했다. Git 공백 검사 PASS. 운영DB/배포/원격push/서비스재시작은 수행하지 않았다.
+
+스크롤 후속 커밋 시 main은 다른 세션이 `/Users/woolee/benchmark`에 체크아웃했고, 메인 전용 worktree는80be026의 detached HEAD인 상태였다. 공용 checkout/HEAD/인덱스/파일을 변경하지 않고 수정 커밋을 `feat/home-preview-json`에 보존했다. 이 스크롤 후속 변경의 main 반영은 아직 하지 않았다.

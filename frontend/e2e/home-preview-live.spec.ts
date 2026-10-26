@@ -162,3 +162,68 @@ test('pending preview displays the scheduled collection time', async ({ page }) 
   await expect(time).toContainText('정기 수집 완료 후')
   await expect(page.locator('.candidate-home, .home-toolbar')).toHaveCount(0)
 })
+
+for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+  for (const state of ['ready', 'pending'] as const) {
+    test(`home has one scroll owner without decoration overflow: ${viewport.width} ${state}`, async ({ page }) => {
+      await page.setViewportSize(viewport)
+      const homeRequests: string[] = []
+      await page.route('**/api/v1/home/**', async route => {
+        const path = new URL(route.request().url()).pathname
+        homeRequests.push(path)
+        if (path.endsWith('/recommendations')) return route.fulfill({ json: recommendations })
+        if (!path.endsWith('/prematch')) return route.fulfill({ json: { items: [], rows: [] } })
+        const value = response(Number(path.split('/').at(-2)))
+        if (state === 'pending') {
+          value.preview = null
+          value.publication = { state: 'pending', served: null, reason: 'generation_pending', generated_at: null, as_of: null } as any
+        }
+        return route.fulfill({ json: value })
+      })
+      await page.goto('/')
+      const home = page.getByTestId('home-preview-real')
+      if (state === 'pending') await expect(home.locator('.hp-preview-empty')).toBeVisible()
+      else await expect(home.locator('.hp-lead')).not.toHaveText('')
+      await expect(page.locator('main')).toHaveCount(1)
+      const metrics = await page.getByTestId('ui-review-home-page').evaluate(root => {
+        const section = root.querySelector<HTMLElement>('.hp-live-section')!
+        const stage = root.querySelector<HTMLElement>('.hp-preview-stage')!
+        const backdrop = root.querySelector<HTMLElement>('.hp-preview-backdrop')!
+        const box = root.getBoundingClientRect()
+        const scrollOwners = [root, ...root.querySelectorAll<HTMLElement>('*')].filter(el => el.clientHeight > 0 && el.scrollHeight > el.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(el).overflowY))
+        return { bottom: box.bottom, viewportHeight: innerHeight, scrollOwners: scrollOwners.map(el => el === root ? 'home' : el.className), scrollbar: getComputedStyle(root).scrollbarWidth,
+          extraX: section.scrollWidth - section.clientWidth, extraY: section.scrollHeight - section.clientHeight,
+          clip: getComputedStyle(backdrop).overflow, decorationHeight: backdrop.getBoundingClientRect().height, stageHeight: stage.getBoundingClientRect().height }
+      })
+      expect(metrics.bottom).toBeLessThanOrEqual(metrics.viewportHeight + 1)
+      expect(metrics.scrollOwners).toEqual(['home'])
+      expect(metrics.scrollbar).toBe('none')
+      expect(metrics.extraX).toBeLessThanOrEqual(1)
+      expect(metrics.extraY).toBeLessThanOrEqual(24) // reveal translation may extend the last element by 20px
+      expect(metrics.clip).toBe('clip')
+      expect(metrics.decorationHeight).toBeLessThanOrEqual(metrics.stageHeight)
+      expect(homeRequests.every(path => path.endsWith('/recommendations') || path.endsWith('/prematch'))).toBe(true)
+      const owner = page.getByTestId('ui-review-home-page')
+      await owner.focus()
+      await page.keyboard.press('PageDown')
+      await expect.poll(() => owner.evaluate(el => el.scrollTop)).toBeGreaterThan(0)
+      await home.getByTestId('preview-detail-link').scrollIntoViewIfNeeded()
+      await expect(home.getByTestId('preview-detail-link')).toBeVisible()
+      await page.screenshot({ path: `../out/home-preview/scroll-diagnosis/fixed-${viewport.width}-${state}.png` })
+    })
+  }
+}
+
+for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+  test(`empty home has no unnecessary scrolling: ${viewport.width}`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await page.route('**/api/v1/home/recommendations', route => route.fulfill({ json: {
+      ...recommendations, display_date: recommendations.requested_date, fallback_reason: null, items: [], today_results: [],
+    } }))
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: '아직 추천할 경기가 없습니다', exact: true })).toBeVisible()
+    const metrics = await page.getByTestId('ui-review-home-page').evaluate(el => ({ extraY: el.scrollHeight - el.clientHeight, extraX: el.scrollWidth - el.clientWidth }))
+    expect(metrics.extraY).toBe(0)
+    expect(metrics.extraX).toBe(0)
+  })
+}
