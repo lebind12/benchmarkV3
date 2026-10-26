@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.4",
     "httpx>=0.27",
     "jsonschema>=4.23",
+    "PyJWT>=2.10,<3",
     "google-auth>=2.0",
     "requests>=2.32",
     "psycopg[binary]>=3.2",

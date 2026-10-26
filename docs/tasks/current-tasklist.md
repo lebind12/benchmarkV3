@@ -2,6 +2,8 @@
 
 갱신일: 2026-05-24
 
+2026-10-24 안내: 이 파일의 아래 상태·주의점은 2026-05-24 시점 기록이다. 이후 코드와 일치한다고 간주하지 않는다(예: 현재 방송 overlay endpoint가 존재함). 새 스트리머 관리·경기 탐색·자연어 검색 범위의 현재 작업 정본은 [Plans.md](../../Plans.md)의 AX 표, 실제 코드 대조는 [plan.md](../../plan.md)다. 과거 harness 상태를 이번 조사만으로 전이하지 않았다.
+
 이 문서는 `Plans.md` 와 `.codex/state` 를 대조해 만든 현재 실행용 태스크리스트다. 장기 계획의 정본은 `Plans.md` 이고, workflow 상태의 정본은 `.codex/state/{feature-flow,endpoint-flow}/` 이다.
 
 ## 현재 진행 요약
@@ -74,3 +76,6 @@
 | P2 | 7.5~7.9, 10.7~10.10 | GH Actions / reviewer automation / Vercel preview | PR 자동화와 integration L3 안정화 |
 | P2 | 9.3~9.11 | FE infra 나머지 상태 확정 | 일부 구현되어 있어 `Plans.md` 검증 후 상태 갱신 필요 |
 | P3 | 11.1~11.5 | feature catalog, sitemap, 이후 page-led feature 반복 | main-home/fixture-detail integration 후 진행 |
+
+
+2026-10-25 관리 연결: 사용자 승인 후 평가한 네 탭을 실제 `/admin`으로 전환하고 BE/API 연결을 로컬 검증했다. `Plans.md` MGMT 표 및 `docs/features/streamer-management.verification.md` 참조. 운영 적용/배포와 공식 merge 완료를 뜻하지 않는다.

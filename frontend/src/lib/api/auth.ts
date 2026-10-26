@@ -1,4 +1,5 @@
 import { apiUrl } from '@/lib/api/base'
+import { setAccessToken } from './session'
 
 export type AuthUser = {
   id: number
@@ -21,11 +22,13 @@ export type LoginPayload = {
 
 export type AuthUserResponse = {
   user: AuthUser
+  access_token?: string
 }
 
 async function postAuth(path: string, payload: SignupPayload | LoginPayload, fallbackDetail: string): Promise<AuthUserResponse> {
   const response = await fetch(apiUrl(path), {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
@@ -36,7 +39,9 @@ async function postAuth(path: string, payload: SignupPayload | LoginPayload, fal
     throw new Error(detail)
   }
 
-  return response.json()
+  const result = await response.json() as AuthUserResponse
+  if (result.access_token) setAccessToken(result.access_token)
+  return result
 }
 
 export async function signup(payload: SignupPayload): Promise<AuthUserResponse> {

@@ -1,0 +1,251 @@
+{
+  "competitions": [
+    {
+      "id": 7,
+      "source": "Asian Cup",
+      "name": "아시안컵",
+      "aliases": [
+        "AFC 아시안컵",
+        "아시아컵"
+      ],
+      "groups": [
+        "national",
+        "asia"
+      ]
+    },
+    {
+      "id": 23,
+      "source": "EAFF E-1 Football Championship",
+      "name": "동아시안컵",
+      "aliases": [
+        "동아시아",
+        "동아시아컵",
+        "E-1",
+        "EAFF"
+      ],
+      "groups": [
+        "national",
+        "asia"
+      ]
+    },
+    {
+      "id": 803,
+      "source": "Asian Games",
+      "name": "아시안게임",
+      "aliases": [
+        "아시안게임",
+        "아시아 경기"
+      ],
+      "groups": [
+        "national",
+        "asia"
+      ]
+    },
+    {
+      "id": 1,
+      "source": "World Cup",
+      "name": "월드컵",
+      "aliases": [
+        "FIFA 월드컵"
+      ],
+      "groups": [
+        "national"
+      ]
+    },
+    {
+      "id": 897,
+      "source": "Asian Cup Women",
+      "name": "여자 아시안컵",
+      "aliases": [
+        "AFC 여자 아시안컵"
+      ],
+      "groups": [
+        "national",
+        "asia"
+      ]
+    },
+    {
+      "id": 1188,
+      "source": "EAFF E-1 Football Championship - Women",
+      "name": "여자 동아시안컵",
+      "aliases": [
+        "여자 동아시아컵",
+        "여자 E-1"
+      ],
+      "groups": [
+        "national",
+        "asia"
+      ]
+    },
+    {
+      "id": 532,
+      "source": "AFC U23 Asian Cup",
+      "name": "U23 아시안컵",
+      "aliases": [
+        "U-23 아시안컵",
+        "23세 이하 아시안컵"
+      ],
+      "groups": [
+        "national",
+        "asia"
+      ]
+    },
+    {
+      "id": 965,
+      "source": "AFC U20 Asian Cup",
+      "name": "U20 아시안컵",
+      "aliases": [
+        "U-20 아시안컵",
+        "20세 이하 아시안컵"
+      ],
+      "groups": [
+        "national",
+        "asia"
+      ]
+    },
+    {
+      "id": 1012,
+      "source": "AFC U17 Asian Cup",
+      "name": "U17 아시안컵",
+      "aliases": [
+        "U-17 아시안컵",
+        "17세 이하 아시안컵"
+      ],
+      "groups": [
+        "national",
+        "asia"
+      ]
+    },
+    {
+      "id": 39,
+      "source": "Premier League",
+      "name": "프리미어리그",
+      "aliases": [
+        "EPL",
+        "잉글랜드 프리미어리그"
+      ],
+      "groups": []
+    },
+    {
+      "id": 2,
+      "source": "UEFA Champions League",
+      "name": "챔피언스리그",
+      "aliases": [
+        "UCL",
+        "챔스"
+      ],
+      "groups": [
+        "club"
+      ]
+    },
+    {
+      "id": 3,
+      "source": "UEFA Europa League",
+      "name": "유로파리그",
+      "aliases": [
+        "UEL",
+        "유로파"
+      ],
+      "groups": [
+        "club"
+      ]
+    },
+    {
+      "id": 45,
+      "source": "FA Cup",
+      "name": "FA컵",
+      "aliases": [
+        "잉글랜드 FA컵"
+      ],
+      "groups": [
+        "club"
+      ]
+    },
+    {
+      "id": 48,
+      "source": "League Cup",
+      "name": "카라바오컵",
+      "aliases": [
+        "리그컵",
+        "EFL컵"
+      ],
+      "groups": [
+        "club"
+      ]
+    },
+    {
+      "id": 15,
+      "source": "FIFA Club World Cup",
+      "name": "클럽 월드컵",
+      "aliases": [
+        "클럽월드컵"
+      ],
+      "groups": [
+        "club"
+      ]
+    },
+    {
+      "id": 17,
+      "source": "AFC Champions League Elite",
+      "name": "AFC 챔피언스리그 엘리트",
+      "aliases": [
+        "아챔",
+        "ACLE"
+      ],
+      "groups": [
+        "club",
+        "asia"
+      ]
+    },
+    {
+      "id": 4,
+      "source": "Euro Championship",
+      "name": "유로",
+      "aliases": [
+        "UEFA 유로",
+        "유럽선수권"
+      ],
+      "groups": [
+        "national"
+      ]
+    },
+    {
+      "id": 9,
+      "source": "Copa America",
+      "name": "코파 아메리카",
+      "aliases": [
+        "코파"
+      ],
+      "groups": [
+        "national"
+      ]
+    },
+    {
+      "id": 140,
+      "source": "La Liga",
+      "name": "라리가",
+      "aliases": [
+        "라 리가",
+        "스페인 라리가"
+      ],
+      "groups": []
+    }
+  ],
+  "countries": {
+    "World": "국제대회",
+    "England": "잉글랜드",
+    "Spain": "스페인",
+    "France": "프랑스",
+    "Germany": "독일",
+    "Italy": "이탈리아",
+    "South-Korea": "대한민국",
+    "Japan": "일본",
+    "China": "중국",
+    "Scotland": "스코틀랜드",
+    "Australia": "호주",
+    "Saudi-Arabia": "사우디아라비아",
+    "Wales": "웨일스",
+    "Northern-Ireland": "북아일랜드",
+    "Ireland": "아일랜드"
+  }
+}

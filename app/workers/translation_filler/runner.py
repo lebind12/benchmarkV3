@@ -53,21 +53,21 @@ _UPDATE_SQL = {
         "SET name_ko = COALESCE(name_ko, :name_ko), "
         "    short_name_ko = COALESCE(short_name_ko, :short_name_ko), "
         "    updated_at = now() "
-        "WHERE team_id = :id"
+        "WHERE team_id = :id AND NOT human_modified"
     ),
     "player": text(
         "UPDATE player_translation "
         "SET name_ko = COALESCE(name_ko, :name_ko), "
         "    short_name_ko = COALESCE(short_name_ko, :short_name_ko), "
         "    updated_at = now() "
-        "WHERE player_id = :id"
+        "WHERE player_id = :id AND NOT human_modified"
     ),
     "coach": text(
         "UPDATE coach_translation "
         "SET name_ko = COALESCE(name_ko, :name_ko), "
         "    short_name_ko = COALESCE(short_name_ko, :short_name_ko), "
         "    updated_at = now() "
-        "WHERE coach_id = :id"
+        "WHERE coach_id = :id AND NOT human_modified"
     ),
 }
 

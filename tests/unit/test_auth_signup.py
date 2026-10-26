@@ -15,7 +15,9 @@ pytestmark = pytest.mark.unit
 
 
 @pytest.fixture()
-def client():
+def client(monkeypatch):
+    from app.core import sessions
+    monkeypatch.setattr(sessions, 'issue_session', lambda user: ({'access_token': 'fixture-token', 'token_type': 'bearer', 'expires_in': 900}, 'fixture-refresh'))
     engine = create_engine(
         "sqlite+pysqlite://",
         connect_args={"check_same_thread": False},

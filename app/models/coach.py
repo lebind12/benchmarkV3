@@ -5,6 +5,7 @@ from sqlalchemy import BigInteger, DateTime, ForeignKey, Identity, Index, Intege
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
+from sqlalchemy import Boolean as TranslationBoolean, Integer as TranslationInteger
 
 
 class Coach(Base):
@@ -35,6 +36,9 @@ class CoachTranslation(Base):
         primary_key=True,
         nullable=False,
     )
+    version: Mapped[int] = mapped_column(TranslationInteger, nullable=False, server_default="1")
+    human_modified: Mapped[bool] = mapped_column(TranslationBoolean, nullable=False, server_default="false")
+    editor_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("app_user.id", ondelete="SET NULL"))
     name_ko: Mapped[str | None] = mapped_column(Text)
     short_name_ko: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[object] = mapped_column(

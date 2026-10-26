@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import AppHeader from '@/components/common/AppHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+const route = useRoute()
 
 onMounted(() => {
   auth.hydrateFromMock()
+  if (!auth.verified && localStorage.getItem('authUser') && !route.path.startsWith('/auth/') && !route.path.startsWith('/admin') && route.meta.localMock !== true) void auth.verifySession()
   const stored = localStorage.getItem('theme')
   const prefersDark =
     !stored && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches

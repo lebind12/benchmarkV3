@@ -84,7 +84,7 @@ function openBroadcastProgram(to: BroadcastRouteTarget) {
 function isAdminRouteAllowed() {
   const auth = useAuthStore()
   auth.hydrateFromMock()
-  return auth.isAdmin
+  return auth.isAdmin || auth.isStreamer
 }
 
 const routes: RouteRecordRaw[] = [
@@ -155,7 +155,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'admin',
         name: 'admin',
-        beforeEnter: () => (isAdminRouteAllowed() ? true : { name: 'not-found' }),
+        beforeEnter: async (to) => { const auth = useAuthStore(); if (!await auth.verifySession()) return { name: 'login', query: { next: to.fullPath } }; return auth.isAdmin || auth.isStreamer ? true : { name: 'not-found' } },
         component: () => import('@/views/AdminView.vue'),
       },
       { path: 'broadcast', name: 'broadcast', beforeEnter: openBroadcast, component: PlaceholderView, props: { title: '방송' } },

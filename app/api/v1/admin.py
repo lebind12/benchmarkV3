@@ -1,4 +1,5 @@
 """ADMIN API for API-Football discovery and daily-sync targets."""
+
 from __future__ import annotations
 
 from typing import Annotated
@@ -8,15 +9,20 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app import db
+from app.core.sessions import manager_user
 from app.services import admin as admin_service
 from app.services import sync_logs
 from app.services import worker_runs
+from app.services import management_runs
+from app.services.management import ManagementError
+from app.models import LeagueSyncTarget
+from sqlalchemy import select
 from app.workers.daily_sync.runner import (
     load_configured_sync_specs,
 )
 
 
-router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
+router = APIRouter(prefix="/api/v1/admin", tags=["admin"], dependencies=[Depends(manager_user)])
 
 DbSession = Annotated[Session, Depends(db.get_db_session)]
 
@@ -136,32 +142,45 @@ def remove_sync_target(target_id: int, session: DbSession):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+def _legacy_run_shape(run):
+    return {
+        **run,
+        "worker_name": "daily-sync",
+        "progress_percent": run["progress"],
+        "total_units": sum(item["total"] for item in run["items"]),
+        "completed_units": sum(item["saved"] + item["failed"] for item in run["items"]),
+        "logs": [{**line, "ts": line["at"]} for line in run["logs"]],
+        "result": {"management_run_id": run["id"]},
+    }
+
+
 @router.post("/daily-sync/run")
-def run_daily_sync(payload: DailySyncRunRequest):
-    try:
-        return worker_runs.start_daily_sync_run(
-            fallback_defaults=payload.fallback_defaults,
-            include_details=not payload.skip_details,
-            include_players=not payload.skip_players,
-            include_standings=not payload.skip_standings,
-            fixture_limit=payload.fixture_limit,
-            fail_on_errors=payload.fail_on_errors,
-        )
-    except RuntimeError as exc:
+def run_daily_sync(payload: DailySyncRunRequest, session: DbSession, user=Depends(manager_user)):
+    if any(payload.model_dump().values()):
         raise HTTPException(
-            status_code=409,
-            detail={"message": "daily_sync_already_running", "run_id": str(exc)},
-        ) from exc
+            422,
+            "실행 범위는 공유 수집 대상 설정에서 관리하세요. 선택 실행은 management/runs를 사용하세요.",
+        )
+    ids = list(session.scalars(select(LeagueSyncTarget.id).where(LeagueSyncTarget.is_active)).all())
+    try:
+        return _legacy_run_shape(management_runs.start_run(session, ids, "refresh", user))
+    except ManagementError as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
 
 
 @router.get("/daily-sync/runs/{run_id}")
-def daily_sync_run(run_id: str):
+def daily_sync_run(run_id: str, session: DbSession):
     try:
-        return worker_runs.get_worker_run(run_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return _legacy_run_shape(management_runs.get_run(session, run_id))
+    except ManagementError:
+        try:
+            return worker_runs.get_worker_run(run_id)
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from exc
 
 
 @router.get("/daily-sync/logs")
 def daily_sync_logs(session: DbSession, limit: int = Query(default=50, ge=1, le=100)):
-    return {"items": sync_logs.list_worker_sync_logs(session, worker_name="daily-sync", limit=limit)}
+    return {
+        "items": sync_logs.list_worker_sync_logs(session, worker_name="daily-sync", limit=limit)
+    }

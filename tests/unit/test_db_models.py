@@ -81,6 +81,8 @@ def _import_models():
 
 
 EXPECTED_TABLES = {
+    "home_preview_snapshot", "home_preview_version", "home_preview_publication", "home_preview_attempt",
+    "management_run", "translation_audit",
     "league",
     "league_translation",
     "api_football_league_catalog",

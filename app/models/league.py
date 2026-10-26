@@ -22,6 +22,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
+from sqlalchemy import Boolean as TranslationBoolean, Integer as TranslationInteger
 
 
 class League(Base):
@@ -73,6 +74,9 @@ class LeagueTranslation(Base):
         primary_key=True,
         nullable=False,
     )
+    version: Mapped[int] = mapped_column(TranslationInteger, nullable=False, server_default="1")
+    human_modified: Mapped[bool] = mapped_column(TranslationBoolean, nullable=False, server_default="false")
+    editor_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("app_user.id", ondelete="SET NULL"))
     name_ko: Mapped[str | None] = mapped_column(Text)
     short_name_ko: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[object] = mapped_column(
@@ -150,6 +154,8 @@ class LeagueSyncTarget(Base):
         Boolean, nullable=False, server_default=text("true")
     )
     fixture_limit: Mapped[int | None] = mapped_column(Integer)
+    initial_status: Mapped[str] = mapped_column(Text, nullable=False, server_default="미수집")
+    last_sync: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[object] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -22,7 +22,7 @@ SELECT 'team' AS entity_type,
        t.code AS context_b
 FROM team_translation tt
 JOIN team t ON t.id = tt.team_id
-WHERE tt.name_ko IS NULL OR tt.short_name_ko IS NULL
+WHERE (tt.name_ko IS NULL OR tt.short_name_ko IS NULL) AND NOT tt.human_modified
 
 UNION ALL
 
@@ -33,7 +33,7 @@ SELECT 'coach' AS entity_type,
        NULL AS context_b
 FROM coach_translation ct
 JOIN coach c ON c.id = ct.coach_id
-WHERE ct.name_ko IS NULL OR ct.short_name_ko IS NULL
+WHERE (ct.name_ko IS NULL OR ct.short_name_ko IS NULL) AND NOT ct.human_modified
 
 UNION ALL
 
@@ -44,7 +44,7 @@ SELECT 'player' AS entity_type,
        p.firstname || ' ' || p.lastname AS context_b
 FROM player_translation pt
 JOIN player p ON p.id = pt.player_id
-WHERE pt.name_ko IS NULL OR pt.short_name_ko IS NULL
+WHERE (pt.name_ko IS NULL OR pt.short_name_ko IS NULL) AND NOT pt.human_modified
 
 LIMIT {limit}
 """

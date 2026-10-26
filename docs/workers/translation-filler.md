@@ -8,7 +8,9 @@ status: requirements-only
 
 ## 1. 목적
 
-daily-sync 가 새 entity (league/team/player) 발견 시 만들어 둔 `name_ko IS NULL` row 를 OpenAI gpt-3.5-turbo 로 음역하여 한글 표기를 채운다. 시드 CSV (player 6,422 row) 와 일관된 표기를 유지하기 위해 같은 모델 + few-shot 패턴을 사용한다.
+2026-10-24 갱신: 직접 번역 검수·수정은 인증된 STREAMER / ADMIN의 공통 관리 범위다. 사람 수정·의도적 NULL은 이후 filler/import가 덮어쓰지 못하도록 버전·보호 상태와 경쟁 검증을 추가한다. 현재 구현은 비NULL 컬럼 COALESCE 보존만 제공한다. 실제 큐는 팀·선수·감독이며 리그 자동 음역은 제외되어 있다. 아래 NULL 큐에 신규 검수 보호 조건을 추가하는 것은 후속 구현이다. 상세는 [plan.md](../../plan.md), [결정 기록](../decisions/2026-10-24-streamer-management-and-ax.md)을 따른다.
+
+daily-sync가 새 entity (team/player/coach) 발견 시 만들어 둔 `name_ko IS NULL OR short_name_ko IS NULL` row를 OpenAI gpt-3.5-turbo로 음역하여 한글 표기를 채운다. 시드 CSV (player 6,422 row)와 일관된 표기를 유지하기 위해 같은 모델 + few-shot 패턴을 사용한다.
 
 ## 2. 스케줄
 
@@ -23,11 +25,11 @@ daily-sync 가 새 entity (league/team/player) 발견 시 만들어 둔 `name_ko
 3개 매칭 테이블에서 한글 누락 row:
 
 ```sql
--- league
-SELECT 'league' AS entity_type, lt.league_id AS id, l.name, l.country_name, l.type
-FROM league_translation lt
-JOIN league l ON l.id = lt.league_id
-WHERE lt.name_ko IS NULL OR lt.short_name_ko IS NULL
+-- coach
+SELECT 'coach' AS entity_type, ct.coach_id AS id, c.name, '' AS context_a, NULL AS context_b
+FROM coach_translation ct
+JOIN coach c ON c.id = ct.coach_id
+WHERE ct.name_ko IS NULL OR ct.short_name_ko IS NULL
 
 UNION ALL
 
@@ -59,7 +61,7 @@ Step 1. 큐 조회 (3 매칭 테이블 UNION ALL)
    ↓
 Step 2. 큐 비면 → 즉시 종료
    ↓
-Step 3. entity_type 별 그룹화 (league / team / player 별 처리)
+Step 3. entity_type 별 그룹화 (coach / team / player 별 처리)
    ↓
 Step 4. 배치 상한 적용 (최대 N row / 사이클)
    ↓
@@ -75,7 +77,8 @@ Step 7. 매칭 테이블 UPDATE
 ### Step 5 상세 — OpenAI 호출 패턴
 
 #### Few-shot 예시 추출
-- **league**: 매뉴얼 하드코딩 (5리그 모두 시드에서 채워짐. 추가 케이스가 너무 적음). 새 리그 발생 시 ADMIN 이 직접 입력하는 게 자연스러움 → 본 워커는 league 대상 **선택적**. 처리한다면 fixed few-shot
+- **league**: 자동번역 큐에서 제외. 리그 한글표기는 STREAMER / ADMIN의 직접 검수·수정 대상으로 제공한다.
+- **coach**: 원문 이름을 기반으로 처리하며 한글 이름/짧은 이름 누락값만 채운다.
 - **team**: 사용자가 작성한 team_translation 시드 CSV 에서 동일 country 의 5~10건 무작위
 - **player**: 시드 CSV `_Player__202605131748.csv` 에서 동일 nationality 의 5~10건 무작위
 
@@ -240,7 +243,7 @@ Step 7. 매칭 테이블 UPDATE
 - 음역 정책 변경 (web_search 도입 등 — AGENTS.md §11 의 향후 항목)
 - 새 entity_type 추가
 - DB 스키마 변경
-- league 도 처리 대상에 정식 포함할지 (현재 선택적)
+- league를 자동번역 처리 대상에 정식 포함할지 (현재 제외)
 
 ## 16. 확정 운영 파라미터 / 미정
 
@@ -250,11 +253,15 @@ Step 7. 매칭 테이블 UPDATE
 | 동시 OpenAI 호출 semaphore | **5** |
 | 배치 상한 (한 사이클 처리할 row 수) | **50** |
 | 연속 실패 row 알림 임계치 | **10 사이클** (= 10분 연속 실패) |
-| league 대상 처리 | **본 워커 제외, ADMIN manual** (5리그 + 새 리그 모두 ADMIN endpoint 로 한글표기 동시 입력) |
+| league 대상 처리 | 본 워커 제외. STREAMER / ADMIN 공통 번역 검수에서 직접 수정. 관리 API/UI 구현, 로컬 연결 검증 |
 
 ### 미정 / 메모
 | 항목 | 메모 |
 |---|---|
 | 알람 채널 | 미정 (MVP 단계 stdout 만) |
 | 시드 외 few-shot 출처 | team_translation 시드 작성되면 team 처리 시 같이 활용 |
-| 음역 품질 모니터링 | post-MVP. ADMIN 검수 큐 도입 시점에 매핑 |
+| 직접 번역 검수 | 이번 범위의 STREAMER / ADMIN 공통 관리. AI 의심 표기 추천은 별도 선택 후보 |
+
+## 2026-10-25 보호 연결
+
+queue는 `human_modified=false`만 선택하며 UPDATE에도 같은 조건을 적용한다. 네 번역 테이블 DB trigger는 모든 기존 import 경로에서도 사람이 수정한 이름/짧은 이름/의도적인 NULL을 보호한다. 새 관리 API는 version 충돌과 수정 전후 이력을 기록한다. 본 변경은 앱 scheduler에 filler를 자동 등록하거나 운영 OpenAI 호출을 시작하지 않는다. 기존 CLI/등록 함수와 실제 실행 설정은 구분한다.

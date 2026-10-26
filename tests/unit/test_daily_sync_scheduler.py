@@ -31,6 +31,7 @@ def test_scheduled_daily_sync_skips_when_run_already_active(monkeypatch):
     def fake_start_daily_sync_run():
         raise RuntimeError("already-running-run-id")
 
-    monkeypatch.setattr(scheduler.worker_runs, "start_daily_sync_run", fake_start_daily_sync_run)
+    from app.services import management_runs
+    monkeypatch.setattr(management_runs, "start_scheduled_run", fake_start_daily_sync_run)
 
     scheduler.run_scheduled_daily_sync()

@@ -95,6 +95,8 @@ def test_lu05_league_active_idx_declared_on_model(league_tbl):
 # ---------------------------------------------------------------------------
 
 EXPECTED_TABLES = {
+    "home_preview_snapshot", "home_preview_version", "home_preview_publication", "home_preview_attempt",
+    "management_run", "translation_audit",
     "api_football_league_catalog",
     "league",
     "league_translation",

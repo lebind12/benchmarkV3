@@ -2,6 +2,8 @@
 
 작성일: 2026-06-06
 
+정책 갱신: 2026-10-24. [결정 기록](../decisions/2026-10-24-streamer-management-and-ax.md), [상세 기획](../../plan.md). 아래 변경은 목표 정책이며 현재 JWT/refresh/공통 서버 역할 검사는 미완성이다.
+
 ## Purpose
 
 Phase 3 인증/권한 작업의 구현 계획이다. MVP 범위는 이메일/비밀번호 기반 회원가입, 로그인, access JWT 검증, refresh token rotation/blacklist, role 기반 접근 제어까지다.
@@ -22,7 +24,7 @@ Phase 3 인증/권한 작업의 구현 계획이다. MVP 범위는 이메일/비
 - refresh token rotation 및 blacklist 저장
 - FastAPI dependency:
   - `get_current_user`
-  - `require_roles("ADMIN")`
+  - `require_roles("STREAMER", "ADMIN")` (공통 관리·방송)
   - `require_admin`
 - broadcast/admin endpoint의 임시/개별 auth 로직을 공통 dependency로 교체
 
@@ -31,7 +33,7 @@ Phase 3 인증/권한 작업의 구현 계획이다. MVP 범위는 이메일/비
 - 소셜 로그인
 - 이메일 인증 메일 발송
 - 비밀번호 재설정 플로우
-- ADMIN 검수 UI
+- 사용자 역할 부여·변경 관리 UI (번역 검수 UI는 이번 관리 개발 범위에 포함)
 - 다중 기기 세션 관리 UI
 - Supabase Auth 연동
 
@@ -63,8 +65,10 @@ Upstash key pattern:
 
 | Key | Value | TTL |
 |---|---|---:|
-| `auth:refresh:{token_hash}` | `{user_id, rotated_from, created_at}` | refresh 만료까지 |
-| `auth:blacklist:{jti}` | `1` | access token 남은 TTL |
+| `{env_prefix}auth:refresh:{token_hash}` | `{user_id, rotated_from, created_at}` | refresh 만료까지 |
+| `{env_prefix}auth:blacklist:{jti}` | `1` | access token 남은 TTL |
+
+`env_prefix`는 local 개발 `local:`, production `prod:` 등 환경별로 필수 분리한다. 빈 prefix로 새 키를 만들지 않는다.
 
 Refresh 동작:
 
@@ -183,12 +187,12 @@ Response `200`:
 | Area | Required role |
 |---|---|
 | 일반 페이지 API | anonymous or `USER` depending endpoint |
-| `/api/v1/broadcast/*` | `ADMIN` |
-| `/api/v1/admin/*` | `ADMIN` |
-| worker manual trigger | `ADMIN` |
-| `/fixture?id=...` / fixture detail의 스트리밍 버튼 | `ADMIN`일 때만 노출 |
+| `/api/v1/broadcast/*` | 인증된 `STREAMER` 또는 `ADMIN` |
+| `/api/v1/admin/*` 공통 수집 관리·번역 검수 | 인증된 `STREAMER` 또는 `ADMIN` |
+| 수집 manual trigger | 인증된 `STREAMER` 또는 `ADMIN` |
+| fixture detail의 스트리밍 버튼 | `STREAMER` 또는 `ADMIN`일 때 노출 |
 
-Role hierarchy는 암묵적으로 두지 않는다. MVP에서 권한으로 잠그는 영역은 관리페이지와 방송용 페이지만이며, 둘 다 `ADMIN`만 허용한다. `STREAMER` role은 DB enum 호환성 때문에 남겨두지만 MVP 권한 판정에는 사용하지 않는다.
+Role hierarchy는 암묵적으로 두지 않는다. 공통 관리와 방송은 두 역할을 명시적으로 허용한다. 사용자 역할 부여 등 ADMIN 고유 권한을 STREAMER에게 확장하는 결정은 아니다. 브라우저 저장값이나 `X-Mock-Role`은 서버 인증의 근거로 사용하지 않는다. 필수 JWT claims·서명·만료·type과 DB의 활성 사용자·현재 role을 검증한다.
 
 ## Implementation Tasks
 
@@ -219,9 +223,10 @@ Integration:
 - inactive user login/refresh 거부
 - refresh는 기존 refresh token을 재사용 불가하게 만든다
 - logout 후 refresh 재사용 불가
-- ADMIN은 broadcast/admin 접근 가능, STREAMER/USER/public은 403 또는 FE route guard로 차단
-- ADMIN endpoint는 ADMIN만 접근 가능
-- fixture detail의 스트리밍 버튼은 ADMIN에게만 노출
+- STREAMER·ADMIN은 broadcast와 공통 수집 관리·번역 검수에 접근 가능
+- USER는 서버에서 403, 미인증은 401로 거부하며 FE route guard만으로 검증을 대체하지 않음
+- fixture detail의 스트리밍 버튼은 STREAMER·ADMIN에게 노출
+- 비활성 사용자·만료/변조/필수 claim 누락 token과 X-Mock-Role 권한 우회를 거부
 
 ## Migration Notes
 
@@ -233,7 +238,7 @@ Integration:
 
 대체:
 
-- `current_user: Annotated[AppUserPrincipal, Depends(require_admin)]`
+- `require_roles("STREAMER", "ADMIN")`를 사용하는 공통 current-user dependency
 
 이 교체 후 broadcast endpoint 테스트는 auth dependency override hook을 공통 dependency 기준으로 갱신한다.
 
@@ -245,3 +250,7 @@ Integration:
 4. 공통 dependency 도입
 5. broadcast/admin route를 공통 dependency로 교체
 6. FE 로그인 화면/토큰 저장 정책 결정 후 연동
+
+## 2026-10-25 관리 연결 구현 상태
+
+`app/core/sessions.py`와 auth login/refresh/me/logout, 관리 router dependency에 JWT·Upstash 원자 rotation·DB 현재 역할 검사를 구현했다. 실제 `/admin`은 STREAMER/ADMIN으로 보호하며 cached browser role은 접근 근거로 사용하지 않는다. access는 메모리, refresh는 HttpOnly cookie. 실제 origin/CORS/prefix/서명 키 설정과 스키마 적용은 배포와 별도이며 운영 환경 값은 변경하지 않았다. 세부 계약과 로컬 검증은 `docs/features/streamer-management-api.md` 및 `.verification.md` 참조. 방송 API/MPA의 전체 인증 정합화 완료를 이번 관리 검증으로 대체하지 않는다.

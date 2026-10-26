@@ -1,10 +1,9 @@
 """APScheduler registration for daily-sync."""
+
 from __future__ import annotations
 
 from typing import Any
 from zoneinfo import ZoneInfo
-
-from app.services import worker_runs
 
 
 JOB_ID = "daily-sync"
@@ -16,7 +15,9 @@ SCHEDULE_MINUTE = 0
 def run_scheduled_daily_sync() -> None:
     """Start a scheduled daily-sync run unless one is already active."""
     try:
-        worker_runs.start_daily_sync_run()
+        from app.services.management_runs import start_scheduled_run
+
+        start_scheduled_run()
     except RuntimeError:
         # The ADMIN manual trigger and the scheduler share the same run registry.
         # If a run is active, the next cron tick can safely try again.

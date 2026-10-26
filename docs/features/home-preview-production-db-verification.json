@@ -1,0 +1,51 @@
+{
+  "verified_at": "2026-10-26T07:24:59.891391+00:00",
+  "verification_read_only": true,
+  "migration_applied": "20261024235328",
+  "alembic_revision": "0018_home_preview_storage",
+  "tables": {
+    "home_preview_snapshot": {
+      "columns_types_nullability_match": true,
+      "constraints_match": true,
+      "indexes_match": true,
+      "rls": true,
+      "direct_access_policies": 0,
+      "rows": 0
+    },
+    "home_preview_version": {
+      "columns_types_nullability_match": true,
+      "constraints_match": true,
+      "indexes_match": true,
+      "rls": true,
+      "direct_access_policies": 0,
+      "rows": 0
+    },
+    "home_preview_publication": {
+      "columns_types_nullability_match": true,
+      "constraints_match": true,
+      "indexes_match": true,
+      "rls": true,
+      "direct_access_policies": 0,
+      "rows": 0
+    },
+    "home_preview_attempt": {
+      "columns_types_nullability_match": true,
+      "constraints_match": true,
+      "indexes_match": true,
+      "rls": true,
+      "direct_access_policies": 0,
+      "rows": 0
+    }
+  },
+  "management_preserved": {
+    "rls": true,
+    "human_translation_protection_triggers": 4
+  },
+  "public_api_smoke": {
+    "recommendations": 200,
+    "prematch": 200,
+    "generation_due_at_field": true,
+    "no_generation_on_get": true
+  },
+  "passed": true
+}

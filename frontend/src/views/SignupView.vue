@@ -50,10 +50,10 @@ async function onSubmit() {
       password: form.password,
       nickname: form.nickname || undefined,
     })
-    auth.setUser(result.user)
-    success.value = '가입이 완료되었습니다.'
+    if (result.access_token) auth.setUser(result.user)
+    success.value = result.access_token ? '가입이 완료되었습니다.' : '가입이 완료되었습니다. 로그인해주세요.'
     window.setTimeout(() => {
-      void router.push('/')
+      void router.push(result.access_token ? '/' : '/auth/login')
     }, 700)
   } catch (err) {
     error.value = errorMessage((err as Error).message)

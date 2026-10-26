@@ -303,6 +303,8 @@ def measure_league_sync_plan(
     fixture_limit: int | None,
     max_workers: int,
     progress: ProgressReporter | None = None,
+    mode: str = 'refresh',
+    enforce_latest: bool = False,
 ) -> LeagueSyncPlan:
     league_entries = client.response("/leagues", id=league_external_id)
     if not league_entries:
@@ -310,6 +312,8 @@ def measure_league_sync_plan(
     league_entry = league_entries[0]
     detected_seasons = select_latest_two_actual_seasons(league_entry)
     target_seasons = seasons or detected_seasons
+    if enforce_latest and any(year not in detected_seasons for year in target_seasons):
+        raise ValueError("지원 시즌이 변경되었습니다. 카탈로그를 최신화하고 최신 두 개최 시즌을 선택하세요.")
     league_name = _league_payload_name(league_entry, league_external_id)
     label = _league_label(league_name, league_external_id)
     _progress_log(progress, f"daily-sync: measuring {label} seasons={target_seasons}")
@@ -351,10 +355,10 @@ def measure_league_sync_plan(
 
     sync_window_now = _utc_now()
     for season_plan in season_plans:
-        fixture_entries = _fixture_entries_in_sync_window(
+        fixture_entries = (season_plan.fixtures.response if mode == 'initial' else _fixture_entries_in_sync_window(
             season_plan.fixtures.response,
             now=sync_window_now,
-        )
+        ))
         if fixture_limit is not None:
             fixture_entries = fixture_entries[:fixture_limit]
         season_plan.fixture_external_ids = [
@@ -388,6 +392,14 @@ def measure_league_sync_plan(
     )
 
 
+def _commit_progress(session, progress, counts):
+    if progress is not None and hasattr(progress, 'check_cancelled'):
+        progress.check_cancelled(session=session)
+    session.commit()
+    if progress is not None and hasattr(progress, 'stored'):
+        progress.stored(counts)
+
+
 def backfill_measured_league(
     session,
     client: ApiFootballClient,
@@ -410,7 +422,7 @@ def backfill_measured_league(
     counts = result.counts
 
     league_id, detected_seasons = upsert_league(session, plan.league_entry, counts)
-    session.commit()
+    _commit_progress(session, progress, counts)
     season_years = [season.season_year for season in plan.seasons]
     _progress_advance(progress, message=f"{label}: catalog synced, seasons={season_years}")
 
@@ -428,7 +440,7 @@ def backfill_measured_league(
             for entry in season_plan.teams.response:
                 upsert_team_entry(session, entry, counts)
                 season_result.teams_seen += 1
-            session.commit()
+            _commit_progress(session, progress, counts)
             _progress_advance(progress, message=f"{season_label}: teams={season_result.teams_seen}")
 
         if season_plan.fixtures.error:
@@ -448,15 +460,15 @@ def backfill_measured_league(
                 upsert_fixture_entry(session, entry, counts)
                 season_result.fixtures_seen += 1
                 if index % commit_every == 0:
-                    session.commit()
-            session.commit()
+                    _commit_progress(session, progress, counts)
+            _commit_progress(session, progress, counts)
             ensure_team_season_from_fixtures(
                 session,
                 league_id=league_id,
                 season_year=season_year,
                 counts=counts,
             )
-            session.commit()
+            _commit_progress(session, progress, counts)
             _progress_advance(progress, message=f"{season_label}: fixtures={season_result.fixtures_seen}")
 
         if include_standings and season_plan.standings is not None:
@@ -470,7 +482,7 @@ def backfill_measured_league(
                 for entry in season_plan.standings.response:
                     upsert_standings_entry(session, entry, counts)
                     season_result.standings_seen += 1
-                session.commit()
+                _commit_progress(session, progress, counts)
                 _progress_advance(
                     progress,
                     message=f"{season_label}: standings={season_result.standings_seen}",
@@ -530,7 +542,7 @@ def backfill_measured_league(
                     season_result.player_rows_seen += 1
                     page_rows += 1
                 season_result.player_pages_seen += 1
-                session.commit()
+                _commit_progress(session, progress, counts)
                 _progress_log(progress, f"{season_label}: players page={page}/{total_pages} rows={page_rows}")
 
         if include_details:
@@ -565,6 +577,8 @@ def backfill_measured_league(
                 ]
                 if errors:
                     season_result.errors.append(f"details:{fixture_external_id}:{'; '.join(errors)}")
+                if errors:
+                    continue
                 upsert_fixture_detail(
                     session,
                     fixture_external_id=fixture_external_id,
@@ -576,9 +590,9 @@ def backfill_measured_league(
                 )
                 season_result.fixture_details_seen += 1
                 if index % commit_every == 0:
-                    session.commit()
+                    _commit_progress(session, progress, counts)
                 _progress_log(progress, f"{season_label}: details fixture={fixture_external_id}")
-            session.commit()
+            _commit_progress(session, progress, counts)
         _progress_log(progress, f"{season_label}: complete")
 
     if translation_csv is not None:

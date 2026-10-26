@@ -20,3 +20,5 @@
 검증: BE 단위127개 통과. 격리Postgres 통합30개 통과(기존24+직접JSON checkpoint 재개·6시간 후보2+기존 직접저장4). FE 단위33개와 production build 통과. 원격 API/유료 모델 새 호출은 하지 않았으며 synthetic provider와 로컬DB로 저장·재개를 검증했다. 브라우저의 real-home 테스트도 응답 fixture로 계약과 표시를 검증한다. 기존 실제 모델3연속 성공 증거는 이전 실험 기록에 별도 보존했다.
 
 최종 브라우저 회귀18개 통과: 생성완료 시각/생성전 예정시각(KST)/접는출처/이전dashboard부재/모바일·다크·모션감소·기존프리뷰 표시 포함.
+
+2026-10-26 후속 사용자 승인으로 관리278d152와 로컬 main 통합 및 필요한 운영DB migration 적용을 진행했다. 종전 ‘운영DB 미적용’은 당시 상태다. 현재 적용·검증은 `docs/features/home-preview-merge.verification.md`와 운영DB 검증JSON을 따른다. 배포/원격push/재시작/운영환경변수 변경은 하지 않는다.
