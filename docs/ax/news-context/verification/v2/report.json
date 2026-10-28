@@ -1,0 +1,97 @@
+{
+  "commit": "e678b7684a98081201fe958c8fe21a297d1c0282",
+  "revision": 1,
+  "verdict": "PASS",
+  "summary": "독립 API6/브라우저16 시나리오 PASS. 실제 JWT·활성 계정·SQLite 후보/상세 조회 검증. backend33/frontend11/build/ruff 재실행 PASS. 기본 Vitest 신규 테스트 미발견은 후속 자동화 한계. 모델 stub과 부모 live smoke는 구분.",
+  "scenarios": [
+    {
+      "criterion_id": "AC-1",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-2",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-3",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-4",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/browser-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-5",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/browser-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-6",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/browser-extra-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-7",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-8",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-9",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-10",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/browser-extra-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-11",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/browser-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-12",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/browser-extra-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    },
+    {
+      "criterion_id": "AC-13",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "additional_evidence": "docs/ax/news-context/verification/v2/run-evidence.md"
+    }
+  ],
+  "limitations": [
+    "실제 Vertex 자연어 일반 정확도 미평가; 부모의 합성3건 live smoke와 구분",
+    "SQLite + 팀 squad ARRAY_AGG 빈 결과 adaptation; 운영 DB/배포 미접근",
+    "기본 Vitest 신규 테스트 자동발견 실패(exit1), 명시 config 11테스트 PASS"
+  ],
+  "screenshots": [
+    "docs/ax/news-context/verification/v2/desktop-hover.png",
+    "docs/ax/news-context/verification/v2/desktop-player-hover.png",
+    "docs/ax/news-context/verification/v2/mobile-hover.png",
+    "docs/ax/news-context/verification/v2/admin-mobile.png"
+  ]
+}

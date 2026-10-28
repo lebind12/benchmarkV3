@@ -1,0 +1,82 @@
+{
+  "at": "2026-10-28T05:25:14.587077+00:00",
+  "kind": "three synthetic community texts; actual Vertex + read-only DB; not an accuracy benchmark",
+  "model": "gemini-3.5-flash",
+  "cases": [
+    {
+      "expected_relevance": "football",
+      "result": {
+        "source_url": "https://example.com/synthetic-community-post",
+        "relevance": "football",
+        "relevance_evidence": "오늘 축구 경기에서 Arsenal의 Bukayo Saka가 공을 차는 장면을 봤다.",
+        "mentions": [
+          {
+            "mention": "Arsenal",
+            "evidence": "Arsenal의 Bukayo Saka가 공을 차는 장면을 봤다",
+            "entity_type": "team",
+            "status": "linked",
+            "entity": {
+              "id": 7,
+              "name": "아스널",
+              "detail_path": "/teams/arsenal-42"
+            },
+            "reason": "원문 이름과 일치하는 DB 대상을 확인했습니다."
+          },
+          {
+            "mention": "Bukayo Saka",
+            "evidence": "Arsenal의 Bukayo Saka가 공을 차는 장면을 봤다",
+            "entity_type": "player",
+            "status": "linked",
+            "entity": {
+              "id": 253,
+              "name": "부카요 사카",
+              "detail_path": "/players/b-saka-1460"
+            },
+            "reason": "원문 이름과 일치하는 DB 대상을 확인했습니다."
+          },
+          {
+            "mention": "아스널",
+            "evidence": "아스널의 다음 축구 경기도 기대된다",
+            "entity_type": "team",
+            "status": "linked",
+            "entity": {
+              "id": 7,
+              "name": "아스널",
+              "detail_path": "/teams/arsenal-42"
+            },
+            "reason": "원문 이름과 일치하는 DB 대상을 확인했습니다."
+          }
+        ]
+      },
+      "status": "PASS",
+      "linked_names": [
+        "Arsenal",
+        "Bukayo Saka",
+        "아스널"
+      ],
+      "seconds": 7.98
+    },
+    {
+      "expected_relevance": "not_football",
+      "result": {
+        "source_url": "https://example.com/synthetic-community-post",
+        "relevance": "not_football",
+        "relevance_evidence": "오늘 회사 동료 김민수와 점심으로 김치찌개를 먹었다.",
+        "mentions": []
+      },
+      "status": "PASS",
+      "seconds": 3.88
+    },
+    {
+      "expected_relevance": "uncertain",
+      "result": {
+        "source_url": "https://example.com/synthetic-community-post",
+        "relevance": "uncertain",
+        "relevance_evidence": "오늘 폼 좋다",
+        "mentions": []
+      },
+      "status": "PASS",
+      "seconds": 4.11
+    }
+  ]
+}

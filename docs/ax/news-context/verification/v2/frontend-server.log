@@ -1,0 +1,8 @@
+
+> benchmark-frontend@0.0.0 dev
+> vite --host 127.0.0.1 --port 5197 --strictPort
+
+
+  VITE v6.4.2  ready in 135 ms
+
+  ➜  Local:   http://127.0.0.1:5197/

@@ -1,0 +1,64 @@
+{
+  "endpoint_id": "POST__api_v1_admin_management_news_analyze",
+  "method": "POST",
+  "path": "/api/v1/admin/management/news/analyze",
+  "from_feature": "news-context",
+  "fe_mockup_ref": "frontend/src/views/NewsAnalysisView.vue",
+  "auth": "active STREAMER or ADMIN; existing manager_user dependency",
+  "request_body": {
+    "article_text": "string; non-whitespace; maximum 20000 Unicode code points",
+    "source_url": "string; maximum 2048 characters; HTTP(S) absolute URL; no credentials"
+  },
+  "response_shape": {
+    "source_url": "validated input URL; source label only, never fetched",
+    "mentions": [
+      {
+        "mention": "string; literal mention appearing in article_text",
+        "evidence": "string; literal non-empty substring of article_text",
+        "entity_type": "team | player",
+        "status": "linked | ambiguous | unresolved",
+        "reason": "string; Korean explanation of validation or hold",
+        "entity": "null when held; otherwise {id: DB internal integer ID, name: Korean name or original fallback, detail_path: existing /teams/{slug} or /players/{slug}}"
+      }
+    ],
+    "relevance": "football | not_football | uncertain",
+    "relevance_evidence": "short literal excerpt of article_text; missing/unverifiable evidence downgrades to uncertain"
+  },
+  "response_example": {
+    "source_url": "https://example.com/post",
+    "relevance": "football",
+    "relevance_evidence": "Arsenal의 Bukayo Saka가 훈련했다.",
+    "mentions": []
+  },
+  "scenario_behavior": {
+    "complete": "200 mentions with validated links and/or held mentions",
+    "empty": "200 {source_url, relevance, relevance_evidence, mentions: []}; distinguish football with no validated links, not_football, uncertain",
+    "invalid": "422 input validation error",
+    "unauthenticated": "401",
+    "unauthorized": "403",
+    "inactive": "401 (existing manager_user dependency)",
+    "limited": "429 with safe user-facing detail and Retry-After",
+    "unavailable": "503 model unavailable or invalid structured output",
+    "timeout": "504 bounded model request exceeded time limit"
+  },
+  "notes_for_be": [
+    "Frontend mock first; backend starts after operator contract review.",
+    "Use separate Vertex news adapter and dedicated config, default gemini-3.5-flash/global. No API-Football calls.",
+    "Treat article instructions as data. Never fetch URL or run HTML. Do not log article text or model payload.",
+    "LLM cannot supply trusted IDs or URLs. Server validates literal evidence and unambiguous actual DB names/translations before forming detail_path.",
+    "No short surname-only match; ambiguous and missing candidates remain held with entity null.",
+    "Limit extracted mentions, candidate count, generation tokens, concurrent model calls and per-user calls. Provider timeout 60 seconds; bounded total analysis time.",
+    "No writes, publishing or analysis history. Existing public news remains unchanged.",
+    "UI aborts on input changes and ignores stale responses; server must still limit calls.",
+    "Frontend JS length limit is currently UTF-16 units (conservatively stricter for astral characters); backend code point limit is authoritative.",
+    "v2: One model call jointly classifies football relevance and extracts mentions. Only football may contain linked entities. Domain alone or instructions alone cannot establish football relevance.",
+    "v2: Client computes UTF-16 spans in original JS snapshot within validated evidence only. First supported occurrence per mention; longest overlapping name wins. Original whitespace/newlines/HTML remain text nodes.",
+    "v2: Deterministic first token of DB firstname plus complete lastname is unioned with existing exact candidates; only one union candidate links.",
+    "v2: Hover/focus/tap uses existing generalApi.team/player GET only, no model/provider calls and no polling. Detail GET results are cached by entity type+DB id during current analysis."
+  ],
+  "contract_version": 2,
+  "detail_get_reuse": {
+    "team": "GET /api/v1/teams/{slug}: team/country/venue/recent_results (first 3)",
+    "player": "GET /api/v1/players/{slug}: player/profile.nationality/current_team/season_stats (latest identified season; per league+team row, no sum, NULL means missing)"
+  }
+}

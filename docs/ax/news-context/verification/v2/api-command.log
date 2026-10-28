@@ -1,0 +1,62 @@
+{
+  "timestamp": "2026-10-28T05:28:27.698429+00:00",
+  "environment": "FastAPI TestClient; actual routers/JWT/active-account checks; isolated SQLite; fake model only; team squad PG ARRAY_AGG empty adaptation",
+  "results": [
+    {
+      "name": "signed JWT and real active-account manager dependency",
+      "criteria": [
+        "AC-1"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "input rejects before provider; exact limits",
+      "criteria": [
+        "AC-2"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "unique exact/derived names; union collision; surname and invented evidence",
+      "criteria": [
+        "AC-3",
+        "AC-13"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "non-football/uncertain gating and malformed/ungrounded output",
+      "criteria": [
+        "AC-7",
+        "AC-9"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "safe failure, real elapsed timeout, per-user and concurrent bounds",
+      "criteria": [
+        "AC-5",
+        "AC-7"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "actual team/player GET and read-only SQL",
+      "criteria": [
+        "AC-8",
+        "AC-12"
+      ],
+      "status": "PASS"
+    }
+  ],
+  "observations": {
+    "model_calls": 1,
+    "sql_reads": 10,
+    "writes": 0,
+    "posts": 1,
+    "detail_gets": {
+      "/api/v1/players/bukayo-saka": 1,
+      "/api/v1/teams/arsenal": 1
+    }
+  }
+}

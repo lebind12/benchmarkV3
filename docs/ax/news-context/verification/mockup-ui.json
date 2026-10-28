@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-10-28T05:15:12.239Z",
+  "scope": "Interim mockup UI only; HTTP auth stub and in-component mock analysis; not API auth or final acceptance",
+  "desktopOverflow": false,
+  "mobileOverflow": false,
+  "inputRetainedAfterMockFailure": true,
+  "alert": "가상 실패: 분석 시간이 초과되었습니다. 입력을 유지했으니 다시 시도하세요.",
+  "url": "http://127.0.0.1:5197/admin/news-analysis"
+}

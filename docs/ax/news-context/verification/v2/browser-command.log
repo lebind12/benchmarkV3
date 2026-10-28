@@ -1,0 +1,77 @@
+[
+  {
+    "name": "real analysis and exact original text",
+    "criterion": [
+      "AC-3",
+      "AC-4",
+      "AC-7",
+      "AC-10"
+    ],
+    "status": "PASS"
+  },
+  {
+    "name": "team hover actual DB GET, card movement and cache",
+    "criterion": [
+      "AC-11",
+      "AC-12"
+    ],
+    "status": "PASS"
+  },
+  {
+    "name": "player latest DB rows and NULL versus zero",
+    "criterion": [
+      "AC-12"
+    ],
+    "status": "PASS"
+  },
+  {
+    "name": "keyboard enters teleported card and Escape restores focus",
+    "criterion": [
+      "AC-11"
+    ],
+    "status": "PASS"
+  },
+  {
+    "name": "plain article click closes card",
+    "criterion": [
+      "AC-11"
+    ],
+    "status": "PASS"
+  },
+  {
+    "name": "mobile tap viewport bounds",
+    "criterion": [
+      "AC-11"
+    ],
+    "status": "PASS"
+  },
+  {
+    "name": "non football and uncertain have no annotations",
+    "criterion": [
+      "AC-9"
+    ],
+    "status": "PASS"
+  },
+  {
+    "name": "failure retains inputs and retry works",
+    "criterion": [
+      "AC-5"
+    ],
+    "status": "PASS"
+  },
+  {
+    "name": "late analyze result ignored after input change",
+    "criterion": [
+      "AC-6"
+    ],
+    "status": "PASS"
+  },
+  {
+    "name": "no source fetch and no runtime DB writes",
+    "criterion": [
+      "AC-7",
+      "AC-8"
+    ],
+    "status": "PASS"
+  }
+]

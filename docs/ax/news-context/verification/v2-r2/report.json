@@ -1,0 +1,123 @@
+{
+  "commit": "7bf53915b5f6a90dd785569d45acf5dc909ffac4",
+  "revision": 2,
+  "verdict": "PASS",
+  "summary": "제품 소스 동일성 확인. 기본 npm test 명령에서 신규11개 자동발견/PASS, 실제 API→SQLite 후보→player GET→hover 대표 흐름 PASS. AC1~13은 변경 없는 제품 코드에 한해 r1 실행 근거 재사용하며 전체 시나리오 신규 재실행으로 주장하지 않음. 본인 서버 종료 및 r1 근거 불변 확인.",
+  "scenarios": [
+    {
+      "criterion_id": "AC-1",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-2",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-3",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-4",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/browser-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-5",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/browser-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-6",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/browser-extra-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-7",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-8",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-9",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-10",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/browser-extra-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-11",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/browser-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-12",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/browser-extra-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    },
+    {
+      "criterion_id": "AC-13",
+      "status": "PASS",
+      "evidence": "docs/ax/news-context/verification/v2-r2/run-evidence.md",
+      "execution_mode": "r1 evidence reused after byte-identical product code verification; representative hover reexecuted",
+      "prior_evidence": "docs/ax/news-context/verification/v2/api-results.json",
+      "prior_report": "docs/ax/news-context/verification/v2/report.json"
+    }
+  ],
+  "new_execution_evidence": [
+    "docs/ax/news-context/verification/v2-r2/identity.json",
+    "docs/ax/news-context/verification/v2-r2/vitest-default.log",
+    "docs/ax/news-context/verification/v2-r2/hover-results.json",
+    "docs/ax/news-context/verification/v2-r2/shutdown.json"
+  ],
+  "limitations": [
+    "r1 제품 행동 실행 근거 재사용; 전체 API/build 재실행 안 함",
+    "모델 stub 및 합성 SQLite fixture; actual model 일반 정확도 성과 주장 안 함",
+    "merge/deployment 승인 아님"
+  ]
+}

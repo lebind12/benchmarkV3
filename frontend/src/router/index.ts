@@ -153,6 +153,16 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '뉴스 후보' },
       },
       {
+        path: 'admin/news-analysis',
+        name: 'news-analysis',
+        beforeEnter: async (to) => {
+          const auth = useAuthStore()
+          if (!await auth.verifySession()) return { name: 'login', query: { next: to.fullPath } }
+          return auth.user?.is_active && (auth.isAdmin || auth.isStreamer) ? true : { name: 'not-found' }
+        },
+        component: () => import('@/views/NewsAnalysisView.vue'),
+      },
+      {
         path: 'admin',
         name: 'admin',
         beforeEnter: async (to) => { const auth = useAuthStore(); if (!await auth.verifySession()) return { name: 'login', query: { next: to.fullPath } }; return auth.isAdmin || auth.isStreamer ? true : { name: 'not-found' } },

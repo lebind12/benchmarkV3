@@ -123,6 +123,9 @@ class Settings(BaseSettings):
     google_cloud_project: str | None = Field(default=None)
     google_cloud_location: str = Field(default="global")
     vertex_ai_model: str = Field(default="gemini-3.5-flash")
+    news_analysis_vertex_model: str = Field(default="gemini-3.5-flash")
+    news_analysis_vertex_location: str = Field(default="global", pattern="^[a-z0-9-]+$")
+    news_analysis_timeout_seconds: float = Field(default=60, ge=1, le=60)
     google_application_credentials_json: str | None = Field(default=None)
 
     def model_post_init(self, __context: object) -> None:

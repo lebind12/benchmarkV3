@@ -15,6 +15,7 @@ from app.api.fixture_detail import router as fixture_detail_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.management import router as management_router
+from app.api.v1.news_analysis import router as news_analysis_router
 from app.api.v1.broadcast import router as broadcast_router
 from app.api.v1.fixture_detail_analytics import router as fixture_detail_analytics_router
 from app.api.v1.general import router as general_router
@@ -65,6 +66,7 @@ app.include_router(auth_router)
 app.include_router(broadcast_router)
 app.include_router(admin_router)
 app.include_router(management_router)
+app.include_router(news_analysis_router)
 app.include_router(general_router)
 app.include_router(fixture_detail_router)
 app.include_router(fixture_detail_analytics_router)
