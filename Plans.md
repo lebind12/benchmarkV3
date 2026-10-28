@@ -457,4 +457,4 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 | NEWS-HOVER-MOCK | 프론트 목업과 분석/상세 조회 계약 | 원문 강조·hover/focus/tap 카드, backend 착수 전 계약 검토 | NEWS-HOVER-PLAN | 완료 |
 | NEWS-HOVER-IMPL | Vertex 판별/추출·DB 연결·상세 카드 실연결 | 서버권한·입력/근거/후보 검증·불확실 보류·DB GET 카드 | NEWS-HOVER-MOCK | 완료 — 전용 브랜치 |
 | NEWS-HOVER-VERIFY | 독립 API·브라우저·자동테스트 | AC1~13·모바일·키보드·원문 보존·캐시/역전·NULL/0 검증 | NEWS-HOVER-IMPL | 완료 — 독립 r1/r2 PASS; 기본 테스트 자동발견 확인 |
-| NEWS-HOVER-INTEGRATE | 전용 통합 브랜치 로컬 병합 | 독립 PASS 및 운영자 원본/diff/근거 검토 후 실제 병합 | NEWS-HOVER-VERIFY | 대기 — main/원격/배포 반영 없음 |
+| NEWS-HOVER-INTEGRATE | 전용 통합 브랜치 로컬 병합 | 독립 PASS 및 운영자 원본/diff/근거 검토 후 실제 병합 | NEWS-HOVER-VERIFY | 완료 — codex/news-context-integrated 로컬 병합042e456; main/원격/배포 미반영 |
