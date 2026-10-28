@@ -1,182 +1,120 @@
+"""Legacy read-only compatibility and optional completion adapter checks."""
+from __future__ import annotations
+
 import json
 import os
-import subprocess
 from pathlib import Path
+import shutil
+import subprocess
 
+import pytest
+
+from tests.unit.test_work_flow import Work
 
 ROOT = Path(__file__).resolve().parents[2]
-FEATURE_FLOW = ROOT / "scripts" / "feature-flow.sh"
-ENDPOINT_FLOW = ROOT / "scripts" / "endpoint-flow.sh"
-TASK_COMPLETED_GUARD = ROOT / "scripts" / "harness-task-completed-guard.sh"
+GUARD = ROOT / "scripts/harness-task-completed-guard.sh"
 
 
-def run(cmd, cwd, *, env=None, check=True):
-    merged_env = os.environ.copy()
-    merged_env["HARNESS_PROJECT_ROOT"] = str(cwd)
-    if env:
-        merged_env.update(env)
-    result = subprocess.run(
-        cmd,
-        cwd=cwd,
-        env=merged_env,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
-    if check and result.returncode != 0:
-        raise AssertionError(f"command failed: {cmd}\nstdout={result.stdout}\nstderr={result.stderr}")
-    return result
+def run_legacy(root, kind, command, *args):
+    env = {**os.environ, "HARNESS_PROJECT_ROOT": str(root)}
+    env.pop("HARNESS_STATE_ROOT", None)
+    return subprocess.run([str(ROOT / f"scripts/{kind}-flow.sh"), command, *args],
+                          cwd=root, env=env, capture_output=True, text=True)
 
 
-def test_feature_owner_mismatch_is_rejected(tmp_path):
-    run([FEATURE_FLOW, "init", "main-home", "--task-id", "8"], tmp_path)
+@pytest.fixture
 
-    result = run(
-        [FEATURE_FLOW, "transition", "main-home", "PLAN_DRAFTING", "--by", "fe-dev"],
-        tmp_path,
-        check=False,
-    )
+def legacy(tmp_path):
+    for kind in ("feature", "endpoint"):
+        source = ROOT / f".codex/state/{kind}-flow"
+        shutil.copytree(source, tmp_path / f".codex/state/{kind}-flow")
+    return tmp_path
 
+
+def snapshots(root):
+    return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("kind,item", [("feature", "fixture-detail"),
+                                        ("endpoint", "GET__api_v1_fixtures__id")])
+def test_legacy_read_commands_remain_available_without_mutation(legacy, kind, item):
+    before = snapshots(legacy)
+    for command, args in [("status", [item]), ("validate", [item]),
+                          ("list", []), ("validate-all", [])]:
+        result = run_legacy(legacy, kind, command, *args)
+        assert result.returncode == 0, result.stderr
+    assert snapshots(legacy) == before
+
+
+@pytest.mark.parametrize("kind", ["feature", "endpoint"])
+@pytest.mark.parametrize("command", ["init", "transition", "stage-completed", "start-integration",
+                                      "guard-task-completed"])
+def test_legacy_mutations_and_completion_are_blocked(legacy, kind, command):
+    before = snapshots(legacy)
+    result = run_legacy(legacy, kind, command, "fixture-detail", "--by", "team-lead")
     assert result.returncode != 0
-    assert "Owner mismatch" in result.stderr
+    assert "read-only" in result.stderr
+    assert snapshots(legacy) == before
 
 
-def test_feature_plan_review_requires_plan_artifacts(tmp_path):
-    run([FEATURE_FLOW, "init", "main-home", "--task-id", "8"], tmp_path)
-    run([FEATURE_FLOW, "transition", "main-home", "PLAN_DRAFTING", "--by", "fe-planner"], tmp_path)
-
-    result = run(
-        [FEATURE_FLOW, "transition", "main-home", "PLAN_REVIEW", "--by", "fe-planner"],
-        tmp_path,
-        check=False,
-    )
-
-    assert result.returncode != 0
-    assert "PLAN_REVIEW requires artifacts.spec_path" in result.stderr
+def run_guard(work, payload):
+    root = work.root if isinstance(work, Work) else work
+    env = {**os.environ, "CODEX_PROJECT_DIR": str(root),
+           "HARNESS_STATE_ROOT": str(root / ".codex/state/work-flow")}
+    text = payload if isinstance(payload, str) else json.dumps(payload)
+    return subprocess.run([str(GUARD)], cwd=root, env=env, input=text,
+                          capture_output=True, text=True)
 
 
-def test_task_completed_is_blocked_until_feature_final_state(tmp_path):
-    run([FEATURE_FLOW, "init", "main-home", "--task-id", "8"], tmp_path)
-
-    result = run(
-        [FEATURE_FLOW, "guard-task-completed", "--task-id", "8", "--by", "fe-planner"],
-        tmp_path,
-        check=False,
-    )
-
-    assert result.returncode != 0
-    assert "task_completed rejected" in result.stderr
-
-
-def test_task_completed_blocks_unlinked_workflow_task(tmp_path):
-    task_dir = tmp_path / "home" / ".codex" / "tasks" / tmp_path.name
-    task_dir.mkdir(parents=True)
-    (task_dir / "8.json").write_text(
-        json.dumps(
-            {
-                "id": "8",
-                "subject": "FE1: main-home 페이지 mockup 구현",
-                "owner": "fe-planner",
-                "status": "in_progress",
-                "description": "fe-planner -> fe-dev Mock 라이프사이클",
-            }
-        )
-    )
-
-    result = run(
-        [FEATURE_FLOW, "guard-task-completed", "--task-id", "8", "--by", "fe-planner"],
-        tmp_path,
-        env={"HOME": str(tmp_path / "home")},
-        check=False,
-    )
-
-    assert result.returncode != 0
-    assert "no workflow state is linked" in result.stderr
-
-
-def test_task_completed_hook_blocks_non_final_feature_state(tmp_path):
-    run([FEATURE_FLOW, "init", "main-home", "--task-id", "8"], tmp_path)
-
-    result = subprocess.run(
-        [TASK_COMPLETED_GUARD],
-        cwd=tmp_path,
-        env={**os.environ, "CODEX_PROJECT_DIR": str(tmp_path)},
-        input=json.dumps({"task_id": "8", "teammate_name": "fe-planner", "cwd": str(tmp_path)}),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
-
-    assert result.returncode == 2
+def assert_block(result):
+    assert result.returncode == 2, result.stderr
     assert json.loads(result.stdout)["decision"] == "block"
-    assert "task_completed rejected" in result.stdout
 
 
-def test_task_completed_allows_final_feature_state(tmp_path):
-    state_dir = tmp_path / ".codex" / "state" / "feature-flow"
-    state_dir.mkdir(parents=True)
-    (state_dir / "main-home.json").write_text(
-        json.dumps(
-            {
-                "feature_id": "main-home",
-                "tasklist_id": "8",
-                "current_stage": "FE_DONE_AWAITING_BE",
-                "feature": {"title": "Main home", "requirements_doc": "docs/features/main-home.md"},
-                "phase": "mock",
-                "state": "FE_DONE_AWAITING_BE",
-                "owner": "team-lead",
-                "iteration": {
-                    "plan_review_loop": 0,
-                    "playwright_loop": 0,
-                    "review_loop": 0,
-                    "integration_loop": 0,
-                },
-                "endpoint_requests": ["GET__api_v1_home"],
-                "be_dependency_state": {},
-                "artifacts": {},
-                "evidence": {},
-                "gates": {},
-                "blockers": [],
-                "next_action": {"agent": "team-lead", "command": "complete"},
-            }
-        )
-    )
-
-    result = run([FEATURE_FLOW, "guard-task-completed", "--task-id", "8", "--by", "team-lead"], tmp_path)
-
-    assert "approve" in result.stdout
+@pytest.mark.parametrize("payload", ["{invalid", "", "null", "[]", {}, {"task_id": ""},
+                                     {"task_id": {}}, {"task_id": "unlinked"}])
+def test_adapter_fails_closed_for_missing_invalid_or_unlinked_payload(tmp_path, payload):
+    assert_block(run_guard(tmp_path, payload))
 
 
-def test_endpoint_transition_requires_test_pass_before_review(tmp_path):
-    run([ENDPOINT_FLOW, "init", "phase-1", "--task-id", "1"], tmp_path)
-    run([ENDPOINT_FLOW, "transition", "phase-1", "SPEC_DRAFTING", "--by", "be-test"], tmp_path)
-    run(
-        [
-            ENDPOINT_FLOW,
-            "transition",
-            "phase-1",
-            "SPEC_REVIEW",
-            "--by",
-            "be-test",
-            "--spec-path",
-            "docs/spec/endpoints/phase-1.md",
-            "--testplan-path",
-            "docs/spec/endpoints/phase-1.testplan.md",
-        ],
-        tmp_path,
-    )
-    run([ENDPOINT_FLOW, "transition", "phase-1", "SPEC_APPROVED", "--by", "be-reviewer"], tmp_path)
-    run([ENDPOINT_FLOW, "transition", "phase-1", "IMPL_IN_PROGRESS", "--by", "be-dev"], tmp_path)
-    run([ENDPOINT_FLOW, "transition", "phase-1", "IMPL_PUSHED", "--by", "be-dev", "--impl-commit", "abc1234"], tmp_path)
-    run([ENDPOINT_FLOW, "transition", "phase-1", "TESTING", "--by", "be-test"], tmp_path)
+def test_adapter_blocks_planned_work(tmp_path):
+    work = Work(tmp_path)
+    work.init()
+    assert_block(run_guard(work, {"task_id": "work-1", "agent": "operator"}))
 
-    result = run(
-        [ENDPOINT_FLOW, "transition", "phase-1", "REVIEW_PENDING", "--by", "be-test"],
-        tmp_path,
-        check=False,
-    )
 
-    assert result.returncode != 0
-    assert "test_verdict" in result.stderr
+def merged_work(tmp_path):
+    work = Work(tmp_path)
+    work.prepare()
+    work.decide()
+    work.call("merged", "--merge-commit", work.commit, actor="operator")
+    return work
+
+
+def test_adapter_approves_validated_merged_work(tmp_path):
+    work = merged_work(tmp_path)
+    result = run_guard(work, {"task_id": "work-1", "teammate_name": "operator"})
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(result.stdout)["decision"] == "approve"
+
+
+@pytest.mark.parametrize("defect", ["actor", "state_id", "changed_evidence", "invalid_state"])
+def test_adapter_blocks_mismatched_or_unverifiable_merged_work(tmp_path, defect):
+    work = merged_work(tmp_path)
+    payload = {"task_id": "work-1", "agent": "operator"}
+    if defect == "actor":
+        payload["agent"] = "developer"
+    elif defect == "changed_evidence":
+        work.write("test.log", "changed after merge")
+    elif defect == "invalid_state":
+        work.write(str(work.state_path.relative_to(work.root)), "{invalid")
+    else:
+        state = work.state()
+        state["id"] = "different"
+        work.write_json(str(work.state_path.relative_to(work.root)), state)
+    assert_block(run_guard(work, payload))
+
+
+def test_legacy_final_state_cannot_complete_new_task(legacy):
+    # A preserved terminal legacy state is intentionally insufficient evidence.
+    assert_block(run_guard(legacy, {"task_id": "8", "agent": "team-lead"}))

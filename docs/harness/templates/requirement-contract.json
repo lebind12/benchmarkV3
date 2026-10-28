@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "mode": "QUICK",
+  "goal": "기존 저장 버튼의 표시 문구만 변경한다.",
+  "source_coverage": [
+    {
+      "quote": "저장 버튼의 문구를 저장하기로 바꿔 주세요.",
+      "requirement_ids": [
+        "R1"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "description": "기존 저장 버튼의 표시 문구를 저장하기로 변경한다.",
+      "required": true,
+      "scenarios": [
+        {
+          "id": "R1-S1",
+          "description": "기존 저장 버튼이 저장하기로 표시되고 저장 동작과 접근성 이름이 서로 일치한다."
+        }
+      ]
+    }
+  ],
+  "questions": [],
+  "assumptions": [],
+  "verification_commands": [],
+  "verification_files": [],
+  "owned_paths": [
+    "frontend/src/path/to/component.tsx"
+  ],
+  "constraints": [
+    "기존 저장 동작과 권한은 변경하지 않는다."
+  ],
+  "out_of_scope": [],
+  "max_repairs": 2,
+  "timeout_seconds": 900
+}

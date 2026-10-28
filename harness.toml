@@ -1,11 +1,12 @@
-# Harness v4 Configuration
-# Codex workflow uses .codex/agents, .codex/schemas, and .codex/state.
-# Git workflow uses one checkout with task branches; project agents must not create worktrees.
+# Legacy harness-runner configuration; not the Codex agent settings loader.
+# Active execution: scripts/harness-run.sh (this file is not loaded by it).
+# Active Codex settings: .codex/config.toml; policy: docs/spec/agentic-workflow.md.
+# Worktree isolation follows AGENTS.md. Only the operator decides merges.
 
 [project]
 name = "benchmark"
 version = "0.1.0"
-description = ""
+description = "Operator-led planning, development, independent testing and service portfolio"
 
 [agent]
 # default = "security-reviewer"

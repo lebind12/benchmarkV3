@@ -1,0 +1,519 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+    },
+    "service_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "PLANNED",
+        "DEVELOPING",
+        "MERGE_REQUESTED",
+        "TESTING",
+        "TEST_REPORTED",
+        "CHANGES_REQUESTED",
+        "MERGE_APPROVED",
+        "MERGED",
+        "ESCALATED"
+      ]
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "failed_attempts": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "actors": {
+      "type": "object",
+      "properties": {
+        "operator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "developer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tester": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "operator",
+        "developer",
+        "tester"
+      ],
+      "additionalProperties": false
+    },
+    "brief": {
+      "type": "object",
+      "properties": {
+        "goal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id",
+              "description"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "owned_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "service_plan": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "goal",
+        "acceptance_criteria",
+        "owned_paths",
+        "constraints",
+        "service_plan"
+      ],
+      "additionalProperties": true
+    },
+    "brief_file": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "created_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "updated_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "at": {
+            "type": "string",
+            "minLength": 1
+          },
+          "command": {
+            "enum": [
+              "init",
+              "start",
+              "submit",
+              "test-start",
+              "test-report",
+              "decide",
+              "merged"
+            ]
+          },
+          "by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "from_state": {
+            "enum": [
+              "PLANNED",
+              "DEVELOPING",
+              "MERGE_REQUESTED",
+              "TESTING",
+              "TEST_REPORTED",
+              "CHANGES_REQUESTED",
+              "MERGE_APPROVED",
+              "MERGED",
+              "ESCALATED",
+              null
+            ]
+          },
+          "to_state": {
+            "enum": [
+              "PLANNED",
+              "DEVELOPING",
+              "MERGE_REQUESTED",
+              "TESTING",
+              "TEST_REPORTED",
+              "CHANGES_REQUESTED",
+              "MERGE_APPROVED",
+              "MERGED",
+              "ESCALATED"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "details": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "sequence",
+          "at",
+          "command",
+          "by",
+          "from_state",
+          "to_state",
+          "revision",
+          "details"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "submission": {
+      "type": "object",
+      "properties": {
+        "commit": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "report": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "commit",
+        "report",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "test_brief": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "test": {
+      "type": "object",
+      "properties": {
+        "commit": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "verdict": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "BLOCKED"
+          ]
+        },
+        "report": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "commit",
+        "revision",
+        "verdict",
+        "report",
+        "evidence"
+      ],
+      "additionalProperties": false
+    },
+    "approval": {
+      "type": "object",
+      "properties": {
+        "review": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "review",
+        "commit",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "merge_commit": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "service_plan_file": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "service_id",
+    "task_id",
+    "status",
+    "revision",
+    "failed_attempts",
+    "actors",
+    "brief",
+    "brief_file",
+    "created_at",
+    "updated_at",
+    "events",
+    "service_plan_file"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "MERGE_REQUESTED",
+              "TESTING",
+              "TEST_REPORTED",
+              "MERGE_APPROVED",
+              "MERGED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "submission"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "TESTING",
+              "TEST_REPORTED",
+              "MERGE_APPROVED",
+              "MERGED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "test_brief"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "TEST_REPORTED",
+              "MERGE_APPROVED",
+              "MERGED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "test"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "MERGE_APPROVED",
+              "MERGED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "approval"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "MERGED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "merge_commit"
+        ]
+      }
+    }
+  ]
+}

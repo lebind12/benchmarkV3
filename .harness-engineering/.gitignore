@@ -1,0 +1,3 @@
+# Runtime lock only. Sanitized evidence/history can be versioned deliberately.
+lock
+.harness-*

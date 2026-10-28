@@ -129,6 +129,10 @@ function main() {
     die("Usage: harness-flow.mjs <endpoint|feature> <command> [args...]");
   }
   const cfg = KIND_CONFIG[kind];
+  // Legacy approval/test gates must never authorize new work.
+  if (!["status", "list", "validate", "validate-all"].includes(command)) {
+    die("Legacy workflow is read-only; use scripts/work-flow.sh for new work and completion checks.");
+  }
   const opts = parseArgs(rest);
   const root = opts.projectRoot || process.env.HARNESS_PROJECT_ROOT || findProjectRoot(process.cwd());
 

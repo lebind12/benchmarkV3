@@ -1,0 +1,9 @@
+{
+  "goal": "사용자가 달성할 구체적인 목표",
+  "acceptance_criteria": [
+    {"id": "AC-1", "description": "관찰 가능한 수용 기준"}
+  ],
+  "owned_paths": ["path/to/owned/files"],
+  "constraints": ["적용되는 정책과 작업 제약"],
+  "service_plan": "docs/harness/service-plan.md"
+}
