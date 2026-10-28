@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-10-28T05:32:24.399087+00:00",
+  "base": "e678b7684a98081201fe958c8fe21a297d1c0282",
+  "head": "7bf53915b5f6a90dd785569d45acf5dc909ffac4",
+  "changed_paths": [
+    "docs/ax/news-context/implementation-report-v2-r2.md",
+    "frontend/vitest.config.ts"
+  ],
+  "product_app_and_frontend_source": "byte-identical except vitest.config.ts test discovery include",
+  "uncommitted_product_diff": "none",
+  "r1_evidence_files_hashed": 31
+}

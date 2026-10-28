@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-10-28T05:32:33.700249+00:00",
+  "terminated_owned_processes": [
+    {
+      "pid": 75974,
+      "purpose": "independent API fixture 8027"
+    },
+    {
+      "pid": 76031,
+      "purpose": "independent Vite 5197"
+    }
+  ],
+  "signal": "SIGKILL; preserve immutable r1 redirected server logs without shutdown append",
+  "lsof_exit_code": 1,
+  "lsof_stdout": "",
+  "r1_evidence_hashes_unchanged": true,
+  "r1_file_count": 31
+}

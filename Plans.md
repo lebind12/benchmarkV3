@@ -445,3 +445,16 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
 | MGMT-HOME-PRODUCTION-RELEASE | 관리·홈 통합 push, Koyeb/Vercel production 배포, 실제 운영 UI/API 검증 | 소스74f3370 push·VercelREADY/KoyebHEALTHY·공개API200·관리401가드·실제로그인4탭/검색/refresh·홈중계/스크롤/생성시각·오류0 | HOME-CUP-LATE-ROUNDS, HOME-MAIN-INTEGRATION | cc:완료 [docs/features/production-release-2026-10-26.md, 명시적 사용자 배포 승인] |
+
+
+### 2026-10-28 기사·커뮤니티 글 호버 분석 — FULL
+
+사용자 결정: 텍스트+출처 URL 수동 입력, STREAMER/ADMIN 전용, 축구 관련성 판별 후 본문 영역 호버로 관련 팀·선수 정보와 기록 제공. 정본 계획: `docs/ax/news-context/service-plan-v2.md`. 자동 수집/URL 크롤링/공개 발행/DB 변경은 범위 밖이다.
+
+| Task | 내용 | DoD | Depends | Status |
+|---|---|---|---|---|
+| NEWS-HOVER-PLAN | 기술·운영·기획 검토와 최신 사용자 범위 반영 | FULL 선택·본문 호버·커뮤니티 판별·권한·검증 기준 확정 | - | 완료 |
+| NEWS-HOVER-MOCK | 프론트 목업과 분석/상세 조회 계약 | 원문 강조·hover/focus/tap 카드, backend 착수 전 계약 검토 | NEWS-HOVER-PLAN | 완료 |
+| NEWS-HOVER-IMPL | Vertex 판별/추출·DB 연결·상세 카드 실연결 | 서버권한·입력/근거/후보 검증·불확실 보류·DB GET 카드 | NEWS-HOVER-MOCK | 완료 — 전용 브랜치 |
+| NEWS-HOVER-VERIFY | 독립 API·브라우저·자동테스트 | AC1~13·모바일·키보드·원문 보존·캐시/역전·NULL/0 검증 | NEWS-HOVER-IMPL | 완료 — 독립 r1/r2 PASS; 기본 테스트 자동발견 확인 |
+| NEWS-HOVER-INTEGRATE | 전용 통합 브랜치 로컬 병합 | 독립 PASS 및 운영자 원본/diff/근거 검토 후 실제 병합 | NEWS-HOVER-VERIFY | 대기 — main/원격/배포 반영 없음 |

@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-10-28T05:32:24.200Z",
+  "status": "PASS",
+  "scope": "r2 actual browser analyze POST → actual API/JWT/SQLite candidate linking → actual player DB GET → hover stats; model stub; synthetic fixture, not production data",
+  "observations": {
+    "model_calls": 1,
+    "sql_reads": 9,
+    "writes": 0,
+    "posts": 1,
+    "detail_gets": {
+      "/api/v1/players/bukayo-saka": 1
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-28T05:16:59.719382+00:00",
+  "kind": "live Vertex extraction smoke; synthetic input; no URL fetch or database write",
+  "model": "gemini-3.5-flash",
+  "status": "PASS",
+  "mentions": [
+    {
+      "mention": "Arsenal",
+      "evidence": "Arsenal의 Bukayo Saka가",
+      "entity_type": "team"
+    },
+    {
+      "mention": "Bukayo Saka",
+      "evidence": "Arsenal의 Bukayo Saka가",
+      "entity_type": "player"
+    }
+  ],
+  "all_evidence_in_input": true,
+  "seconds": 4.02
+}

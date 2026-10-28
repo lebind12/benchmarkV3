@@ -1,0 +1,15 @@
+
+> benchmark-frontend@0.0.0 test:unit
+> vitest run src/components/news-analysis/
+
+
+ RUN  v2.1.9 /Users/woolee/.codex/worktrees/news-context/benchmark/frontend
+
+ ✓ src/components/news-analysis/news-analysis-annotations.test.ts (6 tests) 63ms
+ ✓ src/components/news-analysis/news-analysis.test.ts (5 tests) 82ms
+
+ Test Files  2 passed (2)
+      Tests  11 passed (11)
+   Start at  14:32:01
+   Duration  1.06s (transform 672ms, setup 0ms, collect 925ms, tests 145ms, environment 487ms, prepare 199ms)
+

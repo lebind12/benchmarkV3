@@ -1,0 +1,13 @@
+{
+  "method": "SELECT in explicit read-only transaction; no writes",
+  "purpose": "explain v1 unresolved full-name result",
+  "observed_player": {
+    "name": "B. Saka",
+    "firstname": "Bukayo Ayoyinka Temidayo",
+    "lastname": "Saka",
+    "name_ko": "부카요 사카",
+    "short_name_ko": "사카"
+  },
+  "proposed_deterministic_name": "Bukayo Saka",
+  "constraint": "union with canonical candidates; link only if unique; no invented alias"
+}

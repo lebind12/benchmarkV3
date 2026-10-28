@@ -1,0 +1,26 @@
+import { chromium } from '../../../../../frontend/node_modules/playwright/index.mjs'
+import assert from 'node:assert/strict'
+import { writeFileSync } from 'node:fs'
+const dir=new URL('./',import.meta.url)
+const browser=await chromium.launch({headless:true})
+const page=await browser.newPage({viewport:{width:1440,height:1050}})
+await fetch('http://127.0.0.1:8027/__fixture/reset',{method:'POST'})
+await page.goto('http://127.0.0.1:5197/admin/news-analysis')
+const article='⚽ Arsenal의 Bukayo Saka가 축구 경기에 출전했다.\n부카요 사카의 시즌 기록도 궁금하다.'
+await page.locator('#na-source').fill('https://example.com/synthetic-football-post')
+await page.locator('#na-article').fill(article)
+await page.getByRole('button',{name:'글 분석하기',exact:true}).click()
+await page.getByText(/분석 완료 ·/).waitFor()
+assert.equal(await page.locator('.annotated-article').textContent(),article)
+await page.locator('.annotated-name').filter({hasText:/^Bukayo Saka$/}).hover()
+const card=page.locator('#news-entity-card')
+await card.getByText('2026 · Premier League').waitFor()
+assert.match(await card.textContent(),/출전 0 · 골 0 · 도움 정보 없음/)
+assert.match(await card.textContent(),/2026 · FA Cup/)
+assert.equal(await card.getByRole('link',{name:'선수 상세 보기'}).getAttribute('href'),'/players/bukayo-saka')
+await page.screenshot({path:new URL('desktop-hover.png',dir).pathname,fullPage:true})
+const observations=await(await fetch('http://127.0.0.1:8027/__fixture/observations')).json()
+assert.equal(observations.posts,1);assert.equal(observations.detail_gets['/api/v1/players/bukayo-saka'],1);assert.equal(observations.writes,0)
+writeFileSync(new URL('hover-results.json',dir),JSON.stringify({timestamp:new Date().toISOString(),status:'PASS',scope:'r2 actual browser analyze POST → actual API/JWT/SQLite candidate linking → actual player DB GET → hover stats; model stub; synthetic fixture, not production data',observations},null,2))
+await browser.close()
+console.log('PASS actual analysis and hover; latest season per competition/team; NULL/zero distinction; writes=0')

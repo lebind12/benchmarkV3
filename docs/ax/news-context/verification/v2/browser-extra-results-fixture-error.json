@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-10-28T05:29:11.167Z",
+  "scope": "actual app + localhost fixture API/SQLite. Detail error/delay injection only; admin list GETs stubbed empty for layout",
+  "results": [
+    {
+      "name": "overlapping, repeated, emoji and Latin boundaries from actual module",
+      "criteria": [
+        "AC-10"
+      ],
+      "status": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n3 !== 4\n"
+    },
+    {
+      "name": "detail error retry with actual GET on retry",
+      "criteria": [
+        "AC-12"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "slow team GET cannot replace current player; no polling",
+      "criteria": [
+        "AC-12"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "double submit makes one API request",
+      "criteria": [
+        "AC-6"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "390 admin entry is visible and clickable without header overlay",
+      "criteria": [
+        "AC-8"
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "role guard rejects USER and inactive; ADMIN allows",
+      "criteria": [
+        "AC-1"
+      ],
+      "status": "PASS"
+    }
+  ]
+}
