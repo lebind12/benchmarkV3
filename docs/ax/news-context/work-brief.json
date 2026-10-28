@@ -1,0 +1,61 @@
+{
+  "goal": "관리자가 외부 기사 텍스트와 URL을 입력해 실제 팀·선수 연결과 근거를 확인한다",
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "description": "STREAMER/ADMIN 화면·서버 권한 및 비로그인/USER/비활성 거부"
+    },
+    {
+      "id": "AC-2",
+      "description": "텍스트와 HTTP(S) 출처 URL 검증 및 길이 상한"
+    },
+    {
+      "id": "AC-3",
+      "description": "DB/원문 검증 대상만 연결, 동명이인/후보 부재 보류"
+    },
+    {
+      "id": "AC-4",
+      "description": "입력 원문 근거와 DB 상세 링크 및 출처 표시"
+    },
+    {
+      "id": "AC-5",
+      "description": "로딩/완료/없음/보류/실패 구분과 입력 보존·재시도"
+    },
+    {
+      "id": "AC-6",
+      "description": "중복 실행 방지 및 변경된 입력에 대한 오래된 결과 무시"
+    },
+    {
+      "id": "AC-7",
+      "description": "URL fetch/HTML 실행/기사 전문 로그 없음, timeout·호출 제한"
+    },
+    {
+      "id": "AC-8",
+      "description": "분석 결과 공개 등록 및 DB 변경 없음, 기존 화면 회귀 없음"
+    }
+  ],
+  "owned_paths": [
+    "frontend/src/views/NewsAnalysisView.vue",
+    "frontend/src/components/news-analysis/",
+    "frontend/src/lib/api/news-analysis.ts",
+    "frontend/src/router/index.ts",
+    "frontend/src/views/AdminView.vue",
+    "frontend/endpoint-requests/POST__api_v1_admin_management_news_analyze.request.json",
+    "frontend/src/**/news-analysis*.test.ts",
+    "app/api/v1/news_analysis.py",
+    "app/services/news_analysis.py",
+    "app/services/news_analysis_vertex.py",
+    "app/main.py",
+    "app/core/config.py",
+    "tests/unit/test_news_analysis.py",
+    "tests/integration/test_news_analysis.py",
+    "docs/ax/news-context/implementation-report.md"
+  ],
+  "constraints": [
+    "FULL",
+    "프론트 목업과 endpoint 계약 먼저 제출, 운영자 지시 후 backend 시작",
+    "공개 저장/URL fetch/배포/운영 DB 변경 금지",
+    "다른 작업자 변경 보존"
+  ],
+  "service_plan": "docs/ax/news-context/service-plan-v1.md"
+}
