@@ -35,7 +35,7 @@ def client(monkeypatch):
     app.dependency_overrides[db.get_db_session] = session_override
     monkeypatch.setattr(sessions, '_secret', lambda: 'test-news-secret-key-with-at-least-32-characters')
     monkeypatch.setattr(api, 'limiter', AnalysisLimiter())
-    monkeypatch.setattr(api, 'extract_bounded', lambda article: {'mentions':[{'mention':'Arsenal','evidence':'Arsenal','entity_type':'team'}]})
+    monkeypatch.setattr(api, 'extract_bounded', lambda article: {'relevance':'football','relevance_evidence':'Arsenal','mentions':[{'mention':'Arsenal','evidence':'Arsenal','entity_type':'team'}]})
     with TestClient(app) as client:
         yield client
     engine.dispose()
@@ -81,7 +81,7 @@ def test_limit_and_safe_error(client, monkeypatch):
 def test_timeout_and_empty(client, monkeypatch):
     monkeypatch.setattr(api, 'extract_bounded', lambda article: (_ for _ in ()).throw(TimeoutError()))
     assert client.post(PATH, json=BODY, headers=headers(1)).status_code == 504
-    monkeypatch.setattr(api, 'extract_bounded', lambda article: {'mentions':[]})
+    monkeypatch.setattr(api, 'extract_bounded', lambda article: {'relevance':'football','relevance_evidence':'Arsenal','mentions':[]})
     assert client.post(PATH, json=BODY, headers=headers(1)).json()['mentions'] == []
 
 
@@ -93,3 +93,21 @@ def test_actual_wait_timeout(client, monkeypatch):
         assert client.post(PATH, json=BODY, headers=headers(1)).status_code == 504
     finally:
         gate.set()
+
+
+@pytest.mark.parametrize('relevance', ['not_football', 'uncertain'])
+def test_api_relevance_and_no_links(client, monkeypatch, relevance):
+    monkeypatch.setattr(api, 'extract_bounded', lambda article: {'relevance': relevance, 'relevance_evidence': 'Arsenal', 'mentions': [{'mention':'Arsenal','evidence':'Arsenal','entity_type':'team'}]})
+    response = client.post(PATH, json=BODY, headers=headers(1))
+    assert response.status_code == 200
+    assert response.json()['relevance'] == relevance
+    assert response.json()['mentions'] == []
+
+
+def test_api_missing_relevance_fails_and_bad_evidence_downgrades(client, monkeypatch):
+    monkeypatch.setattr(api, 'extract_bounded', lambda article: {'mentions': []})
+    assert client.post(PATH, json=BODY, headers=headers(1)).status_code == 503
+    monkeypatch.setattr(api, 'extract_bounded', lambda article: {'relevance':'football','relevance_evidence':'invented','mentions': []})
+    response = client.post(PATH, json=BODY, headers=headers(1))
+    assert response.status_code == 200
+    assert response.json()['relevance'] == 'uncertain'

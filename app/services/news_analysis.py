@@ -5,9 +5,10 @@ import time
 import unicodedata
 from collections import deque
 from urllib.parse import quote, urlsplit
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 
 from app.models import Player, PlayerTranslation, Team, TeamTranslation
 
@@ -35,6 +36,8 @@ class ExtractedMention(BaseModel):
 
 class Extraction(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
+    relevance: Literal["football", "not_football", "uncertain"]
+    relevance_evidence: str = Field(max_length=600)
     mentions: list[ExtractedMention] = Field(max_length=30)
 
 
@@ -68,11 +71,19 @@ def candidates_for(session, kind, mention):
         ).where(or_(func.lower(Team.name) == key, func.lower(TeamTranslation.name_ko) == key)).limit(6)
         return [dict(id=row.id, name=row.name_ko or row.name, slug=row.slug) for row in session.execute(query)]
     full = func.trim(func.coalesce(Player.firstname, "") + " " + func.coalesce(Player.lastname, ""))
+    # Deterministic shortened first name, never model-generated aliases. The same query
+    # unions exact and derived matches, so collisions remain ambiguous.
+    first, separator, last = key.partition(" ")
+    derived = and_(
+        func.lower(Player.lastname) == last,
+        or_(func.lower(Player.firstname) == first,
+            func.lower(Player.firstname).startswith(first + " ", autoescape=True)),
+    ) if separator else False
     query = select(Player.id, Player.name, Player.slug, Player.firstname, Player.lastname,
                    PlayerTranslation.name_ko).outerjoin(
         PlayerTranslation, PlayerTranslation.player_id == Player.id
     ).where(or_(func.lower(Player.name) == key, func.lower(PlayerTranslation.name_ko) == key,
-                func.lower(full) == key)).limit(6)
+                func.lower(full) == key, derived)).limit(6)
     candidates = []
     for row in session.execute(query):
         # A single surname/first name cannot establish identity, even when unique in this DB.
@@ -88,6 +99,13 @@ def candidates_for(session, kind, mention):
 
 def link_mentions(session, article_text, source_url, payload):
     extraction = Extraction.model_validate(payload)
+    relevance = extraction.relevance
+    relevance_evidence = extraction.relevance_evidence
+    if not relevance_evidence.strip() or relevance_evidence not in article_text:
+        relevance, relevance_evidence = "uncertain", ""
+    if relevance != "football":
+        return {"source_url": source_url, "relevance": relevance,
+                "relevance_evidence": relevance_evidence, "mentions": []}
     results, seen = [], set()
     for item in extraction.mentions:
         if item.evidence not in article_text or not literal_name_present(item.mention, item.evidence, article_text):
@@ -107,11 +125,12 @@ def link_mentions(session, article_text, source_url, payload):
             entity = {"id": candidate["id"], "name": candidate["name"],
                       "detail_path": f"/{prefix}/{quote(candidate['slug'], safe='')}"}
         results.append({**item.model_dump(), "status": status, "entity": entity, "reason": {
-            "linked": "원문 이름과 일치하는 DB 대상을 확인했습니다.",
+            "linked": "원문 이름과 일치하는 등록된 팀·선수를 확인했습니다.",
             "ambiguous": "같은 이름의 후보가 여러 명이어서 연결을 보류했습니다.",
-            "unresolved": "이 이름만으로 확인할 수 있는 DB 대상이 없어 연결을 보류했습니다.",
+            "unresolved": "이 이름만으로 등록된 팀·선수를 확인할 수 없어 연결을 보류했습니다.",
         }[status]})
-    return {"source_url": source_url, "mentions": results}
+    return {"source_url": source_url, "relevance": relevance,
+            "relevance_evidence": relevance_evidence, "mentions": results}
 
 
 class AnalysisLimiter:

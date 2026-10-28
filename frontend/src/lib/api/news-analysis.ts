@@ -12,12 +12,12 @@ export interface NewsMention {
   reason: string
   entity: { id: number; name: string; detail_path: string } | null
 }
-export interface NewsAnalysisResult { source_url: string; mentions: NewsMention[] }
+export interface NewsAnalysisResult { source_url: string; relevance: 'football' | 'not_football' | 'uncertain'; relevance_evidence: string; mentions: NewsMention[] }
 export type NewsAnalyzer = (input: NewsAnalysisInput, signal: AbortSignal) => Promise<NewsAnalysisResult>
 
 export function validateNewsInput(input: NewsAnalysisInput): string {
-  if (!input.article_text.trim()) return '기사 텍스트를 입력하세요.'
-  if (input.article_text.length > ARTICLE_LIMIT) return '기사 텍스트는 20,000자까지 입력할 수 있습니다.'
+  if (!input.article_text.trim()) return '글 본문를 입력하세요.'
+  if (input.article_text.length > ARTICLE_LIMIT) return '글 본문는 20,000자까지 입력할 수 있습니다.'
   if (!input.source_url.trim()) return '출처 URL을 입력하세요.'
   if (input.source_url.length > SOURCE_URL_LIMIT) return '출처 URL은 2,048자까지 입력할 수 있습니다.'
   if (/[\u0000-\u0020\u007f\\]/.test(input.source_url)) return '공백·제어문자 없는 HTTP(S) 출처 URL을 입력하세요.'
