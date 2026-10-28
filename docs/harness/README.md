@@ -12,6 +12,7 @@
 
 - [실행 안내](external-control.md) — `scripts/harness-run.sh --help`
 - [요구사항 작성 안내](templates/requirements.md) · [계약 JSON](templates/requirement-contract.json)
+- [Karpathy 지침 비교·반영 근거](../decisions/2026-10-28-karpathy-guidelines.md) — 요구사항을 유지한 단순한 구현과 변경 범위 검토
 - [FULL 서비스 기획 보조](templates/service-plan.md) · [QUICK 결과 메모](templates/quick-change.md)
 - [서비스 포트폴리오](templates/service-portfolio.md)
 

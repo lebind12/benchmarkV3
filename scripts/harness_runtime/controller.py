@@ -265,6 +265,13 @@ class Controller:
         self._boundary(state)
         prompt = ("Read-only independent requirements review. Compare the ENTIRE original request with the contract. "
                   "Find omissions, unsupported assumptions, ambiguity and non-verifiable scenarios. Do not edit files. "
+                  "Check materially different interpretations against existing code and decisions. Only unresolved choices "
+                  "that change behavior, permissions, data or scope need clarification; do not reopen settled decisions. "
+                  "Check that the plan preserves every required behavior and existing policy without speculative features, "
+                  "abstractions or configuration. Simplicity must never justify omitted error handling, permissions, "
+                  "data protection, weaker acceptance criteria or deferral of requirements. Necessary dependencies are allowed. "
+                  "For bug fixes, check reproduction conditions, expected behavior and links to any actual pre-fix evidence; "
+                  "unavailable reproduction must be stated honestly with an appropriate alternative check. Do not invent evidence. "
                   "Return the supplied report schema. PASS only if every required scenario is adequately specified, "
                   "with exact requirement/scenario IDs and concrete rationale in evidence. Any semantic omission goes in coverage_gaps.\n"
                   + json.dumps({"original_request": state["original_request"], "request_additions": state.get("request_additions", []),
@@ -340,7 +347,19 @@ class Controller:
             prompt = ("Implement this frozen contract within owned_paths. Do not alter verification_files, "
                       "runtime/controller sources, contract, approval records, git branches, credentials, or deployment. "
                       "Do not merge/push/deploy. A final message is a submission only. Run no host tests; the external controller "
-                      "executes frozen verification. Preserve every requirement.\n" + json.dumps({"original_request": state["original_request"],
+                      "executes frozen verification. Preserve every requirement. Choose the simplest implementation that "
+                      "satisfies ALL required behavior and existing policies. Reuse existing patterns and style; do not add "
+                      "speculative abstractions, configuration options or future features without a current requirement or "
+                      "necessary dependency. Simplicity never permits dropping error handling, permissions, data protection, "
+                      "acceptance criteria or deferring work. Do not optimize for line count. "
+                      "Trace each substantive change to a requirement or necessary dependency. Do not refactor unrelated code "
+                      "or rewrite adjacent comments/formatting. Remove only imports, variables or functions made unused by "
+                      "YOUR changes; report unrelated pre-existing dead code without deleting it. Preserve other contributors' edits. "
+                      "Resolve uncertainty from existing code/decisions first. Report unresolved material ambiguity to the "
+                      "operator with interpretations and tradeoffs; do not silently invent policy or ask about routine implementation choices. "
+                      "For bug fixes, use the documented reproduction and expected behavior; report which change addresses them "
+                      "and any missing pre-fix evidence without claiming unexecuted checks. Report requirement IDs, changed "
+                      "locations, reasons for necessary structural changes and remaining limitations.\n" + json.dumps({"original_request": state["original_request"],
                       "request_additions": state.get("request_additions", []), "contract": contract,
                       "previous_feedback": state.get("feedback")}, ensure_ascii=False))
             developed = self._agent(state, "development", prompt, model, read_only=False)
@@ -369,6 +388,17 @@ class Controller:
             if command_pass:
                 prompt = ("Read-only independent CODE and behavior review. Inspect implementation against the complete original request "
                           "and frozen contract. External verification commands below were actually run by the host. Read their logs. "
+                          "Inspect the actual diff and surrounding code, distinguishing pre-existing edits from this task. "
+                          "Trace each substantive change, including changes inside owned_paths, to a requirement or necessary "
+                          "dependency. Check for speculative abstractions/configuration, unrelated refactoring, adjacent "
+                          "comment/format churn and deletion of pre-existing dead code. Do not mistake required integration, "
+                          "error handling, permissions or data protection for overengineering. Do not judge by line count or "
+                          "personal style. For unjustified changes/complexity, return FAIL and put concrete file/change references "
+                          "and reasons in coverage_gaps; describe justified structural changes in summary. If the change baseline "
+                          "is unavailable, state that limitation instead of inventing attribution. "
+                          "For bug fixes compare supplied pre-fix reproduction evidence with the actual post-fix verification "
+                          "under equivalent conditions. Distinguish missing reproduction from a successful observed reproduction, "
+                          "and assess the documented alternative check. Do not require invented tests for copy/style changes. "
                           "Do not claim a test ran solely from a model report. For each exact required scenario ID give actual "
                           "observations and cite the relevant command ID in evidence. Return PASS only with no coverage gaps, "
                           "passing external receipts and correct implementation. Actually execute appropriate read-only inspection "
