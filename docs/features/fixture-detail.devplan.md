@@ -289,7 +289,7 @@ export interface StandingRowDetail {
 }
 ```
 
-Integration 단계에서 zod 스키마 정의 (fe-workflow §9).
+Integration 단계에서 zod 스키마 정의.
 
 ---
 

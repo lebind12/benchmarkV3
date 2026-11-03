@@ -156,9 +156,6 @@
 - API-Football semaphore 상한 튜닝 (현재 6, 실측 후 조정)
 - 다중 인스턴스 스케일 도입 시 워커 분산 락 (Upstash `SET NX`) 추가 필요
 
-## 12. Harness 운영
+## 12. 프로젝트 운영 정책
 
-- 계획: Plans.md (v2 포맷, Task/내용/DoD/Depends/Status)
-- 실행: `/harness-work` 계열
-- 동기화: `/harness-sync`
 - 본 CLAUDE.md 는 도메인/규칙의 SSOT. 변경 시 PR 또는 명시적 결정 기록 동반

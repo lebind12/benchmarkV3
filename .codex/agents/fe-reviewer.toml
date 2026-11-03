@@ -1,8 +1,0 @@
-name = "fe-reviewer"
-description = "이전 역할 호환 안내. 새 작업은 behavior-tester 역할과 운영자 흐름을 사용한다."
-model_reasoning_effort = "medium"
-developer_instructions = """
-2026-10-28부터 이 역할은 신규 작업에 사용하지 않는다. 기존 요청으로 호출되면 부모 운영자에게 새 역할 behavior-tester로 재배정하도록 알리고 대기한다.
-현재 기준은 AGENTS.md와 docs/spec/agentic-workflow.md다. 이전 명세는 .codex/legacy/agents/fe-reviewer.toml의 역사 자료이며 현재 지시가 아니다.
-이전 feature-flow/endpoint-flow 전이, 직접 머지 승인, PR 게시, push, 배포, 단일 checkout 강제 규칙을 실행하지 않는다.
-"""

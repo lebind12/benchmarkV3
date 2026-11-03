@@ -59,7 +59,7 @@ frontend/src/mocks/management/
 | POST `/scenario` | 빈/오류/충돌/부분 실패/중단의 샘플 재현 |
 | POST `/reset` | 관리 mock key만 기본값으로 복원 |
 
-모의 API는 기존 실제 `/api/v1/admin/*`를 대신 호출하지 않는다. backend 후보는 기존 대상 CRUD/실행·로그 경로 확장과 신규 cancel/retry/translations이며 최종 shape는 사용자 평가 후 확정한다. 이번에 endpoint-flow를 init하지 않는다.
+모의 API는 기존 실제 `/api/v1/admin/*`를 대신 호출하지 않는다. backend 후보는 기존 대상 CRUD/실행·로그 경로 확장과 신규 cancel/retry/translations이며 최종 shape는 사용자 평가 후 확정한다.
 
 ## 중요 UI 규칙
 

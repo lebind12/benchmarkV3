@@ -7,7 +7,7 @@ created: 2026-05-14
 
 # main-home — Playwright 테스트 플랜 (testplan)
 
-레이어 정의: `docs/spec/fe-workflow.md` §8 그대로.
+레이어 정의: L1 단위 테스트, L2 mock 기반 브라우저 테스트, L3 실제 API 통합 테스트, L4 배포 후 smoke 테스트.
 
 - **L1** Vitest (unit / component) — 인메모리 mock
 - **L2** Playwright + MSW — `VITE_USE_MOCK=true`, 본 feature 의 mock handler 사용
