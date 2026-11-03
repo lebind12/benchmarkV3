@@ -177,16 +177,8 @@
 - API-Football semaphore 상한 튜닝 (현재 6, 실측 후 조정)
 - 다중 인스턴스 스케일 도입 시 워커 분산 락 (Upstash `SET NX`) 추가 필요
 
-## 13. Harness 운영
+## 13. 프로젝트 운영 정책
 
-- 계획: Plans.md (v2 포맷, Task/내용/DoD/Depends/Status)
-- 에이전트 명세: `.codex/agents/*.toml`
-- 상태 파일: `.codex/state/{feature-flow,endpoint-flow}/`
-- 스키마: `.codex/schemas/*.schema.json`
-- 실행: `scripts/feature-flow.sh`, `scripts/endpoint-flow.sh`
-- 동기화: Claude legacy 산출물은 `.claude/` 에 보관하고, Codex 운영 정본은 `.codex/` 를 사용
-- Git 작업 방식(2026-10-25 사용자 결정): 관리·메인·자연어 검색 AX 세션은 각각 별도 worktree와 작업 브랜치를 사용한다. 관리 원본은 `/Users/woolee/benchmark`, 메인은 `/Users/woolee/benchmark-main`, AX는 `/Users/woolee/benchmark-ax`다. 각 세션은 자기 worktree에서만 편집하고 다른 세션의 HEAD·인덱스·작업 파일을 변경하지 않는다. 결정 기록은 `docs/decisions/2026-10-25-ax-worktree.md`를 따른다.
-- 같은 worktree의 공유 편집·브랜치 전환은 순차적으로 수행한다. 서로 다른 worktree의 세션은 독립 작업할 수 있다. 같은 브랜치를 여러 worktree에 중복 checkout하지 않으며, 공용 파일은 커밋/병합으로 조정하고 서버 포트·테스트 데이터/Redis 키를 분리한다. 다른 세션의 미커밋 작업에 stash/reset/clean/전체 일괄 커밋을 하지 않는다.
 - 본 AGENTS.md 는 도메인/규칙의 SSOT. 변경 시 PR 또는 명시적 결정 기록 동반
 - 배포 금지 원칙: 사용자가 **"배포해"** 라고 명시적으로 요청하지 않는 한 Koyeb/Vercel/GitHub Actions 등 어떤 서비스에서도 deployment 를 트리거하지 않는다.
 - 배포성 명령에는 `koyeb services update`, `koyeb deploy`, `vercel deploy`, 배포 환경변수 변경, 서비스 재시작/롤링 업데이트가 포함된다. "서비스에 연결", "설정해", "환경변수 넣어" 같은 표현은 배포 허가가 아니다.

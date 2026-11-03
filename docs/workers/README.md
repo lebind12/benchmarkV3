@@ -5,7 +5,6 @@
 한 파일 = 한 워커. BE 팀(be-test → be-dev → be-reviewer)이 이 파일을 입력으로 받아 구현한다.
 
 상위:
-- BE 워크플로: `@docs/spec/agent-workflow.md` (endpoint 라이프사이클을 워커에 적용 가능 — 본 문서 §하단 참조)
 - 도메인 SSOT: `@AGENTS.md` (§4 워커 정책)
 - 작업 정본: `@Plans.md` (Phase 4 / 5 / 6 의 task 들)
 
@@ -111,18 +110,8 @@ status: requirements-only
 - ...
 ```
 
-## 핸드오프 절차 (메인 → BE 팀)
+## 개발 순서
 
-1. 메인이 `docs/workers/<worker_id>.md` 작성 / 확정
-2. 메인이 BE 팀(`be-test`)에 트리거 — 요구사항 정제 + 테스트 플랜 작성
-3. be-test → be-dev → be-reviewer 의 라이프사이클 적용 (단, endpoint 가 아니므로 `agent-workflow.md` 의 일부 단계는 생략 가능)
-4. Plans.md 의 Phase 4/5/6 task 들을 본 문서를 정본으로 삼아 작업
-
-## endpoint-flow 와의 차이
-
-| 항목 | endpoint | worker |
-|---|---|---|
-| 외부 인터페이스 | HTTP API | 없음 (스케줄/이벤트) |
-| 상태 머신 | endpoint-flow (FE_REQUESTED → ... → MERGED) | 단순화: be-test → be-dev → be-reviewer (혹은 인프라 패턴) |
-| 머지 게이트 조건 | spec / 단위 / 통합 / reviewer | 단위 / 통합 (멱등성) / reviewer |
-| 핸드오프 문서 | `frontend/endpoint-requests/*.request.json` | `docs/workers/<worker_id>.md` (본 문서) |
+1. `docs/workers/<worker_id>.md`의 요구사항을 확정한다.
+2. 적재·멱등성·재시작·실패 조건을 구현하고 단위·통합 테스트로 확인한다.
+3. 실제 결과를 `Plans.md`의 관련 작업에 기록한다.

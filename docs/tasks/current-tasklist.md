@@ -2,20 +2,18 @@
 
 갱신일: 2026-05-24
 
-이 문서는 `Plans.md` 와 `.codex/state` 를 대조해 만든 현재 실행용 태스크리스트다. 장기 계획의 정본은 `Plans.md` 이고, workflow 상태의 정본은 `.codex/state/{feature-flow,endpoint-flow}/` 이다.
+이 문서는 작성일 시점의 제품 작업 기록이다. 현재 작업 정본은 `Plans.md`다.
 
 ## 현재 진행 요약
 
 | 영역 | 현재 상태 | 근거 |
 |---|---|---|
-| Codex harness migration | `.codex/agents`, `.codex/schemas`, `.codex/state`, `scripts/*-flow.sh` 존재. `validate-all` PASS | `.codex/`, `scripts/harness-flow.mjs` |
-| FE mock: main-home | Mock lifecycle 완료, BE 대기 | `.codex/state/feature-flow/main-home.json` = `FE_DONE_AWAITING_BE` |
-| FE mock: fixture-detail | Mock lifecycle 완료, BE 대기 | `.codex/state/feature-flow/fixture-detail.json` = `FE_DONE_AWAITING_BE` |
-| FE mock: broadcast-match-overlay | Mock lifecycle 완료, BE 대기 | `.codex/state/feature-flow/broadcast-match-overlay.json` = `FE_DONE_AWAITING_BE` |
-| BE foundation | DB schema / league active / transfer-injury-news / h2h / translation-filler 완료 | endpoint-flow foundation states = `MERGED` |
-| BE FE-follow endpoints | home 7개 + fixture-detail 6개가 `SPEC_REVIEW`; broadcast overlay는 `FE_REQUESTED` | `.codex/state/endpoint-flow/GET__*.json` |
+| FE mock: main-home | Mock lifecycle 완료, BE 대기 | 작성 당시의 화면·검증 기록 |
+| FE mock: fixture-detail | Mock lifecycle 완료, BE 대기 | 작성 당시의 화면·검증 기록 |
+| FE mock: broadcast-match-overlay | Mock lifecycle 완료, BE 대기 | 작성 당시의 화면·검증 기록 |
+| BE foundation | DB schema / league active / transfer-injury-news / h2h / translation-filler 완료 | 작성 당시의 기반 기능 구현 기록 |
+| BE FE-follow endpoints | home 7개 + fixture-detail 6개가 `SPEC_REVIEW`; broadcast overlay는 `FE_REQUESTED` | 작성 당시의 화면·검증 기록 |
 | Local unit probe | home endpoint unit 29/29 PASS, fixture-detail endpoint unit 22/22 PASS, worker/admin unit 22/22 PASS | 2026-05-24 로컬 실행 |
-| Harness unit probe | harness-flow unit 7/7 PASS | 2026-05-24 로컬 실행 |
 | Frontend integration | 미시작 | BE endpoint `MERGED` 이후 시작 가능 |
 | Infra secrets / CI | 미완료 | `.github/` 없음, `Plans.md` 0.1~0.3 / 7.5~7.9 / 10.7~10.10 |
 
@@ -23,8 +21,6 @@
 
 | Priority | Task | 내용 | DoD | Depends | Owner |
 |---|---|---|---|---|---|
-| P0 | T0.1 | 기록/상태 정리 커밋 | `Plans.md`, `docs/tasks/current-tasklist.md`, `.codex` state가 현재 진행과 일치하고 커밋됨 | - | team-lead |
-| P0 | T0.2 | 하네스 검증 재확인 | `scripts/feature-flow.sh validate-all` + `scripts/endpoint-flow.sh validate-all` 통과 | T0.1 | team-lead |
 | P0 | T1.1 | 13개 일반/디테일 endpoint spec review | home 7개 + fixture-detail 6개가 `SPEC_APPROVED` 로 전이 | T0.2 | be-reviewer |
 | P0 | T1.2 | broadcast overlay endpoint lifecycle 시작 | `GET__api_v1_broadcast_fixtures__id__overlay` spec/test 작성 후 `SPEC_REVIEW` | T0.2 | be-test |
 | P1 | T2.1 | 13개 일반/디테일 endpoint integration test 실행 | 관련 integration test PASS 로그 기록 | T1.1 | be-test |
@@ -55,7 +51,6 @@
 
 ## 현재 주의점
 
-- `.codex/state` 는 official workflow 상태만 나타낸다. 현재 작업트리에 home/fixture-detail endpoint 구현이 있고 unit probe는 green이지만, 아직 spec approval / integration / implementation review / merge gate가 끝난 것은 아니다.
 - `GET /api/v1/broadcast/fixtures/{external_id}/overlay` 는 아직 실제 라우트가 없다. 현재 [app/api/v1/broadcast.py](/Users/woolee/benchmark/app/api/v1/broadcast.py:31)는 `POST /api/v1/broadcast/translations` 만 제공한다.
 - `.github/` 디렉터리가 없어 CI/GH Actions 계열 작업은 모두 남아 있다.
 - 대량 source/frontend/assets 변경은 이번 P0 기록 커밋과 분리한다.

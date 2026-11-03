@@ -7,7 +7,7 @@ created: 2026-05-14
 
 # fixture-detail — Playwright 테스트 플랜 (testplan)
 
-레이어: `docs/spec/fe-workflow.md` §8. L1 Vitest / L2 Playwright + MSW / L3 Playwright integration (Vercel preview + prod BE + zod) / L4 prod smoke.
+레이어: L1 Vitest / L2 Playwright + MSW / L3 Playwright integration (Vercel preview + prod BE + zod) / L4 prod smoke.
 
 mock 머지 게이트 = L1 + L2.
 
