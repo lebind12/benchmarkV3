@@ -5,7 +5,6 @@
 
 상위:
 - 도메인: `@AGENTS.md`
-- FE 워크플로: `@docs/spec/fe-workflow.md`
 - 메인 페이지 spec: `@docs/features/main-home.md`
 
 ---

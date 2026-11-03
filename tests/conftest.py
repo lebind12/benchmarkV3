@@ -47,7 +47,7 @@ def test_database_url() -> str:
     if not url:
         # 환경 가드: 격리 schema 를 만들 실 Postgres 가 없으면 통합 테스트만 skip.
         # 정책 정본: docs/spec/endpoints/phase-1-db-schema.testplan.md §1,
-        # docs/spec/agent-workflow.md §8 (외부 의존성 mock 정책).
+        # 외부 의존성은 mock으로 대체한다.
         # 테스트 로직 자체를 무력화하는 것이 아니라 환경 부재 시의 정상 동작.
         pytest.skip("TEST_DATABASE_URL 미설정 — 통합 테스트 skip (환경 가드)")
     return _normalize_driver(url)

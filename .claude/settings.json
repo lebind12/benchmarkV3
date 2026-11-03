@@ -33,7 +33,6 @@
       "Bash(awk:*)",
       "Bash(cut:*)",
       "Bash(xargs:*)",
-
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
@@ -62,7 +61,6 @@
       "Bash(git reset:*)",
       "Bash(git mv:*)",
       "Bash(git rm:*)",
-
       "Bash(node --version)",
       "Bash(node -v)",
       "Bash(npm --version)",
@@ -80,7 +78,6 @@
       "Bash(pnpm:*)",
       "Bash(yarn:*)",
       "Bash(bun:*)",
-
       "Bash(python3 --version)",
       "Bash(python3 -V)",
       "Bash(python --version)",
@@ -101,7 +98,6 @@
       "Bash(black:*)",
       "Bash(mypy:*)",
       "Bash(isort:*)",
-
       "Bash(alembic current:*)",
       "Bash(alembic history:*)",
       "Bash(alembic heads:*)",
@@ -113,7 +109,6 @@
       "Bash(alembic merge:*)",
       "Bash(alembic stamp:*)",
       "Bash(alembic check:*)",
-
       "Bash(supabase --version)",
       "Bash(supabase -v)",
       "Bash(supabase --help)",
@@ -171,7 +166,6 @@
       "Bash(supabase postgres-config get:*)",
       "Bash(supabase postgres-config update:*)",
       "Bash(supabase typegen:*)",
-
       "Bash(upstash --version)",
       "Bash(upstash -v)",
       "Bash(upstash --help)",
@@ -205,7 +199,6 @@
       "Bash(upstash vector list:*)",
       "Bash(upstash vector get:*)",
       "Bash(upstash vector create:*)",
-
       "Bash(vercel --version)",
       "Bash(vercel -v)",
       "Bash(vercel --help)",
@@ -224,7 +217,6 @@
       "Bash(vercel build:*)",
       "Bash(vercel deploy:*)",
       "Bash(vercel:*)",
-
       "Bash(koyeb --version)",
       "Bash(koyeb -v)",
       "Bash(koyeb --help)",
@@ -249,7 +241,6 @@
       "Bash(koyeb domain get:*)",
       "Bash(koyeb regions list:*)",
       "Bash(koyeb organization list:*)",
-
       "Bash(gh --version)",
       "Bash(gh auth status)",
       "Bash(gh auth login:*)",
@@ -281,14 +272,9 @@
       "Bash(gh secret list:*)",
       "Bash(gh secret set:*)",
       "Bash(gh api:*)",
-
-      "Bash(harness:*)",
       "Bash(bash scripts/:*)",
       "Bash(./scripts/:*)",
       "Bash(sh scripts/:*)",
-      "Bash(scripts/endpoint-flow.sh:*)",
-      "Bash(scripts/feature-flow.sh:*)",
-
       "Bash(docker ps:*)",
       "Bash(docker images:*)",
       "Bash(docker logs:*)",
@@ -297,7 +283,6 @@
       "Bash(docker compose logs:*)",
       "Bash(docker compose ps:*)",
       "Bash(docker compose build:*)",
-
       "Bash(curl http://localhost:*)",
       "Bash(curl https://localhost:*)",
       "Bash(curl http://127.0.0.1:*)"

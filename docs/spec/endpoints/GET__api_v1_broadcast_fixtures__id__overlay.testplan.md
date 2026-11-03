@@ -98,8 +98,6 @@ Expected Red symptoms:
 - Route-level tests fail until `app.api.v1.broadcast` exposes
   `get_broadcast_current_user()` and `get_broadcast_overlay_service()`.
 
-The Red log is recorded in
-`.codex/state/endpoint-flow/GET__api_v1_broadcast_fixtures__id__overlay/unit.log`.
 
 ## 5. Coverage Target
 
