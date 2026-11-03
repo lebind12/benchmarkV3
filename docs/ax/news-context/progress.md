@@ -1,13 +1,12 @@
 # 진행 기록
 
 ## 2026-10-28 — 범위 확정
-사용자는 FULL, 텍스트 붙여넣기+출처 URL, STREAMER/ADMIN 전용을 선택했다. 수동 분석 MVP로 변경하며 자동 수집·백필·뉴스 공개 반영은 제외했다.
+사용자는 텍스트 붙여넣기+출처 URL, STREAMER/ADMIN 전용을 선택했다. 수동 분석 MVP로 변경하며 자동 수집·백필·뉴스 공개 반영은 제외했다.
 
 - 작업 브랜치: codex/news-context (기준 bf23b93)
 - 계획 커밋: e677a79
 - 개발자: news_developer / 기록 ID news-developer
 - 독립 테스트: 구현 제출 후 별도 behavior-tester 배정 예정
-- 상태 기록: /Users/woolee/benchmark/.codex/state/work-flow/news-context-v1.json
 
 ## 서비스 전체 포트폴리오 근거
 service-portfolio가 계획을 검토했다. 서비스 전체 시연에 외부 기사 언급→검증된 축구 데이터 탐색 흐름을 포함할 수 있다. 목업·실제 API·모델 stub·실제 모델 호출의 근거는 구분한다. 계획의 존재는 구현/배포/정확도 성과를 뜻하지 않는다.

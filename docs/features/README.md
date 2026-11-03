@@ -1,10 +1,6 @@
-# Features — 메인 → FE 팀 요구사항 문서
+# Features — 기능 요구사항
 
-이 디렉토리는 **메인(사용자 + Claude)이 작성하는 high-level 기능/페이지 요구사항** 의 정본 위치다.
-
-한 파일 = 한 feature. FE 팀은 이 파일을 입력으로 받아 더 구체화된 spec / devplan / testplan 을 생성한다.
-
-상위 워크플로 문서: `@docs/spec/fe-workflow.md`
+이 디렉토리는 사용자와 정한 기능·페이지 요구사항의 정본 위치다. 기존 spec / devplan / testplan은 필요한 상세 근거로 재사용한다.
 
 ## 파일 이름 규약
 
@@ -86,15 +82,14 @@ status: requirements-only
 
 ## 작성 규칙
 
-1. **frontmatter** 는 반드시 채운다 (도구가 파싱).
-2. `status: requirements-only` 인 동안만 메인이 자유롭게 수정. FE 팀이 트리거 받아 작업 시작하면 `status: in-fe-pipeline` 으로 메인이 변경.
+1. **frontmatter** 는 반드시 채운다.
+2. frontmatter 상태는 문서 작성 시점의 상태이며 실제 구현·검증 결과와 구분한다.
 3. **§10/§11 권한 경계는 빈 항목 금지** — 적어도 1줄씩.
 4. **데이터 소스를 모르면 §5 항목을 비워두고** "FE 팀이 mock 으로 추론" 메모.
 5. **시안 이미지** 는 `designs/` 디렉토리 별도 관리. 본 markdown 은 경로만 참조.
 
-## FE 팀 트리거 흐름
+## 현재 개발 흐름
 
-1. 메인이 `docs/features/<id>.md` 작성 / 검토 / 확정
-2. 메인이 사용자에게 "FE 팀 트리거합니다" 확인 후 Agent 호출 (`fe-planner`)
-3. FE 팀이 자율 워크플로 진입 (`docs/spec/fe-workflow.md` 의 상태 머신)
-4. 완료 시 `FE_DONE_AWAITING_BE` 상태로 메인에 보고 → 메인이 BE 트리거 결정
+1. 기능 요구사항과 관찰 가능한 수용 기준을 정한다.
+2. 프론트 mock → endpoint 계약 → 백엔드 구현 → 통합 순서로 진행한다.
+3. 변경한 동작과 회귀 위험에 맞는 테스트를 실행하고 결과를 확인한다.

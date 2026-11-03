@@ -179,14 +179,8 @@
 - API-Football semaphore 상한 튜닝 (현재 6, 실측 후 조정)
 - 다중 인스턴스 스케일 도입 시 워커 분산 락 (Upstash `SET NX`) 추가 필요
 
-## 13. Harness 운영
+## 13. 프로젝트 운영 정책
 
-- 계획: Plans.md (v2 포맷, Task/내용/DoD/Depends/Status)
-- 에이전트 명세: `.codex/agents/*.toml`
-- 상태 파일: `.codex/state/{feature-flow,endpoint-flow}/`
-- 스키마: `.codex/schemas/*.schema.json`
-- 실행: `scripts/feature-flow.sh`, `scripts/endpoint-flow.sh`
-- 동기화: Claude legacy 산출물은 `.claude/` 에 보관하고, Codex 운영 정본은 `.codex/` 를 사용
 - 2026-10-25 최신 사용자 결정: 관리 세션은 `/Users/woolee/benchmark`, 메인 세션은 `/Users/woolee/benchmark-main`, 자연어 검색 AX는 별도 전용 worktree에서 작업한다. 이 결정은 이전 단일 checkout/새 worktree 금지 규칙을 대체한다. 결정 기록: `docs/decisions/2026-10-25-parallel-worktrees.md`.
 - 메인 통합 브랜치는 `feat/home-preview-json`이며 이 worktree 안에서만 메인 작업을 수행한다. 관리/AX의 HEAD·실제 인덱스·작업 파일을 변경하지 않는다. 원본에서 stash/reset/clean/브랜치 전환/전체 변경 일괄 커밋을 하지 않는다.
 - 공용 파일은 메인 관련 변경만 가져오며, 다른 세션의 미커밋 인증·모델·검색 정책을 자동 적용하지 않는다. 공통 의존성은 실제 커밋 기준으로 별도 검토한다.
@@ -195,11 +189,7 @@
 - 2026-10-24 정책 변경: 공통 수집 관리·번역 검수를 STREAMER / ADMIN 에게 제공한다. 결정 기록은 `docs/decisions/2026-10-24-streamer-management-and-ax.md`, 상세 기획은 `plan.md`, 작업·DoD·의존성·상태 정본은 `Plans.md`. 문서의 정책 확정과 기능 구현 완료를 구분한다.
 - 배포 금지 원칙: 사용자가 **"배포해"** 라고 명시적으로 요청하지 않는 한 Koyeb/Vercel/GitHub Actions 등 어떤 서비스에서도 deployment 를 트리거하지 않는다.
 - 배포성 명령에는 `koyeb services update`, `koyeb deploy`, `vercel deploy`, 배포 환경변수 변경, 서비스 재시작/롤링 업데이트가 포함된다. "서비스에 연결", "설정해", "환경변수 넣어" 같은 표현은 배포 허가가 아니다.
-
 - 2026-10-26 메인 후속 결정: 추천 자격 경기의 킥오프 전 6시간 이내 마지막 정기 수집 완료 후 경기당 1회 프리뷰 생성. 외부 전망은 API-Football 포함 총 3개. 운영 홈은 추천 경기·프리뷰만 표시하고 생성 예정/실제 시각을 안내하며 출처·자료 시점은 접는다. 이전 24시간/4회·웹매체3곳 정책을 대체한다. 상세: `docs/decisions/2026-10-26-home-final-sync.md`.
-
 - 2026-10-25 목업 평가 결정: 번역 상태는 한국어 이름 유무에 따른 번역/미번역만 제공하며 별도 검수 완료 체크는 두지 않는다. 짧은 이름은 선택 사항이다. 사람 수정 보호·감사 이력·동시 수정 충돌은 유지한다. 동일 결정 기록의 2026-10-25 절을 따른다.
-
 - 2026-10-25 병렬 작업 운영: 사용자 지시에 따라 관리·메인·AX는 각각 별도 worktree를 사용한다. 위 단일 checkout 규칙보다 이 결정이 우선한다. `docs/decisions/2026-10-25-parallel-worktrees.md` 참조. 2026-10-26 사용자는 검증된 홈 작업의 로컬 main 병합과 필요한 운영 DB migration 적용을 승인했다. 원격 push·배포·서비스 재시작은 금지한다.
-
 - 2026-10-26 홈 추천 후속: 카라바오컵(external_id48)과 FA컵(45)은 준결승/결승에서만 기존 추천 자격을 평가한다. 8강 이하·라운드 미정은 진행 중이어도 홈 추천 및 신규 프리뷰 생성 대상에서 제외한다. 기존 빅6/우선순위 조건과 다른 대회 정책은 유지한다. `docs/decisions/2026-10-25-home-preview-json.md`의 후속 결정을 따른다.

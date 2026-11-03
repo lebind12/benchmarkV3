@@ -1,6 +1,6 @@
 # v2 독립 검증 준비
 
-2026-10-28 FULL, work news-context-v2, 준비 당시 DEVELOPING/rev1. 최종 SHA와 test-start revision 전달 전에는 최종 실행하지 않는다. v1 제출은 범위 변경 전 이력이며 v1 최종 검증을 실행하지 않았다. 기존 목업 UI auth stub 실행은 v2 서버 검증 근거로 사용하지 않는다.
+2026-10-28, work news-context-v2, 준비 당시 DEVELOPING/rev1. 최종 SHA와 test-start revision 전달 전에는 최종 실행하지 않는다. v1 제출은 범위 변경 전 이력이며 v1 최종 검증을 실행하지 않았다. 기존 목업 UI auth stub 실행은 v2 서버 검증 근거로 사용하지 않는다.
 
 기준 정본: service-plan-v2.md, work-brief-v2.json, test-brief-v2.json. 소유 파일은 verification/v2/ 아래 테스트·fixture·로그·캡처·보고서뿐이다. 제품 코드·운영 DB·다른 세션을 변경하지 않는다.
 
@@ -9,7 +9,7 @@
 - 8027 실제 FastAPI router + signed JWT + 격리 SQLite 또는 readonly fake session + fake Vertex. current_user/manager_user 제품 코드 유지. 브라우저의 POST→서버 추출/원문/DB 후보 대조→본문 표시→detail GET 경로를 적어도 1회 실행한다.
 - 모델 stub은 추출 schema·후처리의 결정론적 검증용이다. 모델 관련성 판단 품질은 일반화하지 않는다. 부모의 live smoke와 별도 기록한다.
 - 5197 프론트, 사용 전 포트 확인. 실행한 프로세스만 종료. env 전체 복사, 운영 DB 쓰기, push/배포 금지.
-- 제출 SHA, 현재 HEAD, 관련 미커밋 경로, 시각, 명령, 종료 코드와 실제 관찰 기록. FULL JSON 보고서는 전달받은 최종 revision과 AC1~13별 evidence를 포함한다.
+- 제출 SHA, 현재 HEAD, 관련 미커밋 경로, 시각, 명령, 종료 코드와 실제 관찰 기록. JSON 보고서는 전달받은 최종 revision과 AC1~13별 evidence를 포함한다.
 
 ## AC1~8 유지 검증
 

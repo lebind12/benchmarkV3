@@ -5,7 +5,6 @@
 상위:
 - UI 기준: `@docs/spec/ui-standards.md`
 - 컬러: `@docs/spec/league-palette.md`
-- FE 워크플로: `@docs/spec/fe-workflow.md`
 
 ## 1. Axes
 

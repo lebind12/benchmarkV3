@@ -1,6 +1,6 @@
 # v2 revision 2 — 기본 테스트 검색 범위 보완
 
-- FULL / news-developer / `news-context-v2`, revision 2
+- news-developer / `news-context-v2`, revision 2
 - 기준 제출 SHA: `e678b7684a98081201fe958c8fe21a297d1c0282`
 - 요청 근거: `docs/ax/news-context/operator-review-r1.md`의 default test discovery 수정 요청.
 - 이번 제출 커밋은 이 보고서와 `frontend/vitest.config.ts` 한 줄 변경만 포함하며, 전체 제출 SHA는 운영자에게 전달한다.

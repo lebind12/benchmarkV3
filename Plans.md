@@ -95,28 +95,20 @@
 |------|------|-----|---------|--------|
 | (구) 6.x | live-poll 워커 | (삭제됨 — Phase 8 의 라이브 endpoint task 로 이관) | - | deleted |
 
-## Phase 7: 자동화 인프라 (에이전트 워크플로)
+## Phase 7: 테스트 DB 격리
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 7.1 | `docs/spec/agent-workflow.md` 작성 (상태 머신 + 게이트) | 본 세션에서 생성 | - | cc:완료 [df6672e] |
-| 7.2 | `.codex/agents/be-{test,dev,reviewer}.toml` 3개 에이전트 명세 | 본 세션에서 생성 + 팀 스폰 동작 확인 | 7.1 | cc:완료 [df6672e] |
-| 7.3 | `.codex/schemas/endpoint-flow.schema.json` (상태 파일 JSON Schema) | schema validation 통과 | 7.1 | cc:완료 [local] |
-| 7.4 | `scripts/endpoint-flow.sh` (상태 전환 CLI) | 단위 테스트 통과 | 7.3 | cc:완료 [local] |
-| 7.5 | GH Actions: `.github/workflows/be-ep-pr.yml` (be-ep-* PR 검증) | CI 잡 성공 | 7.4 | cc:TODO |
-| 7.6 | GH Actions: `.github/workflows/backend-pr.yml` (backend ← be-ep-* PR) | CI 잡 성공 | 7.5 | cc:TODO |
-| 7.7 | GH Actions: `.github/workflows/main-deploy.yml` (main push → 마이그레이션 → Koyeb) | dry-run 성공 | 7.6 | cc:TODO |
 | 7.8 | 테스트 schema 자동 생성/삭제 fixture (`tests/conftest.py`) | 통합 테스트가 격리 스키마에서 실행됨 (28/28 통과 검증) | 0.6 | cc:완료 [a57a188] |
-| 7.9 | reviewer agent invocation 자동화 (PR comment 또는 CI 잡) | PR 에 reviewer verdict 자동 게시 | 7.2, 7.5 | cc:TODO |
 
 ## Phase 8: API endpoint 구현 (프론트엔드 follow)
 
-FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
+FE가 작성한 endpoint 목록과 응답 계약을 기준으로 구현한다.
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 8.1 | FE endpoint 목록 수신 인터페이스 (mock + endpoint spec 파일 위치 약속) | 디렉토리 구조 + 양식 문서 | 7.1 | cc:완료 [local-p0-status] |
-| 8.2 | endpoint 별 라이프사이클 1건 (시범) | 1 endpoint 가 `MERGED` 까지 완주 | 7.1-7.9, 8.1 | cc:완료 [local-broadcast-overlay-endpoint] |
+| 8.1 | FE endpoint 목록 수신 인터페이스 (mock + endpoint spec 파일 위치 약속) | 디렉토리 구조 + 양식 문서 | FE endpoint 계약 | cc:완료 [local-p0-status] |
+| 8.2 | endpoint 별 라이프사이클 1건 (시범) | 1 endpoint 가 `MERGED` 까지 완주 | 8.1 | cc:완료 [local-broadcast-overlay-endpoint] |
 | 8.3 | 이후 endpoint 들은 8.2 시범을 패턴 삼아 진행 | FE 진행에 따라 채워짐 | 8.2 | cc:WIP |
 
 ## Phase 9: 프론트엔드 인프라
@@ -135,16 +127,12 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 | 9.10 | 인증 흐름 (JWT 저장 / refresh / role 가드) — BE Phase 3 완료 후 통합 | signup/login UI + USER mock auth 저장 완료. 로그아웃/JWT 저장 후속 | 3.5, 9.3 | cc:WIP [local-auth-mvp] |
 | 9.11 | i18n 미도입 결정 명시 + 한글 폰트 토큰화 | 결정 문서 + Tailwind theme 한글 폰트 | 9.2 | cc:TODO |
 
-## Phase 10: FE 자동화 (에이전트 워크플로 — FE 측)
+## Phase 10: 프론트엔드 문서·CI
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | 10.1 | `docs/features/README.md` (요구사항 템플릿) | 본 세션에서 생성 | - | cc:완료 [df6672e] |
-| 10.2 | `docs/spec/fe-workflow.md` (상태 머신 + 게이트) | 본 세션에서 생성 | - | cc:완료 [df6672e] |
-| 10.3 | `.codex/agents/fe-{planner,dev,reviewer}.toml` 3개 명세 | 본 세션에서 생성 + 팀 스폰 동작 확인 | 10.2 | cc:완료 [df6672e] |
-| 10.4 | `.codex/schemas/feature-flow.schema.json` (FE state JSON Schema) | schema validation 통과 | 10.2 | cc:완료 [local] |
-| 10.5 | `scripts/feature-flow.sh` (상태 전환 CLI) | 단위 테스트 통과 | 10.4 | cc:완료 [local] |
-| 10.6 | `frontend/endpoint-requests/` 양식 + 자동 추출 스크립트 (mock JSON + planner spec → request.json) | 시범 feature 에서 자동 추출 성공 | 10.5, 7.4 | cc:TODO |
+| 10.6 | `frontend/endpoint-requests/` 양식 (mock JSON + 화면 명세 → request.json) | 시범 feature의 endpoint 요청 계약 작성 | 9.1 | cc:TODO |
 | 10.7 | GH Actions: `.github/workflows/fe-feat-pr.yml` (lint/type/vitest/Playwright L2/번들) | CI 잡 성공 | 9.1, 9.7 | cc:TODO |
 | 10.8 | GH Actions: `.github/workflows/fe-integration-pr.yml` (L1+L2+L3 on Vercel preview, prod BE) | CI 잡 성공 | 10.7, 9.8 | cc:TODO |
 | 10.9 | GH Actions: `.github/workflows/fe-prod-smoke.yml` (Vercel prod 배포 후 L4 1회) | smoke 잡 성공 | 9.8 | cc:TODO |
@@ -152,14 +140,14 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 
 ## Phase 11: FE 기능 구현 (page-led)
 
-페이지 또는 작은 기능 그룹 단위로 진행. 메인이 `docs/features/<id>.md` 작성 후 FE 팀 트리거.
+페이지 또는 작은 기능 그룹 단위로 진행. 메인이 `docs/features/<id>.md` 작성 후 프론트엔드 구현을 진행한다.
 
 | Task | 내용 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | 11.1 | 기능/페이지 카탈로그 확정 (메인에서 수동 작성) | `docs/features/_catalog.md` 또는 README 의 인덱스 | 10.1 | cc:TODO |
 | 11.2 | URL 규칙 / 사이트맵 설계 (`docs/spec/url-convention.md`) | 규칙 문서 + 페이지별 URL 매핑 | 11.1 | cc:TODO |
-| 11.3 | 시범 feature 1건 — Mock 라이프사이클 완주 | FE Mock 머지 + endpoint-request 자동 생성 | 9.1-9.11, 10.1-10.10, 11.2 | cc:TODO |
-| 11.4 | 시범 feature 1건 — Integration 라이프사이클 완주 (BE 의존 endpoint MERGED 후) | L3 통과, Integration 머지 | 11.3, 8.2 | cc:TODO |
+| 11.3 | 시범 feature 1건 — Mock 구현·검증 | FE Mock 검증 + endpoint-request 작성 | 9.1-9.11, 10.1, 10.6, 11.2 | cc:TODO |
+| 11.4 | 시범 feature 1건 — Integration 구현·검증 (BE 의존 endpoint 구현 후) | L3 통과, Integration 머지 | 11.3, 8.2 | cc:TODO |
 | 11.5 | 이후 feature 들은 11.3-11.4 패턴 반복 | 카탈로그 진척률 100% | 11.4 | cc:TODO |
 | 11.6 | 방송용 중계화면 포함 페이지 디자인 (`broadcast-match-program`) | 요구사항/spec/devplan 작성 후 사용자 레이아웃 방향 확정 | 9.9, broadcast-match-overlay mock | cc:WIP |
 
@@ -168,7 +156,6 @@ FE 가 작성한 endpoint 목록 단위로 라이프사이클 자동화 적용.
 ## Notes
 
 - 본 Plans.md 는 백엔드 자동화 + 시드 + 인프라 중심. 프론트엔드 개발 방법론은 별도 기획 후 추가
-- DoD 의 `[tdd:skip:<reason>]` 태그 는 Harness 규약 (현재 사용 안 함)
 - Status 마커: `cc:TODO`, `cc:WIP`, `cc:완료 [hash]`, `blocked`
 - 본 파일은 v2 포맷 (Task / 내용 / DoD / Depends / Status)
 
@@ -447,13 +434,13 @@ HOME-PREVIEW-RETRY 로컬 구현 완료. 원인180초/기타90초, 실행1200초
 | MGMT-HOME-PRODUCTION-RELEASE | 관리·홈 통합 push, Koyeb/Vercel production 배포, 실제 운영 UI/API 검증 | 소스74f3370 push·VercelREADY/KoyebHEALTHY·공개API200·관리401가드·실제로그인4탭/검색/refresh·홈중계/스크롤/생성시각·오류0 | HOME-CUP-LATE-ROUNDS, HOME-MAIN-INTEGRATION | cc:완료 [docs/features/production-release-2026-10-26.md, 명시적 사용자 배포 승인] |
 
 
-### 2026-10-28 기사·커뮤니티 글 호버 분석 — FULL
+### 2026-10-28 기사·커뮤니티 글 호버 분석
 
 사용자 결정: 텍스트+출처 URL 수동 입력, STREAMER/ADMIN 전용, 축구 관련성 판별 후 본문 영역 호버로 관련 팀·선수 정보와 기록 제공. 정본 계획: `docs/ax/news-context/service-plan-v2.md`. 자동 수집/URL 크롤링/공개 발행/DB 변경은 범위 밖이다.
 
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
-| NEWS-HOVER-PLAN | 기술·운영·기획 검토와 최신 사용자 범위 반영 | FULL 선택·본문 호버·커뮤니티 판별·권한·검증 기준 확정 | - | 완료 |
+| NEWS-HOVER-PLAN | 기술·운영·기획 검토와 최신 사용자 범위 반영 | 본문 호버·커뮤니티 판별·권한·검증 기준 확정 | - | 완료 |
 | NEWS-HOVER-MOCK | 프론트 목업과 분석/상세 조회 계약 | 원문 강조·hover/focus/tap 카드, backend 착수 전 계약 검토 | NEWS-HOVER-PLAN | 완료 |
 | NEWS-HOVER-IMPL | Vertex 판별/추출·DB 연결·상세 카드 실연결 | 서버권한·입력/근거/후보 검증·불확실 보류·DB GET 카드 | NEWS-HOVER-MOCK | 완료 — 전용 브랜치 |
 | NEWS-HOVER-VERIFY | 독립 API·브라우저·자동테스트 | AC1~13·모바일·키보드·원문 보존·캐시/역전·NULL/0 검증 | NEWS-HOVER-IMPL | 완료 — 독립 r1/r2 PASS; 기본 테스트 자동발견 확인 |
