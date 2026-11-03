@@ -6,7 +6,7 @@
 
 관리 네 탭, JWT/refresh·서버 권한, 공유 수집 대상·최초/갱신·취소/영속 이력, 번역 보호/충돌/감사 및 선수·감독 조건 검색, 카탈로그 추천/한국어 우선 정렬, 원문 분석·종류별 접기/펼치기를 포함한다. 0017 ORM/DDL/Supabase SQL bridge·관련 정책/명세/테스트를 함께 포함한다.
 
-공용 헤더·라우터에서는 관리/인증 변경만 스테이징하고 SearchMockView 및 HomePreviewMockView 연결은 제외했다. 홈·검색 구현과 별도 CSV/과거 하네스 상태 파일은 원래 작업 디렉터리에 보존한다. plan.md와 Plans.md에는 공통 요구·설계 및 관리 범위만 반영하며 후속 홈/검색 구현 완료 상태는 포함하지 않는다.
+공용 헤더·라우터에서는 관리/인증 변경만 스테이징하고 SearchMockView 및 HomePreviewMockView 연결은 제외했다. 홈·검색 구현과 별도 CSV는 원래 작업 디렉터리에 보존한다. plan.md와 Plans.md에는 공통 요구·설계 및 관리 범위만 반영하며 후속 홈/검색 구현 완료 상태는 포함하지 않는다.
 
 최초 분리는 작업 파일을 덮어쓰지 않고 Git 스테이지만 분리했으며, 이후 사용자가 승인한 관리 목업 제거·컴포넌트 경로 정리만 원본에 반영했다. 홈/검색 등 범위 밖 36개 파일의 hash는 최초 기록과 일치한다. 별도 Git worktree를 생성하지 않았다. `/private/tmp/benchmark-management-merge-20261026/candidate-clean`은 Git index에서 추출한 검증용 일반 디렉터리다. 원본 working file hash를 대조해 분리 중 변경이 없음을 확인했다. 최종 검증 뒤에는 검증 기록/운영 DB 결과와 계획 행만 갱신했다. backend/DDL은 371개 테스트를 통과한 후보와 동일한 Git tree임을 대조했다.
 

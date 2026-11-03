@@ -1,6 +1,6 @@
 # 독립 검증 준비
 
-2026-10-28, FULL. 테스트 담당 news-tester. 이 문서는 실행 결과나 PASS 보고서가 아니다. 운영자가 최종 commit/revision을 전달하면 해당 변경본을 대조하고 실행한다.
+2026-10-28. 테스트 담당 news-tester. 이 문서는 실행 결과나 PASS 보고서가 아니다. 운영자가 최종 commit/revision을 전달하면 해당 변경본을 대조하고 실행한다.
 
 소유 범위는 이 verification 디렉터리의 테스트 코드·fixture·실행 로그·캡처·보고서뿐이다. 제품 파일, 다른 세션, 운영 DB, 외부 배포를 변경하지 않는다.
 
@@ -29,6 +29,5 @@
 ## 준비 중 관찰
 
 - 준비 시 HEAD: e677a7924f60c12850fc3788dba829cbf068e049. 프론트 구현 미커밋 변경이 존재하며 최종 제출 SHA가 아니다.
-- 관리 checkout의 최신 AGENTS.md와 docs/spec/agentic-workflow.md, 전용 worktree의 service-plan-v1.md/work-brief.json/test-brief.json 및 endpoint 계약을 읽었다.
-- work-test-report 스키마는 관리 checkout /Users/woolee/benchmark/.codex/schemas/work-test-report.schema.json에 있다. 전용 worktree에는 현재 없으므로 운영자 정본을 기준으로 보고서를 준비한다.
+- 관리 checkout의 최신 AGENTS.md와 전용 worktree의 service-plan-v1.md/work-brief.json/test-brief.json 및 endpoint 계약을 읽었다.
 - 준비 시 5197/8027 LISTEN 없음. 최종 실행 때 다시 확인한다.

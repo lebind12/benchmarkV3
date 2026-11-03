@@ -309,13 +309,13 @@ export interface TopPlayerRow {
 }
 ```
 
-→ Integration 단계에서 동일 shape 를 **zod** 스키마로 보호 (fe-workflow §9).
+→ Integration 단계에서 동일 shape 를 **zod** 스키마로 보호.
 
 ---
 
 ## 7. 새 endpoint 후보 (BE 에 신호)
 
-본 feature 가 mock 으로 사용하는 endpoint = 추후 BE 가 구현해야 할 후보. fe-dev 가 mock 머지 직후 `frontend/endpoint-requests/<id>.request.json` 으로 자동 생성한다 (fe-workflow §6).
+본 feature 가 mock 으로 사용하는 endpoint = 추후 BE 가 구현해야 할 후보. 프론트 mock 검증 후 `frontend/endpoint-requests/<id>.request.json` 으로 작성한다.
 
 | endpoint id | path / method | 비고 |
 |---|---|---|

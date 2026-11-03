@@ -551,7 +551,7 @@ VITE_USE_MOCK=false VITE_BACKEND_URL=http://127.0.0.1:8000 npm run dev -- --host
 | MGMT-7 번역 FE | 4종 검색·원문 비교·두 필드 편집·검수·수정 이력·충돌 비교 mock과 API 요청 | 충돌 시 내 입력 유지·서버 최신값 비교, 원문 fallback·검수/누락 필터·공통 반영 안내 |
 | MGMT-8 번역 BE + 연동 | version/review/보호 필드·감사 이력, 조건부 갱신·409, filler/seed/import 보호, 번역 조회/cache 반영 | 두 사용자 경쟁·filler 경쟁·import 보호·사람의 NULL·원본 불변·이력 원자성·서비스 재조회 회귀 검증 |
 | MGMT-9 운영 정합 | daily-sync/translation-filler 실제 주기 연결·async 어댑터·중복 방지, 최신 2시즌 정리 코드/실행 연결·dry-run·안전한 참조 처리. 뉴스 실행 상태 기록 | 기존 주기 유지·빈 큐 호출 0·스케줄 중복 없음·격리 DB의 오래된 데이터 정리/공유 entity 보존. 운영 적용 여부 별도 기록 |
-| MGMT-10 최종 통합 | 관리 전체 흐름·서버 권한·방송 인증 회귀·문서/하네스 증거 점검 | 전체 인수 시나리오, 관련 unit/integration·FE type/build·L2/L3·리뷰 결과. 배포 전 로컬 검증 완료 |
+| MGMT-10 최종 통합 | 관리 전체 흐름·서버 권한·방송 인증 회귀·문서·검증 근거 점검 | 전체 인수 시나리오, 관련 unit/integration·FE type/build·L2/L3·리뷰 결과. 배포 전 로컬 검증 완료 |
 
 실제 구현은 위 순서로 단일 checkout에서 진행한다. 각 묶음의 BE 작업은 해당 FE 계약 이후에 착수한다. 번역 저장은 실행 기능과 구조적으로 분리하되 최종 검수에서 수집/자동번역과의 경쟁을 함께 검증한다.
 
@@ -618,7 +618,7 @@ VITE_USE_MOCK=false VITE_BACKEND_URL=http://127.0.0.1:8000 npm run dev -- --host
 ### 11.7 작업 시작·완료 관리
 
 - 현재 checkout은 이전 기획 변경과 사용자 seed 미추적 파일이 있다. 이번 계획 작성에서는 브랜치를 바꾸거나 기존 파일을 stash/삭제하지 않았다. 구현 전에 기존 변경을 보존·범위별 정리하고 clean checkout을 확인한 뒤 task branch를 순차 사용한다.
-- 각 FE 묶음은 `docs/features/<id>.spec.md`, `.devplan.md`, `.testplan.md`, mock/test 및 endpoint-request를 남긴다. BE는 요청별 spec/testplan·먼저 실패하는 테스트·구현·격리 결과·리뷰를 남긴다. 현재 문서 작성만으로 feature-flow/endpoint-flow 상태를 전이하지 않는다.
+- 각 FE 묶음은 `docs/features/<id>.spec.md`, `.devplan.md`, `.testplan.md`, mock/test 및 endpoint-request를 남긴다. BE는 요청별 spec/testplan·먼저 실패하는 테스트·구현·격리 결과·리뷰를 남긴다. 문서 작성은 실제 구현·검증 완료를 의미하지 않는다.
 - `Plans.md`의 MGMT 항목이 현재 실행 순서의 정본이고 AX-1~6은 상위 범위 요약이다. FE mock 완료·BE 구현·실 API 통합·운영 적용 상태를 구별하며 하나를 다른 단계의 완료로 사용하지 않는다.
 - 인증/역할/마이그레이션은 기존 workflow의 리뷰·머지 게이트를 따른다. 로컬에서 검토 가능한 코드·테스트·마이그레이션 산출물을 먼저 완성한다. 배포를 유발하는 push/merge·운영 마이그레이션·서비스 재시작·배포 환경변수 변경은 이번 개발계획에 실행 작업으로 포함하지 않는다.
 
@@ -631,7 +631,7 @@ VITE_USE_MOCK=false VITE_BACKEND_URL=http://127.0.0.1:8000 npm run dev -- --host
 - 평가 경로는 `/admin/mock?tab=targets|execution|history|translations`이며 개발 또는 명시적 mock 모드에서만 제공한다. 기존 `/admin` 실제 API/권한 흐름과 분리한다.
 - 대상 편집/추가/활성/제외·선택 실행·시간 기반 모의 진행·취소/실패 재실행·이력·번역 수정/검수/충돌/이력을 조작할 수 있게 한다.
 - MSW 전용 `/api/_mock/management/*`와 목업 전용 localStorage key만 사용하며 backend/DB/외부 서비스는 호출하지 않는다. 새로고침 복원도 샘플 상태의 복원임을 표시한다.
-- 평가가 끝나기 전 endpoint-flow 생성·BE 구현·배포/원격 push/merge를 진행하지 않는다. 로컬 목업의 단위/E2E·반응형·실화면 검증 증거를 남기고 미커밋 결과를 PUSHED/MERGED 상태로 기록하지 않는다.
+- 평가가 끝나기 전 BE 구현·배포/원격 push/merge를 진행하지 않는다. 로컬 목업의 단위/E2E·반응형·실화면 검증 증거를 남기고 미커밋 결과를 PUSHED/MERGED 상태로 기록하지 않는다.
 
 목업 제공 결과: 기존 `http://127.0.0.1:5173/admin/mock`와 별도 `http://127.0.0.1:5186/admin/mock`에서 실제 화면을 확인했다. unit 28개/E2E 10개·vue-tsc+build 통과, 15개 화면 캡처·독립 로컬 재검토 APPROVE. 상세 평가 방법은 [검증/평가 안내](docs/features/streamer-management-mock.verification.md). backend/DB/실제 admin API는 수정하지 않았고 사용자 평가 전 상태를 유지한다.
 
@@ -817,7 +817,7 @@ PRE-09 이후 API는 저장 DB만 읽는다. 조회 dependency에 외부 클라�
 
 - 현재 checkout에는 관리·검색·홈의 미커밋 변경이 함께 있다. 계획 작성은 기존 변경을 보존한 문서 수정만 수행한다. 실제 lifecycle 시작 전에 변경 소유·브랜치를 정리하고 clean 상태/다른 구현 작업 종료를 확인한다. 다른 작업을 임의 stash/reset하거나 worktree를 만들지 않는다.
 - 다음 실행 작업은 **PRE-01**이다. FE의 부족 상태·조회 envelope·추천 endpoint-request를 먼저 확정하고 PRE-02 근거 검증 후 BE spec/testplan·실패 테스트→구현→검증→독립 리뷰 순서를 따른다.
-- 코드 변경이 없는 이번 계획 작성은 feature-flow/endpoint-flow 상태를 승인/완료로 전이하지 않는다. 기존 HOME-JSON-1 검증을 새 BE나 실제 메인 연동의 완료 증거로 재사용하지 않는다.
+- 코드 변경이 없는 이번 계획 작성은 구현 완료를 의미하지 않는다. 기존 HOME-JSON-1 검증을 새 BE나 실제 메인 연동의 완료 증거로 재사용하지 않는다.
 - 시간 추정은 소스 coverage·provider 호환·migration baseline 확인 전의 낙관적 날짜 약속 대신 PRE 단계 완료 조건으로 관리한다. 미확정 범위/예산은 담당 단계에서 근거와 함께 정하며 사용자가 사이트/샘플을 준비할 때까지 기다리는 작업으로 만들지 않는다.
 
 ### 14.11 구현 착수 승인·생성 시점·비용 기준

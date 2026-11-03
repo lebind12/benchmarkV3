@@ -1,6 +1,6 @@
 # 기사 수동 분석 구현 보고서
 
-- 모드: FULL / 담당: news-developer
+- 담당: news-developer
 - 서비스 계획: `docs/ax/news-context/service-plan-v1.md`
 - 작업 브리프: `docs/ax/news-context/work-brief.json`
 - 구현 커밋: `36ca08446cb82acd0637d6f22c5a8aa1c09b45a2`

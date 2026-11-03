@@ -1,6 +1,6 @@
 # 글 속 축구 정보 호버 v2 구현 보고서
 
-- FULL / news-developer / work id `news-context-v2`, revision 1
+- news-developer / work id `news-context-v2`, revision 1
 - 계획: `docs/ax/news-context/service-plan-v2.md`
 - 브리프: `docs/ax/news-context/work-brief-v2.json`
 - 구현 커밋: `69846917c0b6ea54ef20a6d1c8b96c1460fa28f7`

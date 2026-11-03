@@ -76,4 +76,4 @@ status: in-fe-pipeline
 ## 12. 산출물과 평가 지점
 
 - spec/devplan/testplan, FE 코드/MSW 샘플, unit/E2E 결과, 평가 URL·시나리오와 이후 API 응답 후보.
-- 하네스는 실제 단계만 기록. 사용자의 화면 평가 전 BE 요청 lifecycle을 트리거하거나 backend 구현을 하지 않는다. 미커밋 로컬 결과를 IMPL_PUSHED/MERGED로 표시하지 않는다.
+- 사용자의 화면 평가 전 backend 구현을 하지 않는다. 미커밋 로컬 결과를 병합 완료로 표시하지 않는다.

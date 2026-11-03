@@ -1,6 +1,6 @@
 # v2 독립 검증 실행 근거
 
-- 담당: news-tester, FULL news-context-v2, revision 1.
+- 담당: news-tester, news-context-v2, revision 1.
 - 제출/실행 HEAD: `e678b7684a98081201fe958c8fe21a297d1c0282`. 실행 전후 HEAD 동일, `git diff --stat <SHA>` 출력 없음. 미커밋 경로는 `docs/ax/news-context/progress.md`, `docs/ax/news-context/verification/`뿐이며 제품 변경 없음.
 - 실행 시간: 2026-10-28 05:27~05:30 UTC (14:27~14:30 KST).
 - 환경: 전용 news-context worktree, Python `/Users/woolee/benchmark/.venv/bin/python`, 기존 frontend/node_modules, Chromium headless. 실제 FastAPI news/general/auth router와 JWT decode/active-user/manager-role 코드, 메모리 SQLite 후보 및 상세 데이터. current_user/manager_user override 없음.
