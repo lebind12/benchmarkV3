@@ -11,8 +11,13 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import PreviewMetricsView from '@/features/match-preview/PreviewMetricsView.vue'
-import { metricsQueryString } from '@/features/match-preview/metrics'
+import {
+  metricsFilterContextFromQuery,
+  metricsFilterRouteQuery,
+  metricsQueryString,
+} from '@/features/match-preview/metrics'
 
 const PROD_RUN = '11111111-1111-4111-8111-111111111111'
 const MODULE_EXEC = '22222222-2222-4222-8222-222222222222'
@@ -247,13 +252,26 @@ function emptyPayload() {
   })
 }
 
-async function mountView(body: unknown = payload()) {
+function makeRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/admin/metrics', name: 'preview-metrics', component: PreviewMetricsView }],
+  })
+}
+
+async function mountView(body: unknown = payload(), initialPath = '/admin/metrics') {
   const fetchMock = vi.fn().mockResolvedValue(json(body))
   vi.stubGlobal('fetch', fetchMock)
   const selectRun = vi.fn()
-  const wrapper = mount(PreviewMetricsView, { props: { onSelectRun: selectRun } })
+  const router = makeRouter()
+  await router.push(initialPath)
+  await router.isReady()
+  const wrapper = mount(PreviewMetricsView, {
+    props: { onSelectRun: selectRun },
+    global: { plugins: [router] },
+  })
   await flushPromises()
-  return { wrapper, fetchMock, selectRun }
+  return { wrapper, fetchMock, selectRun, router }
 }
 
 beforeEach(() => {
@@ -353,7 +371,15 @@ describe('운영 지표 화면', () => {
     await flushPromises()
 
     // 실행 열기는 이 화면이 라우팅하지 않고 이벤트로 넘긴다(공유 라우터 소유자 연결).
-    expect(selectRun).toHaveBeenCalledWith(PROD_RUN)
+    // 넘길 때 적용 중인 조회 필터도 함께 실어, 이동 뒤 같은 조건으로 돌아올 수 있게 한다.
+    expect(selectRun).toHaveBeenCalledTimes(1)
+    const emitted = selectRun.mock.calls[0][0] as {
+      runId: string
+      filters: { environments: string[]; modes: string[] }
+    }
+    expect(emitted.runId).toBe(PROD_RUN)
+    expect(emitted.filters.environments).toEqual([])
+    expect(emitted.filters.modes).toEqual([])
 
     const detail = wrapper.get('[data-testid="metrics-run-detail"]').text()
     // 429 실패 시도와 그 뒤 성공 시도가 함께 남는다.
@@ -375,7 +401,10 @@ describe('운영 지표 화면', () => {
       'fetch',
       vi.fn().mockResolvedValue(json({ detail: 'admin role required' }, 403)),
     )
-    const wrapper = mount(PreviewMetricsView)
+    const router = makeRouter()
+    await router.push('/admin/metrics')
+    await router.isReady()
+    const wrapper = mount(PreviewMetricsView, { global: { plugins: [router] } })
     await flushPromises()
 
     expect(wrapper.get('[data-testid="metrics-error"]').text()).toContain('관리자 권한이 없는 계정입니다')
@@ -417,5 +446,27 @@ describe('metricsQueryString', () => {
     expect(query).toContain('model=gemini-3.8-flash')
     expect(query).toContain('contract_version=mp02-1')
     expect(query).toContain('metric=attempt_429_rate')
+  })
+})
+
+describe('필터 문맥 왕복', () => {
+  it('URL 질의로 실어 보낸 필터를 같은 값으로 복원한다', () => {
+    const context = {
+      fromAt: '2026-11-09T00:00:00.000Z',
+      toAt: '2026-11-10T00:00:00.000Z',
+      environments: ['dev' as const, 'test' as const],
+      modes: ['mock' as const],
+      moduleIds: ['R1', 'R2'],
+      models: [],
+      contractVersions: ['mp02-1'],
+    }
+    const routeQuery = metricsFilterRouteQuery(context)
+    // 지표 선택·모르는 값은 싣지 않는다.
+    expect(routeQuery.metric).toBeUndefined()
+    const restored = metricsFilterContextFromQuery(routeQuery)
+    expect(restored).toEqual(context)
+    const bogus = metricsFilterContextFromQuery({ environment: ['nope'], mode: ['live'] })
+    expect(bogus.environments).toEqual([])
+    expect(bogus.modes).toEqual(['live'])
   })
 })

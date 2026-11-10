@@ -6,10 +6,17 @@
 #   PREVIEW_IDENTITY_DATABASE_URL=...  (기존 계정 public.app_user 읽기 전용)
 #   PREVIEW_DEV_DATABASE_URL=...       (preview_dev 세션 쓰기)
 #
+# 선택: ~/.config/match-preview/model-live.env
+#   PREVIEW_MODEL_PROJECT / LOCATION / NAME / CREDENTIALS_JSON / LIVE_ENABLED
+#   기존 배포와 같은 Vertex 설정을 로컬에서만 쓴다. 파일이 없으면 모델 설정 없이
+#   기동하고, 화면은 "설정 없음"을 그대로 보여준다(설정을 지어내지 않는다).
+#   두 파일 모두 mode 0600 이어야 하며 값은 출력하지 않는다.
+#
 # 준비: scripts/preview_dev_provision.py 를 한 번 실행한다.
 set -eu
 
 CREDENTIALS="${PREVIEW_CREDENTIALS_FILE:-$HOME/.config/match-preview/preview-dev.env}"
+MODEL_CREDENTIALS="${PREVIEW_MODEL_CREDENTIALS_FILE:-$HOME/.config/match-preview/model-live.env}"
 
 if [ ! -f "$CREDENTIALS" ]; then
   echo "missing credentials file: $CREDENTIALS" >&2
@@ -27,6 +34,20 @@ set -a
 # shellcheck disable=SC1090
 . "$CREDENTIALS"
 set +a
+
+# 선택: 모델(Vertex) 설정. 파일이 없으면 설정 없이 기동한다. 다른 파일의 DSN을
+# 덮어쓰지 않는다. 여기서는 PREVIEW_MODEL_* 값만 읽는다.
+if [ -f "$MODEL_CREDENTIALS" ]; then
+  model_perms=$(stat -f '%Lp' "$MODEL_CREDENTIALS" 2>/dev/null || stat -c '%a' "$MODEL_CREDENTIALS")
+  if [ "$model_perms" != "600" ]; then
+    echo "refusing model credentials file with mode $model_perms (expected 600): $MODEL_CREDENTIALS" >&2
+    exit 1
+  fi
+  set -a
+  # shellcheck disable=SC1090
+  . "$MODEL_CREDENTIALS"
+  set +a
+fi
 
 # 앱 설정 이름으로 맞춘다. 개발 쓰기 연결과 읽기 전용 연결을 분리해 둔다.
 PREVIEW_DATABASE_URL="${PREVIEW_DEV_DATABASE_URL:?PREVIEW_DEV_DATABASE_URL is required}"

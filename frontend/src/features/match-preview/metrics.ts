@@ -153,6 +153,123 @@ export type MetricsRequest = {
   metrics?: string[]
 }
 
+/**
+ * 지표 조회 필터의 이동용 문맥.
+ *
+ * 지표에서 실행 검사로 내려갈 때 **같은 조건**을 잃지 않도록 이벤트와 URL이 함께
+ * 나른다. 지표 선택(`metrics`)은 실행 검사가 쓰지 않으므로 여기에 넣지 않는다.
+ * 이 문맥은 서버 필터를 바꾸지 않는다. `metricsQueryString`이 만드는 것과 같은
+ * 질의 인자 이름을 그대로 쓴다.
+ */
+export type MetricsFilterContext = {
+  fromAt?: string
+  toAt?: string
+  environments: MetricsEnvironment[]
+  modes: MetricsMode[]
+  moduleIds: string[]
+  models: string[]
+  contractVersions: string[]
+}
+
+const ENVIRONMENT_VALUES: MetricsEnvironment[] = ['dev', 'test', 'prod']
+const MODE_VALUES: MetricsMode[] = ['live', 'replay', 'mock']
+
+function asList(value: unknown): string[] {
+  if (typeof value === 'string') return value.length > 0 ? [value] : []
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+  }
+  return []
+}
+
+/** 빈 문맥. 서버가 운영·실호출 기본값을 적용하도록 아무 조건도 넣지 않는다. */
+export function emptyMetricsFilterContext(): MetricsFilterContext {
+  return {
+    environments: [],
+    modes: [],
+    moduleIds: [],
+    models: [],
+    contractVersions: [],
+  }
+}
+
+/** 필터 문맥만 질의 문자열로 만든다(지표 선택은 넣지 않는다). */
+export function metricsFilterQuery(context: MetricsFilterContext): string {
+  return metricsQueryString({
+    fromAt: context.fromAt,
+    toAt: context.toAt,
+    environments: context.environments,
+    modes: context.modes,
+    moduleIds: context.moduleIds,
+    models: context.models,
+    contractVersions: context.contractVersions,
+  })
+}
+
+/** URL 질의에서 필터 문맥을 복원한다. 모르는 환경·방식 값은 버린다(지어내지 않는다). */
+export function metricsFilterContextFromQuery(
+  query: Record<string, unknown>,
+): MetricsFilterContext {
+  const environments = asList(query.environment).filter((value): value is MetricsEnvironment =>
+    ENVIRONMENT_VALUES.includes(value as MetricsEnvironment),
+  )
+  const modes = asList(query.mode).filter((value): value is MetricsMode =>
+    MODE_VALUES.includes(value as MetricsMode),
+  )
+  const fromAt = asList(query.from_at)[0]
+  const toAt = asList(query.to_at)[0]
+  return {
+    ...(fromAt ? { fromAt } : {}),
+    ...(toAt ? { toAt } : {}),
+    environments,
+    modes,
+    moduleIds: asList(query.module_id),
+    models: asList(query.model),
+    contractVersions: asList(query.contract_version),
+  }
+}
+
+/**
+ * 필터 문맥을 라우터 질의 객체로 바꾼다. 같은 이름의 값이 여럿이면 배열로 둬서
+ * 반복 인자(`environment=dev&environment=prod`)를 잃지 않는다.
+ */
+export function metricsFilterRouteQuery(
+  context: MetricsFilterContext,
+): Record<string, string | string[]> {
+  const params = new URLSearchParams(metricsFilterQuery(context))
+  const grouped: Record<string, string[]> = {}
+  for (const [key, value] of params) {
+    ;(grouped[key] ??= []).push(value)
+  }
+  const result: Record<string, string | string[]> = {}
+  for (const [key, values] of Object.entries(grouped)) {
+    result[key] = values.length === 1 ? values[0] : values
+  }
+  return result
+}
+
+/** 지표 응답을 만든 조건을 그대로 복원했는지 화면에 알려줄 짧은 요약. */
+export function describeMetricsFilters(context: MetricsFilterContext): string {
+  const parts: string[] = []
+  if (context.environments.length > 0) parts.push(`환경 ${context.environments.join(', ')}`)
+  if (context.modes.length > 0) parts.push(`방식 ${context.modes.join(', ')}`)
+  if (context.moduleIds.length > 0) parts.push(`모듈 ${context.moduleIds.join(', ')}`)
+  if (context.models.length > 0) parts.push(`모델 ${context.models.join(', ')}`)
+  if (context.contractVersions.length > 0) {
+    parts.push(`계약 ${context.contractVersions.join(', ')}`)
+  }
+  return parts.length > 0 ? parts.join(' · ') : '기본 조회(운영·실호출)'
+}
+
+/** ISO 문자열을 `datetime-local` 입력이 받는 지역 시각 표기로 바꾼다. */
+export function toLocalDateTimeInput(iso: string | undefined): string {
+  if (!iso) return ''
+  const parsed = new Date(iso)
+  if (Number.isNaN(parsed.getTime())) return ''
+  const offsetMs = parsed.getTimezoneOffset() * 60_000
+  return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 16)
+}
+
 export function metricsQueryString(request: MetricsRequest): string {
   const params = new URLSearchParams()
   if (request.fromAt) params.set('from_at', request.fromAt)

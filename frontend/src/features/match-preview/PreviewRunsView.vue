@@ -52,6 +52,35 @@ function requestedRunId(): string | null {
   return typeof raw === 'string' && raw.length > 0 ? raw : null
 }
 
+/**
+ * 지표 화면에서 실려 온 조회 필터. 실행을 본 뒤 같은 조건으로 지표 화면에 돌아갈
+ * 때 쓴다. 지표 화면이 보내지 않은 값은 여기서 만들지 않는다.
+ */
+const metricsReturnQuery = computed<string | null>(() => {
+  if (route.query.from !== 'metrics') return null
+  const params = new URLSearchParams()
+  for (const key of [
+    'from_at',
+    'to_at',
+    'environment',
+    'mode',
+    'module_id',
+    'model',
+    'contract_version',
+  ]) {
+    for (const value of queryValues(route.query[key])) params.append(key, value)
+  }
+  return params.toString()
+})
+
+function queryValues(raw: unknown): string[] {
+  if (typeof raw === 'string') return raw.length > 0 ? [raw] : []
+  if (Array.isArray(raw)) {
+    return raw.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+  }
+  return []
+}
+
 async function load() {
   loading.value = true
   errorMessage.value = null
@@ -123,6 +152,7 @@ function formatTime(value: string | null): string {
         <!-- 경로 문자열을 쓴다. 이름 기반 이동은 라우터에 그 경로가 없을 때 해석
              오류를 내므로, 화면이 라우터 등록 여부에 묶이지 않게 한다. -->
         <RouterLink class="shell__nav-link" to="/admin/runs">실행 목록</RouterLink>
+        <RouterLink class="shell__nav-link" to="/admin/fixtures">경기 선택</RouterLink>
         <RouterLink class="shell__nav-link" to="/admin/metrics">운영 지표</RouterLink>
       </nav>
       <div class="shell__account">
@@ -149,6 +179,15 @@ function formatTime(value: string | null): string {
           <p class="panel__hint">
             저장된 실행을 열면 모듈별 요청·원문 응답·정규화 변환·다음 입력과 결과 버전을 확인할 수
             있습니다. 목록 조회는 외부 API·모델을 호출하지 않습니다.
+          </p>
+          <!-- 지표에서 내려온 경우, 같은 조회 조건으로 지표 화면에 돌아갈 수 있게 한다. -->
+          <p v-if="metricsReturnQuery !== null" class="panel__hint" data-testid="metrics-return">
+            <RouterLink
+              class="button button--quiet"
+              :to="`/admin/metrics${metricsReturnQuery ? `?${metricsReturnQuery}` : ''}`"
+            >
+              같은 조건으로 운영 지표로 돌아가기
+            </RouterLink>
           </p>
         </header>
 

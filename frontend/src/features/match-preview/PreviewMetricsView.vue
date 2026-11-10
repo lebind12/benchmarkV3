@@ -13,25 +13,39 @@
  *   0이 아니라 "미확인"으로 표시한다.
  * - 조회만 한다. 실행 생성·취소나 외부 호출을 하지 않는다.
  *
- * 실행 열기는 이 화면의 소유가 아니다. `select-run` 이벤트로 실행 ID를 넘기고,
- * 실제 라우팅은 공유 라우터 소유자(MP-04)가 연결한다.
+ * 실행 열기는 이 화면의 소유가 아니다. `select-run` 이벤트로 실행 ID와 **적용 중인
+ * 필터**를 함께 넘기고, 실제 라우팅은 공유 라우터 소유자(MP-04)가 연결한다. 필터는
+ * 이 화면의 URL 질의에도 반영해, 실행을 보고 브라우저 뒤로가기로 돌아왔을 때 같은
+ * 조건으로 다시 조회되게 한다.
  */
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   barPercent,
+  describeMetricsFilters,
+  emptyMetricsFilterContext,
   formatCount,
   formatFraction,
   formatMs,
   formatRatio,
+  metricsFilterContextFromQuery,
+  metricsFilterQuery,
   previewMetricsApi,
   scopeLabel,
+  toLocalDateTimeInput,
   type MetricRowPayload,
   type MetricsEnvironment,
+  type MetricsFilterContext,
   type MetricsMode,
   type MetricsResponse,
 } from './metrics'
 
-const emit = defineEmits<{ (event: 'select-run', runId: string): void }>()
+const emit = defineEmits<{
+  (event: 'select-run', payload: { runId: string; filters: MetricsFilterContext }): void
+}>()
+
+const route = useRoute()
+const router = useRouter()
 
 const data = ref<MetricsResponse | null>(null)
 const loading = ref(true)
@@ -40,13 +54,15 @@ const selectedRunId = ref<string | null>(null)
 const drilldownFilter = ref<string | null>(null)
 
 // 필터 상태. 기본값은 비어 있고, 서버가 운영·실호출 기본 조회를 적용한다.
-const fromAt = ref('')
-const toAt = ref('')
-const environments = ref<MetricsEnvironment[]>([])
-const modes = ref<MetricsMode[]>([])
-const moduleIds = ref('')
-const models = ref('')
-const contractVersions = ref('')
+// URL에 남아 있는 조건이 있으면 그 값을 그대로 복원한다(지어내지 않는다).
+const initialFilters = metricsFilterContextFromQuery(route.query)
+const fromAt = ref(toLocalDateTimeInput(initialFilters.fromAt))
+const toAt = ref(toLocalDateTimeInput(initialFilters.toAt))
+const environments = ref<MetricsEnvironment[]>([...initialFilters.environments])
+const modes = ref<MetricsMode[]>([...initialFilters.modes])
+const moduleIds = ref(initialFilters.moduleIds.join(', '))
+const models = ref(initialFilters.models.join(', '))
+const contractVersions = ref(initialFilters.contractVersions.join(', '))
 
 const ENVIRONMENT_OPTIONS: { value: MetricsEnvironment; label: string }[] = [
   { value: 'prod', label: '운영 (prod)' },
@@ -70,18 +86,60 @@ function toIso(local: string): string | undefined {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
 }
 
-async function load() {
-  loading.value = true
-  errorMessage.value = null
-  const result = await previewMetricsApi.query({
+/** 지금 화면의 필터를 조회 요청으로 바꾼다. 서버·URL이 같은 값을 쓰게 한 곳에서 만든다. */
+function currentRequest() {
+  return {
     fromAt: toIso(fromAt.value),
     toAt: toIso(toAt.value),
-    environments: environments.value,
-    modes: modes.value,
+    environments: [...environments.value],
+    modes: [...modes.value],
     moduleIds: splitList(moduleIds.value),
     models: splitList(models.value),
     contractVersions: splitList(contractVersions.value),
-  })
+  }
+}
+
+/** 지금 화면의 필터를 이동용 문맥으로 만든다(지표 선택은 넣지 않는다). */
+function currentFilterContext(): MetricsFilterContext {
+  const request = currentRequest()
+  return {
+    ...(request.fromAt ? { fromAt: request.fromAt } : {}),
+    ...(request.toAt ? { toAt: request.toAt } : {}),
+    environments: request.environments,
+    modes: request.modes,
+    moduleIds: request.moduleIds,
+    models: request.models,
+    contractVersions: request.contractVersions,
+  }
+}
+
+/**
+ * 적용한 필터를 이 화면의 URL 질의에 남긴다.
+ *
+ * 실행 검사로 이동했다가 브라우저 뒤로가기로 돌아오면 같은 조건으로 다시 조회된다.
+ * 서버 조회 조건은 바꾸지 않고 주소만 맞춘다(`router.replace`라 방문 기록을 늘리지
+ * 않는다).
+ */
+function syncUrlWithFilters() {
+  const suffix = metricsFilterQuery(currentFilterContext())
+  const currentQuery = new URLSearchParams()
+  for (const [key, value] of Object.entries(route.query)) {
+    for (const entry of Array.isArray(value) ? value : value === null ? [] : [value]) {
+      currentQuery.append(key, String(entry))
+    }
+  }
+  const normalize = (params: URLSearchParams) => {
+    const pairs = [...params].sort(([a, av], [b, bv]) => (a + av).localeCompare(b + bv))
+    return pairs.map(([key, value]) => `${key}=${value}`).join('&')
+  }
+  if (normalize(currentQuery) === normalize(new URLSearchParams(suffix))) return
+  void router.replace(suffix ? `${route.path}?${suffix}` : route.path)
+}
+
+async function load() {
+  loading.value = true
+  errorMessage.value = null
+  const result = await previewMetricsApi.query(currentRequest())
   loading.value = false
   if (!result.ok) {
     errorMessage.value = result.message
@@ -90,6 +148,7 @@ async function load() {
   data.value = result.data
   selectedRunId.value = null
   drilldownFilter.value = null
+  syncUrlWithFilters()
 }
 
 function splitList(raw: string): string[] {
@@ -100,13 +159,14 @@ function splitList(raw: string): string[] {
 }
 
 function resetFilters() {
-  fromAt.value = ''
-  toAt.value = ''
-  environments.value = []
-  modes.value = []
-  moduleIds.value = ''
-  models.value = ''
-  contractVersions.value = ''
+  const empty = emptyMetricsFilterContext()
+  fromAt.value = toLocalDateTimeInput(empty.fromAt)
+  toAt.value = toLocalDateTimeInput(empty.toAt)
+  environments.value = [...empty.environments]
+  modes.value = [...empty.modes]
+  moduleIds.value = empty.moduleIds.join(', ')
+  models.value = empty.models.join(', ')
+  contractVersions.value = empty.contractVersions.join(', ')
   void load()
 }
 
@@ -141,11 +201,12 @@ function drilldown(metric: string) {
 
 /**
  * 실행 열기는 이 화면이 라우팅하지 않는다. 선택 상태만 여기서 관리하고, 실제 화면
- * 이동은 `select-run` 이벤트를 받은 공유 라우터 소유자가 연결한다.
+ * 이동은 `select-run` 이벤트를 받은 공유 라우터 소유자가 연결한다. 이동 뒤에도 같은
+ * 조건으로 돌아올 수 있게 **적용 중인 필터**를 함께 넘긴다.
  */
 function openRun(runId: string) {
   selectedRunId.value = runId
-  emit('select-run', runId)
+  emit('select-run', { runId, filters: currentFilterContext() })
 }
 
 function formatTime(value: string | null): string {
@@ -429,6 +490,9 @@ function formatTime(value: string | null): string {
           <p class="chart__hint">
             조회 필터를 그대로 적용한 목록입니다. 실행을 열면 모듈별 요청·원문 응답·시도 기록을
             확인할 수 있습니다.
+          </p>
+          <p class="chart__hint" data-testid="metrics-drilldown-context">
+            실행을 열 때 유지되는 조회 조건: {{ describeMetricsFilters(currentFilterContext()) }}
           </p>
 
           <ul v-if="drilldownRuns.length > 0" class="runs">
