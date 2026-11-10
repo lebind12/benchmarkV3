@@ -66,7 +66,9 @@ __all__ = [
 # --- 계획 §5 값 ------------------------------------------------------------
 
 MODEL_REQUEST_BUDGET = 8
-NORMAL_MODEL_CALLS = 4  # 조사 3 + 종합 1
+# 정상 경로 모델 호출 수. 전체 프리뷰는 조사 4(R1·R2·R3·R4) + 종합 1 = 5회다.
+# 상한(총 8)은 그대로 두고, 재시도 여유만 3회로 줄어든다. 조용히 늘리지 않는다.
+NORMAL_MODEL_CALLS = 5  # 조사 4 + 종합 1
 API_REQUEST_BUDGET = 24
 MAX_ATTEMPTS_PER_CALL = 3
 MODEL_CONCURRENCY = 2
@@ -210,6 +212,19 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _parse_moment(value: Any) -> datetime | None:
+    """저장된 ISO 문자열을 시각으로 되돌린다. 못 읽으면 `None`(지어내지 않는다)."""
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
 @dataclass
 class RunBudget:
     """실행 하나의 예산·기한·시도 수를 세는 상태.
@@ -225,6 +240,9 @@ class RunBudget:
     attempts_by_call: dict[str, int] = field(default_factory=dict)
     registered_calls: list[str] = field(default_factory=list)
     stopped_reason: str | None = None
+    # 병렬 갈래가 같은 예산을 동시에 갱신하므로 계산 구간을 잠근다. 잠금 순서는
+    # 항상 "잠금 → 판정 → 차감"이며, 차감 도중 다른 갈래가 끼어들지 않는다.
+    lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     # -- 생성 -------------------------------------------------------------
 
@@ -236,6 +254,44 @@ class RunBudget:
         now: datetime | None = None,
     ) -> "RunBudget":
         return cls(limits=limits or BudgetLimits(), started_at=now or _utcnow())
+
+    @classmethod
+    def restore(
+        cls,
+        snapshot: Mapping[str, Any] | None,
+        *,
+        now: datetime | None = None,
+    ) -> "RunBudget":
+        """저장된 예산 상태에서 이어 쓴다(MP-10 재개).
+
+        재개는 **남은 예산**으로 미완료 단계만 다시 도는 것이다. 그래서 이미 쓴
+        횟수와 기한을 새로 0으로 되돌리지 않는다. 기한 값이 없으면 지금부터 새로
+        센다(기록이 없는 경우를 성공으로 꾸미지 않는다).
+        """
+        data = dict(snapshot or {})
+        limits = budget_from_limits(data.get("limits"))
+        started = _parse_moment(data.get("started_at")) or (now or _utcnow())
+        budget = cls(limits=limits, started_at=started)
+        budget.model_used = max(0, int(data.get("model_used") or 0))
+        budget.api_used = max(0, int(data.get("api_used") or 0))
+        budget.attempts_by_call = {
+            str(key): int(value)
+            for key, value in (data.get("attempts_by_call") or {}).items()
+        }
+        budget.registered_calls = [str(item) for item in data.get("registered_calls") or ()]
+        return budget
+
+    def persistable(self) -> dict[str, Any]:
+        """재개를 위해 DB에 남길 값. 화면용 파생값은 넣지 않는다."""
+        return {
+            "limits": self.limits.to_dict(),
+            "started_at": self.started_at.isoformat(),
+            "model_used": self.model_used,
+            "api_used": self.api_used,
+            "attempts_by_call": dict(self.attempts_by_call),
+            "registered_calls": list(self.registered_calls),
+            "stopped_reason": self.stopped_reason,
+        }
 
     # -- 시간 -------------------------------------------------------------
 
@@ -255,9 +311,14 @@ class RunBudget:
     # -- 호출 등록과 예약 --------------------------------------------------
 
     def register_call(self, logical_call_id: str) -> None:
-        """논리 호출을 처음 시작한다. 이 호출의 첫 시도 몫은 더 이상 '미시작'이 아니다."""
-        if logical_call_id not in self.registered_calls:
-            self.registered_calls.append(logical_call_id)
+        """논리 호출을 처음 시작한다. 이 호출의 첫 시도 몫은 더 이상 '미시작'이 아니다.
+
+        전체 프리뷰는 갈래 셋이 이 목록을 동시에 갱신하므로 잠그고 넣는다. 등록이
+        늦으면 다른 갈래가 남의 첫 호출 몫을 예약으로 세어 예산을 과소평가한다.
+        """
+        with self.lock:
+            if logical_call_id not in self.registered_calls:
+                self.registered_calls.append(logical_call_id)
 
     def unstarted_calls(self) -> int:
         return max(0, self.limits.normal_model_calls - len(self.registered_calls))
@@ -314,18 +375,25 @@ class RunBudget:
         *,
         now: datetime | None = None,
     ) -> None:
-        """시도 한 건을 예산에서 차감한다. 보낼 수 없으면 호출 전에 예외로 멈춘다."""
-        allowed, reason = self.can_attempt(logical_call_id, request_class, now=now)
-        if not allowed:
-            self.stopped_reason = reason
-            if reason and "기한" in reason:
-                raise DeadlineExceeded(reason)
-            raise BudgetExceeded(reason or "budget exhausted")
-        if request_class == RequestClass.API.value:
-            self.api_used += 1
-        else:
-            self.model_used += 1
-        self.attempts_by_call[logical_call_id] = self.attempts_used(logical_call_id) + 1
+        """시도 한 건을 예산에서 차감한다. 보낼 수 없으면 호출 전에 예외로 멈춘다.
+
+        판정과 차감을 **한 잠금 안에서** 처리한다. 갈래 셋이 동시에 통과 판정을 받고
+        함께 차감하면 예산 상한을 넘길 수 있기 때문이다.
+        """
+        with self.lock:
+            allowed, reason = self.can_attempt(logical_call_id, request_class, now=now)
+            if not allowed:
+                self.stopped_reason = reason
+                if reason and "기한" in reason:
+                    raise DeadlineExceeded(reason)
+                raise BudgetExceeded(reason or "budget exhausted")
+            if request_class == RequestClass.API.value:
+                self.api_used += 1
+            else:
+                self.model_used += 1
+            self.attempts_by_call[logical_call_id] = (
+                self.attempts_used(logical_call_id) + 1
+            )
 
     def snapshot(self) -> dict[str, Any]:
         """화면·보고서에 쓰는 예산 상태. 남은 값을 0으로 꾸며 채우지 않는다."""
@@ -378,6 +446,45 @@ class ConcurrencyGate:
     def __exit__(self, *exc_info: object) -> None:
         with self._lock:
             self._active = max(0, self._active - 1)
+
+
+class ConcurrencyLimiter:
+    """실제 전송 동시 수를 **기다리며** 제한한다(모델 2, API 2).
+
+    `ConcurrencyGate`는 상한 초과를 즉시 드러내는 검사용이고, 이쪽은 전체 프리뷰의
+    병렬 갈래가 셋 이상일 때 실제로 줄을 세우는 용도다. 예산은 줄을 서는 동안에도
+    그대로 세므로, 대기했다고 호출 수가 늘지 않는다.
+    """
+
+    def __init__(self, limit: int, *, label: str) -> None:
+        if limit <= 0:
+            raise ValueError("a concurrency limit must be positive")
+        self._limit = limit
+        self._label = label
+        self._semaphore = threading.BoundedSemaphore(limit)
+        self._lock = threading.Lock()
+        self._active = 0
+        self.peak = 0
+
+    @property
+    def limit(self) -> int:
+        return self._limit
+
+    def __enter__(self) -> "ConcurrencyLimiter":
+        self._semaphore.acquire()
+        with self._lock:
+            self._active += 1
+            self.peak = max(self.peak, self._active)
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        with self._lock:
+            self._active = max(0, self._active - 1)
+        self._semaphore.release()
+
+    def snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            return {"label": self._label, "limit": self._limit, "peak": self.peak}
 
 
 def sleep_seconds(seconds: float) -> None:  # pragma: no cover - 기본 sleeper

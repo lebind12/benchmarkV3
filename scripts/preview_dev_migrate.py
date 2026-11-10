@@ -32,6 +32,7 @@ MIGRATION_PATHS = (
     REPO_ROOT / "alembic" / "versions" / "0002_preview_runs.py",
     REPO_ROOT / "alembic" / "versions" / "0003_preview_approvals.py",
     REPO_ROOT / "alembic" / "versions" / "0004_section_results.py",
+    REPO_ROOT / "alembic" / "versions" / "0005_pipeline_runs.py",
 )
 DEFAULT_CREDENTIALS = Path.home() / ".config" / "match-preview" / "preview-dev.env"
 SCHEMA = "preview_dev"
@@ -127,7 +128,26 @@ def main(argv: list[str] | None = None) -> int:
                     )
             print(f"{migration.VERSION}: applied")
 
+    # LangGraph 체크포인트 표도 개발 스키마에만 만든다(MP-10). 공식 saver의 DDL은
+    # 스키마를 생략하므로, 어댑터가 search_path를 preview_dev로 고정한 연결로 부른다.
+    # 앱 시작 시 자동 DDL은 하지 않고 이 명시적 경로에서만 준비한다.
+    if not args.dry_run:
+        _ensure_checkpoints(url)
+
     return 0
+
+
+def _ensure_checkpoints(url: str) -> None:
+    """공식 Postgres saver 표를 preview_dev에 준비한다. 설치가 없으면 건너뛴다."""
+    sys.path.insert(0, str(REPO_ROOT))
+    from app.preview import checkpoints
+
+    available, problem = checkpoints.checkpointer_available()
+    if not available:
+        print(f"checkpoints: skipped ({problem})")
+        return
+    checkpoints.ensure_checkpoint_tables(url)
+    print(f"checkpoints: ready in {checkpoints.CHECKPOINT_SCHEMA}")
 
 
 if __name__ == "__main__":

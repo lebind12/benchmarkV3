@@ -794,8 +794,14 @@ def run_module(
     implementation: NodeImplementation,
     transport: Any | None = None,
     budget: RunBudget | None = None,
+    state: Mapping[str, Any] | None = None,
 ) -> ModuleResult:
-    """모듈 하나를 단독 실행한다. 검사·구성용이며 사용자 승인 단위가 아니다."""
+    """모듈 하나를 단독 실행한다. 검사·구성용이며 사용자 승인 단위가 아니다.
+
+    `state`는 앞 단계가 남긴 상태(예: 전체 프리뷰의 D0 산출)다. 넘기지 않으면 지금까지
+    처럼 빈 상태로 실행한다. 전체 프리뷰(MP-10)의 조사 갈래는 D0 산출을 `state["data"]`로
+    받아야 하므로 이 인자로 전달한다(모듈 계약은 그대로다).
+    """
     run_budget = budget or RunBudget.for_run()
     execution = store.start_module_execution(
         session,
@@ -826,6 +832,7 @@ def run_module(
             "fixture": ctx.fixture,
             "step_log": [],
             "diagnostics": [],
+            **(dict(state) if state else {}),
         },
     )
     status = (

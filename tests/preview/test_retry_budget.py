@@ -45,7 +45,8 @@ def test_policy_matches_the_plan_section_five_values():
     """계획 §5 값과 코드가 어긋나면 여기서 먼저 드러난다."""
     limits = BudgetLimits()
     assert limits.model_requests == 8 == MODEL_REQUEST_BUDGET
-    assert limits.normal_model_calls == 4 == NORMAL_MODEL_CALLS
+    # 조사 4(R1·R2·R3·R4) + 종합 1 = 5. 총 상한 8은 그대로다.
+    assert limits.normal_model_calls == 5 == NORMAL_MODEL_CALLS
     assert limits.api_requests == 24 == API_REQUEST_BUDGET
     assert limits.attempts_per_call == 3 == MAX_ATTEMPTS_PER_CALL
     assert limits.model_concurrency == 2

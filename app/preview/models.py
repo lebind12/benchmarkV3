@@ -27,11 +27,13 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -382,3 +384,74 @@ class PreviewSectionResult(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     supersedes_section_result_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+
+
+class PreviewPipelineRun(Base):
+    """전체 프리뷰 실행의 작업 소유·진행 상태 (MP-10).
+
+    `preview_runs`는 **무엇이 저장됐는지**의 기록이고, 이 표는 **누가 어디까지
+    진행했는지**의 작업 상태다. 둘을 나누는 이유는 재개·중복 방지·오래된 실행자가
+    최신 결과를 덮어쓰지 못하게 하는 판정이 결과 기록과 다른 수명을 갖기 때문이다.
+
+    소유권은 `(owner_id, lease_expires_at)` 한 쌍이고, `fencing_token`은 소유권을
+    넘길 때마다 증가한다. 저장 직전에 자기 토큰이 아직 최신인지 확인하므로, 멈춘
+    실행자가 나중에 깨어나 새 실행자의 결과를 덮어쓸 수 없다. 외부 호출의 정확히
+    한 번 실행을 보장하는 값이 아니다(그 보장은 하지 않는다).
+    """
+
+    __tablename__ = "preview_pipeline_runs"
+    __table_args__ = (
+        # 같은 경기·입력·버전 조합은 진행 중에 하나만 존재한다. 진행 중이 아닌 실행은
+        # 이 키에서 빠지므로(부분 유니크) 의도적 재실행이 새 실행으로 남을 수 있다.
+        Index(
+            "uq_pipeline_active_dedup",
+            "dedup_key",
+            unique=True,
+            postgresql_where=text("active"),
+        ),
+        _TABLE_ARGS,
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_runs.id", ondelete="CASCADE"), primary_key=True
+    )
+    # 같은 경기·스냅샷·모델/프롬프트/구현 버전 조합. 진행 중 중복 요청을 합치는 키다.
+    dedup_key: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+
+    # 재개·재실행 계보. 원래 실행과 재실행을 구분해 남긴다.
+    resume_of_run_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    rerun_of_run_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+
+    # 이 실행이 승인된 버전으로 도는지, 관리자 명시적 시험인지.
+    admission: Mapped[str] = mapped_column(Text, nullable=False)
+    workflow_versions: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    selected_result_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    # 진행 상태. `stage`는 마지막으로 끝난 단계이고 `pending_nodes`는 남은 단계다.
+    stage: Mapped[str] = mapped_column(Text, nullable=False, server_default="created")
+    pending_nodes: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    completed_nodes: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    # 작업 소유권과 울타리. 만료된 임차는 다른 실행자가 가져갈 수 있다.
+    owner_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    fencing_token: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+    # 남은 예산은 실행 중 판단값이 아니라 **저장된 사실**이어야 재개가 이어진다.
+    budget_state: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # 왜 멈췄는지. 승인 대기와 실패를 같은 값으로 뭉개지 않는다.
+    waiting_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failure_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failure_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
