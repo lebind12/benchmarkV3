@@ -129,6 +129,26 @@
 계약 변경은 필요 없다. `MetricsQuery`/`MetricsResult`는 고정 그대로 쓰고, 화면용
 자료형은 소유 파일 `metrics.ts`에 독립 정의했다.
 
+### `select-run` 인계 계약 (MP-04가 그대로 연결할 값)
+
+| 항목 | 값 |
+|---|---|
+| 이벤트 이름 | `select-run` (Vue `emit('select-run', runId: string)`) |
+| 페이로드 | 실행 ID 문자열 하나(`preview_runs.id`의 UUID 문자열). 배열·객체 아님 |
+| 발생 시점 | 관리자가 “내려갈 실행” 목록에서 실행 한 건을 누를 때. 지표 조회·필터 변경 시에는 발생하지 않는다 |
+| 함께 전달되는 것 | 없음. 현재 필터를 이벤트 인자로 싣지 않는다 |
+| 받는 쪽에서 필요한 조회 | 실행 상세는 기존 경로 그대로다: `GET /api/v1/admin/preview/runs/{run_id}` (`previewRunsApi.detail`). 지표 응답의 `runs[].modules[].attempts[].attempt_id`가 그 실행에 속하므로 같은 실행 상세에서 시도 원문을 찾을 수 있다 |
+| 필터 유지 기대 | 이동은 화면 전환이므로 필터를 쿼리 문자열로 넘기려면 받는 쪽에서 `PreviewMetricsView`의 필터 상태를 URL 쿼리로 승격해야 한다. 지금은 **이벤트에 필터를 싣지 않으므로** 받는 쪽이 이동만 처리하면 된다(뒤로 오면 기본 조회) |
+
+지표 응답에서 실행으로 내려갈 때 쓸 수 있는 값은 두 가지다.
+
+- `rows[].detail_run_ids`: 그 지표의 분자에 해당하는 실행 ID(표의 “실행 N건” 버튼)
+- `runs[]`: 조회 필터가 적용된 실행·모듈 실행·시도 트리(내려가기 목록과 시도 표가 이 값을 그대로 쓴다)
+
+지표 조회 조건을 그대로 다시 쓰려면 같은 질의 인자를 넘기면 된다
+(`metricsQueryString({ fromAt, toAt, environments, modes, moduleIds, models, contractVersions, metrics })`
+가 만든 쿼리 문자열을 `/api/v1/admin/preview/metrics`에 붙인다).
+
 ## 수용 기준별 증거
 
 | 계획 §6 MP-08 수용 기준 | 테스트 | 증거 |
@@ -172,6 +192,8 @@
 ### 화면 예시 지표 (합성 자료)
 
 [evidence/33](evidence/33-mp08-metrics-example.txt)에 재현 스크립트와 출력을 남겼다.
+같은 조건을 실제 라우터로 호출한 응답이 [evidence/35](evidence/35-mp08-api-response.json)이고,
+그 응답으로 화면을 렌더한 텍스트가 [evidence/36](evidence/36-mp08-view-render.txt)이다.
 운영·실호출 기본 조회 결과:
 
 | 지표 | 분자/분모 | 표본 | 비고 |
@@ -186,6 +208,31 @@
 | 사용량 | 입력 1000 · 출력 250 · 검색 미확인 · 비용 미확인 | 시도 1/3 보고 | 누락 2건 |
 
 `excluded`: 환경 기준 3건(dev 모의 프리뷰·목록 수집·모듈 단독), 실행 방식 기준 0건.
+
+## 보이는 지표 예시 (실제 라우터 응답 + 렌더)
+
+| 확인 항목 | 결과 | 증거 |
+|---|---|---|
+| 관리자 로그인 → `GET /api/v1/admin/preview/metrics` | `200`, 지표 12행, 내려갈 실행 2건, `read_only: true` | [evidence/35](evidence/35-mp08-api-response.json) |
+| 비인증 상태의 같은 경로 | `401` | evidence/35 생성 로그에 함께 기록 |
+| 응답으로 화면 렌더 | 지표 표 12행 + 막대 10개 + 처리 시간·사용량 | [evidence/36](evidence/36-mp08-view-render.txt) |
+
+렌더에서 확인되는 것(발췌):
+
+- 지표 표가 `2 / 2`, `1 / 3`, `1 / 2`, `1 / 1`처럼 **분자/분모와 표본 수**를 함께 보여준다.
+- `module_only_success_rate`는 `표본 없음`·`—`로 표시되고 **막대가 없다**(0%로 그리지 않음).
+- `preview_in_flight_count`는 `1건`·`건수 표시(분모 없음)`으로, 비율처럼 꾸미지 않는다.
+- 사용량에서 검색 사용량·비용은 `미확인`이고, 시도 1/3만 사용량이 보고됐다.
+- 기간 안에서 환경 기준 3건을 제외했다는 문장이 화면에 남는다.
+
+이 렌더는 jsdom 텍스트 출력이며 스크린샷이 아니다. 실제 브라우저 조작은 프론트 라우트
+등록(MP-04) 이후에 가능하다.
+
+### 실호출이 아니라는 표시
+
+위 예시의 모든 수치는 `tests/preview/fixtures/metrics_events.json`의 **합성 저장 행**에서
+나온 값이다. 실제 제공자 호출은 0회다. 따라서 `attempt_429_rate 1/3`은 “이 합성 자료가
+그렇게 계산된다”는 증거이며, 실제 계정의 429 발생률 측정치가 아니다.
 
 ## 커밋
 
@@ -214,11 +261,13 @@
   `git commit -- <경로들>`(`--only` 의미)로 경로를 지정해 커밋해야 한다. 이 보고서
   수정 커밋부터 그 방식을 썼다.
 
-### 커밋 2 — 이 보고서의 커밋 범위 기록
+### 커밋 2 — `0a81676` `docs(preview): record MP-08 commit scope and the shared-index incident`
 
-`git commit -- docs/implementation/match-preview/MP-08-report.md`로 이 문서만 커밋했다.
-다른 워커의 스테이징 항목은 건드리지 않았다. 커밋 해시는 조정자에게 `worker_done`으로
-보고한다(자기 커밋은 자기 보고서에 적고, 이후 재작성하지 않는다).
+### 커밋 3 — 이 보고서 갱신 + 보이는 지표 증거 ([evidence/35](evidence/35-mp08-api-response.json), [evidence/36](evidence/36-mp08-view-render.txt))
+
+`git commit -- <경로들>`로 내 파일만 커밋했다(인덱스 전체를 쓰지 않는다). 다른 워커의
+스테이징 항목은 건드리지 않았다. 커밋 해시는 조정자에게 `worker_done`으로 보고한다
+(자기 커밋은 자기 보고서에 적고, 이후 재작성하지 않는다).
 
 기존 대량 삭제(809건)·`Plans.md`·`AGENTS.md`·`CLAUDE.md`·공유 파일은 스테이징하지
 않았다.

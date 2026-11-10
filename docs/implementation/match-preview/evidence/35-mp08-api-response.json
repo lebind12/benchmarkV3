@@ -1,0 +1,619 @@
+{
+  "metric_version": "mp08-metrics-1",
+  "window": {
+    "from_at": "2026-11-09T00:00:00+00:00",
+    "to_at": "2026-11-10T00:00:00+00:00",
+    "source": "explicit",
+    "days": 1.0
+  },
+  "filters": {
+    "environments": [
+      "prod"
+    ],
+    "modes": [
+      "live"
+    ],
+    "module_ids": [],
+    "models": [],
+    "contract_versions": [],
+    "defaulted_environments": false,
+    "defaulted_modes": false,
+    "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+  },
+  "rows": [
+    {
+      "metric": "preview_completion_rate",
+      "label": "프리뷰 완료율",
+      "scope": "preview_runs",
+      "numerator": 1,
+      "denominator": 1,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [
+        "4ceda632-1b26-4d14-b7e5-ba0c68962d74"
+      ],
+      "note": "종료된 전체 프리뷰 실행 중 품질 ready로 완료된 건입니다. 진행·대기 중인 실행은 종료 분모에 넣지 않습니다.",
+      "sample_size": 1,
+      "available": true,
+      "ratio": 1.0,
+      "breakdown": {
+        "ready": 1,
+        "insufficient_draft": 0,
+        "quality_pending": 0,
+        "failed": 0,
+        "in_flight": 1
+      }
+    },
+    {
+      "metric": "preview_draft_rate",
+      "label": "정보 부족 초안",
+      "scope": "preview_runs",
+      "numerator": 0,
+      "denominator": 1,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [],
+      "note": "종료된 전체 프리뷰 실행 중 quality=insufficient로 저장된 초안 건입니다.",
+      "sample_size": 1,
+      "available": true,
+      "ratio": 0.0,
+      "breakdown": {}
+    },
+    {
+      "metric": "preview_failure_rate",
+      "label": "프리뷰 실패",
+      "scope": "preview_runs",
+      "numerator": 0,
+      "denominator": 1,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [],
+      "note": "종료된 전체 프리뷰 실행 중 status=failed 건입니다.",
+      "sample_size": 1,
+      "available": true,
+      "ratio": 0.0,
+      "breakdown": {
+        "failure_codes": {}
+      }
+    },
+    {
+      "metric": "preview_in_flight_count",
+      "label": "진행 중 실행 (분모 제외)",
+      "scope": "preview_runs",
+      "numerator": 1,
+      "denominator": null,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [
+        "c93e39cc-3512-4f4d-b69c-59074b796529"
+      ],
+      "note": "종료되지 않은 실행 수입니다. 완료율 분모에 들어가지 않습니다.",
+      "sample_size": 1,
+      "available": true,
+      "ratio": null,
+      "breakdown": {
+        "statuses": {
+          "running": 1
+        }
+      }
+    },
+    {
+      "metric": "module_execution_success_rate",
+      "label": "모듈 실행 성공률",
+      "scope": "preview_module_executions",
+      "numerator": 2,
+      "denominator": 2,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [
+        "4ceda632-1b26-4d14-b7e5-ba0c68962d74"
+      ],
+      "note": "전체 프리뷰 실행 안의 종료된 논리적 모듈 실행 기준입니다. 재시도는 분모를 늘리지 않고, 형식이 유효한 실패 응답 뒤 성공한 실행도 성공 1건입니다.",
+      "sample_size": 2,
+      "available": true,
+      "ratio": 1.0,
+      "breakdown": {
+        "succeeded": 2,
+        "failed": 0,
+        "failure_codes": {}
+      }
+    },
+    {
+      "metric": "evidence_coverage_rate",
+      "label": "자료 확보율",
+      "scope": "preview_module_executions",
+      "numerator": 1,
+      "denominator": 2,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [
+        "4ceda632-1b26-4d14-b7e5-ba0c68962d74"
+      ],
+      "note": "종료된 모듈 실행 중 저장된 자료 스냅샷을 참조하는 채택 근거를 얻은 비율입니다. 실행 성공과 별개이며, 근거 없는 성공 응답은 여기서 빠집니다.",
+      "sample_size": 2,
+      "available": true,
+      "ratio": 0.5,
+      "breakdown": {
+        "adopted_with_snapshot": 1,
+        "terminated_without_evidence": 1
+      }
+    },
+    {
+      "metric": "api_supplementation_rate",
+      "label": "API 보완 사용",
+      "scope": "preview_module_executions",
+      "numerator": 1,
+      "denominator": 1,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [
+        "4ceda632-1b26-4d14-b7e5-ba0c68962d74"
+      ],
+      "note": "검색 결과를 얻지 못한(SEARCH_NOT_FOUND) 종료 모듈 실행 중, 저장된 API 스냅샷을 근거로 채택한 실행의 비율입니다. 정상적인 검색+API 결합은 포함하지 않습니다.",
+      "sample_size": 1,
+      "available": true,
+      "ratio": 1.0,
+      "breakdown": {
+        "search_missed": 1,
+        "api_supplemented": 1
+      }
+    },
+    {
+      "metric": "module_only_success_rate",
+      "label": "모듈 단독 실행 성공률",
+      "scope": "module_runs",
+      "numerator": null,
+      "denominator": 0,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [],
+      "note": "모듈 단독 실행 기록이 없습니다(표본 없음).",
+      "sample_size": 0,
+      "available": false,
+      "ratio": null,
+      "breakdown": {
+        "succeeded": 0,
+        "failed": 0
+      }
+    },
+    {
+      "metric": "attempt_429_rate",
+      "label": "429 응답",
+      "scope": "preview_and_module_attempts",
+      "numerator": 1,
+      "denominator": 3,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [
+        "4ceda632-1b26-4d14-b7e5-ba0c68962d74"
+      ],
+      "note": "실제로 저장된 요청 시도 중 HTTP 429 응답 수입니다. 제공자·모델별 구분은 필터로 확인합니다. 429 뒤 성공해도 이 시도는 남습니다.",
+      "sample_size": 3,
+      "available": true,
+      "ratio": 0.3333333333333333,
+      "breakdown": {
+        "by_provider": {
+          "vertex": 1
+        }
+      }
+    },
+    {
+      "metric": "retry_attempt_rate",
+      "label": "추가 재시도 시도",
+      "scope": "preview_and_module_attempts",
+      "numerator": 1,
+      "denominator": 3,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [
+        "4ceda632-1b26-4d14-b7e5-ba0c68962d74"
+      ],
+      "note": "최초 시도 이후의 실제 요청 시도 수입니다. 논리 호출의 첫 응답을 다시 세지 않습니다.",
+      "sample_size": 3,
+      "available": true,
+      "ratio": 0.3333333333333333,
+      "breakdown": {
+        "first_attempts": 2,
+        "retry_attempts": 1
+      }
+    },
+    {
+      "metric": "retried_logical_call_rate",
+      "label": "재시도한 논리 호출",
+      "scope": "preview_and_module_attempts",
+      "numerator": 1,
+      "denominator": 2,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [
+        "4ceda632-1b26-4d14-b7e5-ba0c68962d74"
+      ],
+      "note": "두 번 이상 시도한 논리 호출의 비율입니다. 그중 최종 성공·실패 건수를 함께 표시해 재시도가 실제로 복구했는지 확인합니다.",
+      "sample_size": 2,
+      "available": true,
+      "ratio": 0.5,
+      "breakdown": {
+        "logical_calls": 2,
+        "retried_calls": 1,
+        "recovered": 1,
+        "unrecovered": 0
+      }
+    },
+    {
+      "metric": "usage_reported_rate",
+      "label": "사용량 보고된 시도",
+      "scope": "preview_and_module_attempts",
+      "numerator": 1,
+      "denominator": 3,
+      "window": {
+        "from_at": "2026-11-09T00:00:00+00:00",
+        "to_at": "2026-11-10T00:00:00+00:00",
+        "source": "explicit",
+        "days": 1.0
+      },
+      "filters": {
+        "environments": [
+          "prod"
+        ],
+        "modes": [
+          "live"
+        ],
+        "module_ids": [],
+        "models": [],
+        "contract_versions": [],
+        "defaulted_environments": false,
+        "defaulted_modes": false,
+        "note": "환경·실행 방식을 명시적으로 지정한 조회입니다. 다른 실행 방식과 섞지 마세요."
+      },
+      "detail_run_ids": [
+        "4ceda632-1b26-4d14-b7e5-ba0c68962d74"
+      ],
+      "note": "제공자가 사용량을 돌려준 시도의 비율입니다. 보고되지 않은 시도의 토큰은 0으로 채우지 않고 미확인으로 남깁니다.",
+      "sample_size": 3,
+      "available": true,
+      "ratio": 0.3333333333333333,
+      "breakdown": {
+        "with_usage": 1,
+        "missing_usage": 2
+      }
+    }
+  ],
+  "timings": {
+    "run_wall_clock": {
+      "label": "전체 실행 시간(대기 포함)",
+      "sample_size": 1,
+      "median_ms": 239000.0,
+      "p95_ms": 239000.0,
+      "note": "표본이 적으면 중앙값·95백분위를 일반 성능으로 단정하지 마세요."
+    },
+    "attempt_duration": {
+      "label": "요청 시도 소요 시간",
+      "sample_size": 3,
+      "median_ms": 2000.0,
+      "p95_ms": 2500.0,
+      "note": "표본이 적으면 중앙값·95백분위를 일반 성능으로 단정하지 마세요."
+    },
+    "wait_total_ms": 2000,
+    "wait_samples": 3,
+    "wait_note": "재시도 대기로 기록된 wait_ms 합계입니다. 값이 없으면 0이 아니라 미확인입니다."
+  },
+  "usage": {
+    "input_tokens": 1000,
+    "output_tokens": 250,
+    "search_queries": null,
+    "attempts_total": 3,
+    "attempts_with_usage": 1,
+    "attempts_missing_usage": 2,
+    "cost": null,
+    "cost_note": "비용은 가격 기준·적용 시각이 확인되지 않아 계산하지 않았습니다. 0원이 아니라 미확인입니다.",
+    "note": "제공자가 돌려준 값만 합산합니다. 값이 없는 시도는 0으로 채우지 않으며, 제공자 내부 검색 호출 수는 저장된 사용량에 없으므로 포함했다고 주장하지 않습니다."
+  },
+  "runs": [
+    {
+      "run_id": "c93e39cc-3512-4f4d-b69c-59074b796529",
+      "operation_kind": "preview",
+      "environment": "prod",
+      "mode": "live",
+      "status": "running",
+      "quality": "pending",
+      "label": "진행 중 실행 (합성 저장 행)",
+      "fixture_label": "진행 중 실행 (합성 저장 행)",
+      "requested_at": "2026-11-09T06:00:00+00:00",
+      "finished_at": null,
+      "failure_code": null,
+      "modules": []
+    },
+    {
+      "run_id": "4ceda632-1b26-4d14-b7e5-ba0c68962d74",
+      "operation_kind": "preview",
+      "environment": "prod",
+      "mode": "live",
+      "status": "succeeded",
+      "quality": "ready",
+      "label": "대표 실호출 실행 (합성 저장 행)",
+      "fixture_label": "대표 실호출 실행 (합성 저장 행)",
+      "requested_at": "2026-11-09T01:00:00+00:00",
+      "finished_at": "2026-11-09T01:04:00+00:00",
+      "failure_code": null,
+      "modules": [
+        {
+          "module_execution_id": "2c89d0c7-dca8-486c-a66b-2ad6c41811b9",
+          "module_id": "R1",
+          "status": "succeeded",
+          "quality": "ready",
+          "failure_code": null,
+          "attempt_ids": [
+            "77e48132-e292-43ac-b2a0-477d93499e7c",
+            "6c845eb0-150e-4a58-bcf7-f385708b6d8f"
+          ],
+          "attempts": [
+            {
+              "attempt_id": "77e48132-e292-43ac-b2a0-477d93499e7c",
+              "logical_call_id": "live-r1-call",
+              "attempt_ordinal": 0,
+              "provider": "vertex",
+              "model": "gemini-3.8-flash",
+              "outcome": "error",
+              "http_status": 429,
+              "error_class": "rate_limited",
+              "usage_reported": false,
+              "duration_ms": 500
+            },
+            {
+              "attempt_id": "6c845eb0-150e-4a58-bcf7-f385708b6d8f",
+              "logical_call_id": "live-r1-call",
+              "attempt_ordinal": 1,
+              "provider": "vertex",
+              "model": "gemini-3.8-flash",
+              "outcome": "ok",
+              "http_status": 200,
+              "error_class": null,
+              "usage_reported": true,
+              "duration_ms": 2500
+            }
+          ]
+        },
+        {
+          "module_execution_id": "230d128f-c2d5-4615-9a18-cefbb9284360",
+          "module_id": "R2",
+          "status": "succeeded",
+          "quality": "insufficient",
+          "failure_code": null,
+          "attempt_ids": [
+            "850c9b07-4a5f-40db-8f78-21339be22b6e"
+          ],
+          "attempts": [
+            {
+              "attempt_id": "850c9b07-4a5f-40db-8f78-21339be22b6e",
+              "logical_call_id": "live-r2-call",
+              "attempt_ordinal": 0,
+              "provider": "vertex",
+              "model": "gemini-3.8-flash",
+              "outcome": "ok",
+              "http_status": 200,
+              "error_class": null,
+              "usage_reported": false,
+              "duration_ms": 2000
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "excluded": {
+    "by_environment": 3,
+    "by_mode": 0,
+    "fixture_catalog_runs": 0,
+    "fixture_catalog_attempts": 0,
+    "other_operation_runs": 0,
+    "duplicate_events_dropped": 0,
+    "note": "경기 목록 수집(fixture_catalog)과 그 밖의 작업 실행은 전체 프리뷰 완료율에 넣지 않습니다. 모듈 단독 실행은 별도 범위로 표시합니다."
+  },
+  "notes": [
+    "지표는 preview_dev에 저장된 실행·모듈 실행·시도·결과 행만 읽어 계산합니다. 조회가 외부 모델·API를 호출하지 않습니다.",
+    "기본 조회는 운영(prod)·실호출(live) 기록만 집계합니다. 개발·모의·재생 기록은 환경·실행 방식 필터를 지정했을 때만 나타납니다.",
+    "제공자 내부 검색 호출 수는 저장된 사용량에 없으므로 집계에 포함했다고 주장하지 않습니다.",
+    "비용은 가격 기준과 적용 시각이 확인되지 않아 계산하지 않습니다(0이 아니라 미확인)."
+  ],
+  "empty": false,
+  "read_only": true,
+  "note": "저장된 실행 기록만 읽은 지표입니다. 이 조회는 외부 모델·API를 호출하지 않으며, 모의·재생 기록은 환경·실행 방식 필터를 지정했을 때만 나타납니다."
+}
