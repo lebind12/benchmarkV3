@@ -1,0 +1,86 @@
+{
+  "cause": "runner.section_workflow_version built ConstituentVersion with empty prompt_version/implementation_version per workflow.module_ids, so semantic module changes never altered the approval-unit version.",
+  "old_version": "section_form@9f0d2e9bcb33c26d",
+  "new_version": "section_form@dff5ef9da8f20f8a",
+  "new_constituents": [
+    {
+      "module_id": "D0",
+      "prompt_version": "",
+      "implementation_version": "mp05-stored-d0-1",
+      "contract_version": "mp02-1"
+    },
+    {
+      "module_id": "R1",
+      "prompt_version": "mp05-form-prompt-2",
+      "implementation_version": "mp05-form-2",
+      "contract_version": "mp02-1"
+    },
+    {
+      "module_id": "compose_body",
+      "prompt_version": "",
+      "implementation_version": "mp05-compose-2",
+      "contract_version": "mp02-1"
+    }
+  ],
+  "execution_and_approval_agree": true,
+  "other_workflows": {
+    "section_availability": "section_availability@dbd20cb540f59c8f",
+    "section_outlook": "section_outlook@b1e4a8713d3230fb"
+  },
+  "external_calls_this_task": 0,
+  "api_football_calls": 0,
+  "vertex_attempts_total": 3,
+  "approvals_total": 0,
+  "baseline_run": "6e59041a-3767-4756-a412-991008873f50",
+  "candidate_run": "7c0af3c0-4f55-4270-9266-be58c65d8f6b",
+  "baseline_versions": [
+    {
+      "version": 1,
+      "workflow_version": "section_form@9f0d2e9bcb33c26d",
+      "body_chars": 502
+    },
+    {
+      "version": 2,
+      "workflow_version": "section_form@9f0d2e9bcb33c26d",
+      "body_chars": 454
+    },
+    {
+      "version": 3,
+      "workflow_version": "section_form@9f0d2e9bcb33c26d",
+      "body_chars": 442
+    },
+    {
+      "version": 4,
+      "workflow_version": "section_form@9f0d2e9bcb33c26d",
+      "body_chars": 885
+    },
+    {
+      "version": 5,
+      "workflow_version": "section_form@dff5ef9da8f20f8a",
+      "body_chars": 885
+    }
+  ],
+  "candidate_versions": [
+    {
+      "version": 1,
+      "workflow_version": "section_form@9f0d2e9bcb33c26d",
+      "body_chars": 528
+    },
+    {
+      "version": 2,
+      "workflow_version": "section_form@9f0d2e9bcb33c26d",
+      "body_chars": 455
+    },
+    {
+      "version": 3,
+      "workflow_version": "section_form@9f0d2e9bcb33c26d",
+      "body_chars": 878
+    },
+    {
+      "version": 4,
+      "workflow_version": "section_form@dff5ef9da8f20f8a",
+      "body_chars": 878
+    }
+  ],
+  "note": "Old rows keep their historical @9f0d2e9bcb33c26d stamp. Only the newly appended candidates carry @dff5ef9da8f20f8a. No legacy backfill was done."
+}

@@ -136,29 +136,38 @@ def _constituents_from_results(
     workflow: SectionWorkflowRegistration,
     rows: Sequence[PreviewResult],
 ) -> tuple[ConstituentVersion, ...]:
-    """저장된 결과 행에서 구성 버전을 만든다.
+    """승인 근거가 된 실행이 **실제로 남긴** 구성 버전.
 
-    모듈별로 가장 최근 성공 결과 하나를 쓴다. 결과가 없는 모듈은 등록부의 계약
-    버전만 채우고 구현·프롬프트 버전을 지어내지 않는다.
+    현재 manifest와 **같은 모듈 집합**을 쓴다(자료 준비·조사·본문 조립). 그래야 방금
+    실행한 결과를 승인하면 그 버전이 현재 구성과 같아진다. 저장된 결과가 없는 모듈은
+    현재 manifest 값으로 채우되, 저장된 값이 있으면 **저장된 값**을 쓴다(그 실행이 실제로
+    무엇을 썼는지가 승인 근거다).
+
+    옛 실행을 승인하면 그 실행의 옛 버전이 그대로 남는다. 현재 코드와 다르면 승인 현황이
+    SUPERSEDED로 보여 새 버전 확인이 필요하다고 알린다.
     """
+    from app.preview import version_manifest
+
     by_module: dict[str, PreviewResult] = {}
     for row in rows:
         if row.status != ModuleStatus.SUCCEEDED.value:
             continue
         by_module[row.module_id] = row
+
     versions: list[ConstituentVersion] = []
-    for module_id in workflow.module_ids:
-        row = by_module.get(module_id)
+    for expected in version_manifest.constituents_for_workflow(workflow.workflow_id):
+        row = by_module.get(expected.module_id)
         if row is None:
-            versions.append(_registration_version(module_id))
+            versions.append(expected)
             continue
         versions.append(
             _module_versions(
-                module_id,
+                expected.module_id,
                 {
+                    # 저장값이 비어 있는 축(예: 프롬프트 없는 단계)은 그대로 빈 문자열이다.
                     "prompt_version": row.prompt_version,
                     "implementation_version": row.implementation_version,
-                    "contract_version": row.contract_version,
+                    "contract_version": row.contract_version or expected.contract_version,
                 },
             )
         )
@@ -189,21 +198,15 @@ def _results_of_run(session: Session, run_id: uuid.UUID) -> list[PreviewResult]:
 def _current_constituents(
     workflow: SectionWorkflowRegistration, session: Session
 ) -> tuple[ConstituentVersion, ...]:
-    """지금 확인 가능한 구성 버전.
+    """지금 코드로 이 워크플로우를 실행하면 만들어질 **구성 버전**.
 
-    가장 최근 **섹션 결과**를 만든 실행의 모듈 결과를 기준으로 한다. 그래야 승인
-    화면이 보는 버전과 실행이 실제로 만든 구성이 같은 근거를 쓴다. 섹션 결과가 아직
-    없으면 등록부의 계약 버전만 채운다.
+    `version_manifest` 한 곳에서 온다. 그래서 승인 후보가 보는 버전과 실행이 남기는
+    버전이 같은 근거를 쓴다. 저장된 결과에서 역산하지 않으므로, 코드가 바뀐 뒤에는
+    이전에 저장된 결과의 버전이 아니라 **현재 구성**을 후보로 보여준다.
     """
-    latest = _latest_section_result(session, workflow.workflow_id)
-    if latest is None:
-        return tuple(
-            sorted(
-                (_registration_version(module_id) for module_id in workflow.module_ids),
-                key=lambda item: item.module_id,
-            )
-        )
-    return _constituents_from_results(workflow, _results_of_run(session, latest.run_id))
+    from app.preview import version_manifest
+
+    return version_manifest.constituents_for_workflow(workflow.workflow_id)
 
 
 def _approval(row: PreviewSectionApproval) -> SectionApproval:

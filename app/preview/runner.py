@@ -217,20 +217,13 @@ class WorkflowImplementations:
 def section_workflow_version(workflow) -> str:
     """섹션 워크플로우 버전. 결과 의미를 바꾸는 축만 쓴다.
 
-    `approvals.release_version`과 같은 계산을 공유해, 승인 화면이 보는 버전과 실행이
-    남기는 버전이 어긋나지 않게 한다.
+    구성 버전은 `version_manifest` 한 곳에서 온다. 그래서 실행이 남기는 버전과 승인
+    후보가 보는 버전이 같은 근거를 쓴다. 실제 모듈·프롬프트·구현 버전을 채우므로,
+    그 축이 바뀌면 버전도 바뀐다(빈 문자열 자리표시자를 쓰지 않는다).
     """
-    from app.preview import approvals
+    from app.preview import approvals, version_manifest
 
-    constituents = tuple(
-        approvals.ConstituentVersion(
-            module_id=module_id,
-            prompt_version="",
-            implementation_version="",
-            contract_version=MODULE_INPUT_VERSION,
-        )
-        for module_id in workflow.module_ids
-    )
+    constituents = version_manifest.constituents_for_workflow(workflow.workflow_id)
     return approvals.release_version(workflow, constituents)[0]
 
 

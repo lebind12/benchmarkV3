@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Sequence
 
 from app.preview import artifacts as artifact_store
+from app.preview import version_manifest
 from app.preview import provider, store
 from app.preview.contracts import (
     CoverageEntry,
@@ -62,6 +63,12 @@ FORM_SECTION_ID = "section_form"
 # R1 본문 조립 구현 버전. 내부 근거 ID(`[api:…]`)를 독자용 문장에서 지우도록
 # 조립 규칙이 바뀌었으므로 버전을 올린다. 산출 문장이 달라지는 변경이다.
 FORM_COMPOSE_IMPLEMENTATION_VERSION = "mp05-compose-2"
+
+# 공유 자료 준비(D0) 노드 구현 버전. 저장 자료만 읽고 외부 호출이 없다.
+STORED_DATA_IMPLEMENTATION_VERSION = "mp05-stored-d0-1"
+
+# R3 본문 조립 구현 버전. 아웃룩 조립기는 모듈 쪽에 있고, sections는 노드 어댑터만 준다.
+OUTLOOK_COMPOSE_IMPLEMENTATION_VERSION = "mp07-outlook-compose-1"
 
 # 이 파일이 실제 노드를 제공하는 섹션. 등록부의 implemented와 별개로 여기서 정한다.
 _IMPLEMENTED_SECTIONS = (FORM_SECTION_ID, "section_availability", "section_outlook")
@@ -578,7 +585,7 @@ def build_implementations(
             ),
             compose_body=NodeImplementation(
                 module_id=COMPOSE_MODULE_ID,
-                implementation_version="mp07-outlook-compose-1",
+                implementation_version=OUTLOOK_COMPOSE_IMPLEMENTATION_VERSION,
                 prompt_version=None,
                 mode=transport.mode,
                 run=_outlook_compose_node(composed),
@@ -830,7 +837,10 @@ def revalidate_section_from_stored_response(
         session,
         run_id=run_id,
         workflow_id=latest_section["workflow_id"],
-        workflow_version=latest_section["workflow_version"],
+        # 이 결과는 **지금 코드**로 다시 검증한 후보이므로, 옛 실행이 남긴 버전을
+        # 물려받지 않고 현재 구성으로 계산한 버전을 쓴다. 그래야 승인 화면이 보는
+        # 후보 버전과 저장된 후보가 같아지고, 옛 결과를 새 코드로 표시하지 않는다.
+        workflow_version=version_manifest.workflow_version_of(latest_section["workflow_id"]),
         title=composed.title,
         body=composed.body,
         version=next_version,

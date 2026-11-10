@@ -289,15 +289,29 @@ def test_approval_is_written_when_a_matching_non_mock_result_exists(
         assert approval.evidence.run_id == result.run_id
         assert approval.evidence.section_result_id == result.section_result_id
         assert approval.approved_by_actor_id == "11"
-        # 승인 대상 구성은 등록부의 섹션 구성 모듈이다. 본문 조립 노드는 섹션 자체의
-        # 구현이므로 `output_contract_version` 축으로 다룬다(MP-05+에서 값을 올린다).
-        assert [item.module_id for item in approval.constituents] == ["D0", "R1"]
-        assert all(item.implementation_version for item in approval.constituents)
+        # 승인 대상 구성은 이 실행이 **실제로 돌린** 노드들이다: 자료 준비(D0)·조사(R1)·
+        # 본문 조립(compose_body). 본문 조립도 결과 문장을 바꾸는 실행 단계이므로
+        # 구성에서 빼지 않는다.
+        assert [item.module_id for item in approval.constituents] == [
+            "D0",
+            "R1",
+            "compose_body",
+        ]
+        by_module = {item.module_id: item for item in approval.constituents}
+        # 승인은 그 실행이 남긴 실제 버전을 가리킨다(지어낸 값이 아니다).
+        assert by_module["D0"].implementation_version == "test-d0"
+        assert by_module["R1"].prompt_version == "test-r1-p1"
+        assert by_module["compose_body"].implementation_version == "test-compose"
 
         status = approvals.section_approval_status(session, "section_form")
-        # 구성 버전이 현재 저장 결과와 같으면 승인 상태다.
-        assert status.state in (ApprovalState.APPROVED, ApprovalState.SUPERSEDED)
-        assert status.active_approval is not None
+        # 이 실행은 테스트용 버전(test-*)으로 만들었으므로 현재 코드 구성과 다르다.
+        # 그래서 옛 결과가 현재 버전을 조용히 승인하지 않고 새 버전 확인을 요구한다.
+        assert status.state is ApprovalState.SUPERSEDED
+        assert status.active_approval is None
+        assert status.pinned_approval is not None
+        assert status.pinned_approval.workflow_version == approval.workflow_version
+        # 현재 후보 버전은 실행이 남긴 옛 버전과 다르다(덮어쓰지 않는다).
+        assert status.current_version != approval.workflow_version
 
 
 def test_approval_refuses_a_section_result_from_another_run(session_factory):

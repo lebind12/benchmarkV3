@@ -24,8 +24,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 
-from app.preview import modules, provider, runner, sections, store
+from app.preview import approvals, modules, provider, runner, sections, store, version_manifest
 from app.preview.contracts import (
     ClaimKind,
     Environment,
@@ -35,6 +36,7 @@ from app.preview.contracts import (
     RunMode,
 )
 from app.preview.modules import compose, form
+from app.preview.registry import get_section_workflow
 from app.preview.retry import BudgetLimits, RunBudget
 
 FIXTURES = json.loads(
@@ -357,6 +359,33 @@ def test_form_section_workflow_runs_with_live_style_implementations(session_fact
         assert result.body.strip()
         assert result.sources
         assert result.unavailable is False
+
+        # 실행이 남기는 버전은 **실제 구성**(모듈·프롬프트·구현)으로 계산한 값이어야 한다.
+        # 자리표시자(빈 버전)로 계산한 옛 값과 구분되도록, 기대값을 구성에서 직접
+        # 계산해 비교한다(같은 함수를 다시 부르면 자리표시자 회귀를 잡지 못한다).
+        expected_version, expected_constituents = approvals.release_version(
+            get_section_workflow("section_form"),
+            (
+                version_manifest.ConstituentVersion("D0", "", "mp05-stored-d0-1", "mp02-1"),
+                version_manifest.ConstituentVersion(
+                    "R1", form.FORM_PROMPT_VERSION, form.FORM_IMPLEMENTATION_VERSION, "mp02-1"
+                ),
+                version_manifest.ConstituentVersion(
+                    "compose_body", "", sections.FORM_COMPOSE_IMPLEMENTATION_VERSION, "mp02-1"
+                ),
+            ),
+        )
+        assert result.workflow_version == expected_version
+        # 자리표시자로 계산한 옛 값과 다르다(빈 버전으로 되돌아가면 실패한다).
+        assert result.workflow_version != "section_form@9f0d2e9bcb33c26d"
+        stored = session.execute(
+            text(
+                "select workflow_version from preview_dev.preview_section_results "
+                "where run_id = :run"
+            ),
+            {"run": str(result.run_id)},
+        ).scalar_one()
+        assert stored == result.workflow_version
 
 
 def _compose_outcome(state) -> runner.NodeOutcome:
