@@ -633,12 +633,17 @@ def run_section_workflow(
     checkpointer: Any | None = None,
     configuration_version: str = "mp04-section-1",
     now: datetime | None = None,
+    selected_result_ids: Sequence[uuid.UUID] = (),
 ) -> SectionRunResult:
     """섹션 워크플로우 하나를 실행하고 결과를 `preview_dev`에 남긴다.
 
     반환값의 `run_id`로 관리자 검사 화면을 다시 열 수 있다. 실제 외부 호출은 노드
     구현이 `execute_request`를 통과할 때만 일어나며, 그 기록은 같은 실행 ID 아래에
     남는다.
+
+    `selected_result_ids`는 **앞선 모듈의 저장 결과 버전을 명시적으로 고르는** 입력이다
+    (MP-09 종합). 넘기지 않으면 빈 값이며, 노드 문맥과 모듈 입력 해시에 그대로 들어가
+    "무엇을 입력으로 썼는지"가 기록에 남는다. 실행기가 결과를 대신 골라 채우지 않는다.
     """
     workflow = get_section_workflow(workflow_id)
     moment = now or datetime.now(timezone.utc)
@@ -677,6 +682,7 @@ def run_section_workflow(
         mode=mode,
         transport=transport,
         actor_id=actor_id,
+        selected_result_ids=tuple(selected_result_ids),
     )
     graph = build_section_workflow(
         implementations=implementations, ctx=ctx, checkpointer=checkpointer

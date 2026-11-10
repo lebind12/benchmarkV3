@@ -829,10 +829,12 @@ def test_sections_endpoint_reports_real_implementation_and_model_state(client, m
     # 설정이 없으면 configured=False와 사유가 함께 온다(모델 이름을 지어내지 않는다).
     assert isinstance(form_section["model"]["configured"], bool)
 
-    # R2·R3도 구현이 등록되어 실제 생성 가능으로 표시된다. S1은 아직 아니다.
-    for workflow_id in ("section_availability", "section_outlook"):
+    # R2·R3 조사와 MP-09 S1 종합도 구현이 등록되어 실제 생성 가능으로 표시된다.
+    # "구현이 있다"와 "지금 live로 실행했다"는 다른 사실이며, 아래 model 상태가 그
+    # 실행 가능 조건을 따로 보여준다.
+    for workflow_id in ("section_availability", "section_outlook", "section_synthesis"):
         assert availability[workflow_id]["real_generation_available"] is True
-    assert availability["section_synthesis"]["real_generation_available"] is False
+    assert isinstance(availability["section_synthesis"]["model"]["configured"], bool)
 
 
 def test_live_run_requires_fixture_identity(client, make_user):

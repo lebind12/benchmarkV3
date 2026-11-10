@@ -121,7 +121,15 @@ def test_mock_run_detail_shows_sections_without_claiming_approval(client, make_u
 
     detail = client.get(f"{RUNS}/{created['run_id']}").json()
     assert "섹션" in detail["approval_note"]
-    assert detail["section_workflows"]["unavailable"]
+    # MP-09까지 네 섹션 모두 구현이 등록됐다. 그래도 승인 상태는 비어 있어야 한다:
+    # 구현 존재가 승인을 만들지 않는다.
+    assert set(detail["section_workflows"]["implemented"]) == {
+        "section_form",
+        "section_availability",
+        "section_outlook",
+        "section_synthesis",
+    }
+    assert detail["section_workflows"]["unavailable"] == []
     states = {row["workflow_id"]: row["state"] for row in detail["section_approvals"]}
     assert states
     assert set(states.values()) == {ApprovalState.NONE.value}

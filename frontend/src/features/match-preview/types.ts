@@ -576,3 +576,113 @@ export type AuditResponse = {
 }
 
 export type ApproveSectionResponse = SectionApprovalRecord
+
+/**
+ * MP-09 독자용 프리뷰 (GET /runs/{run_id}/preview).
+ *
+ * 서버는 저장된 S1 종합 결과를 **허용 목록으로 다시 투영**해 내려준다. 그래서 이 타입은
+ * 진단·커버리지·스냅샷·결과 ID·시도 정보를 담지 않는다. 같은 실행의 진단은
+ * `ReaderPreviewDiagnostics`(별도 경로)로 받는다.
+ *
+ * 없는 보조 항목은 키 자체가 없다. 코드는 `undefined`를 "그 항목이 없음"으로 읽고
+ * 빈 카드나 누락 안내를 그리지 않는다.
+ */
+export type ReaderPreviewSource = {
+  label: string
+  kind: 'search' | 'api' | string
+  url?: string
+  note?: string
+  observed_at?: string
+}
+
+export type ReaderPreviewPlayer = {
+  player: string
+  team?: string
+  reason: string
+}
+
+export type ReaderPreviewOutlook = {
+  publisher: string
+  statement: string
+  /** 제공자 알고리즘 예측은 매체 의견과 다른 종류다. */
+  source_kind: 'external_forecast' | 'api_prediction' | string
+  published_at?: string
+  url?: string
+  source_note?: string
+}
+
+export type ReaderPreviewPrediction = {
+  lean?: 'home' | 'draw' | 'away'
+  score?: string
+  reasoning?: string[]
+  note?: string
+}
+
+export type ReaderPreviewAttribution = {
+  ai_forecast_label: string
+  ai_forecast_note: string
+  model?: string | null
+  provider?: string | null
+  executed_at?: string | null
+}
+
+export type ReaderPreview = {
+  fixture: {
+    fixture_id: number
+    home_team_id: number
+    away_team_id: number
+    league_id: number
+    season: number
+    kickoff_at: string
+    label: string
+    league?: string | null
+  }
+  headline: string
+  generated_at: string
+  data_as_of: string | null
+  attribution: ReaderPreviewAttribution
+  /** 독자용 본문. 문단은 빈 줄로 나뉜다. */
+  body: string
+  watch_points?: string[]
+  players_to_watch?: ReaderPreviewPlayer[]
+  absences_impact?: string
+  external_outlook?: ReaderPreviewOutlook[]
+  ai_prediction?: ReaderPreviewPrediction
+  sources?: ReaderPreviewSource[]
+}
+
+/** 같은 실행의 관리자 진단. 독자용 응답과 분리된 경로다. */
+export type ReaderPreviewDiagnostics = {
+  run_id: string
+  workflow_id: string
+  workflow_version: string | null
+  section_result_id: string | null
+  mode: { mode: RunMode; label: string }
+  quality: { run: QualityStatus; section: QualityStatus | null }
+  gaps: { module_id: string; reason: string }[]
+  excluded_claims: {
+    claim_id: string | null
+    kind: string | null
+    text: string | null
+    reason: string | null
+  }[]
+  diagnostics: string[]
+  unavailable_reason: string | null
+  selected_inputs: {
+    module_id: string
+    result_id: string
+    version: number
+    implementation_version: string
+    prompt_version: string
+    quality: QualityStatus
+    adopted_claim_count: number
+    excluded_claim_count: number
+  }[]
+  contract_versions: Record<string, string>
+  synthesis_versions: {
+    implementation: string
+    prompt: string
+    output_contract: string
+  }
+  attempts_present: boolean
+}

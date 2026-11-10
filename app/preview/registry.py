@@ -6,8 +6,10 @@
 
 MP-02 시점의 실제 상태:
 
-- D0/R1/R2/R3/S1은 계약만 등록되어 있고 아직 구현이 없다. `implemented=False`로
-  두어 화면에서 "사용할 수 없음"으로 표시한다. 실행 가능으로 보이게 두지 않는다.
+- D0는 공유 자료 준비 단계라 단독 모듈로는 실행하지 않는다(`implemented=False`).
+  R1/R2/R3 조사와 S1 종합은 실제 구현이 등록되어 `implemented=True`다.
+  실행 가능 여부는 등록부가 아니라 `sections.implemented_section_ids()`와
+  `runner.section_run_availability`를 함께 본다.
 - `mock_demo`는 MP-02가 실제로 돌리는 유일한 경로다. 이름과 표시 이름에 mock을
   드러내고 `mode_scope=(MOCK,)`로 고정한다. live 실행으로 오인되지 않게 하기 위함이다.
 """
@@ -133,13 +135,23 @@ _REGISTRATIONS: tuple[ModuleRegistration, ...] = (
         expected_model_calls=1,
         unrunnable_reason=None,
     ),
-    _planned(
-        "S1",
-        "프리뷰 종합",
-        "검증된 조사 결과만으로 관전 포인트와 AI 예상·이유를 종합.",
+    ModuleRegistration(
+        module_id="S1",
+        display_name="프리뷰 종합",
+        description=(
+            "선택된 R1/R2/R3 결과 버전과 그 결과가 참조하는 D0 스냅샷만으로 관전"
+            " 포인트·주목 선수·AI 예상과 이유를 종합합니다. 새 검색·추가 조사 호출은"
+            " 하지 않으며 정상 경로의 모델 요청은 1회입니다."
+        ),
         operation="synthesize_preview",
         depends_on=("R1", "R2", "R3"),
-        prompt_version="s1-pending",
+        contract_version=MODULE_INPUT_VERSION,
+        prompt_version="mp09-s1-prompt-1",
+        inspector_panel="generic",
+        implemented=True,
+        mode_scope=(RunMode.LIVE, RunMode.REPLAY),
+        expected_model_calls=1,
+        unrunnable_reason=None,
     ),
     ModuleRegistration(
         module_id=MOCK_DEMO_MODULE_ID,
@@ -263,9 +275,9 @@ _SECTION_WORKFLOWS: tuple[SectionWorkflowRegistration, ...] = (
             " 다른 섹션들의 결과를 입력으로 받습니다."
         ),
         module_ids=("R1", "R2", "R3", "S1"),
-        output_contract_version="section_synthesis-output-1",
-        implemented=False,
-        unrunnable_reason="아직 구현되지 않았습니다. MP-09 이후 확인할 수 있습니다.",
+        output_contract_version="mp09-synthesis-output-1",
+        implemented=True,
+        unrunnable_reason=None,
     ),
 )
 

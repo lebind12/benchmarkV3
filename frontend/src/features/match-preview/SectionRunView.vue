@@ -210,6 +210,19 @@ function openInspector() {
   router.push({ name: 'preview-runs', query: { run: runResult.value.run_id } })
 }
 
+/** 종합 섹션 결과는 독자용 프리뷰 화면에서 연다(진단은 그 화면의 접힌 영역). */
+function openReaderPreview() {
+  if (!runResult.value) return
+  router.push({
+    name: 'preview-reader',
+    params: { runId: runResult.value.run_id },
+  })
+}
+
+const readerPreviewAvailable = computed<boolean>(
+  () => runResult.value?.workflow_id === 'section_synthesis',
+)
+
 onMounted(load)
 </script>
 
@@ -375,15 +388,32 @@ onMounted(load)
           </div>
         </template>
 
-        <button type="button" class="button button--quiet" data-testid="workspace-open-inspector" @click="openInspector">
-          실행 검사 화면에서 진단 보기
-        </button>
+        <div class="workspace__actions">
+          <button
+            v-if="readerPreviewAvailable"
+            type="button"
+            class="button"
+            data-testid="workspace-open-reader-preview"
+            @click="openReaderPreview"
+          >
+            독자용 프리뷰 열기
+          </button>
+          <button type="button" class="button button--quiet" data-testid="workspace-open-inspector" @click="openInspector">
+            실행 검사 화면에서 진단 보기
+          </button>
+        </div>
       </section>
     </template>
   </main>
 </template>
 
 <style scoped>
+.workspace__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .workspace {
   display: flex;
   flex-direction: column;

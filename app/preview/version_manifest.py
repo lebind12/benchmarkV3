@@ -52,13 +52,19 @@ def _module_manifest(module_id: str) -> tuple[str, str] | None:
     return prompt_version, implementation_version
 
 
-def _prepare_manifest() -> tuple[str, str]:
-    """D0(공유 자료 준비) 노드의 (프롬프트, 구현) 버전.
+def _prepare_manifest(workflow_id: str) -> tuple[str, str]:
+    """자료 준비 노드의 (프롬프트, 구현) 버전.
 
-    섹션마다 같은 D0 노드를 쓴다. 프롬프트가 없는 단계라 프롬프트 버전은 빈 문자열이다.
+    조사 섹션들은 같은 D0 노드를 쓴다. `section_synthesis`는 새 자료를 수집하지 않고
+    **선택된 결과 버전을 읽어 검증**하는 노드를 쓰므로 구현 버전이 다르다. 프롬프트가
+    없는 단계라 프롬프트 버전은 빈 문자열이다.
     """
     from app.preview import sections
 
+    if workflow_id == "section_synthesis":
+        from app.preview.modules import synthesis
+
+        return "", synthesis.SELECTED_INPUT_IMPLEMENTATION_VERSION
     return "", sections.STORED_DATA_IMPLEMENTATION_VERSION
 
 
@@ -74,6 +80,10 @@ def _compose_manifest(workflow_id: str) -> tuple[str, str]:
         return "", availability.COMPOSE_IMPLEMENTATION_VERSION
     if workflow_id == "section_outlook":
         return "", sections.OUTLOOK_COMPOSE_IMPLEMENTATION_VERSION
+    if workflow_id == "section_synthesis":
+        from app.preview.modules import synthesis
+
+        return "", synthesis.COMPOSE_IMPLEMENTATION_VERSION
     return "", ""
 
 
@@ -86,7 +96,7 @@ def constituents_for_workflow(workflow_id: str) -> tuple[ConstituentVersion, ...
     workflow = get_section_workflow(workflow_id)
     entries: list[ConstituentVersion] = []
 
-    prepare_prompt, prepare_impl = _prepare_manifest()
+    prepare_prompt, prepare_impl = _prepare_manifest(workflow.workflow_id)
     entries.append(
         ConstituentVersion(
             module_id=DATA_MODULE_ID,

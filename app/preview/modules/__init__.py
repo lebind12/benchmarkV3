@@ -4,8 +4,8 @@
 (`ModuleInput`/`ModuleResult`/`ExecutionContext`)만 쓴다. 모델 호출은
 `app.preview.provider.request_model` 하나만 통과한다.
 
-지금 구현된 모듈은 R1(`form`)·R2(`availability`)·R3(`outlook`)다. S1은 아직 구현되지
-않았고 등록부에서도 `implemented=False`로 남는다. 이 파일은 그 사실을 숨기지 않는다.
+지금 구현된 모듈은 R1(`form`)·R2(`availability`)·R3(`outlook`)·S1(`synthesis`)다.
+S1은 선택된 조사 결과를 종합하는 호출 1회 경로이며 새 검색을 하지 않는다.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ _IMPLEMENTED = {
     "R1": ("mp05-form-2", "mp05-form-prompt-2"),
     "R2": ("mp06-r2-2", "mp06-r2-prompt-2"),
     "R3": ("mp07-r3-1", "r3-outlook-1"),
+    "S1": ("mp09-s1-1", "mp09-s1-prompt-1"),
 }
 
 

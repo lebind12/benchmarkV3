@@ -13,6 +13,8 @@ import type {
   CreateMockRunResponse,
   ReplayResultResponse,
   RunDetail,
+  ReaderPreview,
+  ReaderPreviewDiagnostics,
   RunListResponse,
   SectionAvailabilityResponse,
   SectionRunResponse,
@@ -128,6 +130,24 @@ export const previewRunsApi = {
     return previewRequest<CreateMockRunResponse>(`${BASE}/runs/mock-demo`, {
       method: 'POST',
     })
+  },
+
+  /**
+   * MP-09 독자용 프리뷰. 서버가 저장된 S1 종합 결과를 허용 목록으로 투영해 내려준다.
+   * 이 호출은 외부 모델·API를 새로 부르지 않는다(조회 전용).
+   */
+  readerPreview(runId: string): Promise<ApiResult<ReaderPreview>> {
+    return previewRequest<ReaderPreview>(`${BASE}/runs/${runId}/preview`)
+  },
+
+  /**
+   * 같은 실행의 관리자 진단. 독자용 응답과 다른 경로이며, 누락 사유·제외된 주장·
+   * 선택된 입력 버전이 여기에만 있다.
+   */
+  readerPreviewDiagnostics(runId: string): Promise<ApiResult<ReaderPreviewDiagnostics>> {
+    return previewRequest<ReaderPreviewDiagnostics>(
+      `${BASE}/runs/${runId}/preview/diagnostics`,
+    )
   },
 
   /** 이 실행이 만든 preview_dev 기록만 취소한다. */

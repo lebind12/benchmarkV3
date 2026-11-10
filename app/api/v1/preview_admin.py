@@ -154,6 +154,9 @@ class SectionRunRequest(BaseModel):
     kickoff_at: datetime | None = None
     fixture_label: str | None = Field(default=None, max_length=200)
     label: str | None = Field(default=None, max_length=200)
+    # 종합(section_synthesis)처럼 앞선 저장 결과를 입력으로 쓰는 섹션은 **관리자가
+    # 고른 결과 버전 ID**를 그대로 넘긴다. 서버가 임의로 "최신"을 골라 채우지 않는다.
+    selected_result_ids: list[UUID] = Field(default_factory=list)
 
 
 class SectionRunResponse(BaseModel):
@@ -607,6 +610,7 @@ def create_section_run(
         fixture=fixture,
         fixture_label=payload.fixture_label,
         label=payload.label,
+        selected_result_ids=tuple(payload.selected_result_ids),
     )
     session.commit()
     return SectionRunResponse(
@@ -628,6 +632,61 @@ def create_section_run(
             else "실행 결과를 저장했습니다."
         ),
     )
+
+
+@router.get("/runs/{run_id}/preview")
+def get_reader_preview(
+    run_id: UUID,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """MP-09 독자용 프리뷰. **ADMIN 전용**이며 저장된 행만 읽는다.
+
+    이 응답은 독자에게 그대로 보여줄 수 있는 **엄격한 투영**이다. 진단·커버리지·
+    스냅샷·결과 ID·시도 정보는 넣지 않는다. 같은 실행의 진단은 이 경로가 아니라
+    실행 상세(`/runs/{run_id}`)와 `diagnostics` 경로에서 본다.
+
+    섹션 본문에는 독자용 문장만 담기므로, 관리자 화면도 이 응답의 `body`와 `sources`를
+    먼저 보여주고 노드별 원문은 진단에서 펼친다.
+    """
+    from app.preview.modules import synthesis as synthesis_module
+    from app.preview.section_preview import build_reader_view
+
+    try:
+        detail = store.get_run_detail(session, run_id, include_artifact_bodies=False)
+    except store.RunNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        ) from None
+
+    view = build_reader_view(session, detail)
+    if view is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "이 실행에는 독자용 프리뷰 결과가 없습니다. 종합 섹션을 먼저"
+                " 실행해야 하며, 없는 본문을 만들어 응답하지 않습니다."
+            ),
+        )
+    return view
+
+
+@router.get("/runs/{run_id}/preview/diagnostics")
+def get_preview_diagnostics(
+    run_id: UUID,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """MP-09 독자용 프리뷰의 **관리자 진단**. 독자용 응답과 분리된 경로다."""
+    from app.preview.section_preview import build_diagnostics_view
+
+    try:
+        detail = store.get_run_detail(session, run_id, include_artifact_bodies=False)
+    except store.RunNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        ) from None
+    return build_diagnostics_view(session, detail)
 
 
 @router.get("/runs/{run_id}/section-results")

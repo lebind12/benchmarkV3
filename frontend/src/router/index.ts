@@ -31,6 +31,13 @@ const router = createRouter({
       component: () => import('@/features/match-preview/SectionRunView.vue'),
     },
     {
+      // MP-09 독자용 프리뷰. 관리자 진입 경로(/admin/preview/:runId)이며, 같은 실행의
+      // 진단은 이 화면의 접힌 영역에서 별도 API로 연다. 공개 홈 경로가 아니다.
+      path: '/admin/preview/:runId',
+      name: 'preview-reader',
+      component: () => import('@/features/match-preview/MatchPreviewRoute.vue'),
+    },
+    {
       // MP-08 운영 지표. 표에서 실행을 고르면 실행 검사 화면으로 이동한다.
       // 연결은 MP-04의 얇은 wrapper가 맡는다(MP-08 파일은 그대로 둔다).
       path: '/admin/metrics',

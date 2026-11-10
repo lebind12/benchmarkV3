@@ -71,7 +71,12 @@ STORED_DATA_IMPLEMENTATION_VERSION = "mp05-stored-d0-1"
 OUTLOOK_COMPOSE_IMPLEMENTATION_VERSION = "mp07-outlook-compose-1"
 
 # 이 파일이 실제 노드를 제공하는 섹션. 등록부의 implemented와 별개로 여기서 정한다.
-_IMPLEMENTED_SECTIONS = (FORM_SECTION_ID, "section_availability", "section_outlook")
+_IMPLEMENTED_SECTIONS = (
+    FORM_SECTION_ID,
+    "section_availability",
+    "section_outlook",
+    "section_synthesis",
+)
 
 # 저장 자료 출처 표기. 실제 API 호출이 아니라 읽기 전용 재사용임을 드러낸다.
 STORED_PROVIDER = "api-football-stored"
@@ -569,6 +574,14 @@ def build_implementations(
             transport=transport,
             reader=reader,
             now=now,
+        )
+
+    if workflow_id == "section_synthesis":
+        from app.preview.modules import synthesis as synthesis_module
+
+        # 합성 섹션은 새 자료 수집(D0) 대신 **선택된 결과 읽기·검증** 노드를 쓴다.
+        return synthesis_module.build_synthesis_implementations(
+            transport=transport, reader=reader, now=now
         )
 
     if workflow_id == "section_outlook":

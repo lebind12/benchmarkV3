@@ -1,0 +1,189 @@
+{
+  "_note": "MP-09 S1 종합 검사용 기록 자료. 실제 모델 응답이 아니라 구조화된 조사 결과와 그 응답 예시다. 이 자료로 통과한 검사를 live 성공으로 인용하지 않는다.",
+  "fixture": {
+    "fixture_id": 1557474,
+    "league_id": 1,
+    "season": 2026,
+    "home_team_id": 13,
+    "away_team_id": 4,
+    "kickoff_at": "2026-11-21T12:30:00+00:00",
+    "home_team": "Manchester City",
+    "away_team": "Fulham",
+    "league": "Premier League"
+  },
+  "collected_at": "2026-11-10T12:00:00+00:00",
+  "snapshots": [
+    {
+      "snapshot_id": "9a8f1d2e-0001-4000-8000-000000000001",
+      "source_kind": "api",
+      "provider": "api-football-stored",
+      "validation_status": "verified",
+      "note": "저장된 순위·경기 자료(읽기 전용 재사용)"
+    },
+    {
+      "snapshot_id": "9a8f1d2e-0002-4000-8000-000000000002",
+      "source_kind": "api",
+      "provider": "api-football-stored",
+      "validation_status": "verified",
+      "note": "저장된 부상 자료(읽기 전용 재사용)"
+    },
+    {
+      "snapshot_id": "9a8f1d2e-0003-4000-8000-000000000003",
+      "source_kind": "search",
+      "provider": "vertex-google-search",
+      "validation_status": "verified",
+      "note": "검색 인용 출처가 있는 응답"
+    }
+  ],
+  "results": {
+    "R1": {
+      "result_id": "9a8f1d2e-1000-4000-8000-000000000101",
+      "version": 2,
+      "status": "succeeded",
+      "quality": "ready",
+      "implementation_version": "mp05-form-2",
+      "prompt_version": "mp05-form-prompt-2",
+      "claims": [
+        {
+          "claim_id": "api:standings-13",
+          "kind": "fact",
+          "text": "Manchester City는 15경기 9승 3무 3패, 승점 30, 리그 3위입니다.",
+          "snapshot_ids": ["9a8f1d2e-0001-4000-8000-000000000001"],
+          "decision": "adopted",
+          "decision_reason": "저장된 API 사실입니다. 수집 시각을 함께 보존합니다.",
+          "subject_team_id": 13
+        },
+        {
+          "claim_id": "api:standings-4",
+          "kind": "fact",
+          "text": "Fulham은 15경기 4승 4무 7패, 승점 16, 리그 15위입니다.",
+          "snapshot_ids": ["9a8f1d2e-0001-4000-8000-000000000001"],
+          "decision": "adopted",
+          "decision_reason": "저장된 API 사실입니다. 수집 시각을 함께 보존합니다.",
+          "subject_team_id": 4
+        },
+        {
+          "claim_id": "r1-watch-0",
+          "kind": "ai_interpretation",
+          "text": "Manchester City는 홈에서 볼 점유를 오래 가져가는 흐름이 이번 경기의 관전 포인트입니다.",
+          "snapshot_ids": ["9a8f1d2e-0001-4000-8000-000000000001"],
+          "decision": "adopted",
+          "decision_reason": "AI 관전 포인트입니다. 근거: api:standings-13"
+        },
+        {
+          "claim_id": "r1-player-0",
+          "kind": "ai_interpretation",
+          "text": "Erling Haaland: 최근 득점 흐름과 상대 수비 높이를 고려하면 이번 경기에서 가장 먼저 볼 선수입니다.",
+          "snapshot_ids": ["9a8f1d2e-0001-4000-8000-000000000001"],
+          "decision": "adopted",
+          "decision_reason": "AI 주목 선수 선정입니다."
+        },
+        {
+          "claim_id": "r1-form-rejected-1",
+          "kind": "fact",
+          "text": "Manchester City가 지난 경기에서 4-0으로 이겼다는 보도.",
+          "snapshot_ids": [],
+          "decision": "excluded",
+          "decision_reason": "검색 출처 URL이 없어 사실로 채택하지 않았습니다."
+        }
+      ],
+      "sources": [
+        {
+          "label": "Manchester City form guide",
+          "url": "https://www.premierleague.com/news/manchester-city-form",
+          "kind": "search",
+          "note": "Google Search grounding이 제공한 출처입니다."
+        }
+      ],
+      "coverage": [
+        {"topic": "경기력·관전 포인트", "state": "available", "detail": "관전 포인트 1건, 최근 흐름 0건"},
+        {"topic": "주목 선수", "state": "available", "detail": "1명"}
+      ]
+    },
+    "R2": {
+      "result_id": "9a8f1d2e-2000-4000-8000-000000000201",
+      "version": 1,
+      "status": "succeeded",
+      "quality": "ready",
+      "implementation_version": "mp06-r2-2",
+      "prompt_version": "mp06-r2-prompt-2",
+      "claims": [
+        {
+          "claim_id": "r2-api-9401",
+          "kind": "fact",
+          "text": "API 부상 자료: Nathan Ake 표기 Out, 사유 Hamstring Injury",
+          "snapshot_ids": ["9a8f1d2e-0002-4000-8000-000000000002"],
+          "decision": "adopted",
+          "decision_reason": "API 부상 표기 사실입니다. 발생 날짜·경기는 확인되지 않았습니다.",
+          "subject_team_id": 13,
+          "subject_player_id": 9401
+        },
+        {
+          "claim_id": "r2-impact-0",
+          "kind": "ai_interpretation",
+          "text": "Manchester City는 왼쪽 수비 자원이 줄어 측면 대응이 달라질 수 있습니다.",
+          "snapshot_ids": ["9a8f1d2e-0002-4000-8000-000000000002"],
+          "decision": "adopted",
+          "decision_reason": "근거가 연결된 해석입니다: r2-api-9401"
+        }
+      ],
+      "sources": [],
+      "coverage": [
+        {"topic": "부상·출전 불확실 API", "state": "available", "detail": "사실 1건"},
+        {"topic": "부상 맥락 검색", "state": "search_not_found", "detail": "검색 출처를 확보하지 못했습니다."}
+      ]
+    },
+    "R3": {
+      "result_id": "9a8f1d2e-3000-4000-8000-000000000301",
+      "version": 1,
+      "status": "succeeded",
+      "quality": "ready",
+      "implementation_version": "mp07-r3-1",
+      "prompt_version": "r3-outlook-1",
+      "claims": [
+        {
+          "claim_id": "r3-media-0",
+          "kind": "external_forecast",
+          "text": "BBC Sport(2026-11-09): Manchester City가 홈에서 우세할 것으로 전망했습니다.",
+          "snapshot_ids": ["9a8f1d2e-0003-4000-8000-000000000003"],
+          "decision": "adopted",
+          "decision_reason": "검색 결과 출처 목록에서 주소를 확인한 매체 전망입니다.",
+          "source_url": "https://www.bbc.com/sport/football/manchester-city-fulham-preview",
+          "claimed_at": "2026-11-09T09:00:00+00:00"
+        },
+        {
+          "claim_id": "r3-api-prediction",
+          "kind": "api_prediction",
+          "text": "제공자 알고리즘 예측: 우세 팀 Manchester City, 조언 Home Win.",
+          "snapshot_ids": ["9a8f1d2e-0001-4000-8000-000000000001"],
+          "decision": "adopted",
+          "decision_reason": "제공자 알고리즘 예측이며 매체 의견이나 이 서비스의 결론이 아닙니다."
+        },
+        {
+          "claim_id": "rejected-r3-odds-0",
+          "kind": "external_forecast",
+          "text": "업체 미상 라이브 배당 후보",
+          "decision": "excluded",
+          "decision_reason": "경기 전 승무패 시장이 아니어서 제외했습니다."
+        }
+      ],
+      "sources": [
+        {
+          "label": "Manchester City vs Fulham preview",
+          "url": "https://www.bbc.com/sport/football/manchester-city-fulham-preview",
+          "kind": "search",
+          "note": "검색 결과가 인용한 출처입니다. 원문 전체를 직접 확인한 것은 아닙니다."
+        }
+      ],
+      "coverage": [
+        {"topic": "경기 전 승무패 배당", "state": "api_not_provided", "detail": "배당 자료가 제공되지 않았습니다."},
+        {"topic": "외부 매체 전망", "state": "available", "detail": "채택 1건"},
+        {"topic": "제공자 알고리즘 예측", "state": "available", "detail": "채택 1건"}
+      ]
+    }
+  },
+  "model_text_ok": "{\"headline\": \"리그 3위 Manchester City가 홈에서 하위권 Fulham을 상대합니다.\", \"watch_points\": [{\"text\": \"Manchester City가 홈에서 볼 점유를 오래 가져가는 흐름을 볼 만합니다.\", \"evidence\": [\"api:standings-13\"], \"kind\": \"judgment\"}], \"players_to_watch\": [{\"player\": \"Erling Haaland\", \"team\": \"Manchester City\", \"reason\": \"상대 수비가 내려서는 경기에서 먼저 지켜볼 선수입니다.\", \"evidence\": [\"api:standings-13\"]}], \"absences_impact\": \"Manchester City는 왼쪽 수비 자원이 줄어 측면 대응이 달라질 수 있습니다.\", \"absences_evidence\": [\"r2-api-9401\"], \"external_outlook\": [{\"publisher\": \"BBC Sport\", \"statement\": \"Manchester City가 홈에서 우세할 것으로 전망했습니다.\", \"published_at\": \"2026-11-09\", \"url\": \"https://www.bbc.com/sport/football/manchester-city-fulham-preview\", \"source_kind\": \"external_forecast\"}, {\"publisher\": \"API-Football\", \"statement\": \"알고리즘은 홈팀 우세로 계산했습니다.\", \"published_at\": null, \"url\": null, \"source_kind\": \"api_prediction\"}], \"ai_prediction\": {\"lean\": \"home\", \"score\": \"2-1\", \"reasoning\": [\"상대가 하위권이고 홈 이점이 있어 홈팀 우세로 봅니다.\"], \"note\": \"예상은 결과를 보장하지 않습니다.\"}, \"used_claim_ids\": [\"api:standings-13\", \"r1-watch-0\", \"r1-player-0\", \"r2-api-9401\", \"r3-media-0\", \"r3-api-prediction\"]}",
+  "model_text_new_stat": "{\"headline\": \"Manchester City가 홈에서 Fulham을 상대합니다.\", \"watch_points\": [{\"text\": \"Erling Haaland는 올 시즌 12골을 기록했습니다.\", \"evidence\": [\"api:standings-13\"], \"kind\": \"judgment\"}], \"players_to_watch\": [], \"absences_impact\": null, \"absences_evidence\": [], \"external_outlook\": [], \"ai_prediction\": {\"lean\": \"home\", \"score\": null, \"reasoning\": [\"홈 이점이 있어 홈팀 우세로 봅니다.\"], \"note\": null}, \"used_claim_ids\": [\"api:standings-13\"]}",
+  "model_text_media_without_url": "{\"headline\": \"Manchester City가 홈에서 Fulham을 상대합니다.\", \"watch_points\": [], \"players_to_watch\": [], \"absences_impact\": null, \"absences_evidence\": [], \"external_outlook\": [{\"publisher\": \"어떤 매체\", \"statement\": \"이 매체는 2-0 승리를 예상했습니다.\", \"published_at\": \"2026-11-09\", \"url\": \"https://example.invalid/no-such-source\", \"source_kind\": \"external_forecast\"}], \"ai_prediction\": {\"lean\": \"home\", \"score\": null, \"reasoning\": [\"홈 이점이 있어 홈팀 우세로 봅니다.\"], \"note\": null}, \"used_claim_ids\": []}",
+  "model_text_invalid": "이건 JSON이 아닙니다."
+}
