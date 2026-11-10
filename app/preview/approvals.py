@@ -36,6 +36,7 @@ from app.preview.contracts import (
     APPROVAL_CONTRACT_VERSION,
     ApprovalRequestError,
     ApprovalState,
+    RunMode,
     ConstituentVersion,
     ModuleStatus,
     ReviewedSectionEvidence,
@@ -47,6 +48,7 @@ from app.preview.models import (
     PreviewResult,
     PreviewRun,
     PreviewSectionApproval,
+    PreviewSectionResult,
     PreviewWriteAudit,
 )
 from app.preview.registry import get_module, get_section_workflow, section_workflow_ids
@@ -121,36 +123,34 @@ def version_hash(
     return hashlib.sha256("\x1f".join(parts).encode("utf-8")).hexdigest()
 
 
-def _current_constituents(
-    workflow: SectionWorkflowRegistration, session: Session
-) -> tuple[ConstituentVersion, ...]:
-    """지금 저장된 결과 기준의 구성 버전.
+def _registration_version(module_id: str) -> ConstituentVersion:
+    try:
+        registration = get_module(module_id)
+        contract_version = registration.contract_version
+    except KeyError:
+        contract_version = ""
+    return _module_versions(module_id, {"contract_version": contract_version})
 
-    각 구성 모듈의 가장 최근 성공 결과가 그 모듈이 실제로 무엇을 만들었는지 알려준다.
-    저장 결과가 없는 모듈은 등록부의 계약 버전만 채운다.
+
+def _constituents_from_results(
+    workflow: SectionWorkflowRegistration,
+    rows: Sequence[PreviewResult],
+) -> tuple[ConstituentVersion, ...]:
+    """저장된 결과 행에서 구성 버전을 만든다.
+
+    모듈별로 가장 최근 성공 결과 하나를 쓴다. 결과가 없는 모듈은 등록부의 계약
+    버전만 채우고 구현·프롬프트 버전을 지어내지 않는다.
     """
+    by_module: dict[str, PreviewResult] = {}
+    for row in rows:
+        if row.status != ModuleStatus.SUCCEEDED.value:
+            continue
+        by_module[row.module_id] = row
     versions: list[ConstituentVersion] = []
     for module_id in workflow.module_ids:
-        row = session.scalars(
-            select(PreviewResult)
-            .where(
-                PreviewResult.module_id == module_id,
-                PreviewResult.status == ModuleStatus.SUCCEEDED.value,
-            )
-            .order_by(PreviewResult.created_at.desc(), PreviewResult.version.desc())
-            .limit(1)
-        ).first()
+        row = by_module.get(module_id)
         if row is None:
-            try:
-                registration = get_module(module_id)
-                contract_version = registration.contract_version
-            except KeyError:
-                contract_version = ""
-            versions.append(
-                _module_versions(
-                    module_id, {"contract_version": contract_version}
-                )
-            )
+            versions.append(_registration_version(module_id))
             continue
         versions.append(
             _module_versions(
@@ -163,6 +163,47 @@ def _current_constituents(
             )
         )
     return tuple(sorted(versions, key=lambda item: item.module_id))
+
+
+def _latest_section_result(
+    session: Session, workflow_id: str
+) -> PreviewSectionResult | None:
+    return session.scalars(
+        select(PreviewSectionResult)
+        .where(PreviewSectionResult.workflow_id == workflow_id)
+        .order_by(PreviewSectionResult.created_at.desc(), PreviewSectionResult.version.desc())
+        .limit(1)
+    ).first()
+
+
+def _results_of_run(session: Session, run_id: uuid.UUID) -> list[PreviewResult]:
+    return list(
+        session.scalars(
+            select(PreviewResult)
+            .where(PreviewResult.run_id == run_id)
+            .order_by(PreviewResult.created_at, PreviewResult.version)
+        )
+    )
+
+
+def _current_constituents(
+    workflow: SectionWorkflowRegistration, session: Session
+) -> tuple[ConstituentVersion, ...]:
+    """지금 확인 가능한 구성 버전.
+
+    가장 최근 **섹션 결과**를 만든 실행의 모듈 결과를 기준으로 한다. 그래야 승인
+    화면이 보는 버전과 실행이 실제로 만든 구성이 같은 근거를 쓴다. 섹션 결과가 아직
+    없으면 등록부의 계약 버전만 채운다.
+    """
+    latest = _latest_section_result(session, workflow.workflow_id)
+    if latest is None:
+        return tuple(
+            sorted(
+                (_registration_version(module_id) for module_id in workflow.module_ids),
+                key=lambda item: item.module_id,
+            )
+        )
+    return _constituents_from_results(workflow, _results_of_run(session, latest.run_id))
 
 
 def _approval(row: PreviewSectionApproval) -> SectionApproval:
@@ -206,8 +247,11 @@ def section_approval_status(
 ) -> SectionApprovalStatus:
     """섹션 하나의 승인 현황. 저장 결과 기준의 현재 구성과 비교한다."""
     workflow = get_section_workflow(workflow_id)
-    current = _current_constituents(workflow, session)
-    _, current_version = release_version(workflow, current)
+    # `release_version`은 (버전 문자열, 정렬된 구성)을 돌려준다. 버전과 구성을 바꿔
+    # 받으면 승인 상태가 항상 SUPERSEDED로 보이는 결함이 생긴다.
+    current_version, current = release_version(
+        workflow, _current_constituents(workflow, session)
+    )
 
     rows = _rows(session, workflow_id)
     active_row = next((row for row in rows if row.active), None)
@@ -285,28 +329,53 @@ def approval_gate_note(status: SectionApprovalStatus) -> str:
 
 
 def _require_section_evidence(
-    session: Session, workflow: SectionWorkflowRegistration, run_id: uuid.UUID
-) -> PreviewRun:
-    """승인 근거가 실제 저장된 실행인지 확인한다.
+    session: Session,
+    workflow: SectionWorkflowRegistration,
+    run_id: uuid.UUID,
+    section_result_id: uuid.UUID | None,
+) -> PreviewSectionResult:
+    """승인 근거가 실제 저장된 **섹션 본문 결과**인지 확인한다.
 
-    섹션 결과 ID 검증은 섹션 결과 표가 생기는 MP-09 이후에 붙는다. 그때까지는
-    승인 요청 자체를 거부해, 근거 없는 승인이 만들어지지 않게 한다.
+    거부 조건을 좁게 유지한다. 근거가 없거나, 다른 실행·다른 섹션의 결과이거나,
+    모의 시연으로 만든 결과이거나, 본문을 만들지 못한 결과면 승인 행을 만들지 않는다.
     """
     run = session.get(PreviewRun, run_id)
     if run is None:
         reject_approval_request("승인 근거로 지정한 실행을 찾을 수 없습니다.")
     if run.cancelled_at is not None:
         reject_approval_request("취소된 실행은 승인 근거로 쓸 수 없습니다.")
-    if not workflow.implemented:
+    if section_result_id is None:
         reject_approval_request(
-            f"{workflow.display_name}은 아직 구현되지 않았습니다."
-            " 섹션 실행 결과가 없으므로 승인할 수 없습니다."
+            "승인에는 확인한 섹션 결과 ID가 필요합니다. 본문을 연 뒤에 승인하세요."
         )
-    reject_approval_request(
-        "섹션 결과 기록이 아직 없습니다. 승인은 실제 섹션 본문 결과를 확인한 뒤에만"
-        " 만들 수 있으며, 그 경로는 MP-09 이후에 연결됩니다."
-    )
-    return run  # pragma: no cover - 위에서 항상 거부된다
+
+    row = session.get(PreviewSectionResult, section_result_id)
+    if row is None:
+        reject_approval_request(
+            "승인 근거로 지정한 섹션 결과를 찾을 수 없습니다."
+        )
+    if row.run_id != run_id:
+        reject_approval_request(
+            "지정한 섹션 결과는 이 실행의 결과가 아닙니다. 확인한 실행과 결과를 함께"
+            " 지정해야 합니다."
+        )
+    if row.workflow_id != workflow.workflow_id:
+        reject_approval_request(
+            f"지정한 섹션 결과는 {row.workflow_id}의 결과이며"
+            f" {workflow.workflow_id} 승인 근거가 아닙니다."
+        )
+    if row.unavailable_reason is not None or not (row.body or "").strip():
+        reject_approval_request(
+            "본문이 없는 섹션 결과는 승인 근거로 쓸 수 없습니다."
+        )
+    if row.mode == RunMode.MOCK.value:
+        reject_approval_request(
+            "모의 시연 결과는 승인 근거가 아닙니다. 실제 조사·생성 실행의 본문을"
+            " 확인한 뒤 승인하세요."
+        )
+    if run.mode != row.mode:  # pragma: no cover - 같은 실행의 결과는 같은 방식이다
+        reject_approval_request("실행 방식과 섹션 결과의 실행 방식이 다릅니다.")
+    return row
 
 
 def approve_section_version(
@@ -314,19 +383,67 @@ def approve_section_version(
     *,
     workflow_id: str,
     run_id: uuid.UUID,
-    section_result_id: uuid.UUID,
+    section_result_id: uuid.UUID | None,
     actor_id: int,
     note: str | None = None,
     now: datetime | None = None,
 ) -> SectionApproval:
     """관리자가 확인한 섹션 워크플로우 버전을 승인한다.
 
-    MP-02 시점에는 섹션 실행 결과 저장 구조가 없으므로 이 함수는 항상 거부한다.
-    근거 없는 승인 행을 만들어 승인된 것처럼 보이게 하지 않기 위해서다. 실제 승인
-    경로는 섹션 결과가 저장되는 MP-09에서 이 함수 본문을 채우며 열린다.
+    승인 단위는 섹션을 만드는 완결된 워크플로우이며, 근거는 그 워크플로우가 실제로
+    만든 **섹션 본문 결과**다. 근거가 확인되지 않으면 행을 만들지 않는다.
+
+    같은 워크플로우에 이미 활성 승인이 있으면 그 행은 지우지 않고 `active`만 내린 뒤,
+    새 승인이 `supersedes_approval_id`로 가리킨다. 그래서 "언제 무엇을 어떤 근거로
+    승인했는지"가 그대로 남는다.
     """
     if actor_id is None or actor_id <= 0:
         reject_approval_request("승인자 계정 ID가 필요합니다.")
     workflow = get_section_workflow(workflow_id)
-    _require_section_evidence(session, workflow, run_id)
-    raise ApprovalRequestError("unreachable")  # pragma: no cover
+    row = _require_section_evidence(session, workflow, run_id, section_result_id)
+
+    constituents = _constituents_from_results(
+        workflow, _results_of_run(session, run_id)
+    )
+    workflow_version, ordered = release_version(workflow, constituents)
+    moment = now or datetime.now(timezone.utc)
+
+    active_rows = [
+        entry for entry in _rows(session, workflow_id) if entry.active
+    ]
+    for entry in active_rows:
+        entry.active = False
+    session.flush()
+
+    approval = PreviewSectionApproval(
+        workflow_id=workflow_id,
+        workflow_version=workflow_version,
+        version_hash=version_hash(workflow_id, workflow_version, ordered),
+        constituents=[item.to_dict() for item in ordered],
+        reviewed_run_id=run_id,
+        section_result_id=row.id,
+        approved_by_actor_id=actor_id,
+        approved_at=moment,
+        reviewed_note=note,
+        active=True,
+        supersedes_approval_id=active_rows[0].id if active_rows else None,
+    )
+    session.add(approval)
+    session.flush()
+    session.add(
+        PreviewWriteAudit(
+            run_id=run_id,
+            actor_id=actor_id,
+            action="section_approved",
+            target_table="preview_section_approvals",
+            target_id=str(approval.id),
+            detail={
+                "workflow_id": workflow_id,
+                "workflow_version": workflow_version,
+                "section_result_id": str(row.id),
+                "evidence_mode": row.mode,
+            },
+        )
+    )
+    session.flush()
+    return _approval(approval)
