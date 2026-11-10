@@ -16,7 +16,7 @@ __all__ = ["backed_modules", "module_versions"]
 # `tests/preview/test_form_module.py`가 실패한다.
 # 값은 (구현 버전, 프롬프트 버전)이며, 각 모듈 파일이 자기 값을 소유한다.
 _IMPLEMENTED = {
-    "R1": ("mp05-form-2", "mp05-form-prompt-2"),
+    "R1": ("mp05-form-3", "mp05-form-prompt-2"),
     "R2": ("mp06-r2-2", "mp06-r2-prompt-2"),
     "R3": ("mp07-r3-1", "r3-outlook-1"),
     "S1": ("mp09-s1-1", "mp09-s1-prompt-1"),

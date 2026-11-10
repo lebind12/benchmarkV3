@@ -132,27 +132,61 @@ def _registration_version(module_id: str) -> ConstituentVersion:
     return _module_versions(module_id, {"contract_version": contract_version})
 
 
-def _constituents_from_results(
+def _stored_payload(row: PreviewResult) -> dict[str, Any]:
+    """저장 행의 실제 모듈 payload. `ModuleResult.to_dict()`가 한 겹 감싼다."""
+    stored = dict(row.payload or {})
+    inner = stored.get("payload")
+    return dict(inner) if isinstance(inner, Mapping) else stored
+
+
+def _reviewed_constituents(
     workflow: SectionWorkflowRegistration,
+    section_row: PreviewSectionResult,
     rows: Sequence[PreviewResult],
-) -> tuple[ConstituentVersion, ...]:
-    """승인 근거가 된 실행이 **실제로 남긴** 구성 버전.
+) -> tuple[tuple[ConstituentVersion, ...], bool]:
+    """승인자가 **실제로 검토한 섹션 결과**를 만든 구성 버전.
 
-    현재 manifest와 **같은 모듈 집합**을 쓴다(자료 준비·조사·본문 조립). 그래야 방금
-    실행한 결과를 승인하면 그 버전이 현재 구성과 같아진다. 저장된 결과가 없는 모듈은
-    현재 manifest 값으로 채우되, 저장된 값이 있으면 **저장된 값**을 쓴다(그 실행이 실제로
-    무엇을 썼는지가 승인 근거다).
+    승인 근거는 그 섹션 본문 결과다. 그래서 구성도 그 행이 가진 스탬프와 그 행이
+    가리키는 결과 행에서 나온다. 실행의 다른(옛) 모듈 결과 행으로 다시 계산하지
+    않는다. 재검증 후보는 새 R1·compose 결과 행을 직접 가리키므로, 옛 구현 행이
+    승인 구성을 덮어쓰지 않는다.
 
-    옛 실행을 승인하면 그 실행의 옛 버전이 그대로 남는다. 현재 코드와 다르면 승인 현황이
-    SUPERSEDED로 보여 새 버전 확인이 필요하다고 알린다.
+    본문이 현재 구성과 다른 옛 코드로 만들어졌다면 그 옛 버전이 그대로 남는다.
+    그래야 "최신 본문을 승인했는데 옛 버전으로 기록"되는 불일치가 생기지 않는다.
     """
     from app.preview import version_manifest
+
+    # 재검증처럼 이 섹션 결과를 만든 쪽이 **구성 집합을 직접 남겼다면** 그것을 쓴다.
+    # 그 값은 그 본문을 만든 실제 구성이며 나중에 다시 계산해 대체하지 않는다.
+    referenced = {str(item) for item in (section_row.result_ids or [])}
+    for row in rows:
+        if str(row.id) not in referenced:
+            continue
+        stored = _stored_payload(row).get("manifest")
+        if not isinstance(stored, Sequence) or isinstance(stored, str) or not stored:
+            continue
+        entries = tuple(
+            ConstituentVersion(
+                module_id=str(item.get("module_id", "")),
+                prompt_version=str(item.get("prompt_version") or ""),
+                implementation_version=str(item.get("implementation_version") or ""),
+                contract_version=str(item.get("contract_version") or ""),
+            )
+            for item in stored
+            if isinstance(item, Mapping)
+        )
+        if entries:
+            return tuple(sorted(entries, key=lambda item: item.module_id)), True
 
     by_module: dict[str, PreviewResult] = {}
     for row in rows:
         if row.status != ModuleStatus.SUCCEEDED.value:
             continue
-        by_module[row.module_id] = row
+        by_module.setdefault(row.module_id, row)
+    # 이 섹션 결과가 실제로 가리키는 행이 있으면 그것이 우선이다.
+    for row in rows:
+        if str(row.id) in referenced and row.status == ModuleStatus.SUCCEEDED.value:
+            by_module[row.module_id] = row
 
     versions: list[ConstituentVersion] = []
     for expected in version_manifest.constituents_for_workflow(workflow.workflow_id):
@@ -164,14 +198,13 @@ def _constituents_from_results(
             _module_versions(
                 expected.module_id,
                 {
-                    # 저장값이 비어 있는 축(예: 프롬프트 없는 단계)은 그대로 빈 문자열이다.
                     "prompt_version": row.prompt_version,
                     "implementation_version": row.implementation_version,
                     "contract_version": row.contract_version or expected.contract_version,
                 },
             )
         )
-    return tuple(sorted(versions, key=lambda item: item.module_id))
+    return tuple(sorted(versions, key=lambda item: item.module_id)), False
 
 
 def _latest_section_result(
@@ -405,10 +438,24 @@ def approve_section_version(
     workflow = get_section_workflow(workflow_id)
     row = _require_section_evidence(session, workflow, run_id, section_result_id)
 
-    constituents = _constituents_from_results(
-        workflow, _results_of_run(session, run_id)
+    # 승인은 **검토한 섹션 결과 행**이 실제로 가진 스탬프와 구성을 쓴다. 실행의 다른
+    # (옛) 모듈 결과 행에서 다시 계산하면, 새 코드로 만든 본문을 승인하면서 옛 버전을
+    # 기록하게 되고 화면에서는 곧바로 SUPERSEDED가 된다.
+    constituents, has_own_manifest = _reviewed_constituents(
+        workflow, row, _results_of_run(session, run_id)
     )
-    workflow_version, ordered = release_version(workflow, constituents)
+    if has_own_manifest:
+        # 검토한 섹션 결과가 **자기 구성을 직접 남긴** 경우(재검증 후보)에는 그 본문이
+        # 실제로 가진 스탬프와 구성을 그대로 쓴다. 현재 코드나 실행의 옛 모듈 행으로
+        # 다시 계산해 다른 버전을 적지 않는다.
+        ordered = constituents
+        workflow_version = row.workflow_version
+    else:
+        # 자기 구성을 남기지 않은 예전 결과는 그 결과가 **실제로 가리키는 모듈 행**에서
+        # 계산한다. 그래야 테스트·옛 구현으로 만든 본문이 현재 코드 버전으로 승인되지
+        # 않고 SUPERSEDED로 남는다. 재검증 후보는 자기 manifest를 남기므로 이 경로를
+        # 쓰지 않는다.
+        workflow_version, ordered = release_version(workflow, constituents)
     moment = now or datetime.now(timezone.utc)
 
     active_rows = [

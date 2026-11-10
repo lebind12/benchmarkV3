@@ -17,9 +17,12 @@ def test_manifest_uses_real_versions_not_placeholders():
 
     # 실제 실행 단계(자료 준비·조사·본문 조립)가 모두 들어 있다.
     assert set(by_module) == {"D0", "R1", "compose_body"}
-    # 조사 모듈은 프롬프트와 구현 버전이 모두 채워진다.
-    assert by_module["R1"].prompt_version == "mp05-form-prompt-2"
-    assert by_module["R1"].implementation_version == "mp05-form-2"
+    # 조사 모듈은 프롬프트와 구현 버전이 모두 채워진다. 값은 모듈이 소유한 실제
+    # 상수와 대조한다(구현 버전이 올라갈 때 여기서 문자열을 고치지 않게).
+    from app.preview.modules import form
+
+    assert by_module["R1"].prompt_version == form.FORM_PROMPT_VERSION
+    assert by_module["R1"].implementation_version == form.FORM_IMPLEMENTATION_VERSION
     # 프롬프트가 없는 단계는 프롬프트만 빈 문자열이고 구현 버전은 실제 값이다.
     assert by_module["D0"].prompt_version == ""
     assert by_module["D0"].implementation_version == "mp05-stored-d0-1"
@@ -66,7 +69,7 @@ def test_semantic_version_change_alters_candidate(monkeypatch):
 
     for variant in (
         _changed("R1", prompt="mp05-form-prompt-3"),
-        _changed("R1", impl="mp05-form-3"),
+        _changed("R1", impl="mp05-form-impl-diverged"),
         _changed("compose_body", impl="mp05-compose-3"),
         _changed("D0", impl="mp05-stored-d0-2"),
     ):

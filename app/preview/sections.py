@@ -30,11 +30,16 @@ from app.preview import artifacts as artifact_store
 from app.preview import version_manifest
 from app.preview import provider, store
 from app.preview.contracts import (
+    CONTRACT_VERSION,
     CoverageEntry,
     CoverageState,
     FixtureIdentity,
+    ModuleInput,
+    ModuleResult,
+    ModuleStatus,
     SourceKind,
     ValidationStatus,
+    compute_input_hash,
 )
 from app.preview.modules import compose, form
 from app.preview.runner import (
@@ -80,6 +85,9 @@ _IMPLEMENTED_SECTIONS = (
 
 # 저장 자료 출처 표기. 실제 API 호출이 아니라 읽기 전용 재사용임을 드러낸다.
 STORED_PROVIDER = "api-football-stored"
+
+# 재검증 결과의 provenance 종류. 새 모델 호출이 아니라 저장 원문의 재해석임을 뜻한다.
+REVALIDATION_PROVENANCE_KIND = "revalidated_from_stored_response"
 
 
 def implemented_section_ids() -> tuple[str, ...]:
@@ -845,6 +853,149 @@ def revalidate_section_from_stored_response(
     if not composed.body:
         raise ValueError("stored response did not yield a body under the new rules")
 
+    # 4) 재검증이 만든 검증 결과를 **새 버전 행**으로 남긴다. 진단(덜어낸 사실·사유)을
+    # 메모리에만 두면 실행 기록에서 "무엇을 왜 뺐는지"를 볼 수 없다.
+    old_r1 = session.scalars(
+        select(PreviewResult)
+        .where(PreviewResult.run_id == run_id, PreviewResult.module_id == "R1")
+        .order_by(PreviewResult.version.desc())
+    ).first()
+    # 이 후보를 만든 구성 집합은 **지금 코드**다. 채택/제외 판정과 본문 조립을 현재
+    # 구현이 수행했으므로, 승인 화면이 보는 현재 후보와 같은 버전을 가진다. 원문 문장을
+    # 만든 옛 프롬프트는 숨기지 않고 R1 결과 행의 `prompt_version`과 provenance에
+    # 따로 남긴다(새 프롬프트를 보낸 것처럼 꾸미지 않는다).
+    manifest = version_manifest.constituents_for_workflow(latest_section["workflow_id"])
+    section_version = version_manifest.workflow_version_of(latest_section["workflow_id"])
+    provenance = {
+        "kind": REVALIDATION_PROVENANCE_KIND,
+        # 원문 응답은 **이 실행이 실제로 받은 것**을 그대로 가리킨다(새 호출 없음).
+        "source_artifact_id": str(attempt.response_artifact_id),
+        "source_attempt_id": str(attempt.id),
+        "source_result_id": str(old_r1.id) if old_r1 is not None else None,
+        # 원문을 만든 프롬프트/구현과, 지금 다시 해석한 구현을 분리해 남긴다.
+        "source_prompt_version": str(old_r1.prompt_version or "") if old_r1 is not None else "",
+        "source_implementation_version": (
+            str(old_r1.implementation_version or "") if old_r1 is not None else ""
+        ),
+        "validated_by_implementation_version": form.FORM_IMPLEMENTATION_VERSION,
+        "validated_by_prompt_version": form.FORM_PROMPT_VERSION,
+        "external_calls": 0,
+        "note": (
+            "모델 응답을 새로 받은 것이 아니라, 저장된 원문을 새 검증 규칙으로 다시"
+            " 해석한 결과입니다. 문장 생성에 쓰인 프롬프트는 원문을 만든 옛 프롬프트이며,"
+            " 여기의 검증 구현 버전과 다릅니다."
+        ),
+    }
+    validation_messages = _revalidation_diagnostics(validated, research)
+
+    r1_execution = store.start_module_execution(
+        session,
+        run_id=run_id,
+        module_id="R1",
+        ordinal=_next_execution_ordinal(session, run_id, "R1"),
+        module_input=ModuleInput(
+            module_id="R1",
+            fixture=_fixture_from_payload(d0_payload.get("fixture")),
+            snapshot_ids=tuple(
+                uuid.UUID(str(item.get("snapshot_id")))
+                for item in d0_payload.get("facts") or ()
+                if isinstance(item, Mapping) and item.get("snapshot_id")
+            ),
+            selected_result_ids=(),
+            input_hash=compute_input_hash(
+                {
+                    "module_id": "R1",
+                    "run_id": str(run_id),
+                    "source_artifact_id": str(attempt.response_artifact_id),
+                    "implementation": form.FORM_IMPLEMENTATION_VERSION,
+                }
+            ),
+            # 원문은 옛 프롬프트가 만들었다. 새 프롬프트를 보낸 것처럼 적지 않는다.
+            prompt_version=provenance["source_prompt_version"],
+            contract_version=CONTRACT_VERSION,
+            implementation_version=form.FORM_IMPLEMENTATION_VERSION,
+            parameters={"node": "revalidate"},
+        ),
+        actor_id=actor_id,
+    )
+    revalidated_result = store.save_module_result(
+        session,
+        ModuleResult(
+            result_id=uuid.uuid4(),
+            module_id="R1",
+            module_execution_id=r1_execution.id,
+            run_id=run_id,
+            version=1,
+            input_hash=r1_execution.input_hash,
+            status=ModuleStatus.SUCCEEDED,
+            quality=research.quality,
+            claims=tuple(research.claims),
+            coverage=tuple(research.coverage),
+            diagnostics=tuple(validation_messages),
+            implementation_version=form.FORM_IMPLEMENTATION_VERSION,
+            prompt_version=provenance["source_prompt_version"],
+            contract_version=CONTRACT_VERSION,
+            payload={
+                "payload": dict(payload_for_body),
+                "diagnostics": list(validation_messages),
+                "provenance": provenance,
+                "manifest": [entry.to_dict() for entry in manifest],
+                "workflow_version": section_version,
+            },
+        ),
+        actor_id=actor_id,
+    )
+
+    compose_execution = store.start_module_execution(
+        session,
+        run_id=run_id,
+        module_id=COMPOSE_MODULE_ID,
+        ordinal=_next_execution_ordinal(session, run_id, COMPOSE_MODULE_ID),
+        module_input=ModuleInput(
+            module_id=COMPOSE_MODULE_ID,
+            fixture=_fixture_from_payload(d0_payload.get("fixture")),
+            snapshot_ids=(),
+            selected_result_ids=(revalidated_result.id,),
+            input_hash=compute_input_hash(
+                {
+                    "module_id": COMPOSE_MODULE_ID,
+                    "body_source": str(revalidated_result.id),
+                    "implementation": FORM_COMPOSE_IMPLEMENTATION_VERSION,
+                }
+            ),
+            prompt_version="",
+            contract_version=CONTRACT_VERSION,
+            implementation_version=FORM_COMPOSE_IMPLEMENTATION_VERSION,
+            parameters={"node": "revalidate_compose"},
+        ),
+        actor_id=actor_id,
+    )
+    composed_result = store.save_module_result(
+        session,
+        ModuleResult(
+            result_id=uuid.uuid4(),
+            module_id=COMPOSE_MODULE_ID,
+            module_execution_id=compose_execution.id,
+            run_id=run_id,
+            version=1,
+            input_hash=compose_execution.input_hash,
+            status=ModuleStatus.SUCCEEDED,
+            quality=composed.quality,
+            implementation_version=FORM_COMPOSE_IMPLEMENTATION_VERSION,
+            prompt_version="",
+            contract_version=CONTRACT_VERSION,
+            payload={
+                "title": composed.title,
+                "body": composed.body,
+                "sources": [dict(item) for item in composed.sources],
+                "revalidated_from_result_id": str(revalidated_result.id),
+                "manifest": [entry.to_dict() for entry in manifest],
+                "workflow_version": section_version,
+            },
+        ),
+        actor_id=actor_id,
+    )
+
     next_version = int(latest_section["version"]) + 1
     row = store.save_section_result(
         session,
@@ -853,7 +1004,7 @@ def revalidate_section_from_stored_response(
         # 이 결과는 **지금 코드**로 다시 검증한 후보이므로, 옛 실행이 남긴 버전을
         # 물려받지 않고 현재 구성으로 계산한 버전을 쓴다. 그래야 승인 화면이 보는
         # 후보 버전과 저장된 후보가 같아지고, 옛 결과를 새 코드로 표시하지 않는다.
-        workflow_version=version_manifest.workflow_version_of(latest_section["workflow_id"]),
+        workflow_version=section_version,
         title=composed.title,
         body=composed.body,
         version=next_version,
@@ -863,17 +1014,94 @@ def revalidate_section_from_stored_response(
         output_contract_version=latest_section["output_contract_version"],
         contract_version=SECTION_RESULT_CONTRACT_VERSION,
         sources=composed.sources,
-        module_execution_ids=[uuid.UUID(x) for x in latest_section["module_execution_ids"]],
-        result_ids=[uuid.UUID(x) for x in latest_section["result_ids"]],
-        diagnostics=(
-            "저장된 원문 응답을 새 사실/판단 검증 규칙으로 다시 해석했습니다(외부 호출 0회)."
-            " 새 근거를 추가하지 않았고, 이전 버전과 원문은 그대로 보존합니다."
-            f" 검증 구현 버전: {form.FORM_IMPLEMENTATION_VERSION}."
+        # 이 결과를 만든 모듈 결과 행을 정확히 가리킨다. 승인의 구성 근거가 여기서 나온다.
+        module_execution_ids=[
+            uuid.UUID(x) for x in latest_section["module_execution_ids"]
+        ]
+        + [r1_execution.id, compose_execution.id],
+        result_ids=[uuid.UUID(x) for x in latest_section["result_ids"]]
+        + [revalidated_result.id, composed_result.id],
+        diagnostics=_section_revalidation_diagnostics(
+            validation_messages, form.FORM_IMPLEMENTATION_VERSION
         ),
         actor_id=actor_id,
         now=moment,
     )
     return row, research, composed
+
+
+def _next_execution_ordinal(session, run_id: uuid.UUID, module_id: str) -> int:
+    """같은 실행·모듈의 다음 순번. 재검증도 실행 기록의 순서를 이어 간다."""
+    from sqlalchemy import func, select
+
+    from app.preview.models import PreviewModuleExecution
+
+    return int(
+        session.scalar(
+            select(func.count())
+            .select_from(PreviewModuleExecution)
+            .where(
+                PreviewModuleExecution.run_id == run_id,
+                PreviewModuleExecution.module_id == module_id,
+            )
+        )
+        or 0
+    )
+
+
+def _fixture_from_payload(payload: Mapping[str, Any] | None) -> FixtureIdentity | None:
+    """저장된 D0 payload의 경기 식별자를 그대로 복원한다. 없는 값은 만들지 않는다."""
+    if not isinstance(payload, Mapping) or not payload:
+        return None
+    try:
+        return FixtureIdentity.from_dict(dict(payload))
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _revalidation_diagnostics(validated, research) -> tuple[str, ...]:
+    """재검증 진단을 **사람이 읽는 전체 문장 목록**으로 만든다.
+
+    `validated.diagnostics`는 제외 사유 문장이고, `dropped_facts`·`unasserted_premises`는
+    덜어낸 사실과 내려놓은 전제다. 둘을 합쳐 항목마다 한 문장으로 남긴다. 호출자가
+    튜플로 받으므로 `save_section_result`가 글자 단위로 펼치지 않는다.
+    """
+    messages: list[str] = []
+
+    def add(text: Any) -> None:
+        cleaned = str(text or "").strip()
+        if cleaned and cleaned not in messages:
+            messages.append(cleaned)
+
+    for item in tuple(getattr(validated, "diagnostics", ()) or ()):
+        add(item)
+    dropped = tuple(getattr(validated, "dropped_facts", ()) or ())
+    if dropped:
+        add(
+            f"확인되지 않은 사실 조각 {len(dropped)}개를 덜어냈습니다: "
+            + " / ".join(str(item) for item in dropped)
+        )
+    premises = tuple(getattr(validated, "unasserted_premises", ()) or ())
+    if premises:
+        add(
+            "덜어낸 사실을 전제로 삼던 부분을 주장하지 않고 내려놓았습니다: "
+            + " / ".join(str(item) for item in premises)
+        )
+    for item in tuple(getattr(research, "uncertainties", ()) or ()):
+        add(item)
+    return tuple(messages)
+
+
+def _section_revalidation_diagnostics(
+    messages: Sequence[str], implementation_version: str
+) -> tuple[str, ...]:
+    """섹션 결과에 남길 진단. 재검증 사실 문장 + 검증기가 남긴 제외·덜어냄 사유."""
+    header = (
+        "저장된 원문 응답을 새 사실/판단 검증 규칙으로 다시 해석했습니다(외부 호출 0회)."
+        " 새 근거를 추가하지 않았고, 이전 버전과 원문은 그대로 보존합니다."
+        f" 검증 구현 버전: {implementation_version}."
+    )
+    return (header, *messages)
 
 
 def _parse_iso(value) -> datetime | None:
