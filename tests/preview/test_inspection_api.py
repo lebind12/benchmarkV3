@@ -158,9 +158,10 @@ def test_registered_module_uses_generic_inspector(client, make_user, monkeypatch
 
     registry = client.get("/api/v1/admin/preview/registry").json()
     assert "mock_demo" in registry["implemented"]
-    # 미구현 모듈은 실행 가능으로 표시되지 않는다.
-    assert "R1" in registry["unavailable"]
-    unimplemented = next(m for m in registry["modules"] if m["module_id"] == "R1")
+    # R1·R2·R3 조사 구현이 등록됐고, D0 공유 자료와 S1 종합은 여전히 미구현이다.
+    assert {"R1", "R2", "R3"} <= set(registry["implemented"])
+    assert "S1" in registry["unavailable"]
+    unimplemented = next(m for m in registry["modules"] if m["module_id"] == "S1")
     assert unimplemented["implemented"] is False
     assert unimplemented["unrunnable_reason"]
 
@@ -195,10 +196,18 @@ def test_registered_module_uses_generic_inspector(client, make_user, monkeypatch
 
 
 def test_unimplemented_modules_are_not_runnable(client, make_user):
+    """구현이 없는 모듈은 실행 가능으로 표시하지 않는다.
+
+    MP-05가 R1 조사 구현을 등록했으므로 R1은 실행 가능하고, 나머지 미구현 모듈은
+    `implemented=False`와 사유를 함께 낸다.
+    """
     _login_admin(client, make_user)
     registry = client.get("/api/v1/admin/preview/registry").json()
+    implemented = {module["module_id"] for module in registry["modules"] if module["implemented"]}
+    assert {"mock_demo", "R1", "R2", "R3"} <= implemented
     for module in registry["modules"]:
-        if module["module_id"] == "mock_demo":
+        if module["module_id"] in {"mock_demo", "R1", "R2", "R3"}:
+            assert module["unrunnable_reason"] is None
             continue
         assert module["implemented"] is False
         assert module["unrunnable_reason"]
@@ -256,7 +265,10 @@ def test_registry_and_retention_endpoints_report_state(client, make_user):
 
     registry = client.get("/api/v1/admin/preview/registry").json()
     assert registry["contract_version"] == CONTRACT_VERSION
-    assert registry["implemented"] == ["mock_demo"]
+    # MP-05~07에서 R1·R2·R3 조사 구현이 등록됐다. D0·S1은 여전히 미구현이다.
+    assert {"mock_demo", "R1", "R2", "R3"} <= set(registry["implemented"])
+    assert "D0" in registry["unavailable"]
+    assert "S1" in registry["unavailable"]
 
     retention = client.get("/api/v1/admin/preview/retention").json()
     assert retention["policy"]["raw_artifact_days"] == 30

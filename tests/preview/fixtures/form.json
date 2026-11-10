@@ -1,0 +1,104 @@
+{
+  "_note": "R1 경기력 조사 응답 모양. 실제 제공자 응답이 아니라 검사용 기록이며 live 성공 근거가 아니다.",
+  "fixture": {
+    "fixture_id": 1557474,
+    "league_id": 1,
+    "season": 2026,
+    "home_team_id": 13,
+    "away_team_id": 4,
+    "kickoff_at": "2026-11-21T12:30:00+00:00",
+    "home_team": "Manchester City",
+    "away_team": "Fulham",
+    "league": "Premier League"
+  },
+  "api_sources": [
+    {
+      "snapshot_id": "11111111-1111-4111-8111-111111111111",
+      "label": "API-Football 순위(프리미어리그 2026)",
+      "collected_at": "2026-11-10T09:04:25+00:00"
+    },
+    {
+      "snapshot_id": "22222222-2222-4222-8222-222222222222",
+      "label": "API-Football 팀 기록(홈)",
+      "collected_at": "2026-11-10T09:04:25+00:00"
+    }
+  ],
+  "facts": [
+    {
+      "fact_id": "api:standings-mci",
+      "text": "Manchester City는 10경기 7승 3패, 승점 21로 리그 3위이며 최근 5경기 폼은 LLLWW입니다.",
+      "snapshot_id": "11111111-1111-4111-8111-111111111111",
+      "subject_team_id": 13
+    },
+    {
+      "fact_id": "api:standings-ful",
+      "text": "Fulham은 10경기 2승 4무 4패, 승점 10으로 리그 15위이며 최근 5경기 폼은 DDWWL입니다.",
+      "snapshot_id": "11111111-1111-4111-8111-111111111111",
+      "subject_team_id": 4
+    },
+    {
+      "fact_id": "api:form-mci",
+      "text": "Manchester City의 최근 5경기 성적은 3승 2패입니다.",
+      "snapshot_id": "22222222-2222-4222-8222-222222222222",
+      "subject_team_id": 13
+    }
+  ],
+  "model_text": "{\"match_context\": {\"importance\": \"리그 3위 Manchester City가 하위권 Fulham을 홈으로 불러들이는 경기로, 상위권 경쟁을 이어가려면 승점 3점이 필요한 자리입니다.\", \"importance_evidence\": [\"api:standings-mci\", \"api:standings-ful\"]}, \"recent_form\": [{\"team\": \"Manchester City\", \"summary\": \"최근 5경기에서 3승 2패를 기록했고, 홈에서는 공격 전개가 안정적이었습니다.\", \"evidence\": [\"api:form-mci\"]}, {\"team\": \"Fulham\", \"summary\": \"최근 5경기 2승 1무 2패로 기복이 있었습니다.\", \"evidence\": [\"api:standings-ful\"]}], \"watch_points\": [{\"title\": \"City의 측면 전개 속도\", \"detail\": \"Fulham이 수비 라인을 낮게 내리면 City의 측면 전개 속도가 경기의 리듬을 정합니다.\", \"evidence\": [\"api:standings-mci\"]}, {\"title\": \"Fulham의 역습 효율\", \"detail\": \"Fulham은 점유율이 낮은 경기에서 역습 효율로 승점을 쌓아왔습니다.\", \"evidence\": [\"api:standings-ful\"]}], \"hot_players\": [{\"player\": \"Erling Haaland\", \"team\": \"Manchester City\", \"reason\": \"최근 경기에서 결정적인 슈팅 비중이 높은 공격수로, 박스 안 마무리 역할을 맡습니다.\", \"evidence\": [\"api:form-mci\"], \"superlative_basis\": null}, {\"player\": \"Andreas Pereira\", \"team\": \"Fulham\", \"reason\": \"세트피스 키커로서 Fulham의 득점 루트를 만듭니다.\", \"evidence\": [\"api:standings-ful\"], \"superlative_basis\": null}], \"search_note\": \"킥오프 7일 이내 보도는 확인하지 못했습니다.\", \"uncertainties\": [\"선발 라인업은 아직 공개되지 않았습니다.\"]}",
+  "grounding_raw": {
+    "candidates": [
+      {
+        "content": {
+          "parts": [
+            {
+              "text": "{\"match_context\": {\"importance\": \"리그 3위 Manchester City가 하위권 Fulham을 홈으로 불러들이는 경기입니다.\"}}"
+            }
+          ],
+          "role": "model"
+        },
+        "finish_reason": "STOP",
+        "grounding_metadata": {
+          "web_search_queries": [
+            "Manchester City Fulham preview November 2026",
+            "Manchester City recent form November 2026"
+          ],
+          "grounding_chunks": [
+            {
+              "web": {
+                "uri": "https://www.bbc.com/sport/football/manchester-city-fulham-preview",
+                "title": "Manchester City vs Fulham preview",
+                "domain": "bbc.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://www.premierleague.com/news/manchester-city-form",
+                "title": "Manchester City form guide",
+                "domain": "premierleague.com"
+              }
+            }
+          ],
+          "grounding_supports": [
+            {
+              "segment": { "start_index": 0, "end_index": 40 },
+              "grounding_chunk_indices": [0],
+              "confidence_scores": [0.91]
+            }
+          ],
+          "search_entry_point": {
+            "rendered_content": "<div class=\"gsc\">search suggestions</div>",
+            "sdk_blob": "blob-value"
+          }
+        }
+      }
+    ],
+    "usage_metadata": {
+      "prompt_token_count": 1200,
+      "candidates_token_count": 320,
+      "total_token_count": 1520
+    },
+    "model_version": "gemini-3.5-flash"
+  },
+  "model_text_with_superlative": "{\"match_context\": {\"importance\": \"\", \"importance_evidence\": []}, \"recent_form\": [{\"team\": \"Manchester City\", \"summary\": \"최근 5경기에서 3승 2패를 기록했습니다.\", \"evidence\": [\"api:form-mci\"]}], \"watch_points\": [{\"title\": \"측면 전개\", \"detail\": \"City의 측면 전개가 리듬을 정합니다.\", \"evidence\": [\"api:standings-mci\"]}], \"hot_players\": [{\"player\": \"Erling Haaland\", \"team\": \"Manchester City\", \"reason\": \"리그 최고의 스트라이커입니다.\", \"evidence\": [\"api:form-mci\"], \"superlative_basis\": null}], \"search_note\": null, \"uncertainties\": []}",
+  "model_text_old_news": "{\"match_context\": {\"importance\": \"\", \"importance_evidence\": []}, \"recent_form\": [{\"team\": \"Manchester City\", \"summary\": \"2026-10-05자 보도에서 Manchester City의 상승세를 다뤘습니다.\", \"evidence\": [\"api:form-mci\"]}], \"watch_points\": [], \"hot_players\": [], \"search_note\": null, \"uncertainties\": []}",
+  "model_text_no_search": "{\"match_context\": {\"importance\": \"\", \"importance_evidence\": []}, \"recent_form\": [{\"team\": \"Fulham\", \"summary\": \"최근 5경기 2승 1무 2패입니다.\", \"evidence\": [\"api:standings-ful\"]}], \"watch_points\": [{\"title\": \"역습 효율\", \"detail\": \"Fulham은 역습 효율로 승점을 쌓아왔습니다.\", \"evidence\": [\"api:standings-ful\"]}], \"hot_players\": [], \"search_note\": \"검색 결과가 없어 API 자료로 보완했습니다.\", \"uncertainties\": [\"최근 선발 명단은 확인하지 못했습니다.\"]}"
+}

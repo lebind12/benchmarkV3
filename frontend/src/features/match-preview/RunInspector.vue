@@ -12,6 +12,9 @@ import { previewRunsApi } from './api'
 import ModuleResultPanel from './ModuleResultPanel.vue'
 import RunVersionCompare from './RunVersionCompare.vue'
 import AttemptPanel from './panels/AttemptPanel.vue'
+import AvailabilityPanel from './panels/AvailabilityPanel.vue'
+import FormPanel from './panels/FormPanel.vue'
+import OutlookPanel from './panels/OutlookPanel.vue'
 import type { RunDetail, SectionResultView, UndoReport } from './types'
 
 const props = defineProps<{
@@ -60,6 +63,30 @@ const activeModule = computed(
 )
 
 const summary = computed(() => detail.value?.summary ?? null)
+
+/**
+ * 모듈 실행 하나의 최신 저장 payload. R2/R3 전용 패널은 자기 payload 모양을 그대로
+ * 받으므로, 공통 저장 결과에서 최신 버전을 골라 넘긴다(새 변환·새 호출 없음).
+ */
+const activeModulePayload = computed<Record<string, unknown> | null>(() => {
+  const moduleId = activeModule.value?.module_execution_id
+  if (!moduleId) return null
+  const rows = (detail.value?.results ?? []).filter(
+    (row) => row.module_execution_id === moduleId,
+  )
+  if (rows.length === 0) return null
+  const latest = rows.reduce((best, row) => (row.version > best.version ? row : best), rows[0])
+  return (latest.payload ?? null) as Record<string, unknown> | null
+})
+
+/** 결과 payload 안쪽의 모듈 payload. `ModuleResult.to_dict()`의 `payload` 키를 쓴다. */
+const activeModuleBody = computed<Record<string, unknown> | null>(() => {
+  const payload = activeModulePayload.value
+  if (!payload) return null
+  const inner = payload.payload
+  if (inner && typeof inner === 'object') return inner as Record<string, unknown>
+  return payload
+})
 
 /** 이 실행의 섹션 본문 결과. 승인 근거는 노드 결과가 아니라 이 본문이다. */
 const sectionResults = computed<SectionResultView[]>(() => detail.value?.section_results ?? [])
@@ -320,6 +347,30 @@ function formatTime(value: string | null): string {
         <ModuleResultPanel
           :key="activeModule.module_execution_id"
           :module="activeModule"
+        />
+        <!--
+          R1 경기력 조사 패널. 사실·해석·출처·제외 사유를 나눠 보여주는 진단이며,
+          사용자 승인 단위는 위의 섹션 본문 결과다.
+        -->
+        <FormPanel
+          v-if="activeModule.module_id === 'R1'"
+          :key="`form-${activeModule.module_execution_id}`"
+          :module="activeModule"
+          :section-result="activeSectionResult"
+        />
+        <!--
+          R2·R3 전용 패널. 각 패널은 자기 payload 모양을 그대로 받는다. 여기서 값을
+          변환하지 않으므로 노드가 남긴 상태·사유가 화면에서 임의로 바뀌지 않는다.
+        -->
+        <AvailabilityPanel
+          v-else-if="activeModule.module_id === 'R2'"
+          :key="`availability-${activeModule.module_execution_id}`"
+          :result="(activeModuleBody as never)"
+        />
+        <OutlookPanel
+          v-else-if="activeModule.module_id === 'R3'"
+          :key="`outlook-${activeModule.module_execution_id}`"
+          :result="(activeModuleBody as never)"
         />
         <AttemptPanel :attempts="activeModule.tabs.request.attempts" />
       </details>

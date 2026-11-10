@@ -24,6 +24,13 @@ const router = createRouter({
       component: () => import('@/features/match-preview/FixtureSelector.vue'),
     },
     {
+      // MP-05 섹션 실행 화면. 저장된 경기 선택 → 섹션 실행 → 본문·근거 확인 →
+      // 사용자의 승인. 승인은 이 화면에서 사용자가 직접 눌러야만 만들어진다.
+      path: '/admin/sections',
+      name: 'preview-sections',
+      component: () => import('@/features/match-preview/SectionRunView.vue'),
+    },
+    {
       // MP-08 운영 지표. 표에서 실행을 고르면 실행 검사 화면으로 이동한다.
       // 연결은 MP-04의 얇은 wrapper가 맡는다(MP-08 파일은 그대로 둔다).
       path: '/admin/metrics',

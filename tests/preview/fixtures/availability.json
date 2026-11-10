@@ -1,0 +1,295 @@
+{
+  "_note": "MP-06 R2 부상·결장 모듈의 검증 자료입니다. 실제 API·모델 호출 결과가 아니며 live 근거로 쓰지 않습니다. 이름은 'Recorded ...' 형식의 합성 값이고 실제 선수와 무관합니다.",
+  "_shape_source": "D0 자료 묶음(app/preview/data.py prepare_match_data payload) + Google Search grounding metadata(groundingChunks/groundingSupports/searchEntryPoint) 응답 모양",
+  "fixture": {
+    "fixture_id": 1200001,
+    "league_id": 39,
+    "season": 2026,
+    "home_team_id": 50,
+    "away_team_id": 49,
+    "kickoff_at": "2026-11-12T20:00:00+00:00"
+  },
+  "fixture_label": "Recorded Home vs Recorded Away",
+  "teams": {
+    "50": "Recorded Home",
+    "49": "Recorded Away"
+  },
+  "material_api_session": {
+    "coverage": [
+      {
+        "topic": "부상·출전 불확실",
+        "state": "available",
+        "detail": "3건(불확실 포함)"
+      }
+    ],
+    "claims": [
+      {
+        "claim_id": "d0-injury-7101",
+        "kind": "fact",
+        "text": "선수 7101 상태: Questionable, 사유 Knock - 75% chance of playing",
+        "decision": "adopted",
+        "decision_reason": "출전 불확실 표기를 그대로 보존했습니다. 결장 확정이 아닙니다.",
+        "subject_team_id": 50,
+        "subject_player_id": 7101,
+        "snapshot_ids": [
+          "11111111-1111-4111-8111-111111111111"
+        ]
+      },
+      {
+        "claim_id": "d0-injury-7102",
+        "kind": "fact",
+        "text": "선수 7102 상태: Missing Fixture, 사유 Hamstring injury",
+        "decision": "adopted",
+        "decision_reason": "API 원문 표기를 그대로 옮겼습니다.",
+        "subject_team_id": 49,
+        "subject_player_id": 7102,
+        "snapshot_ids": [
+          "11111111-1111-4111-8111-111111111111"
+        ]
+      },
+      {
+        "claim_id": "d0-injury-7103",
+        "kind": "fact",
+        "text": "선수 7103 상태: 표기 없음",
+        "decision": "excluded",
+        "decision_reason": "표기가 없어 확정 사실로 채택하지 않았습니다.",
+        "subject_team_id": 50,
+        "subject_player_id": 7103,
+        "snapshot_ids": [
+          "22222222-2222-4222-8222-222222222222"
+        ]
+      }
+    ],
+    "topics": {
+      "injuries": {
+        "call_id": "D0-injuries",
+        "endpoint": "/injuries",
+        "provider": "api-football",
+        "snapshot_id": "11111111-1111-4111-8111-111111111111",
+        "artifact_id": "33333333-3333-4333-8333-333333333333",
+        "collected_at": "2026-11-10T16:00:00+00:00",
+        "provider_updated_at": null,
+        "validation_status": "verified",
+        "mode": "live",
+        "http_status": 200
+      }
+    }
+  },
+  "material_empty_injuries": {
+    "coverage": [
+      {
+        "topic": "부상·출전 불확실",
+        "state": "unknown",
+        "detail": "부상 응답이 비어 있습니다. 이는 '부상자 없음'의 증거가 아니며, 자료 없음(미확보)으로 기록합니다."
+      }
+    ],
+    "claims": [],
+    "topics": {
+      "injuries": {
+        "call_id": "D0-injuries",
+        "endpoint": "/injuries",
+        "provider": "api-football",
+        "snapshot_id": "22222222-2222-4222-8222-222222222222",
+        "artifact_id": "33333333-3333-4333-8333-333333333333",
+        "collected_at": "2026-11-10T16:00:00+00:00",
+        "provider_updated_at": null,
+        "validation_status": "verified",
+        "mode": "live",
+        "http_status": 200
+      }
+    }
+  },
+  "material_api_failed": {
+    "coverage": [
+      {
+        "topic": "부상·출전 불확실",
+        "state": "call_error",
+        "detail": "HTTP 429 Too Many Requests"
+      },
+      {
+        "topic": "부상·출전 불확실",
+        "state": "api_not_provided",
+        "detail": "제공자가 부상 자료를 반환하지 않았습니다."
+      }
+    ],
+    "claims": []
+  },
+  "grounding": {
+    "webSearchQueries": [
+      "Recorded Home Recorded Away team news 2026-11-12",
+      "Recorded Doubtful injury update"
+    ],
+    "groundingChunks": [
+      {
+        "web": {
+          "uri": "https://recorded.example.test/home-team-news",
+          "title": "Recorded Home team news",
+          "domain": "recorded.example.test"
+        }
+      },
+      {
+        "web": {
+          "uri": "https://recorded.example.test/match-preview-notes",
+          "title": "Recorded match preview notes",
+          "domain": "recorded.example.test"
+        }
+      }
+    ],
+    "groundingSupports": [
+      {
+        "segment": {
+          "startIndex": 0,
+          "endIndex": 24,
+          "text": "Recorded Home team news"
+        },
+        "groundingChunkIndices": [
+          0
+        ],
+        "confidenceScores": [
+          0.82
+        ]
+      }
+    ],
+    "searchEntryPoint": {
+      "renderedContent": "<div class=\"recorded-suggestions\">검색 제안 예시</div>",
+      "sdkBlob": "UkVDT1JERUQ="
+    }
+  },
+  "model_output_doubtful": {
+    "player_updates": [
+      {
+        "player_id": 7101,
+        "player_name": "Recorded Doubtful",
+        "team_id": 50,
+        "status": "doubtful",
+        "summary": "최근 훈련에 부분 참여했고 출전 여부는 경기 전 결정됩니다.",
+        "evidence": [
+          "api:injury-7101",
+          "https://recorded.example.test/home-team-news"
+        ]
+      },
+      {
+        "player_id": 7102,
+        "player_name": "Recorded Out",
+        "team_id": 49,
+        "status": "confirmed_absence",
+        "summary": "햄스트링 부상으로 이번 경기 명단에서 빠집니다.",
+        "evidence": [
+          "api:injury-7102"
+        ]
+      }
+    ],
+    "reported_absences": [],
+    "impact": [
+      {
+        "team_id": 50,
+        "summary": "출전이 불확실한 선수의 자리는 경기 전까지 확정되지 않아, 교체 자원 운용이 경기 당일 결정될 수 있습니다.",
+        "basis": [
+          "api:injury-7101"
+        ]
+      },
+      {
+        "team_id": 49,
+        "summary": "원정팀은 해당 포지션 자원을 다른 선수로 채워야 하는 상황입니다.",
+        "basis": [
+          "api:injury-7102"
+        ]
+      }
+    ],
+    "search_note": "검색으로 홈팀 최신 소식을 확인했습니다.",
+    "uncertainties": [
+      "출전 불확실 선수의 최종 명단은 킥오프 전에 확정됩니다."
+    ]
+  },
+  "model_output_empty_search": {
+    "player_updates": [
+      {
+        "player_id": 7101,
+        "player_name": null,
+        "team_id": 50,
+        "status": "doubtful",
+        "summary": "API 표기상 출전이 불확실합니다.",
+        "evidence": [
+          "api:injury-7101"
+        ]
+      }
+    ],
+    "reported_absences": [],
+    "impact": [],
+    "search_note": null,
+    "uncertainties": [
+      "검색 자료를 얻지 못해 API 표기만 남았습니다."
+    ]
+  },
+  "model_output_conflict": {
+    "player_updates": [
+      {
+        "player_id": 7101,
+        "player_name": "Recorded Doubtful",
+        "team_id": 50,
+        "status": "confirmed_absence",
+        "summary": "현지 보도는 이번 경기 결장으로 전했습니다.",
+        "evidence": [
+          "api:injury-7101",
+          "https://recorded.example.test/home-team-news"
+        ]
+      }
+    ],
+    "reported_absences": [],
+    "impact": [
+      {
+        "team_id": 50,
+        "summary": "결장 보도가 사실이라면 해당 포지션 운영이 달라집니다.",
+        "basis": [
+          "https://recorded.example.test/home-team-news"
+        ]
+      }
+    ],
+    "search_note": "현지 보도 1건을 확인했습니다.",
+    "uncertainties": [
+      "구단 공식 발표는 확인하지 못했습니다."
+    ]
+  },
+  "model_output_impact_without_basis": {
+    "player_updates": [
+      {
+        "player_id": 7102,
+        "player_name": "Recorded Out",
+        "team_id": 49,
+        "status": "confirmed_absence",
+        "summary": "햄스트링 부상으로 명단에서 빠집니다.",
+        "evidence": [
+          "api:injury-7102"
+        ]
+      }
+    ],
+    "reported_absences": [],
+    "impact": [
+      {
+        "team_id": 49,
+        "summary": "이 선수는 리그 최고 수준이라 원정팀 전력이 크게 떨어집니다.",
+        "basis": []
+      }
+    ],
+    "search_note": null,
+    "uncertainties": []
+  },
+  "model_output_invented_url": {
+    "player_updates": [
+      {
+        "player_id": 7101,
+        "player_name": "Recorded Doubtful",
+        "team_id": 50,
+        "status": "doubtful",
+        "summary": "출전이 불확실합니다.",
+        "evidence": [
+          "https://invented.example.test/not-in-grounding"
+        ]
+      }
+    ],
+    "reported_absences": [],
+    "impact": [],
+    "search_note": null,
+    "uncertainties": []
+  }
+}

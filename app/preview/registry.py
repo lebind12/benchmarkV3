@@ -81,29 +81,57 @@ _REGISTRATIONS: tuple[ModuleRegistration, ...] = (
         operation="prepare_match_data",
         expected_model_calls=0,
     ),
-    _planned(
-        "R1",
-        "경기력·주목 선수 조사",
-        "최근 흐름과 주목 선수, 이번 경기의 의미를 근거와 함께 조사.",
+    ModuleRegistration(
+        module_id="R1",
+        display_name="경기력·주목 선수 조사",
+        description=(
+            "최근 흐름과 주목 선수, 이번 경기의 의미를 근거와 함께 조사합니다."
+            " 공통 모델 경로로 정상 호출 1회를 보내고, 검색 출처와 API 근거를 함께"
+            " 보존합니다."
+        ),
         operation="research_form",
         depends_on=("D0",),
-        prompt_version="r1-pending",
+        contract_version=MODULE_INPUT_VERSION,
+        prompt_version="mp05-form-prompt-1",
+        inspector_panel="form",
+        implemented=True,
+        mode_scope=(RunMode.LIVE, RunMode.REPLAY),
+        expected_model_calls=1,
+        unrunnable_reason=None,
     ),
-    _planned(
-        "R2",
-        "부상·결장 영향 조사",
-        "API 부상 상태와 검색 자료를 결합해 결장 영향과 불확실성을 정리.",
+    ModuleRegistration(
+        module_id="R2",
+        display_name="부상·결장 영향 조사",
+        description=(
+            "API 부상 상태와 검색 자료를 결합해 결장 영향과 불확실성을 정리합니다."
+            " 출전 불확실은 불확실로 남기고 결장 확정으로 바꾸지 않습니다."
+        ),
         operation="research_availability",
         depends_on=("D0",),
-        prompt_version="r2-pending",
+        contract_version=MODULE_INPUT_VERSION,
+        prompt_version="mp06-r2-prompt-1",
+        inspector_panel="availability",
+        implemented=True,
+        mode_scope=(RunMode.LIVE, RunMode.REPLAY),
+        expected_model_calls=1,
+        unrunnable_reason=None,
     ),
-    _planned(
-        "R3",
-        "배당·외부 전망 조사",
-        "공개 배당, 매체 전망, API 알고리즘 예측을 구분해 정리.",
+    ModuleRegistration(
+        module_id="R3",
+        display_name="배당·외부 전망 조사",
+        description=(
+            "공개 배당, 매체 전망, API 알고리즘 예측을 서로 다른 근거 종류로 구분해"
+            " 정리합니다. 경기 전 승무패 시장만 채택합니다."
+        ),
         operation="research_outlook",
         depends_on=("D0",),
-        prompt_version="r3-pending",
+        contract_version=MODULE_INPUT_VERSION,
+        prompt_version="r3-outlook-1",
+        inspector_panel="outlook",
+        implemented=True,
+        mode_scope=(RunMode.LIVE, RunMode.REPLAY),
+        expected_model_calls=1,
+        unrunnable_reason=None,
     ),
     _planned(
         "S1",
@@ -206,8 +234,8 @@ _SECTION_WORKFLOWS: tuple[SectionWorkflowRegistration, ...] = (
         ),
         module_ids=("D0", "R1"),
         output_contract_version="section_form-output-1",
-        implemented=False,
-        unrunnable_reason="아직 구현되지 않았습니다. MP-03·MP-05 이후 확인할 수 있습니다.",
+        implemented=True,
+        unrunnable_reason=None,
     ),
     SectionWorkflowRegistration(
         workflow_id="section_availability",
@@ -215,8 +243,8 @@ _SECTION_WORKFLOWS: tuple[SectionWorkflowRegistration, ...] = (
         description="API 부상 자료와 검색 근거로 결장 영향 본문을 만드는 섹션입니다.",
         module_ids=("D0", "R2"),
         output_contract_version="section_availability-output-1",
-        implemented=False,
-        unrunnable_reason="아직 구현되지 않았습니다. MP-03·MP-06 이후 확인할 수 있습니다.",
+        implemented=True,
+        unrunnable_reason=None,
     ),
     SectionWorkflowRegistration(
         workflow_id="section_outlook",
@@ -224,8 +252,8 @@ _SECTION_WORKFLOWS: tuple[SectionWorkflowRegistration, ...] = (
         description="공개 배당·매체 전망·API 예측을 구분해 전망 본문을 만드는 섹션입니다.",
         module_ids=("D0", "R3"),
         output_contract_version="section_outlook-output-1",
-        implemented=False,
-        unrunnable_reason="아직 구현되지 않았습니다. MP-03·MP-07 이후 확인할 수 있습니다.",
+        implemented=True,
+        unrunnable_reason=None,
     ),
     SectionWorkflowRegistration(
         workflow_id="section_synthesis",

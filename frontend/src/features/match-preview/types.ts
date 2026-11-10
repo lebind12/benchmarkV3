@@ -410,6 +410,8 @@ export type SectionAvailability = {
   /** 실제 조사·생성 구현이 하나라도 등록됐는지. */
   real_generation_available: boolean
   note: string | null
+  /** 모델 전송 설정 상태(설정됨/없음). 모델 이름 대체 판단은 하지 않는다. */
+  model?: { provider?: string; mode?: string; configured?: boolean; problem?: string | null }
 }
 
 export type SectionAvailabilityResponse = {

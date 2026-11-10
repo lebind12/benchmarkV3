@@ -1,0 +1,271 @@
+{
+  "_note": "MP-07 R3 검사용 녹화 자료. 실제 모델·API 호출로 만든 값이 아니라 Google Gen AI SDK 응답 덤프(model_dump_json(exclude_none=True))와 API-Football 봉투 모양을 그대로 흉내 낸 합성 자료입니다. live 성공 증거가 아닙니다.",
+  "_shape_source": "google-genai 3.0.0 GenerateContentResponse.model_dump_json(exclude_none=True) snake_case, API-Football v3 /odds, /predictions 봉투",
+  "fixture": {
+    "fixture_id": 1200001,
+    "league_id": 39,
+    "season": 2026,
+    "home_team_id": 50,
+    "away_team_id": 49,
+    "kickoff_at": "2026-11-12T20:00:00+00:00"
+  },
+  "model_answer_grounded": {
+    "media_forecasts": [
+      {
+        "publisher": "Recorded Football Desk",
+        "url": "https://recorded-football.test/preview/1200001?utm_source=newsletter",
+        "published_at": "2026-11-10T09:30:00+00:00",
+        "statement": "Recorded Home이 홈에서 우세하지만 무승부 가능성도 남아 있다고 봤다.",
+        "predicted_score": null
+      },
+      {
+        "publisher": "Recorded Match Weekly",
+        "url": "https://recorded-weekly.test/story/1200001-score",
+        "published_at": "2026-11-09T22:00:00+00:00",
+        "statement": "Recorded Match Weekly는 2-1 홈 승리를 예상했다.",
+        "predicted_score": "2-1"
+      }
+    ],
+    "search_note": "두 매체의 경기 전망을 찾았고, 예상 스코어를 적은 기사는 한 건이었다."
+  },
+  "model_answer_without_grounding": {
+    "media_forecasts": [
+      {
+        "publisher": "Recorded Football Desk",
+        "url": "https://recorded-football.test/preview/1200001",
+        "published_at": "2026-11-10T09:30:00+00:00",
+        "statement": "Recorded Home이 우세하다고 봤다.",
+        "predicted_score": null
+      }
+    ],
+    "search_note": "매체 전망 한 건."
+  },
+  "model_answer_empty": {
+    "media_forecasts": [],
+    "search_note": "검색에서 이 경기의 매체 전망을 찾지 못했습니다."
+  },
+  "model_response_grounded": {
+    "candidates": [
+      {
+        "content": {"parts": [{"text": ""}], "role": "model"},
+        "finish_reason": "STOP",
+        "grounding_metadata": {
+          "web_search_queries": [
+            "Recorded Home Recorded Away preview prediction",
+            "Recorded Home Recorded Away betting odds preview"
+          ],
+          "grounding_chunks": [
+            {
+              "web": {
+                "uri": "https://recorded-football.test/preview/1200001",
+                "title": "Recorded Football Desk preview"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://recorded-weekly.test/story/1200001-score",
+                "title": "Recorded Match Weekly score prediction"
+              }
+            }
+          ],
+          "grounding_supports": [
+            {
+              "grounding_chunk_indices": [0],
+              "confidence_scores": [0.91],
+              "segment": {"start_index": 0, "end_index": 40, "text": "Recorded Home이 홈에서 우세"}
+            },
+            {
+              "grounding_chunk_indices": [1],
+              "confidence_scores": [0.77],
+              "segment": {"start_index": 41, "end_index": 80, "text": "2-1 홈 승리"}
+            }
+          ],
+          "search_entry_point": {
+            "rendered_content": "<div class=\"recorded-suggestions\">Recorded Football Desk · Recorded Match Weekly</div>"
+          }
+        }
+      }
+    ],
+    "response_id": "recorded-r3-grounded-1",
+    "usage_metadata": {"prompt_token_count": 812, "candidates_token_count": 214}
+  },
+  "model_response_without_grounding": {
+    "candidates": [
+      {
+        "content": {"parts": [{"text": ""}], "role": "model"},
+        "finish_reason": "STOP"
+      }
+    ],
+    "response_id": "recorded-r3-no-grounding-1",
+    "usage_metadata": {"prompt_token_count": 640, "candidates_token_count": 120}
+  },
+  "model_response_empty_text": {
+    "candidates": [
+      {
+        "content": {"parts": [], "role": "model"},
+        "finish_reason": "STOP"
+      }
+    ],
+    "response_id": "recorded-r3-empty-1",
+    "usage_metadata": {"prompt_token_count": 600, "candidates_token_count": 0}
+  },
+  "odds_sample": {
+    "get": "odds",
+    "parameters": {"fixture": "1200001"},
+    "errors": [],
+    "results": 1,
+    "paging": {"current": 1, "total": 1},
+    "response": [
+      {
+        "league": {"id": 39, "season": 2026},
+        "fixture": {"id": 1200001, "date": "2026-11-12T20:00:00+00:00"},
+        "update": "2026-11-10T15:00:00+00:00",
+        "bookmakers": [
+          {
+            "id": 8,
+            "name": "Recorded Book A",
+            "update": "2026-11-10T15:00:00+00:00",
+            "bets": [
+              {
+                "id": 5,
+                "name": "Match Winner",
+                "values": [
+                  {"value": "Home", "odd": "1.85"},
+                  {"value": "Draw", "odd": "3.60"},
+                  {"value": "Away", "odd": "4.20"}
+                ]
+              },
+              {
+                "id": 5,
+                "name": "Match Winner (Live)",
+                "values": [
+                  {"value": "Home", "odd": "1.10"},
+                  {"value": "Draw", "odd": "9.00"},
+                  {"value": "Away", "odd": "15.00"}
+                ]
+              },
+              {
+                "id": 24,
+                "name": "To Qualify",
+                "values": [
+                  {"value": "Home", "odd": "1.22"},
+                  {"value": "Away", "odd": "4.50"}
+                ]
+              },
+              {
+                "id": 12,
+                "name": "Double Chance",
+                "values": [
+                  {"value": "Home/Draw", "odd": "1.25"},
+                  {"value": "Home/Away", "odd": "1.30"}
+                ]
+              }
+            ]
+          },
+          {
+            "id": 11,
+            "name": "Recorded Book B",
+            "update": "2026-11-10T14:10:00+00:00",
+            "bets": [
+              {
+                "id": 5,
+                "name": "Match Winner",
+                "values": [
+                  {"value": "Home", "odd": "1.90"},
+                  {"value": "Draw", "odd": "3.45"},
+                  {"value": "Away", "odd": "4.00"}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "odds_other_fixture": {
+    "get": "odds",
+    "parameters": {"fixture": "1200001"},
+    "errors": [],
+    "results": 1,
+    "paging": {"current": 1, "total": 1},
+    "response": [
+      {
+        "league": {"id": 39, "season": 2026},
+        "fixture": {"id": 999999, "date": "2026-11-12T20:00:00+00:00"},
+        "update": "2026-11-10T15:00:00+00:00",
+        "bookmakers": [
+          {
+            "id": 8,
+            "name": "Recorded Book A",
+            "update": "2026-11-10T15:00:00+00:00",
+            "bets": [
+              {
+                "id": 5,
+                "name": "Match Winner",
+                "values": [
+                  {"value": "Home", "odd": "1.55"},
+                  {"value": "Draw", "odd": "4.00"},
+                  {"value": "Away", "odd": "5.60"}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "odds_stale": {
+    "get": "odds",
+    "parameters": {"fixture": "1200001"},
+    "errors": [],
+    "results": 1,
+    "paging": {"current": 1, "total": 1},
+    "response": [
+      {
+        "league": {"id": 39, "season": 2026},
+        "fixture": {"id": 1200001, "date": "2026-11-12T20:00:00+00:00"},
+        "update": "2026-11-08T02:00:00+00:00",
+        "bookmakers": [
+          {
+            "id": 8,
+            "name": "Recorded Book A",
+            "update": "2026-11-08T02:00:00+00:00",
+            "bets": [
+              {
+                "id": 5,
+                "name": "Match Winner",
+                "values": [
+                  {"value": "Home", "odd": "1.80"},
+                  {"value": "Draw", "odd": "3.70"},
+                  {"value": "Away", "odd": "4.30"}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "predictions_sample": {
+    "get": "predictions",
+    "parameters": {"fixture": "1200001"},
+    "errors": [],
+    "results": 1,
+    "paging": {"current": 1, "total": 1},
+    "response": [
+      {
+        "predictions": {
+          "winner": {"id": 50, "name": "Recorded Home", "comment": "Win or draw"},
+          "advice": "Recorded Home or draw",
+          "under_over": "-3.5",
+          "percent": {"home": "55%", "draw": "25%", "away": "20%"}
+        },
+        "league": {"id": 39, "season": 2026},
+        "teams": {
+          "home": {"id": 50, "name": "Recorded Home"},
+          "away": {"id": 49, "name": "Recorded Away"}
+        }
+      }
+    ]
+  }
+}

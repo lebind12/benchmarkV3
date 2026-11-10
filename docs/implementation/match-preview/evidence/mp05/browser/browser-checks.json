@@ -1,0 +1,67 @@
+{
+  "base": "http://localhost:5181",
+  "steps": [
+    {
+      "name": "login",
+      "ok": true,
+      "detail": "합성 관리자 로그인 후 /admin/runs"
+    },
+    {
+      "name": "섹션 목록 API",
+      "ok": true,
+      "detail": "status=200 section_form.real=true"
+    },
+    {
+      "name": "섹션 목록이 모델 설정 상태를 함께 준다",
+      "ok": true,
+      "detail": "configured=false"
+    },
+    {
+      "name": "경기 선택 목록 렌더",
+      "ok": true,
+      "detail": "저장 경기 행 50개"
+    },
+    {
+      "name": "경기 목록 조회는 외부 호출 0회",
+      "ok": true,
+      "detail": "external_calls=0"
+    },
+    {
+      "name": "경기 선택",
+      "ok": true,
+      "detail": "선택한 경기: Manchester City vs Fulham · fixture_id 1557474 · 2026-11-21T12:30:00+00:"
+    },
+    {
+      "name": "실행 전에는 결과 영역이 없다",
+      "ok": true,
+      "detail": "result blocks=0"
+    },
+    {
+      "name": "실행 후 본문이 보인다",
+      "ok": true,
+      "detail": "본문 111자"
+    },
+    {
+      "name": "실행 방식이 화면에 표시된다",
+      "ok": true,
+      "detail": "mode=mock"
+    },
+    {
+      "name": "근거 영역이 함께 있다",
+      "ok": true,
+      "detail": "sources blocks=1"
+    },
+    {
+      "name": "모의 결과는 승인 불가로 표시",
+      "ok": true,
+      "detail": "approve button=0 blocked note=1"
+    },
+    {
+      "name": "실행 검사에 R1 전용 진단 패널",
+      "ok": true,
+      "detail": "form panel=1 r1 tabs=1 diagnostics=1"
+    }
+  ],
+  "passed": 12,
+  "total": 12
+}

@@ -95,6 +95,13 @@ export const previewRunsApi = {
     mode?: string
     fixture_label?: string
     label?: string
+    /** 실제 실행(live)에는 경기 식별자가 필요하다. 모의 시연은 없어도 된다. */
+    fixture_id?: number
+    league_id?: number
+    season?: number
+    home_team_id?: number
+    away_team_id?: number
+    kickoff_at?: string
   }): Promise<ApiResult<SectionRunResponse>> {
     return previewRequest<SectionRunResponse>(`${BASE}/section-runs`, {
       method: 'POST',

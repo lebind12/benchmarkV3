@@ -99,6 +99,33 @@ def _fixture_reader():
     return StoredFixtureReader.from_url(url)
 
 
+def _model_transport(mode: RunMode):
+    """섹션 실행용 모델 transport. 설정이 없으면 `None`(실행하지 않는다).
+
+    모델 이름·프로젝트·리전은 설정에서만 읽는다. 여기서 대체 모델을 고르지 않는다.
+    `PREVIEW_MODEL_LIVE_ENABLED`가 꺼져 있으면 live 실행을 열지 않는다.
+    """
+    from app.core.config import get_settings
+    from app.preview.contracts import RunMode as _RunMode
+
+    settings = get_settings()
+    if mode is not _RunMode.LIVE:
+        return provider.RecordedTransport(
+            script=(),
+            provider="section-mock-transport",
+            mode=_RunMode.MOCK,
+        )
+    if not settings.model_live_enabled:
+        return None
+    return provider.GoogleGenAIHttpTransport(
+        project=settings.model_project,
+        location=settings.model_location,
+        model=settings.model_name,
+        credentials_json=settings.model_credentials_json,
+        mode=_RunMode.LIVE,
+    )
+
+
 class FixtureImportRequest(BaseModel):
     """관리자 명시 요청으로 경기 후보를 수집한다. 외부 API 예산(24회)을 쓴다."""
 
@@ -432,15 +459,41 @@ def import_fixtures(
     return payload_out
 
 
-SECTION_IMPLEMENTATIONS = {
-    "section_form": runner.mock_section_implementations,
-    "section_availability": runner.mock_section_implementations,
-    "section_outlook": runner.mock_section_implementations,
-    "section_synthesis": runner.mock_section_implementations,
-}
+def _section_implementations(workflow_id: str, *, mode: RunMode = RunMode.MOCK):
+    """섹션 실행에 쓸 구현 묶음.
+
+    - `mock`: 명시적 모의 시연. 외부 호출이 없고 승인 근거가 아니다.
+    - `live`: 실제 구현이 있는 섹션만. 구현이 없으면 422로 거부한다. 모의로
+      대체해 성공처럼 보이게 하지 않는다.
+    """
+    from app.preview import sections as section_factories
+    from app.preview.contracts import RunMode as _RunMode
+
+    if mode is _RunMode.MOCK:
+        return runner.mock_section_implementations(workflow_id)
+    if workflow_id not in section_factories.implemented_section_ids():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"{workflow_id} 섹션의 실제 조사·생성 구현이 아직 등록되지 않았습니다."
+                " 모의 시연으로 대체하지 않습니다."
+            ),
+        )
+    transport = _model_transport(mode)
+    if transport is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "모델 설정이 없거나 PREVIEW_MODEL_LIVE_ENABLED가 꺼져 있어 live"
+                " 실행을 열지 않았습니다. 대체 모델로 실행하지 않습니다."
+            ),
+        )
+    return section_factories.build_implementations(
+        workflow_id, transport=transport, reader=_fixture_reader()
+    )
 
 
-def _section_availability(workflow_id: str) -> dict:
+def _section_run_availability(workflow_id: str) -> dict:
     """섹션 하나의 실행 가능성. 미구현을 숨기지 않고 그대로 알린다."""
     try:
         get_section_workflow(workflow_id)
@@ -448,19 +501,29 @@ def _section_availability(workflow_id: str) -> dict:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="section workflow not found"
         ) from None
-    built = {
-        key: factory(key) for key, factory in SECTION_IMPLEMENTATIONS.items()
-    }
-    return runner.section_run_availability(workflow_id, built)
+    from app.preview import sections as section_factories
 
-
-def _section_implementations(workflow_id: str):
-    factory = SECTION_IMPLEMENTATIONS.get(workflow_id)
-    if factory is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="section workflow not found"
+    built: dict = {}
+    mock_bundle = runner.mock_section_implementations(workflow_id)
+    built[workflow_id] = mock_bundle
+    availability = runner.section_run_availability(workflow_id, built)
+    # 실제 구현이 있는 섹션은 모의 시연 여부와 별개로 그 사실을 따로 알린다.
+    real_generatable = workflow_id in section_factories.implemented_section_ids()
+    transport = _model_transport(RunMode.LIVE)
+    model_status = (
+        provider.model_configuration_status(transport)
+        if transport is not None
+        else {"configured": False, "problem": "live 실행이 설정으로 열려 있지 않습니다."}
+    )
+    availability["real_generation_available"] = real_generatable
+    availability["model"] = model_status
+    if real_generatable:
+        availability["note"] = (
+            "실제 조사·본문 조립 구현이 등록되어 있습니다. 실행 방식(live)은 모델 설정이"
+            " 갖춰지고 관리자가 명시적으로 실행할 때만 열립니다. 모의 시연은 승인"
+            " 근거가 아닙니다."
         )
-    return factory(workflow_id)
+    return availability
 
 
 @router.get("/sections")
@@ -469,22 +532,20 @@ def list_sections(
 ) -> dict:
     """섹션 워크플로우 실행 가능성 목록. 저장된 행만 읽고 외부 호출이 없다.
 
-    여기서 `implemented=false`인 섹션은 본문을 실제로 만들 수 없다. 모의 시연으로
-    실행할 수는 있지만, 그 결과는 승인 근거가 아니다.
+    `implemented=false`인 섹션은 본문을 실제로 만들 수 없다. 모의 시연으로 실행할 수는
+    있지만 그 결과는 승인 근거가 아니다. 실제 구현이 있는 섹션은 모의 시연과 실제
+    생성 가능성을 따로 표시한다.
     """
     workflows = describe_section_workflows()
-    built = {
-        key: factory(key) for key, factory in SECTION_IMPLEMENTATIONS.items()
-    }
     return {
         "workflows": workflows["workflows"],
         "availability": {
-            workflow_id: runner.section_run_availability(workflow_id, built)
-            for workflow_id in built
+            row["workflow_id"]: _section_run_availability(row["workflow_id"])
+            for row in workflows["workflows"]
         },
         "mock_demo_note": (
-            "지금 실행 가능한 경로는 명시적 모의 시연입니다. 외부 모델·API를 호출하지"
-            " 않으며, 그 결과는 승인 근거로 쓰지 않습니다."
+            "모의 시연은 외부 모델·API를 호출하지 않으며 승인 근거로 쓰지 않습니다."
+            " 실제 구현이 있는 섹션은 live 실행 가능성을 따로 표시합니다."
         ),
     }
 
@@ -508,16 +569,16 @@ def create_section_run(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="unknown run mode",
         ) from None
-    if mode is not RunMode.MOCK:
+    if mode is RunMode.REPLAY:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                "실제 조사·생성 구현이 아직 등록되지 않아 mock 실행만 열려 있습니다."
-                " 실제 모델 호출 경로는 구현 등록과 설정 확인 뒤에 엽니다."
+                "저장 응답 재생은 결과 단위 재변환 경로를 씁니다. 섹션 실행의 재생"
+                " 모드는 아직 열지 않았습니다."
             ),
         )
 
-    implementations = _section_implementations(payload.workflow_id)
+    implementations = _section_implementations(payload.workflow_id, mode=mode)
     fixture = None
     if payload.fixture_id is not None and payload.kickoff_at is not None:
         fixture = {
@@ -528,6 +589,14 @@ def create_section_run(
             "away_team_id": payload.away_team_id or 0,
             "kickoff_at": payload.kickoff_at.isoformat(),
         }
+    if mode is not RunMode.MOCK and fixture is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "실제 실행에는 경기 식별자(fixture_id·리그·시즌·팀·킥오프)가"
+                " 필요합니다. 경기 선택 화면에서 경기를 골라 실행하세요."
+            ),
+        )
 
     result = runner.run_section_workflow(
         session,
@@ -650,12 +719,11 @@ def get_registry(
     않게 따로 내보낸다.
     """
     registry = describe_registry()
-    built = {
-        key: factory(key) for key, factory in SECTION_IMPLEMENTATIONS.items()
-    }
+    workflow_ids = [
+        row["workflow_id"] for row in describe_section_workflows()["workflows"]
+    ]
     section_availability = {
-        workflow_id: runner.section_run_availability(workflow_id, built)
-        for workflow_id in built
+        workflow_id: _section_run_availability(workflow_id) for workflow_id in workflow_ids
     }
     registry["section_availability"] = section_availability
     registry["section_modes"] = {

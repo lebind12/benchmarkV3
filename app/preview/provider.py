@@ -75,6 +75,7 @@ __all__ = [
     "model_configuration_status",
     "replay_result",
     "request_model",
+    "sent_attempt_count",
 ]
 
 # 원문에 비밀값이 섞여 들어왔을 때 지울 이름. 값은 여기 적지 않는다.
@@ -961,6 +962,27 @@ def request_model(
         now=now,
         secret_values=secret_values,
         module_execution_id=module_execution_id,
+    )
+
+
+def sent_attempt_count(result: ExecuteRequestResult, transport_mode: Any) -> int:
+    """실제로 **전송된** 시도 수.
+
+    기준은 두 가지다.
+
+    1. 실행 방식이 `live`여야 한다. 저장 응답 재생·모의 transport는 네트워크로 나가지
+       않으므로, 컨텍스트 모드가 live여도 외부 호출로 세지 않는다.
+    2. 설정 부족(`configuration_error`) 시도는 기록에는 남지만 전송이 아니므로 뺀다.
+
+    실패·재시도한 시도는 그대로 센다. 성공 여부로 세면 실패한 live 실행이 0회로 보여
+    지표가 틀어진다.
+    """
+    mode = transport_mode
+    value = mode.value if isinstance(mode, RunMode) else str(mode)
+    if value != RunMode.LIVE.value:
+        return 0
+    return sum(
+        1 for attempt in result.attempts if attempt.error_class != "configuration_error"
     )
 
 

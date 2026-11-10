@@ -152,6 +152,7 @@ function formatTime(value: string | null): string {
         <!-- 경로 문자열을 쓴다. 이름 기반 이동은 라우터에 그 경로가 없을 때 해석
              오류를 내므로, 화면이 라우터 등록 여부에 묶이지 않게 한다. -->
         <RouterLink class="shell__nav-link" to="/admin/runs">실행 목록</RouterLink>
+        <RouterLink class="shell__nav-link" to="/admin/sections">섹션 실행</RouterLink>
         <RouterLink class="shell__nav-link" to="/admin/fixtures">경기 선택</RouterLink>
         <RouterLink class="shell__nav-link" to="/admin/metrics">운영 지표</RouterLink>
       </nav>

@@ -387,13 +387,18 @@ def test_replay_has_zero_network_calls(session_factory, monkeypatch):
 
 
 def test_section_api_rejects_live_until_implementations_exist(client, make_user):
-    """실제 조사 구현이 없는데 live 실행을 성공으로 꾸미지 않는다."""
+    """모델 설정이 없는 live 실행을 성공으로 꾸미지 않는다.
+
+    R1 구현이 등록된 뒤에도 live는 `PREVIEW_MODEL_LIVE_ENABLED`와 실제 모델 설정이
+    있어야 열린다. 설정이 없으면 모의로 대체하지 않고 422로 거부한다.
+    """
     _login_admin(client, make_user)
     response = client.post(
         SECTION_RUNS, json={"workflow_id": "section_form", "mode": "live"}
     )
     assert response.status_code == 422
-    assert "mock" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert "모델 설정" in detail or "mock" in detail
 
 
 def test_section_api_requires_admin(client):

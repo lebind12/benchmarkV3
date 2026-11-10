@@ -1,0 +1,447 @@
+{
+ "note": "MP-07 R3 섹션 워크플로우 증거. 모델 응답은 tests/preview/fixtures/outlook.json의 녹화(합성) 자료이며 실제 모델·API 호출이 아닙니다. live 성공 증거가 아닙니다.",
+ "fixture": {
+  "fixture_id": 1200001,
+  "league_id": 39,
+  "season": 2026,
+  "home_team_id": 50,
+  "away_team_id": 49,
+  "kickoff_at": "2026-11-12T20:00:00+00:00"
+ },
+ "cases": [
+  {
+   "case": "grounded_media",
+   "mode": "live",
+   "workflow_id": "section_outlook",
+   "run_id": "ef2983c1-4cc8-4fa1-b186-bcd07ad1de7d",
+   "section_result_id": "9c21d4a9-4a97-4076-9abb-514526488e7e",
+   "quality": "ready",
+   "external_calls": 1,
+   "step_log": [
+    {
+     "node": "prepare_data",
+     "unavailable": false,
+     "external_calls": 0
+    },
+    {
+     "node": "research",
+     "unavailable": false,
+     "external_calls": 1
+    },
+    {
+     "node": "compose_body",
+     "unavailable": false,
+     "external_calls": 0
+    },
+    {
+     "node": "finalize",
+     "unavailable": false,
+     "external_calls": 0
+    }
+   ],
+   "reader_body": "## 배당과 외부 전망\n\n이 경기의 경기 전 승무패 배당, 외부 매체 전망, 제공자 알고리즘 예측 자료를 정리했습니다. 배당은 업체와 기준 시각을 함께 적었습니다. 매체 전망은 게시 시각과 출처를 함께 적었습니다. 제공자 예측은 매체 의견과 구분해 표시했습니다.\n\n### 경기 전 승무패 배당\n공개된 경기 전 승무패 배당입니다. 업체마다 값이 다를 수 있어 기준 시각을 함께 적었습니다.\n- Recorded Book A / Match Winner / 기준 2026-11-10 15:00 UTC: 홈 1.85 · 무 3.60 · 원정 4.20\n- Recorded Book B / Match Winner / 기준 2026-11-10 14:10 UTC: 홈 1.90 · 무 3.45 · 원정 4.00\n\n### 외부 매체 전망\n검색으로 확인한 외부 매체의 이 경기 전망입니다. 매체가 쓴 내용을 그대로 정리했으며 이 서비스의 판단과는 별개입니다.\n- Recorded Football Desk (2026-11-10 09:30 UTC): Recorded Home이 홈에서 우세하지만 무승부 가능성도 남아 있다고 봤다.\n- Recorded Match Weekly (2026-11-09 22:00 UTC): Recorded Match Weekly는 2-1 홈 승리를 예상했다.\n\n### 제공자 알고리즘 예측\n제공자(API-Football)의 알고리즘 예측입니다. 언론 보도나 이 서비스의 결론이 아니라 제공자가 계산한 값입니다.\n- 우세 팀 Recorded Home, 확률 홈 55% / 무 25% / 원정 20%, 조언 Recorded Home or draw, 언더오버 기준 -3.5.",
+   "reader_sources": [
+    {
+     "label": "Recorded Book A 경기 전 승무패 배당",
+     "kind": "bookmaker",
+     "url": null,
+     "publisher": "Recorded Book A",
+     "published_at": "2026-11-10T15:00:00+00:00",
+     "note": "API-Football 배당 자료입니다. 업체·시장·갱신 시각을 함께 보존했습니다."
+    },
+    {
+     "label": "Recorded Book B 경기 전 승무패 배당",
+     "kind": "bookmaker",
+     "url": null,
+     "publisher": "Recorded Book B",
+     "published_at": "2026-11-10T14:10:00+00:00",
+     "note": "API-Football 배당 자료입니다. 업체·시장·갱신 시각을 함께 보존했습니다."
+    },
+    {
+     "label": "Recorded Football Desk",
+     "kind": "media",
+     "url": "https://recorded-football.test/preview/1200001?utm_source=newsletter",
+     "publisher": "Recorded Football Desk",
+     "published_at": "2026-11-10T09:30:00+00:00",
+     "note": "검색 결과 출처 목록에서 주소를 확인했습니다. 기사 원문 전체를 읽은 것은 아닙니다."
+    },
+    {
+     "label": "Recorded Match Weekly",
+     "kind": "media",
+     "url": "https://recorded-weekly.test/story/1200001-score",
+     "publisher": "Recorded Match Weekly",
+     "published_at": "2026-11-09T22:00:00+00:00",
+     "note": "검색 결과 출처 목록에서 주소를 확인했습니다. 기사 원문 전체를 읽은 것은 아닙니다."
+    },
+    {
+     "label": "API-Football 알고리즘 예측",
+     "kind": "api_prediction",
+     "url": null,
+     "publisher": "api-football",
+     "published_at": null,
+     "note": "제공자 알고리즘 예측이며 매체 의견이 아닙니다."
+    }
+   ],
+   "reader_body_has_no_admin_text": true,
+   "coverage": [
+    {
+     "state": "available",
+     "topic": "경기 전 승무패 배당",
+     "detail": "채택 2건"
+    },
+    {
+     "state": "available",
+     "topic": "제공자 알고리즘 예측",
+     "detail": "1건"
+    },
+    {
+     "state": "available",
+     "topic": "외부 매체 전망",
+     "detail": "채택 2건"
+    },
+    {
+     "state": "available",
+     "topic": "검색 근거(Google Search grounding)",
+     "detail": "검색 질의 2건, 출처 2건"
+    }
+   ],
+   "diagnostics": [],
+   "grounding": {
+    "present": true,
+    "supports": [
+     {
+      "segment_text": "Recorded Home이 홈에서 우세",
+      "confidence_scores": [
+       0.91
+      ],
+      "grounding_chunk_indices": [
+       0
+      ]
+     },
+     {
+      "segment_text": "2-1 홈 승리",
+      "confidence_scores": [
+       0.77
+      ],
+      "grounding_chunk_indices": [
+       1
+      ]
+     }
+    ],
+    "chunk_uris": [
+     "https://recorded-football.test/preview/1200001",
+     "https://recorded-weekly.test/story/1200001-score"
+    ],
+    "chunk_titles": [
+     "Recorded Football Desk preview",
+     "Recorded Match Weekly score prediction"
+    ],
+    "absence_reason": null,
+    "web_search_queries": [
+     "Recorded Home Recorded Away preview prediction",
+     "Recorded Home Recorded Away betting odds preview"
+    ],
+    "missing_queries_note": null,
+    "search_suggestions_html": "<div class=\"recorded-suggestions\">Recorded Football Desk · Recorded Match Weekly</div>"
+   },
+   "odds_adopted": [
+    "Recorded Book A / Match Winner",
+    "Recorded Book B / Match Winner"
+   ],
+   "odds_rejected": [
+    {
+     "market": "Match Winner (Live)",
+     "reason": "'Match Winner (Live)'은(는) 라이브·진행 중 시장이라 경기 전 배당이 아닙니다."
+    },
+    {
+     "market": "To Qualify",
+     "reason": "'To Qualify' 시장은 경기 전 승무패가 아니어서 이 경기의 1X2 배당으로 쓰지 않습니다."
+    },
+    {
+     "market": "Double Chance",
+     "reason": "'Double Chance' 시장은 경기 전 승무패가 아니어서 이 경기의 1X2 배당으로 쓰지 않습니다."
+    }
+   ],
+   "media_adopted": [
+    "https://recorded-football.test/preview/1200001?utm_source=newsletter",
+    "https://recorded-weekly.test/story/1200001-score"
+   ],
+   "media_rejected": [],
+   "api_prediction_present": true,
+   "claim_kinds": [
+    "api_prediction",
+    "external_forecast"
+   ]
+  },
+  {
+   "case": "grounding_missing",
+   "mode": "live",
+   "workflow_id": "section_outlook",
+   "run_id": "1b7d748e-40bd-499f-ae3e-e05b47c23374",
+   "section_result_id": "1bf5123d-f7ca-4e85-8430-000f0c21681b",
+   "quality": "ready",
+   "external_calls": 1,
+   "step_log": [
+    {
+     "node": "prepare_data",
+     "unavailable": false,
+     "external_calls": 0
+    },
+    {
+     "node": "research",
+     "unavailable": false,
+     "external_calls": 1
+    },
+    {
+     "node": "compose_body",
+     "unavailable": false,
+     "external_calls": 0
+    },
+    {
+     "node": "finalize",
+     "unavailable": false,
+     "external_calls": 0
+    }
+   ],
+   "reader_body": "## 배당과 외부 전망\n\n이 경기의 경기 전 승무패 배당, 제공자 알고리즘 예측 자료를 정리했습니다. 배당은 업체와 기준 시각을 함께 적었습니다. 제공자 예측은 매체 의견과 구분해 표시했습니다.\n\n### 경기 전 승무패 배당\n공개된 경기 전 승무패 배당입니다. 업체마다 값이 다를 수 있어 기준 시각을 함께 적었습니다.\n- Recorded Book A / Match Winner / 기준 2026-11-10 15:00 UTC: 홈 1.85 · 무 3.60 · 원정 4.20\n- Recorded Book B / Match Winner / 기준 2026-11-10 14:10 UTC: 홈 1.90 · 무 3.45 · 원정 4.00\n\n### 제공자 알고리즘 예측\n제공자(API-Football)의 알고리즘 예측입니다. 언론 보도나 이 서비스의 결론이 아니라 제공자가 계산한 값입니다.\n- 우세 팀 Recorded Home, 확률 홈 55% / 무 25% / 원정 20%, 조언 Recorded Home or draw, 언더오버 기준 -3.5.",
+   "reader_sources": [
+    {
+     "label": "Recorded Book A 경기 전 승무패 배당",
+     "kind": "bookmaker",
+     "url": null,
+     "publisher": "Recorded Book A",
+     "published_at": "2026-11-10T15:00:00+00:00",
+     "note": "API-Football 배당 자료입니다. 업체·시장·갱신 시각을 함께 보존했습니다."
+    },
+    {
+     "label": "Recorded Book B 경기 전 승무패 배당",
+     "kind": "bookmaker",
+     "url": null,
+     "publisher": "Recorded Book B",
+     "published_at": "2026-11-10T14:10:00+00:00",
+     "note": "API-Football 배당 자료입니다. 업체·시장·갱신 시각을 함께 보존했습니다."
+    },
+    {
+     "label": "API-Football 알고리즘 예측",
+     "kind": "api_prediction",
+     "url": null,
+     "publisher": "api-football",
+     "published_at": null,
+     "note": "제공자 알고리즘 예측이며 매체 의견이 아닙니다."
+    }
+   ],
+   "reader_body_has_no_admin_text": true,
+   "coverage": [
+    {
+     "state": "available",
+     "topic": "경기 전 승무패 배당",
+     "detail": "채택 2건"
+    },
+    {
+     "state": "available",
+     "topic": "제공자 알고리즘 예측",
+     "detail": "1건"
+    },
+    {
+     "state": "validation_rejected",
+     "topic": "외부 매체 전망",
+     "detail": "1건이 검증에서 제외되었습니다: 모델 응답에 Google Search grounding 메타데이터가 없어 검색 출처를 확인할 수 없습니다. 확인되지 않은 매체 전망은 채택하지 않았습니다."
+    },
+    {
+     "state": "unknown",
+     "topic": "검색 근거(Google Search grounding)",
+     "detail": "모델 응답에 Google Search grounding 메타데이터가 없어 검색 출처를 확인할 수 없습니다. 확인되지 않은 매체 전망은 채택하지 않았습니다."
+    }
+   ],
+   "diagnostics": [
+    "모델 응답에 Google Search grounding 메타데이터가 없어 검색 출처를 확인할 수 없습니다. 확인되지 않은 매체 전망은 채택하지 않았습니다.",
+    "검증되지 않은 매체 전망 1건을 본문에서 제외했습니다. 사유는 관리자 기록에 있습니다."
+   ],
+   "grounding": {
+    "present": false,
+    "supports": [],
+    "chunk_uris": [],
+    "chunk_titles": [],
+    "absence_reason": "모델 응답에 Google Search grounding 메타데이터가 없어 검색 출처를 확인할 수 없습니다. 확인되지 않은 매체 전망은 채택하지 않았습니다.",
+    "web_search_queries": [],
+    "missing_queries_note": null,
+    "search_suggestions_html": null
+   },
+   "odds_adopted": [
+    "Recorded Book A / Match Winner",
+    "Recorded Book B / Match Winner"
+   ],
+   "odds_rejected": [
+    {
+     "market": "Match Winner (Live)",
+     "reason": "'Match Winner (Live)'은(는) 라이브·진행 중 시장이라 경기 전 배당이 아닙니다."
+    },
+    {
+     "market": "To Qualify",
+     "reason": "'To Qualify' 시장은 경기 전 승무패가 아니어서 이 경기의 1X2 배당으로 쓰지 않습니다."
+    },
+    {
+     "market": "Double Chance",
+     "reason": "'Double Chance' 시장은 경기 전 승무패가 아니어서 이 경기의 1X2 배당으로 쓰지 않습니다."
+    }
+   ],
+   "media_adopted": [],
+   "media_rejected": [
+    {
+     "url": "https://recorded-football.test/preview/1200001",
+     "reason": "모델 응답에 Google Search grounding 메타데이터가 없어 검색 출처를 확인할 수 없습니다. 확인되지 않은 매체 전망은 채택하지 않았습니다."
+    }
+   ],
+   "api_prediction_present": true,
+   "claim_kinds": [
+    "api_prediction",
+    "external_forecast"
+   ]
+  },
+  {
+   "case": "media_empty_api_only",
+   "mode": "live",
+   "workflow_id": "section_outlook",
+   "run_id": "e42ebd37-2a33-486a-a22c-a0f47bcbd132",
+   "section_result_id": "d3244516-a2b2-4aa4-b194-dd4181d6493d",
+   "quality": "ready",
+   "external_calls": 1,
+   "step_log": [
+    {
+     "node": "prepare_data",
+     "unavailable": false,
+     "external_calls": 0
+    },
+    {
+     "node": "research",
+     "unavailable": false,
+     "external_calls": 1
+    },
+    {
+     "node": "compose_body",
+     "unavailable": false,
+     "external_calls": 0
+    },
+    {
+     "node": "finalize",
+     "unavailable": false,
+     "external_calls": 0
+    }
+   ],
+   "reader_body": "## 배당과 외부 전망\n\n이 경기의 경기 전 승무패 배당, 제공자 알고리즘 예측 자료를 정리했습니다. 배당은 업체와 기준 시각을 함께 적었습니다. 제공자 예측은 매체 의견과 구분해 표시했습니다.\n\n### 경기 전 승무패 배당\n공개된 경기 전 승무패 배당입니다. 업체마다 값이 다를 수 있어 기준 시각을 함께 적었습니다.\n- Recorded Book A / Match Winner / 기준 2026-11-10 15:00 UTC: 홈 1.85 · 무 3.60 · 원정 4.20\n- Recorded Book B / Match Winner / 기준 2026-11-10 14:10 UTC: 홈 1.90 · 무 3.45 · 원정 4.00\n\n### 제공자 알고리즘 예측\n제공자(API-Football)의 알고리즘 예측입니다. 언론 보도나 이 서비스의 결론이 아니라 제공자가 계산한 값입니다.\n- 우세 팀 Recorded Home, 확률 홈 55% / 무 25% / 원정 20%, 조언 Recorded Home or draw, 언더오버 기준 -3.5.",
+   "reader_sources": [
+    {
+     "label": "Recorded Book A 경기 전 승무패 배당",
+     "kind": "bookmaker",
+     "url": null,
+     "publisher": "Recorded Book A",
+     "published_at": "2026-11-10T15:00:00+00:00",
+     "note": "API-Football 배당 자료입니다. 업체·시장·갱신 시각을 함께 보존했습니다."
+    },
+    {
+     "label": "Recorded Book B 경기 전 승무패 배당",
+     "kind": "bookmaker",
+     "url": null,
+     "publisher": "Recorded Book B",
+     "published_at": "2026-11-10T14:10:00+00:00",
+     "note": "API-Football 배당 자료입니다. 업체·시장·갱신 시각을 함께 보존했습니다."
+    },
+    {
+     "label": "API-Football 알고리즘 예측",
+     "kind": "api_prediction",
+     "url": null,
+     "publisher": "api-football",
+     "published_at": null,
+     "note": "제공자 알고리즘 예측이며 매체 의견이 아닙니다."
+    }
+   ],
+   "reader_body_has_no_admin_text": true,
+   "coverage": [
+    {
+     "state": "available",
+     "topic": "경기 전 승무패 배당",
+     "detail": "채택 2건"
+    },
+    {
+     "state": "available",
+     "topic": "제공자 알고리즘 예측",
+     "detail": "1건"
+    },
+    {
+     "state": "search_not_found",
+     "topic": "외부 매체 전망",
+     "detail": "검색으로 확인한 매체 전망이 응답에 없습니다."
+    },
+    {
+     "state": "available",
+     "topic": "검색 근거(Google Search grounding)",
+     "detail": "검색 질의 2건, 출처 2건"
+    }
+   ],
+   "diagnostics": [],
+   "grounding": {
+    "present": true,
+    "supports": [
+     {
+      "segment_text": "Recorded Home이 홈에서 우세",
+      "confidence_scores": [
+       0.91
+      ],
+      "grounding_chunk_indices": [
+       0
+      ]
+     },
+     {
+      "segment_text": "2-1 홈 승리",
+      "confidence_scores": [
+       0.77
+      ],
+      "grounding_chunk_indices": [
+       1
+      ]
+     }
+    ],
+    "chunk_uris": [
+     "https://recorded-football.test/preview/1200001",
+     "https://recorded-weekly.test/story/1200001-score"
+    ],
+    "chunk_titles": [
+     "Recorded Football Desk preview",
+     "Recorded Match Weekly score prediction"
+    ],
+    "absence_reason": null,
+    "web_search_queries": [
+     "Recorded Home Recorded Away preview prediction",
+     "Recorded Home Recorded Away betting odds preview"
+    ],
+    "missing_queries_note": null,
+    "search_suggestions_html": "<div class=\"recorded-suggestions\">Recorded Football Desk · Recorded Match Weekly</div>"
+   },
+   "odds_adopted": [
+    "Recorded Book A / Match Winner",
+    "Recorded Book B / Match Winner"
+   ],
+   "odds_rejected": [
+    {
+     "market": "Match Winner (Live)",
+     "reason": "'Match Winner (Live)'은(는) 라이브·진행 중 시장이라 경기 전 배당이 아닙니다."
+    },
+    {
+     "market": "To Qualify",
+     "reason": "'To Qualify' 시장은 경기 전 승무패가 아니어서 이 경기의 1X2 배당으로 쓰지 않습니다."
+    },
+    {
+     "market": "Double Chance",
+     "reason": "'Double Chance' 시장은 경기 전 승무패가 아니어서 이 경기의 1X2 배당으로 쓰지 않습니다."
+    }
+   ],
+   "media_adopted": [],
+   "media_rejected": [],
+   "api_prediction_present": true,
+   "claim_kinds": [
+    "api_prediction",
+    "external_forecast"
+   ]
+  }
+ ]
+}

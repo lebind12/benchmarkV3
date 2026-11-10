@@ -1,0 +1,60 @@
+MP-07 R3 배당·외부 전망 실행 명령과 결과 (2026-11-10)
+
+환경
+- 작업 디렉터리 /Users/woolee/benchmark
+- 착수 시 HEAD db06346
+- 실행 모델 hive/deepseek-ai/deepseek-v4.1-flash-1017, 추론 max, 프로필 dsh-tui (배정 프리앰블 + DSH_PROFILE=dsh-tui)
+- 백엔드 테스트 DB: preview_mp07_test (전용 루프백 DB, 이번에 생성)
+- 프런트: frontend (vitest/jsdom)
+
+생성한 전용 테스트 DB
+  sqlalchemy: CREATE DATABASE preview_mp07_test  → created
+  (이름이 *_test이고 호스트 127.0.0.1이라 tests/preview/_dbguard.py 검사를 통과한다)
+
+1) R3 모듈·섹션 워크플로우 검사
+  PREVIEW_TEST_DATABASE_URL=postgresql+psycopg://preview:preview_local_dev@127.0.0.1:55432/preview_mp07_test \
+    .venv/bin/python -m pytest tests/preview/test_outlook_module.py -q
+  → 21 passed, 1 warning in 4.75s
+
+2) R3 전용 패널 검사
+  npx --prefix frontend vitest run --root frontend src/features/match-preview/panels/OutlookPanel.test.ts
+  → 1 file, 8 tests passed
+
+3) 프런트 타입 검사
+  npm --prefix frontend run type-check
+  → vue-tsc --noEmit, 출력 없음(통과)
+
+4) 섹션 워크플로우 증거 생성(녹화 모의 transport, 임시 스크립트는 실행 후 삭제)
+  PREVIEW_DATABASE_URL=...preview_mp07_test PREVIEW_IDENTITY_DATABASE_URL=...preview_mp07_test PREVIEW_ENV=test \
+    .venv/bin/python <임시 증거 스크립트>
+  → docs/implementation/match-preview/evidence/mp07/section-workflow-mock.json
+  (1차 생성, 이후 문장 수정으로 본문 길이가 바뀌었다)
+  → grounded_media | quality ready | body 790 bytes | sources 5 | clean True
+  → grounding_missing | quality ready | body 517 bytes | sources 3 | clean True
+  → media_empty_api_only | quality ready | body 517 bytes | sources 3 | clean True
+
+반복하지 않은 것
+- 전체 백엔드 회귀(233건)와 전체 프런트 단위 검사는 이 변경 범위(신규 모듈 1개 + 전용 패널 1개)에
+  필요하지 않아 다시 돌리지 않았다. 기존 통과 근거를 재사용한다.
+- 실제 모델·API 호출은 하지 않았다(조정자 조율 없이 live 호출 금지).
+
+5) 최종 반복 실행 (근거 중복·문장 수정 후)
+  PREVIEW_TEST_DATABASE_URL=...preview_mp07_test .venv/bin/python -m pytest tests/preview/test_outlook_module.py -q
+  → 23 passed, 1 warning in 5.17s
+  npx --prefix frontend vitest run --root frontend src/features/match-preview/panels/OutlookPanel.test.ts
+  → 1 file, 8 tests passed
+  npm --prefix frontend run type-check
+  → 통과(출력 없음)
+  증거 재생성 → grounded_media body 824자 / sources 5건 / clean True
+             → grounding_missing body 524자 / sources 3건 / clean True
+             → media_empty_api_only body 524자 / sources 3건 / clean True
+
+6) MP05 attribution 수정 반영 후 (external_calls = 실제 전송된 시도 수)
+  PREVIEW_TEST_DATABASE_URL=...preview_mp07_test .venv/bin/python -m pytest tests/preview/test_outlook_module.py -q
+  → 25 passed, 1 warning in 5.63s
+  npx --prefix frontend vitest run --root frontend src/features/match-preview/panels/OutlookPanel.test.ts
+  → 1 file, 8 tests passed
+  npm --prefix frontend run type-check
+  → 통과(출력 없음)
+  추가 검사: test_retried_live_call_counts_every_sent_attempt (429→성공 = 2회),
+            test_configuration_error_is_not_counted_as_a_sent_call (시도 행은 남고 0회)
