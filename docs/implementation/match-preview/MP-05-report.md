@@ -228,9 +228,19 @@ npx tsx frontend/scripts/mp05-section-browser-check.mts   (격리 백엔드 8022
 
 ## 8. 커밋
 
-경로 한정 스테이징·커밋만 한다. `git add -A`/`.`/`--amend`/`reset`/`restore`/
-`rebase`/`clean`을 쓰지 않고, 기존 808건 삭제는 건드리지 않는다. 커밋 전
-`git diff --cached --name-only`로 목록을 확인한다.
+경로 한정 스테이징·커밋만 했다. `git add -A`/`.`/`--amend`/`reset`/`restore`/
+`rebase`/`clean`을 쓰지 않았고, 기존 808건 삭제는 그대로 미스테이징으로 남아 있다.
+
+| 항목 | 값 |
+|---|---|
+| 커밋 | `6326a5f` `feat(preview): add real form/availability/outlook research sections with user-run section workflow` |
+| 파일 수 | 47 (신규 40, 수정 7) |
+| 변경량 | 14,755 insertions(+), 65 deletions(-) |
+| 삭제 항목 | **0** (기존 808건 삭제는 스테이징하지 않음) |
+| 포함하지 않은 것 | `Plans.md`, `AGENTS.md`, `CLAUDE.md`, 비밀값 env, `frontend/dist`, 마이그레이션 |
+
+스테이징 전 `git diff --cached --name-only`로 목록을 확인했고, 커밋도 같은 pathspec으로
+했다. MP-06·MP-07 파일은 **편집 종료 인계를 받은 뒤** 해당 경로만 함께 넣었다.
 
 ## 9. 다음 사람이 이어받을 때
 
