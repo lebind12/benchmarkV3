@@ -876,8 +876,14 @@ def research_form(
     module_execution_id: uuid.UUID | None = None,
     now: datetime | None = None,
     logical_call_id: str = "R1-form",
+    generation_config_override: Mapping[str, Any] | None = None,
 ) -> FormResearch:
-    """R1 정상 호출 1회. 모델 호출은 `request_model`만 통과한다."""
+    """R1 정상 호출 1회. 모델 호출은 `request_model`만 통과한다.
+
+    `generation_config_override`는 **제품 기본값을 바꾸지 않는 주입 지점**이다. 넘기지
+    않으면(기본) 아래 기본 생성 설정을 그대로 쓴다. 한정 실험처럼 기본과 다른 설정을
+    한 번만 시험할 때, 같은 요청 경로·예산·기록을 그대로 지나가게 하려고 둔다.
+    """
     moment = now or datetime.now(timezone.utc)
     contents = build_contents(facts, now=moment)
     generation = {
@@ -886,6 +892,8 @@ def research_form(
         "response_mime_type": "application/json",
         "tools": [{"google_search": {}}],
     }
+    if generation_config_override is not None:
+        generation = dict(generation_config_override)
     result = provider.request_model(
         logical_call_id=logical_call_id,
         contents=contents,
@@ -1019,8 +1027,13 @@ def form_node(
     facts: FormFacts,
     transport: provider.ProviderTransport,
     now: datetime | None = None,
+    generation_config_override: Mapping[str, Any] | None = None,
 ):
-    """runner가 쓰는 노드 어댑터. 노드는 한 번의 정상 호출만 한다."""
+    """runner가 쓰는 노드 어댑터. 노드는 한 번의 정상 호출만 한다.
+
+    `generation_config_override`는 기본 제품 설정을 바꾸지 않기 위한 선택 인자다.
+    넘기지 않으면 `research_form`이 정한 기본 생성 설정을 그대로 쓴다.
+    """
     from app.preview.runner import NodeOutcome, SectionNodeContext, SectionState
 
     def run(ctx: SectionNodeContext, state: SectionState) -> NodeOutcome:
@@ -1063,6 +1076,7 @@ def form_node(
             actor_id=ctx.actor_id,
             module_execution_id=ctx.module_execution_id,
             now=now,
+            generation_config_override=generation_config_override,
         )
         # runner는 payload의 claims/coverage를 계약 객체로 저장한다. dict를 넣으면
         # ModuleResult 타입과 어긋나므로 여기서 계약 객체를 그대로 넘긴다.

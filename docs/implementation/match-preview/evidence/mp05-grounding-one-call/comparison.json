@@ -1,0 +1,58 @@
+{
+  "baseline_run_id": "6e59041a-3767-4756-a412-991008873f50",
+  "candidate_run_id": "7c0af3c0-4f55-4270-9266-be58c65d8f6b",
+  "baseline": {
+    "label": "baseline",
+    "finish_reason": "STOP",
+    "grounding_metadata_keys": [
+      "retrieval_metadata",
+      "search_entry_point",
+      "web_search_queries"
+    ],
+    "web_search_queries": 8,
+    "grounding_chunks": 0,
+    "grounding_supports": 0,
+    "retrieval_metadata": {},
+    "has_search_entry_point": true,
+    "model_text_redirect_urls": 4,
+    "search_chip_hrefs": 4,
+    "overlap_text_urls_and_chips": 0,
+    "inline_bracket_api_ids": 0,
+    "inline_fact_label": 9,
+    "inline_fact_bare": 0,
+    "claims_total": 5,
+    "claims_adopted": 5,
+    "recent_form_adopted": 2,
+    "watch_points_adopted": 0,
+    "hot_players_adopted": 0,
+    "grounding_sources": 0,
+    "coverage_search_state": "search_not_found"
+  },
+  "candidate": {
+    "label": "candidate",
+    "finish_reason": "STOP",
+    "grounding_metadata_keys": [
+      "retrieval_metadata",
+      "search_entry_point",
+      "web_search_queries"
+    ],
+    "web_search_queries": 7,
+    "grounding_chunks": 0,
+    "grounding_supports": 0,
+    "retrieval_metadata": {},
+    "has_search_entry_point": true,
+    "model_text_redirect_urls": 5,
+    "search_chip_hrefs": 3,
+    "overlap_text_urls_and_chips": 0,
+    "inline_bracket_api_ids": 3,
+    "inline_fact_label": 0,
+    "inline_fact_bare": 9,
+    "claims_total": 5,
+    "claims_adopted": 5,
+    "recent_form_adopted": 2,
+    "watch_points_adopted": 0,
+    "hot_players_adopted": 0,
+    "grounding_sources": 0,
+    "coverage_search_state": "unknown"
+  }
+}
