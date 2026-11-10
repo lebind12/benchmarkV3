@@ -22,7 +22,12 @@ from __future__ import annotations
 from typing import Any, Mapping, Sequence
 
 from app.preview.contracts import INSPECTOR_VERSION, ApprovalState, RunMode
-from app.preview.registry import MOCK_DEMO_MODULE_ID, describe_registry, get_module
+from app.preview.registry import (
+    MOCK_DEMO_MODULE_ID,
+    describe_registry,
+    get_module,
+    get_section_workflow,
+)
 
 __all__ = [
     "INSPECTOR_TABS",
@@ -273,19 +278,85 @@ def section_approval_rows(approval_status: Mapping[str, Any] | None) -> list[dic
     rows: list[dict[str, Any]] = []
     for workflow_id, status in (approval_status.get("workflows") or {}).items():
         state = str((status or {}).get("state", ApprovalState.NONE.value))
+        try:
+            registration = get_section_workflow(workflow_id)
+            display_name = registration.display_name
+            description = registration.description
+            module_ids = list(registration.module_ids)
+            implemented = registration.implemented
+            unrunnable_reason = registration.unrunnable_reason
+        except KeyError:
+            display_name = workflow_id
+            description = ""
+            module_ids = []
+            implemented = False
+            unrunnable_reason = "등록부에 없는 섹션입니다."
         rows.append(
             {
                 "workflow_id": workflow_id,
+                # 사람이 읽는 이름을 먼저 준다. 내부 ID는 진단용으로만 뒤에 붙인다.
+                "display_name": display_name,
+                "description": description,
+                "module_ids": module_ids,
+                "implemented": implemented,
+                "unrunnable_reason": unrunnable_reason,
                 "state": state,
                 "label": APPROVAL_STATE_LABELS.get(state, state),
                 "detail": (status or {}).get("candidate_note"),
                 "current_version": (status or {}).get("current_version"),
                 "active_approval": (status or {}).get("active_approval"),
                 "pinned_approval": (status or {}).get("pinned_approval"),
-                "can_approve": state != ApprovalState.APPROVED.value,
+                "can_approve": state != ApprovalState.APPROVED.value and implemented,
             }
         )
     return rows
+
+
+SECTION_MODE_LABELS = {
+    RunMode.LIVE.value: "실제 생성",
+    RunMode.REPLAY.value: "저장 응답 재생",
+    RunMode.MOCK.value: "모의 시연 (승인 근거 아님)",
+}
+
+
+def section_result_rows(
+    section_results: Sequence[Mapping[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """섹션 본문 결과를 화면 행으로 만든다. 본문과 근거를 먼저 둔다.
+
+    승인 근거가 되는 것은 이 본문이다. 노드·모듈 결과는 진단으로만 펼친다. 모의
+    결과는 라벨에서 바로 드러나므로 실제 생성으로 읽히지 않는다.
+    """
+    rows: list[dict[str, Any]] = []
+    for entry in section_results or ():
+        mode = str(entry.get("mode") or RunMode.MOCK.value)
+        rows.append(
+            {
+                **dict(entry),
+                "mode_label": SECTION_MODE_LABELS.get(mode, mode),
+                "approvable": bool(entry.get("body"))
+                and not entry.get("unavailable")
+                and mode != RunMode.MOCK.value,
+            }
+        )
+    return rows
+
+
+def primary_section_result(
+    section_results: Sequence[Mapping[str, Any]] | None,
+) -> Mapping[str, Any] | None:
+    """이 실행의 대표 섹션 결과. 승인 폼이 근거로 쓸 ID를 여기서 고른다."""
+    rows = [
+        dict(item)
+        for item in section_results or ()
+        if item.get("mode") != RunMode.MOCK.value
+        and item.get("body")
+        and not item.get("unavailable")
+    ]
+    if not rows:
+        # 모의 시연 결과는 승인 근거 ID로 쓰지 않는다. 없으면 정직하게 None이다.
+        return None
+    return max(rows, key=lambda row: int(row.get("version") or 0))
 
 
 def build_run_inspection(
@@ -301,6 +372,8 @@ def build_run_inspection(
         for module in run_detail.get("modules") or ()
     ]
     registry = describe_registry()
+    rows = section_result_rows(run_detail.get("section_results") or ())
+    primary = primary_section_result(run_detail.get("section_results") or ())
     return {
         **run_detail,
         "inspector_version": INSPECTOR_VERSION,
@@ -308,17 +381,20 @@ def build_run_inspection(
         "inspector_modules": modules,
         "registry": registry,
         "approvals": approval_status,
-        # 섹션 결과 저장은 MP-09 소유다. 이 실행에는 아직 없다는 사실을 값으로 밝힌다.
-        "section_result_id": None,
+        # 섹션 본문 결과가 있으면 그 ID가 승인 근거다. 없으면 null이며 화면은 승인을
+        # 만들지 않는다(모의 시연 결과는 approval 대상이 아니다).
+        "section_result_id": (primary or {}).get("section_result_id"),
+        "section_results": rows,
         "section_approvals": section_approval_rows(approval_status),
         "section_workflows": section_workflows,
         "mock_demo_module_id": MOCK_DEMO_MODULE_ID,
         "availability_note": (
-            "D0·R1·R2·R3·S1은 아직 구현되지 않아 실행할 수 없습니다. "
-            "MP-02가 제공하는 것은 기록 시연(모의) 실행과 그 검사 경로입니다."
+            "D0·R1·R2·R3·S1의 실제 조사 구현은 아직 등록되지 않았습니다. 지금 실행"
+            " 가능한 경로는 명시적 모의 시연이며, 모의 결과는 승인 근거로 쓰지 않습니다."
         ),
         "approval_note": (
-            "승인 단위는 프리뷰 섹션을 만드는 완결된 워크플로우입니다. 내부 노드와 D0 같은"
-            " 자료 준비 단계에는 따로 승인하지 않으며, 모의 시연 실행은 승인 근거가 아닙니다."
+            "승인 단위는 프리뷰 섹션을 만드는 완결된 워크플로우입니다. 승인 근거는 그"
+            " 워크플로우가 실제로 만든 섹션 본문 결과이며, 내부 노드와 D0 같은 자료 준비"
+            " 단계에는 따로 승인하지 않습니다. 모의 시연 결과는 승인 근거가 아닙니다."
         ),
     }

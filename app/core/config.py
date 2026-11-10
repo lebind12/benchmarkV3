@@ -42,11 +42,27 @@ class Settings(BaseSettings):
 
     database_url: str = Field(default=LOCAL_DEV_DATABASE_URL)
     identity_database_url: str | None = None
+    # 저장된 경기·부상·순위 자료 읽기 전용 연결(별도 좁은 역할).
+    # 설정이 없으면 조회기는 붙지 않고 화면에 `stored_access.readable=false`가 남는다.
+    fixtures_database_url: str | None = None
     env: Environment = "dev"
     session_ttl_seconds: int = Field(default=8 * 60 * 60, gt=0, le=7 * 24 * 60 * 60)
     cookie_secure: bool = False
     allow_nonlocal_db: bool = False
     allow_nonlocal_identity_db: bool = False
+
+    # --- MP-04 모델 제공자 설정 -------------------------------------------
+    # 비밀값은 이름만 두고 값은 환경에서만 읽는다. 조회·보고서에 값을 출력하지
+    # 않는다. `model_credentials_json`은 서비스 계정 JSON 원문이며 로그에 남기지
+    # 않는다(저장소 계약 `__repr__`에서도 가린다).
+    model_provider: str = "vertex"
+    model_project: str | None = None
+    model_location: str = "global"
+    model_name: str | None = None
+    model_credentials_json: str | None = Field(default=None, repr=False)
+    model_timeout_seconds: int = Field(default=300, gt=0)
+    # 실제 유료 호출은 명시적 플래그가 있을 때만 열린다. 기본은 닫힘이다.
+    model_live_enabled: bool = False
 
     @model_validator(mode="after")
     def _identity_defaults_to_dev(self) -> "Settings":

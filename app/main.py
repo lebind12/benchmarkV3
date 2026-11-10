@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.v1 import auth, preview_admin
+from app.api.v1 import auth, preview_admin, preview_metrics
 from app.auth.identity import get_identity_reader
 from app.core.config import get_settings
 from app.core.validation import install_validation_error_scrubber
@@ -70,6 +70,8 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router)
     app.include_router(preview_admin.router)
+    # MP-08 지표 라우터. 조회 전용이며 같은 /api/v1/admin/preview 접두어를 쓴다.
+    app.include_router(preview_metrics.router)
     return app
 
 

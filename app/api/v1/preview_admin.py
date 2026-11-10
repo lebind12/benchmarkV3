@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from uuid import UUID
 
@@ -23,11 +24,21 @@ from sqlalchemy.orm import Session
 
 from app.auth.service import AdminPrincipal, require_preview_admin
 from app.db import get_db
-from app.preview import approvals, demo_pipeline, store
-from app.preview.contracts import ApprovalRequestError, ContractError, RunMode
+from app.preview import approvals, demo_pipeline, provider, runner, store
+from app.preview.contracts import (
+    ApprovalRequestError,
+    AttemptOutcome,
+    ContractError,
+    Environment,
+    RunMode,
+)
 from app.preview.inspection import build_run_inspection
 from app.preview.models import PreviewRun
-from app.preview.registry import describe_registry, describe_section_workflows
+from app.preview.registry import (
+    describe_registry,
+    describe_section_workflows,
+    get_section_workflow,
+)
 from app.preview.retention import (
     expire_raw_artifacts,
     retention_policy,
@@ -74,6 +85,79 @@ class ApproveSectionRequest(BaseModel):
     run_id: UUID
     section_result_id: UUID
     note: str | None = Field(default=None, max_length=1000)
+
+
+def _fixture_reader():
+    """저장 경기 자료 조회기. 설정이 없으면 `None`이며 그 사실이 응답에 드러난다."""
+    from app.core.config import get_settings
+    from app.preview.sources.fixtures import StoredFixtureReader
+
+    settings = get_settings()
+    url = settings.fixtures_database_url
+    if not url:
+        return None
+    return StoredFixtureReader.from_url(url)
+
+
+class FixtureImportRequest(BaseModel):
+    """관리자 명시 요청으로 경기 후보를 수집한다. 외부 API 예산(24회)을 쓴다."""
+
+    league_id: int
+    date: str
+    timezone: str = "UTC"
+    season: int | None = None
+    label: str | None = Field(default=None, max_length=200)
+
+
+class SectionRunRequest(BaseModel):
+    """섹션 워크플로우 단독 실행 요청.
+
+    `mode`는 화면·API가 실제 실행 방식을 고르는 값이다. `mock`은 외부 호출 없는
+    시연이고, `live`는 실제 제공자 호출이다. `live`는 모델 설정이 없으면 제공자를
+    부르지 않고 설정 오류로 실패한다(모의로 대체하지 않는다).
+    """
+
+    workflow_id: str
+    mode: str = RunMode.MOCK.value
+    fixture_id: int | None = None
+    league_id: int | None = None
+    season: int | None = None
+    home_team_id: int | None = None
+    away_team_id: int | None = None
+    kickoff_at: datetime | None = None
+    fixture_label: str | None = Field(default=None, max_length=200)
+    label: str | None = Field(default=None, max_length=200)
+
+
+class SectionRunResponse(BaseModel):
+    run_id: UUID
+    workflow_id: str
+    workflow_version: str
+    mode: str
+    status: str
+    quality: str
+    section_result_id: UUID | None
+    section_result_version: int | None
+    external_calls: int
+    budget: dict
+    unavailable_reason: str | None
+    note: str
+
+
+class ReplayResultRequest(BaseModel):
+    """저장 응답 재생 요청. 외부 모델 호출은 0회다."""
+
+    note: str | None = Field(default=None, max_length=500)
+
+
+class ReplayResultResponse(BaseModel):
+    run_id: UUID
+    source_result_id: UUID
+    new_result_id: UUID
+    new_version: int
+    raw_artifact_id: UUID | None
+    external_calls: int
+    note: str
 
 
 class CompareResponse(BaseModel):
@@ -249,12 +333,336 @@ def approve_section(
     return approval.to_dict()
 
 
+@router.get("/fixtures")
+def list_stored_fixtures(
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+    league_id: int | None = Query(default=None),
+    date: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+) -> dict:
+    """저장된 경기 후보. 이 경로는 수집을 일으키지 않고 외부 API도 부르지 않는다.
+
+    기존 DB 경기 자료는 읽기 전용 연결로 읽는다. 권한이 없으면 빈 목록으로 감추지
+    않고 `stored_access`에 사유를 남긴다.
+    """
+    from app.preview import data as data_module
+    from app.preview.contracts import FixtureCatalogQuery
+
+    query = (
+        FixtureCatalogQuery(league_id=league_id, date=date, timezone="UTC")
+        if league_id is not None and date
+        else None
+    )
+    reader = _fixture_reader()
+    try:
+        result = data_module.list_fixtures(
+            session, query=query, reader=reader, limit=limit
+        )
+    finally:
+        if reader is not None:
+            reader.close()
+    return result.to_dict() if hasattr(result, "to_dict") else dict(result)
+
+
+@router.post("/fixtures/import")
+def import_fixtures(
+    payload: FixtureImportRequest,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """관리자가 명시한 조건으로 경기 후보를 수집한다(모의 실행기, 외부 호출 0회).
+
+    실제 API 전송은 API 자격 증명이 연결된 실행기에서만 일어난다. 지금은 저장 경로와
+    예산 기록만 확인하는 모의 수집이며, 응답의 `external_calls`가 그 사실을 밝힌다.
+    """
+    from app.preview import data as data_module
+    from app.preview.contracts import (
+        Environment,
+        ExecutionContext,
+        FixtureCatalogQuery,
+        OperationKind,
+        RunMode,
+        compute_input_hash,
+    )
+    from app.preview.sources.api_football import ApiExchange
+
+    context = ExecutionContext(
+        run_id=uuid.uuid4(),
+        operation_kind=OperationKind.FIXTURE_CATALOG,
+        environment=Environment.DEV,
+        mode=RunMode.MOCK,
+        actor_id=principal.user_id,
+        config_version="mp04-fixture-catalog-1",
+    )
+    query = FixtureCatalogQuery(
+        league_id=payload.league_id, date=payload.date, timezone=payload.timezone
+    )
+
+    def _mock_executor(spec):
+        return ApiExchange(
+            response=provider.ProviderResponse(
+                attempt_id=uuid.uuid4(),
+                outcome=AttemptOutcome.OK,
+                http_status=200,
+            ),
+            body={
+                "response": [],
+                "results": 0,
+                "mock": True,
+                "note": "모의 수집 응답입니다. 실제 API 호출이 아닙니다.",
+                "logical_call_id": spec.logical_call_id,
+                "input_hash_hint": compute_input_hash(spec.to_dict()),
+            },
+        )
+
+    result = data_module.import_fixtures(
+        session,
+        query,
+        context=context,
+        executor=_mock_executor,
+        season=payload.season,
+        actor_id=principal.user_id,
+    )
+    session.commit()
+    payload_out = result.to_dict() if hasattr(result, "to_dict") else dict(result)
+    payload_out["note"] = (
+        "모의 실행기로 수집한 결과입니다. 외부 API를 호출하지 않았습니다."
+    )
+    return payload_out
+
+
+SECTION_IMPLEMENTATIONS = {
+    "section_form": runner.mock_section_implementations,
+    "section_availability": runner.mock_section_implementations,
+    "section_outlook": runner.mock_section_implementations,
+    "section_synthesis": runner.mock_section_implementations,
+}
+
+
+def _section_availability(workflow_id: str) -> dict:
+    """섹션 하나의 실행 가능성. 미구현을 숨기지 않고 그대로 알린다."""
+    try:
+        get_section_workflow(workflow_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="section workflow not found"
+        ) from None
+    built = {
+        key: factory(key) for key, factory in SECTION_IMPLEMENTATIONS.items()
+    }
+    return runner.section_run_availability(workflow_id, built)
+
+
+def _section_implementations(workflow_id: str):
+    factory = SECTION_IMPLEMENTATIONS.get(workflow_id)
+    if factory is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="section workflow not found"
+        )
+    return factory(workflow_id)
+
+
+@router.get("/sections")
+def list_sections(
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """섹션 워크플로우 실행 가능성 목록. 저장된 행만 읽고 외부 호출이 없다.
+
+    여기서 `implemented=false`인 섹션은 본문을 실제로 만들 수 없다. 모의 시연으로
+    실행할 수는 있지만, 그 결과는 승인 근거가 아니다.
+    """
+    workflows = describe_section_workflows()
+    built = {
+        key: factory(key) for key, factory in SECTION_IMPLEMENTATIONS.items()
+    }
+    return {
+        "workflows": workflows["workflows"],
+        "availability": {
+            workflow_id: runner.section_run_availability(workflow_id, built)
+            for workflow_id in built
+        },
+        "mock_demo_note": (
+            "지금 실행 가능한 경로는 명시적 모의 시연입니다. 외부 모델·API를 호출하지"
+            " 않으며, 그 결과는 승인 근거로 쓰지 않습니다."
+        ),
+    }
+
+
+@router.post("/section-runs", response_model=SectionRunResponse)
+def create_section_run(
+    payload: SectionRunRequest,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> SectionRunResponse:
+    """섹션 워크플로우 하나를 실행하고 실행 ID를 돌려준다.
+
+    관리자는 이 ID로 저장된 전체 결과(본문·근거·노드 진단)를 다시 연다. 실행 기록은
+    `preview_dev`에 남고, 모의 실행은 `mode=mock`으로 표시된다. 실제 조사 구현이
+    등록되지 않은 단계는 본문을 만들어 채우지 않고 그대로 실패로 남긴다.
+    """
+    try:
+        mode = RunMode(payload.mode)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="unknown run mode",
+        ) from None
+    if mode is not RunMode.MOCK:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "실제 조사·생성 구현이 아직 등록되지 않아 mock 실행만 열려 있습니다."
+                " 실제 모델 호출 경로는 구현 등록과 설정 확인 뒤에 엽니다."
+            ),
+        )
+
+    implementations = _section_implementations(payload.workflow_id)
+    fixture = None
+    if payload.fixture_id is not None and payload.kickoff_at is not None:
+        fixture = {
+            "fixture_id": payload.fixture_id,
+            "league_id": payload.league_id or 0,
+            "season": payload.season or 0,
+            "home_team_id": payload.home_team_id or 0,
+            "away_team_id": payload.away_team_id or 0,
+            "kickoff_at": payload.kickoff_at.isoformat(),
+        }
+
+    result = runner.run_section_workflow(
+        session,
+        workflow_id=payload.workflow_id,
+        implementations=implementations,
+        actor_id=principal.user_id,
+        environment=Environment.DEV,
+        fixture=fixture,
+        fixture_label=payload.fixture_label,
+        label=payload.label,
+    )
+    session.commit()
+    return SectionRunResponse(
+        run_id=result.run_id,
+        workflow_id=result.workflow_id,
+        workflow_version=result.workflow_version,
+        mode=result.mode.value,
+        status=result.status.value,
+        quality=result.quality.value,
+        section_result_id=result.section_result_id,
+        section_result_version=result.section_result_version,
+        external_calls=result.external_calls,
+        budget=dict(result.budget),
+        unavailable_reason=result.unavailable_reason,
+        note=(
+            "모의 시연 실행입니다. 외부 모델·API를 호출하지 않았고, 이 결과는 승인"
+            " 근거가 아닙니다."
+            if result.mode is RunMode.MOCK
+            else "실행 결과를 저장했습니다."
+        ),
+    )
+
+
+@router.get("/runs/{run_id}/section-results")
+def get_section_results(
+    run_id: UUID,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """이 실행이 저장한 섹션 본문 결과들. 저장된 행만 읽는다."""
+    try:
+        store.get_run_detail(session, run_id)
+    except store.RunNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        ) from None
+    return {
+        "run_id": str(run_id),
+        "section_results": store.list_section_results(session, run_id),
+    }
+
+
+@router.post(
+    "/results/{result_id}/replays", response_model=ReplayResultResponse
+)
+def replay_stored_result(
+    result_id: UUID,
+    payload: ReplayResultRequest,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> ReplayResultResponse:
+    """저장된 응답으로 변환만 다시 한다. 외부 모델 호출은 0회다.
+
+    이 경로를 LangGraph 체크포인트의 재실행(유료 time travel)이나 DB undo와 혼동하지
+    않는다. 원본 결과와 시도·원문은 그대로 남고, 새 결과 버전이 추가된다.
+    """
+    from app.preview.models import PreviewResult
+
+    source = session.get(PreviewResult, result_id)
+    if source is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="result not found"
+        )
+
+    def transform(raw_body, previous_payload):  # noqa: ANN001 - 콜백 계약
+        return {
+            "claims": (previous_payload or {}).get("claims") or [],
+            "coverage": (previous_payload or {}).get("coverage") or [],
+            "diagnostics": [
+                "저장된 원문으로 변환을 다시 했습니다. 외부 호출은 없습니다.",
+            ],
+            "payload": {
+                "replay_note": payload.note,
+                "replay_raw_present": raw_body is not None,
+            },
+        }
+
+    try:
+        outcome = provider.replay_result(
+            session,
+            source_result_id=result_id,
+            transform=transform,
+            actor_id=principal.user_id,
+        )
+    except store.RunNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from None
+    session.commit()
+    return ReplayResultResponse(
+        run_id=outcome.run_id,
+        source_result_id=outcome.source_result_id,
+        new_result_id=outcome.new_result_id,
+        new_version=outcome.new_version,
+        raw_artifact_id=outcome.raw_artifact_id,
+        external_calls=outcome.external_calls,
+        note="저장 응답 재생입니다. 외부 모델·API 호출이 없습니다.",
+    )
+
+
 @router.get("/registry")
 def get_registry(
     principal: AdminPrincipal = Depends(require_preview_admin),
 ) -> dict:
-    """등록된 모듈과 구현 여부. 미구현 모듈을 실행 가능으로 보이지 않게 한다."""
-    return describe_registry()
+    """등록된 모듈과 구현 여부. 미구현 모듈을 실행 가능으로 보이지 않게 한다.
+
+    섹션 워크플로우에는 지금 실행 가능한 방식(`modes`)을 함께 붙인다. 등록부의
+    `implemented=False`는 "실제 생성 구현이 없다"는 뜻이고, `modes=['mock']`은
+    "모의 시연만 가능하다"는 뜻이다. 두 값을 섞어 실제 생성이 되는 것처럼 보이지
+    않게 따로 내보낸다.
+    """
+    registry = describe_registry()
+    built = {
+        key: factory(key) for key, factory in SECTION_IMPLEMENTATIONS.items()
+    }
+    section_availability = {
+        workflow_id: runner.section_run_availability(workflow_id, built)
+        for workflow_id in built
+    }
+    registry["section_availability"] = section_availability
+    registry["section_modes"] = {
+        workflow_id: availability["modes"]
+        for workflow_id, availability in section_availability.items()
+    }
+    return registry
 
 
 @router.get("/retention")
