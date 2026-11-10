@@ -234,43 +234,61 @@
 나온 값이다. 실제 제공자 호출은 0회다. 따라서 `attempt_429_rate 1/3`은 “이 합성 자료가
 그렇게 계산된다”는 증거이며, 실제 계정의 429 발생률 측정치가 아니다.
 
-## 커밋
+## 커밋과 경로 귀속 (정확한 기록)
 
-### 커밋 1 — `7ef8821` `feat(preview): MP-08 stored-event operational metrics`
+조정자가 요구한 대로 **실제 커밋 귀속**을 경로 단위로 남긴다. 이력은 재작성하지 않았다
+(`--amend`/`reset`/`rebase` 없음).
 
-내 소유 파일 13개를 `git add`로 선별 스테이징하고 커밋했다. **그런데 이 커밋에는 내
-파일 외에 MP-03이 같은 순간 스테이징해 둔 14개 파일도 함께 들어갔다.** 사실과 원인을
-그대로 적는다.
+| 커밋 | 시각 | 경로 수 | 귀속 | 비고 |
+|---|---|---|---|---|
+| `7ef8821` `feat(preview): MP-08 stored-event operational metrics` | 20:22:43 | 27 | **MP-08 13 + MP-03 14 (혼합)** | 내 메시지로 커밋됐지만 MP-03 파일이 함께 들어갔다 |
+| `0a81676` `docs(preview): record MP-08 commit scope and the shared-index incident` | 20:24:28 | 1 | MP-08 전용 | `git commit -- <경로>` 경로 한정 |
+| `5a8bbb2` `fix(preview): dedup D0 attempt records against the shared executor` | 20:26:17 | 4 | **MP-03 전용 (내 커밋 아님)** | MP-03이 자기 파일만 커밋 |
+| `a868789` `docs(preview): MP-08 visible metrics evidence and select-run handoff` | 20:27:33 | 3 | MP-08 전용 | `git commit -- <경로>` 경로 한정 |
 
-| 구분 | 파일 |
+`7ef8821`의 정확한 경로 구성:
+
+| 귀속 | 경로 |
 |---|---|
-| 내 것 (13) | `app/preview/metrics.py`, `app/api/v1/preview_metrics.py`, `frontend/.../metrics.ts`, `PreviewMetricsView.vue`, `PreviewMetricsView.test.ts`, `tests/preview/test_metrics.py`, `tests/preview/fixtures/metrics_events.json`, `MP-08-report.md`, `evidence/30..34-mp08-*` |
-| MP-03 것 (14) | `app/preview/data.py`, `app/preview/sources/{__init__,api_football,fixtures}.py`, `tests/preview/test_data.py`, `tests/preview/test_api_football.py`, `tests/preview/fixtures/api_football.json`, `frontend/.../FixtureSelector.{vue,test.ts}`, `frontend/.../fixtures.ts`, `frontend/.../panels/DataPanel.{vue,test.ts}`, `MP-03-report.md`, `evidence/mp03/d0_mock_run.json` |
+| MP-08 (13) | `app/preview/metrics.py`, `app/api/v1/preview_metrics.py`, `frontend/src/features/match-preview/metrics.ts`, `.../PreviewMetricsView.vue`, `.../PreviewMetricsView.test.ts`, `tests/preview/test_metrics.py`, `tests/preview/fixtures/metrics_events.json`, `docs/implementation/match-preview/MP-08-report.md`, `docs/implementation/match-preview/evidence/30-mp08-backend.txt`, `31-mp08-frontend.txt`, `32-mp08-typecheck.txt`, `33-mp08-metrics-example.txt`, `34-mp08-typecheck-scoped.txt` |
+| MP-03 (14) | `app/preview/data.py`, `app/preview/sources/__init__.py`, `app/preview/sources/api_football.py`, `app/preview/sources/fixtures.py`, `tests/preview/test_data.py`, `tests/preview/test_api_football.py`, `tests/preview/fixtures/api_football.json`, `frontend/src/features/match-preview/FixtureSelector.vue`, `.../FixtureSelector.test.ts`, `.../fixtures.ts`, `.../panels/DataPanel.vue`, `.../panels/DataPanel.test.ts`, `docs/implementation/match-preview/MP-03-report.md`, `docs/implementation/match-preview/evidence/mp03/d0_mock_run.json` |
 
-- **원인.** 이 저장소는 여러 워커가 같은 작업 트리와 **하나의 git 인덱스**를 공유한다.
-  내가 `git diff --cached --name-only`로 스테이징 목록을 확인한 시점에는 내 13개만
-  있었는데, 그 확인과 `git commit` 사이에 MP-03 워커가 자기 파일을 `git add`했고,
-  `git commit`은 인덱스 **전체**를 커밋하므로 그것까지 함께 들어갔다.
-- **손실 없음.** MP-03 파일은 커밋된 내용과 작업 트리 내용이 동일함을
-  `git diff HEAD -- <MP-03 경로들>`(출력 없음)로 확인했다. 덮어쓰거나 지운 파일은 없고,
-  MP-03의 이후 편집도 그대로 디스크에 있다.
-- **되돌리지 않았다.** `reset`·`checkout`·`--amend`로 공유 브랜치 이력을 다시 쓰면
-  이미 이 HEAD 위에서 작업 중인 다른 워커(MP-03/04)의 기준이 흔들린다. 혼합 커밋은
-  기록만 정확히 남기고, 이력 정리는 조정자가 판단할 일로 남긴다.
-- 앞으로의 방법: 다른 워커가 스테이징한 항목을 건드리지 않으려면
-  `git commit -- <경로들>`(`--only` 의미)로 경로를 지정해 커밋해야 한다. 이 보고서
-  수정 커밋부터 그 방식을 썼다.
+`0a81676` = `MP-08-report.md`. `a868789` = `MP-08-report.md`,
+`evidence/35-mp08-api-response.json`, `evidence/36-mp08-view-render.txt`.
 
-### 커밋 2 — `0a81676` `docs(preview): record MP-08 commit scope and the shared-index incident`
+### 혼합 커밋의 원인과 처리
 
-### 커밋 3 — 이 보고서 갱신 + 보이는 지표 증거 ([evidence/35](evidence/35-mp08-api-response.json), [evidence/36](evidence/36-mp08-view-render.txt))
+- **원인.** 여러 워커가 같은 작업 트리와 **하나의 git 인덱스**를 공유한다. 내가
+  `git diff --cached --name-only`로 스테이징 목록을 확인한 시점에는 내 13개만 있었는데,
+  그 확인과 `git commit` 사이에 MP-03 워커가 자기 파일을 `git add`했고 `git commit`은
+  인덱스 **전체**를 커밋하므로 그것까지 들어갔다.
+- **손실 없음.** MP-03 경로에 대해 `git diff HEAD -- <경로들>` 출력이 비어 있음을
+  확인했다(커밋 내용 = 작업 트리 내용). 지운 파일도, 덮어쓴 편집도 없다. MP-03은 이후
+  자기 수정을 `5a8bbb2`로 별도 커밋했다.
+- **되돌리지 않았다.** 공유 브랜치 이력을 다시 쓰면 같은 HEAD 위에서 작업 중인
+  MP-03/04의 기준이 흔들린다. 조정자 지시(“preserve history; no amend/reset/rebase”)와
+  같은 판단이며, 이력 정리는 조정자 몫으로 남긴다.
+- **재발 방지.** 이후 커밋부터 `git commit -- <경로들>`로 경로를 한정했다(커밋 2·3).
 
-`git commit -- <경로들>`로 내 파일만 커밋했다(인덱스 전체를 쓰지 않는다). 다른 워커의
-스테이징 항목은 건드리지 않았다. 커밋 해시는 조정자에게 `worker_done`으로 보고한다
-(자기 커밋은 자기 보고서에 적고, 이후 재작성하지 않는다).
+### 이 워커의 스테이징·커밋 중단 (조정자 지시 반영)
 
-기존 대량 삭제(809건)·`Plans.md`·`AGENTS.md`·`CLAUDE.md`·공유 파일은 스테이징하지
-않았다.
+조정자 지시 `msg_7264dadf13f9`(“From now stop staging/commits: MP04 is sole committer for
+remaining wave … hand off exact paths unstaged”)는 **후속 Dispatch `ctx_1e13df9378a5`로
+전달됐고 그 Dispatch는 `state=failed`, `lastError=timeout`으로 끝나** 내가 `a868789`를
+만들기 전에 읽지 못했다. 지시를 읽은 뒤로 나는 **스테이징·커밋을 모두 중단**했다.
+
+- 현재 내 소유 경로의 작업 트리는 깨끗하다(`git status --short -- <MP-08 경로들>` 출력 없음).
+- 지금 남은 변경(이 보고서의 이 절)은 **스테이징하지 않은 채** 넘긴다. 커밋은 MP-04가 한다.
+- 넘기는 경로: `docs/implementation/match-preview/MP-08-report.md`
+- 넘기지 말아야 할 것: 다른 워커의 스테이징 항목, 기존 대량 삭제(809건),
+  `Plans.md`·`AGENTS.md`·`CLAUDE.md`, 공유 파일(`app/main.py`, `app/preview/contracts.py`
+  등)은 내가 스테이징하지 않았다.
+
+| 체크 | 결과 |
+|---|---|
+| `git diff --cached --name-only` | 출력 없음(인덱스 비어 있음) |
+| 내 소유 8개 소스·테스트·증거 경로 | 변경 없음 |
+| 마지막 커밋 이후 소스 변경 | 없음(문서만) |
 
 ## 남은 것 / 인계
 
