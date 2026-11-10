@@ -323,3 +323,62 @@ class PreviewSectionApproval(Base):
 
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     supersedes_approval_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+
+
+class PreviewSectionResult(Base):
+    """프리뷰 섹션 하나의 본문·근거 결과 버전.
+
+    MP-04가 최소 저장 구조를 열었다. 승인 근거는 개별 노드·모듈 결과가 아니라 이
+    행이다. 그래서 본문(`body`)과 근거(`sources`)를 먼저 담고, 노드별 원문·시도는
+    `module_execution_ids`로 연결해 진단으로 펼친다.
+
+    같은 실행·워크플로우에서 새 결과를 저장하면 `version`이 올라간 새 행이 생기고
+    이전 행은 남는다. 승인은 확인한 버전을 그대로 가리키므로 나중 본문이 바뀌어도
+    승인 근거가 흔들리지 않는다.
+
+    `mode`가 mock/replay인 결과는 승인 근거로 쓰지 않는다. 화면과 API가 이 값을
+    그대로 내보내므로 모의 결과가 실제 생성으로 읽히지 않는다.
+    """
+
+    __tablename__ = "preview_section_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "run_id", "workflow_id", "version", name="uq_section_result_version"
+        ),
+        _TABLE_ARGS,
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    workflow_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    workflow_version: Mapped[str] = mapped_column(Text, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    # 독자용 근거. 출처 URL·매체·시각만 담고 내부 진단은 넣지 않는다.
+    sources: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    mode: Mapped[str] = mapped_column(Text, nullable=False)
+    environment: Mapped[str] = mapped_column(Text, nullable=False)
+    quality: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # 이 섹션을 만든 노드·모듈 실행과 그 결과 버전. 진단 연결의 근거다.
+    module_execution_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    result_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    # 관리자 전용. 독자용 본문에는 넣지 않는다.
+    diagnostics: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    unavailable_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    output_contract_version: Mapped[str] = mapped_column(Text, nullable=False)
+    contract_version: Mapped[str] = mapped_column(Text, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    supersedes_section_result_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)

@@ -31,6 +31,9 @@ MODULE_INPUT_VERSION = "mp02-module-input-1"
 PREVIEW_DOCUMENT_VERSION = "mp02-preview-1"
 INSPECTOR_VERSION = "mp02-inspector-1"
 APPROVAL_CONTRACT_VERSION = "mp02-approval-1"
+# MP-04가 더한 축. 기존 값은 바꾸지 않고 새 이름만 추가한다.
+SECTION_RESULT_CONTRACT_VERSION = "mp04-section-result-1"
+RETRY_POLICY_VERSION = "mp04-retry-1"
 
 # §5 초기 보관 설정. 개발 기본값이며 운영 정책은 배포 전에 다시 확인한다.
 RAW_ARTIFACT_RETENTION_DAYS = 30
@@ -62,6 +65,8 @@ def contract_versions() -> dict[str, str]:
         "preview_document": PREVIEW_DOCUMENT_VERSION,
         "inspector": INSPECTOR_VERSION,
         "approvals": APPROVAL_CONTRACT_VERSION,
+        "section_result": SECTION_RESULT_CONTRACT_VERSION,
+        "retry_policy": RETRY_POLICY_VERSION,
     }
 
 
@@ -77,6 +82,8 @@ class OperationKind(str, Enum):
     MODULE = "module"
     FIXTURE_CATALOG = "fixture_catalog"
     MOCK_DEMO = "mock_demo"
+    # MP-04: 프리뷰 섹션 하나를 만드는 완결된 워크플로우 실행. 사용자의 승인 단위다.
+    SECTION = "section"
 
 
 class Environment(str, Enum):
@@ -186,6 +193,13 @@ class AttemptOutcome(str, Enum):
     ERROR = "error"
     # 요청을 보냈지만 응답을 보존하기 전에 중단된 경우. 성공으로 세지 않는다.
     UNKNOWN = "unknown"
+
+
+class RequestClass(str, Enum):
+    """요청이 어느 예산을 쓰는지. 모델 예산과 API 예산은 서로 대체되지 않는다."""
+
+    MODEL = "model"
+    API = "api"
 
 
 # --------------------------------------------------------------------------
@@ -653,6 +667,61 @@ class SectionApprovalStatus:
 
 
 # --------------------------------------------------------------------------
+# 섹션 결과 (MP-04가 최소 저장 구조를 연다)
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SectionResult:
+    """프리뷰 섹션 하나의 **독자용 본문과 근거**.
+
+    승인 근거는 개별 노드 결과가 아니라 이 결과다. 그래서 본문(`body`)과 근거
+    (`sources`)를 먼저 담고, 노드별 원문·시도는 진단으로 따로 붙인다.
+
+    값의 정직성:
+
+    - `mode`가 `mock`이면 모의 자료로 만든 시연 결과다. 실제 생성 승인 근거로 쓰지
+      않는다. 화면은 이 값을 그대로 표시한다.
+    - `unavailable`은 "자료를 못 구했다"는 내부 진단이 아니라, 본문을 만들 수 없어
+      **결과 자체가 없음**을 뜻한다. 독자용 문장에는 누락 안내를 넣지 않는다.
+    - `version`은 같은 섹션 실행의 이전 본문을 덮어쓰지 않고 올라간다.
+    """
+
+    section_result_id: uuid.UUID
+    run_id: uuid.UUID
+    workflow_id: str
+    workflow_version: str
+    title: str
+    body: str
+    sources: tuple[Mapping[str, Any], ...] = ()
+    version: int = 1
+    mode: RunMode = RunMode.MOCK
+    environment: Environment = Environment.DEV
+    quality: QualityStatus = QualityStatus.PENDING
+    module_execution_ids: tuple[uuid.UUID, ...] = ()
+    result_ids: tuple[uuid.UUID, ...] = ()
+    diagnostics: tuple[str, ...] = ()
+    unavailable_reason: str | None = None
+    output_contract_version: str = SECTION_RESULT_CONTRACT_VERSION
+    contract_version: str = SECTION_RESULT_CONTRACT_VERSION
+    created_at: datetime | None = None
+    supersedes_section_result_id: uuid.UUID | None = None
+
+    @property
+    def unavailable(self) -> bool:
+        """본문을 만들지 못한 결과인지. 빈 문자열 본문을 성공으로 보지 않는다."""
+        return self.unavailable_reason is not None
+
+    @property
+    def reader_facing(self) -> bool:
+        """독자용으로 그대로 보여줄 수 있는가. 모의·재생 결과는 실제 생성이 아니다."""
+        return self.mode is RunMode.LIVE and not self.unavailable
+
+    def to_dict(self) -> dict[str, Any]:
+        return {**_plain(self), "unavailable": self.unavailable}
+
+
+# --------------------------------------------------------------------------
 # 제공자 요청·응답과 시도
 # --------------------------------------------------------------------------
 
@@ -885,6 +954,8 @@ class RunDetail:
     artifacts: tuple[Mapping[str, Any], ...]
     contract_versions: Mapping[str, str]
     undo: Mapping[str, Any] | None = None
+    # MP-04: 섹션 워크플로우 결과(본문·근거). 승인 근거는 이 목록의 한 행이다.
+    section_results: tuple[Mapping[str, Any], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return _plain(self)

@@ -49,6 +49,7 @@ from app.preview.models import (
     PreviewModuleExecution,
     PreviewResult,
     PreviewRun,
+    PreviewSectionResult,
     PreviewSourceSnapshot,
     PreviewWriteAudit,
 )
@@ -59,9 +60,12 @@ __all__ = [
     "compare_result_versions",
     "get_module_execution",
     "get_run_detail",
+    "get_section_result",
     "list_runs",
+    "list_section_results",
     "record_source_snapshot",
     "save_module_result",
+    "save_section_result",
     "start_module_execution",
     "store_run",
     "undo_report",
@@ -488,6 +492,157 @@ def finish_run(
 
 
 # --------------------------------------------------------------------------
+# 섹션 워크플로우 결과 (MP-04)
+# --------------------------------------------------------------------------
+
+
+def _section_result_view(row: PreviewSectionResult) -> dict[str, Any]:
+    """검사 화면·승인 근거가 함께 쓰는 표현.
+
+    본문과 근거를 먼저 내보내고, 노드·시도는 진단으로 붙일 링크만 둔다. 모의·재생
+    결과는 `mode`로 그대로 드러나므로 실제 생성으로 읽히지 않는다.
+    """
+    return {
+        "section_result_id": str(row.id),
+        "run_id": str(row.run_id),
+        "workflow_id": row.workflow_id,
+        "workflow_version": row.workflow_version,
+        "version": row.version,
+        "title": row.title,
+        "body": row.body,
+        "sources": list(row.sources or []),
+        "mode": row.mode,
+        "environment": row.environment,
+        "quality": row.quality,
+        "module_execution_ids": list(row.module_execution_ids or []),
+        "result_ids": list(row.result_ids or []),
+        "diagnostics": list(row.diagnostics or []),
+        "unavailable_reason": row.unavailable_reason,
+        "unavailable": row.unavailable_reason is not None,
+        "output_contract_version": row.output_contract_version,
+        "contract_version": row.contract_version,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "supersedes_section_result_id": str(row.supersedes_section_result_id)
+        if row.supersedes_section_result_id
+        else None,
+    }
+
+
+def save_section_result(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    workflow_id: str,
+    workflow_version: str,
+    title: str,
+    body: str,
+    version: int,
+    mode: RunMode,
+    environment: Environment,
+    quality: QualityStatus,
+    output_contract_version: str,
+    contract_version: str,
+    sources: Sequence[Mapping[str, Any]] = (),
+    module_execution_ids: Sequence[uuid.UUID] = (),
+    result_ids: Sequence[uuid.UUID] = (),
+    diagnostics: Sequence[str] = (),
+    unavailable_reason: str | None = None,
+    supersedes_section_result_id: uuid.UUID | None = None,
+    section_result_id: uuid.UUID | None = None,
+    actor_id: int = 0,
+    now: datetime | None = None,
+) -> PreviewSectionResult:
+    """섹션 본문 결과를 저장한다.
+
+    모의·재생 결과도 저장하되 `mode`를 그대로 남긴다. 승인 쪽에서 이 값을 확인하므로
+    모의 결과로 승인을 만들 수 없다. 본문이 비어 있는데 `unavailable_reason`도 없으면
+    저장하지 않는다. 빈 본문을 성공으로 기록하지 않기 위해서다.
+    """
+    run = _load_run(session, run_id)
+    if not body.strip() and unavailable_reason is None:
+        raise ContractError(
+            "a section result needs a non-empty body, or an explicit unavailable_reason"
+        )
+    moment = now or _now()
+
+    previous = session.scalar(
+        select(PreviewSectionResult)
+        .where(
+            PreviewSectionResult.run_id == run.id,
+            PreviewSectionResult.workflow_id == workflow_id,
+        )
+        .order_by(PreviewSectionResult.version.desc())
+        .limit(1)
+    )
+    row = PreviewSectionResult(
+        id=section_result_id or uuid.uuid4(),
+        run_id=run.id,
+        workflow_id=workflow_id,
+        workflow_version=workflow_version,
+        version=int(version),
+        title=title,
+        body=body,
+        sources=[dict(item) for item in sources],
+        mode=mode.value,
+        environment=environment.value,
+        quality=quality.value,
+        module_execution_ids=[str(item) for item in module_execution_ids],
+        result_ids=[str(item) for item in result_ids],
+        diagnostics=[str(item) for item in diagnostics],
+        unavailable_reason=unavailable_reason,
+        output_contract_version=output_contract_version,
+        contract_version=contract_version,
+        created_at=moment,
+        supersedes_section_result_id=supersedes_section_result_id
+        or (previous.id if previous is not None else None),
+    )
+    session.add(row)
+    session.flush()
+    _audit(
+        session,
+        run_id=run.id,
+        actor_id=actor_id,
+        action="section_result_saved",
+        target_table="preview_section_results",
+        target_id=str(row.id),
+        detail={
+            "workflow_id": workflow_id,
+            "version": version,
+            "mode": mode.value,
+            "unavailable": unavailable_reason is not None,
+        },
+    )
+    return row
+
+
+def get_section_result(
+    session: Session, run_id: uuid.UUID, section_result_id: uuid.UUID
+) -> PreviewSectionResult | None:
+    """이 실행이 소유한 섹션 결과만 돌려준다. 다른 실행의 결과는 `None`이다."""
+    row = session.get(PreviewSectionResult, section_result_id)
+    if row is None or row.run_id != run_id:
+        return None
+    return row
+
+
+def list_section_results(
+    session: Session,
+    run_id: uuid.UUID,
+    *,
+    workflow_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """실행 하나의 섹션 결과들. 저장된 행만 읽고 외부 호출을 하지 않는다."""
+    statement = (
+        select(PreviewSectionResult)
+        .where(PreviewSectionResult.run_id == run_id)
+        .order_by(PreviewSectionResult.created_at, PreviewSectionResult.workflow_id)
+    )
+    if workflow_id is not None:
+        statement = statement.where(PreviewSectionResult.workflow_id == workflow_id)
+    return [_section_result_view(row) for row in session.scalars(statement)]
+
+
+# --------------------------------------------------------------------------
 # 조회 (저장된 행만 읽는다)
 # --------------------------------------------------------------------------
 
@@ -705,6 +860,14 @@ def get_run_detail(
     if not include_artifact_bodies:
         artifacts = tuple({**view, "body": None} for view in artifacts)
 
+    section_results = list(
+        session.scalars(
+            select(PreviewSectionResult)
+            .where(PreviewSectionResult.run_id == row.id)
+            .order_by(PreviewSectionResult.created_at, PreviewSectionResult.workflow_id)
+        )
+    )
+
     summary = _summary(row, session)
     return RunDetail(
         summary=summary,
@@ -736,6 +899,7 @@ def get_run_detail(
         artifacts=artifacts,
         contract_versions=row.contract_versions or contract_versions(),
         undo=_undo_view(session, row),
+        section_results=tuple(_section_result_view(r) for r in section_results),
     )
 
 
@@ -1014,12 +1178,18 @@ def cancel_run(
             select(PreviewModuleExecution).where(PreviewModuleExecution.run_id == row.id)
         )
     )
+    section_results = list(
+        session.scalars(
+            select(PreviewSectionResult).where(PreviewSectionResult.run_id == row.id)
+        )
+    )
 
     removed = {
         "preview_artifacts": len(artifacts),
         "preview_source_snapshots": len(snapshots),
         "preview_attempts": len(attempts),
         "preview_results": len(results),
+        "preview_section_results": len(section_results),
         "preview_module_executions": len(executions),
     }
 
@@ -1031,6 +1201,9 @@ def cancel_run(
     session.flush()
     for attempt in attempts:
         session.delete(attempt)
+    session.flush()
+    for section_result in section_results:
+        session.delete(section_result)
     session.flush()
     for result in results:
         session.delete(result)
@@ -1099,6 +1272,14 @@ def undo_report(
                 select(func.count())
                 .select_from(PreviewResult)
                 .where(PreviewResult.run_id == row.id)
+            )
+            or 0
+        ),
+        "preview_section_results": int(
+            session.scalar(
+                select(func.count())
+                .select_from(PreviewSectionResult)
+                .where(PreviewSectionResult.run_id == row.id)
             )
             or 0
         ),

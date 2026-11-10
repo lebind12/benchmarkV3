@@ -31,6 +31,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 MIGRATION_PATHS = (
     REPO_ROOT / "alembic" / "versions" / "0002_preview_runs.py",
     REPO_ROOT / "alembic" / "versions" / "0003_preview_approvals.py",
+    REPO_ROOT / "alembic" / "versions" / "0004_section_results.py",
 )
 DEFAULT_CREDENTIALS = Path.home() / ".config" / "match-preview" / "preview-dev.env"
 SCHEMA = "preview_dev"
