@@ -4,8 +4,17 @@ SQLAlchemy==2.0.36
 psycopg[binary]==3.2.3
 alembic==1.14.0
 argon2-cffi==23.1.0
-pydantic==2.10.4
+# MP-04: LangGraph가 pydantic>=2.7.4를 요구해 함께 올렸다. 실제 설치 버전은
+# 2.14.3이며, 올리기 전에 기존 인증·API 검사를 다시 돌려 통과를 확인했다.
+pydantic==2.14.3
 pydantic-settings==2.7.0
+
+# MP-04: 섹션 워크플로우 실행(LangGraph)과 Google Gen AI SDK(Vertex AI 호출).
+# 로컬·배포가 같은 실행 구조를 쓴다. SDK 재시도는 끄고 실행기 하나만 재시도·예산을
+# 소유한다(app/preview/provider.py).
+langgraph==1.2.20
+langgraph-checkpoint==4.3.1
+google-genai==3.0.0
 
 # test only
 pytest==8.3.4

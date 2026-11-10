@@ -114,3 +114,63 @@ def test_migration_is_repeatable(engine, schema):
 def test_retention_days_are_declared_in_one_place():
     """계약의 보관 기간 값이 마이그레이션 기본값과 어긋나지 않게 한다."""
     assert RAW_ARTIFACT_RETENTION_DAYS == 30
+
+
+# --------------------------------------------------------------------------
+# MP-04: 섹션 결과 표 (0004)
+# --------------------------------------------------------------------------
+
+SECTION_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "alembic"
+    / "versions"
+    / "0004_section_results.py"
+)
+
+
+def _load_section_migration():
+    spec = importlib.util.spec_from_file_location(
+        "mp04_section_migration_ddl", SECTION_MIGRATION_PATH
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_section_result_migration_refuses_the_shared_alembic_chain():
+    """공용 Alembic으로 0004를 실행하면 조용히 통과하지 않는다."""
+    migration = _load_section_migration()
+    with pytest.raises(RuntimeError) as raised:
+        migration.upgrade()
+    assert "preview_dev_migrate.py" in str(raised.value)
+    assert migration.down_revision == "0003_preview_approvals"
+
+
+def test_section_result_ddl_matches_the_model(engine, schema):
+    """0004 DDL로 만든 표가 모델이 기대하는 열과 같은지 본다.
+
+    이 표가 없으면 섹션 본문 결과를 저장할 곳이 없어 승인 경로가 영원히 닫히거나,
+    반대로 근거 없는 승인이 만들어질 수 있다.
+    """
+    from sqlalchemy import inspect
+
+    migration = _load_section_migration()
+    with engine.begin() as conn:
+        for statement in migration.UPGRADE_STATEMENTS:
+            conn.execute(text(statement))
+        # 멱등성도 함께 확인한다.
+        for statement in migration.UPGRADE_STATEMENTS:
+            conn.execute(text(statement))
+
+    inspector = inspect(engine)
+    ddl_columns = {
+        column["name"]
+        for column in inspector.get_columns(
+            "preview_section_results", schema=SCHEMA
+        )
+    }
+    model_table = preview_models.Base.metadata.tables[
+        f"{SCHEMA}.preview_section_results"
+    ]
+    assert {column.name for column in model_table.columns} == ddl_columns

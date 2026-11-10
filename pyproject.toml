@@ -7,6 +7,19 @@ name = "match-preview"
 version = "0.1.0"
 description = "Football match preview research app"
 requires-python = ">=3.11"
+# MP-04가 실행 구조를 확정했다. 같은 의존성을 requirements.txt에도 고정한다.
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "SQLAlchemy==2.0.36",
+    "psycopg[binary]==3.2.3",
+    "alembic==1.14.0",
+    "argon2-cffi==23.1.0",
+    "pydantic==2.14.3",
+    "pydantic-settings==2.7.0",
+    "langgraph==1.2.20",
+    "google-genai==3.0.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
