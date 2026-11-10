@@ -1,0 +1,18 @@
+$ npm --prefix frontend run test:e2e -- e2e/preview-access.spec.ts
+
+> match-preview-frontend@0.1.0 test:e2e
+> playwright test e2e/preview-access.spec.ts
+
+[WebServer] (node:36649) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:36651) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/preview-access.spec.ts:21:1 › admin signs in, sees the honest empty run list, and signs out (757ms)
+  ✓  2 [chromium] › e2e/preview-access.spec.ts:51:1 › an expired session sends the admin back to the login screen (380ms)
+  ✓  3 [chromium] › e2e/preview-access.spec.ts:68:1 › non-admin accounts cannot reach the admin run list (12ms)
+
+  3 passed (2.0s)
+EXIT=0

@@ -1,0 +1,6 @@
+$ npm --prefix frontend run type-check
+
+> match-preview-frontend@0.1.0 type-check
+> vue-tsc --noEmit
+
+EXIT=0

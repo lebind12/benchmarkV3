@@ -1,0 +1,3 @@
+$ node .agents/skills/hallmark/scripts/sloplint.mjs ... --scope app
+sloplint: clean. 0 FAIL, 0 REFLEX, 0 WARN across 3 file(s).
+EXIT=0

@@ -1,1 +1,0 @@
-"""benchmark backend application package."""

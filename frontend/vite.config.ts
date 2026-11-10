@@ -1,41 +1,24 @@
-import { defineConfig, loadEnv } from 'vite'
-import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
-import { resolve } from 'node:path'
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
 
-// https://vite.dev/config/
-export default defineConfig(({ mode }) => {
-  const environment = loadEnv(mode, resolve(__dirname, '..'), 'VITE_')
-  return {
+// 로컬 개발에서 프론트(:5173)는 백엔드(:8000)로 프록시한다. 세션 쿠키가
+// 같은 오리진에서 오가므로 브라우저 쪽 CORS 설정에 의존하지 않는다.
+export default defineConfig({
   plugins: [vue()],
-  envDir: resolve(__dirname, '..'),
-  envPrefix: ['VITE_', 'API_FOOTBALL_', 'APIKEY'],
-  server: {
-    proxy: {
-      '/api': {
-        target: environment.VITE_BACKEND_URL ?? 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-    },
-  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  build: {
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-        broadcast: resolve(__dirname, 'broadcast.html'),
-        broadcastProgram: resolve(__dirname, 'broadcast-program.html'),
-        programBottomLab: resolve(__dirname, 'broadcast-program-bottom-lab.html'),
-        statsLab: resolve(__dirname, 'broadcast-stats-lab.html'),
-        scoreboardLab: resolve(__dirname, 'broadcast-scoreboard-lab.html'),
-        formationLab: resolve(__dirname, 'broadcast-formation-lab.html'),
-        alertLab: resolve(__dirname, 'broadcast-alert-lab.html'),
+  server: {
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: false,
       },
     },
   },
-  }
 })

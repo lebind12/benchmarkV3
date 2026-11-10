@@ -1,200 +1,67 @@
-"""Application settings (pydantic-settings).
+"""애플리케이션 설정.
 
-Loaded once at import; used by FastAPI, alembic, and workers. Values come
-from ``.env`` (local) or process env (Koyeb / CI). Real secrets are never
-checked in — see ``.env.example``.
+MP-01은 격리된 로컬 개발용 DB만 대상으로 한다. 프로덕션/클라우드 DB 연결은
+이 범위가 아니므로, 루프백이 아닌 주소는 명시적 허용 플래그 없이는 거부한다.
 """
 
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
+from typing import Literal
+from urllib.parse import urlparse
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+Environment = Literal["dev", "test", "prod"]
 
-def _local_dotenv_values(keys: set[str]) -> dict[str, str]:
-    """Read selected local .env values so stale shell exports do not override them."""
-    path = Path(".env")
-    if not path.exists():
-        return {}
-
-    values: dict[str, str] = {}
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        if key in keys:
-            values[key] = value.strip().strip('"').strip("'")
-    return values
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
 class Settings(BaseSettings):
-    """Centralised env-driven configuration."""
-
     model_config = SettingsConfigDict(
+        env_prefix="PREVIEW_",
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
-        case_sensitive=False,
     )
 
-    # --- Database ---------------------------------------------------------
-    # Supabase Postgres URL (or any libpq URL). alembic also reads this via
-    # `app.core.config.get_settings().database_url`.
     database_url: str = Field(
-        default="postgresql+psycopg://placeholder:placeholder@localhost:5432/placeholder",
-        description="Primary DB URL (Supabase / local).",
+        default="postgresql+psycopg://preview:preview_local_dev@127.0.0.1:55432/preview_mp01_dev"
     )
+    env: Environment = "dev"
+    session_ttl_seconds: int = Field(default=8 * 60 * 60, gt=0, le=7 * 24 * 60 * 60)
+    cookie_secure: bool = False
+    allow_nonlocal_db: bool = False
 
-    # Integration test DB URL (separate from prod). Conftest skips integration
-    # tests if unset.
-    test_database_url: str | None = Field(default=None)
-    db_pool_size: int = Field(
-        default=2,
-        ge=1,
-        le=10,
-        description="SQLAlchemy QueuePool size per process. Keep low for Supabase session pooler.",
-    )
-    db_max_overflow: int = Field(
-        default=0,
-        ge=0,
-        le=10,
-        description="Extra SQLAlchemy connections above db_pool_size.",
-    )
-    db_pool_timeout: int = Field(
-        default=10,
-        ge=1,
-        le=60,
-        description="Seconds to wait for a pooled DB connection before failing.",
-    )
-    db_pool_recycle: int = Field(
-        default=300,
-        ge=30,
-        le=3600,
-        description="Seconds before recycling pooled DB connections.",
-    )
+    @field_validator("database_url")
+    @classmethod
+    def _require_postgres(cls, value: str) -> str:
+        if not value.startswith("postgresql"):
+            raise ValueError(
+                "PREVIEW_DATABASE_URL must be a PostgreSQL URL; SQLite is not a supported substitute"
+            )
+        return value
 
-    # --- Worker scheduler -------------------------------------------------
-    worker_scheduler_enabled: bool = Field(
-        default=False,
-        description=(
-            "Start APScheduler in this process. Keep false for local/dev web "
-            "servers unless this process is the single intended worker owner."
-        ),
-    )
+    @property
+    def database_host(self) -> str:
+        return urlparse(self.database_url).hostname or ""
 
-    # --- External APIs ----------------------------------------------------
-    api_football_key: str | None = Field(default=None)
-    api_football_host: str = Field(default="v3.football.api-sports.io")
-    api_football_concurrency: int = Field(
-        default=6,
-        ge=1,
-        le=6,
-        description="Max concurrent API-Football requests. Ultra plan is 450 req/min; keep <= 6.",
-    )
-    api_football_requests_per_minute: int = Field(
-        default=300,
-        ge=1,
-        le=450,
-        description="Paced API-Football request-start limit. Ultra plan hard cap is 450 req/min.",
-    )
+    @property
+    def is_loopback_database(self) -> bool:
+        return self.database_host in LOOPBACK_HOSTS
 
-    jwt_secret_key: str | None = Field(default=None)
-    auth_cookie_name: str = Field(default="benchmark_refresh", pattern="^[a-zA-Z0-9_]+$")
-    auth_cookie_secure: bool = Field(default=True)
-    auth_cookie_samesite: str = Field(default="lax", pattern="^(lax|strict|none)$")
-
-    # --- Cache / session helpers ------------------------------------------
-    upstash_redis_rest_url: str | None = Field(default=None)
-    upstash_redis_rest_token: str | None = Field(default=None)
-    upstash_redis_key_prefix: str = Field(
-        default="",
-        description="Optional Redis key namespace prefix. Use local:/prod: to isolate environments.",
-    )
-
-    # --- OpenAI (translation-filler) --------------------------------------
-    openai_api_key: str | None = Field(default=None)
-
-    # --- Vertex AI (broadcast AI commentary) -------------------------------
-    google_cloud_project: str | None = Field(default=None)
-    google_cloud_location: str = Field(default="global")
-    vertex_ai_model: str = Field(default="gemini-3.5-flash")
-    google_application_credentials_json: str | None = Field(default=None)
-
-    def model_post_init(self, __context: object) -> None:
-        vertex_env = _local_dotenv_values(
-            {
-                "GOOGLE_CLOUD_PROJECT",
-                "GOOGLE_CLOUD_LOCATION",
-                "VERTEX_AI_MODEL",
-                "GOOGLE_APPLICATION_CREDENTIALS_JSON",
-            }
+    def assert_local_database(self) -> None:
+        """로컬 개발 범위를 벗어난 DB 연결을 조용히 허용하지 않는다."""
+        if self.is_loopback_database or self.allow_nonlocal_db:
+            return
+        raise RuntimeError(
+            "Refusing to connect to a non-loopback database "
+            f"({self.database_host}); MP-01 is limited to isolated local development. "
+            "Set PREVIEW_ALLOW_NONLOCAL_DB=1 only if that is deliberate."
         )
-        if vertex_env.get("GOOGLE_CLOUD_PROJECT"):
-            self.google_cloud_project = vertex_env["GOOGLE_CLOUD_PROJECT"]
-        if vertex_env.get("GOOGLE_CLOUD_LOCATION"):
-            self.google_cloud_location = vertex_env["GOOGLE_CLOUD_LOCATION"]
-        if vertex_env.get("VERTEX_AI_MODEL"):
-            self.vertex_ai_model = vertex_env["VERTEX_AI_MODEL"]
-        if vertex_env.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
-            self.google_application_credentials_json = vertex_env[
-                "GOOGLE_APPLICATION_CREDENTIALS_JSON"
-            ]
-
-    # Main preview remains separately configurable from AX/broadcast models.
-    home_preview_enabled: bool = Field(default=False)
-    home_preview_search_enabled: bool = Field(default=True)
-    home_preview_vertex_model: str = Field(default="gemini-3.5-flash")
-    home_preview_vertex_location: str = Field(default="global")
-    home_preview_request_timeout_seconds: float = Field(default=90, ge=10, le=300)
-    home_preview_cause_timeout_seconds: float = Field(default=180, ge=60, le=300)
-    home_preview_cycle_limit: int = Field(default=24,ge=1,le=100)
-
-    # --- Web clients -------------------------------------------------------
-    cors_allow_origins: str = Field(
-        default="*",
-        description="Comma-separated origins allowed to call the API from browsers.",
-    )
 
 
-@lru_cache(maxsize=1)
+@lru_cache
 def get_settings() -> Settings:
-    """Singleton accessor. ``lru_cache`` keeps env parsing one-shot per process."""
     return Settings()
-
-
-def normalize_database_url(database_url: str) -> str:
-    """Force libpq-style Postgres URLs onto the psycopg3 SQLAlchemy dialect."""
-    if database_url.startswith("postgresql://"):
-        return "postgresql+psycopg://" + database_url[len("postgresql://") :]
-    if database_url.startswith("postgres://"):
-        return "postgresql+psycopg://" + database_url[len("postgres://") :]
-    return database_url
-
-
-def database_engine_kwargs(settings: Settings | None = None) -> dict[str, object]:
-    """Return SQLAlchemy engine options tuned for the Supabase session pooler."""
-    resolved = settings or get_settings()
-    return {
-        "future": True,
-        "pool_pre_ping": True,
-        "pool_size": resolved.db_pool_size,
-        "max_overflow": resolved.db_max_overflow,
-        "pool_timeout": resolved.db_pool_timeout,
-        "pool_recycle": resolved.db_pool_recycle,
-    }
-
-
-def allowed_web_origins(settings: Settings | None = None) -> list[str]:
-    """One explicit origin policy shared by CORS and cookie-auth CSRF checks."""
-    resolved = settings or get_settings()
-    origins = [
-        origin.strip() for origin in resolved.cors_allow_origins.split(",") if origin.strip()
-    ]
-    if not origins or "*" in origins:
-        return ["http://localhost:5173", "http://127.0.0.1:5173"]
-    return list(dict.fromkeys(origins))

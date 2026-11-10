@@ -1,0 +1,16 @@
+$ npm --prefix frontend run test:unit -- src/views/AdminLoginView.test.ts
+
+> match-preview-frontend@0.1.0 test:unit
+> vitest run src/views/AdminLoginView.test.ts
+
+
+ RUN  v3.2.7 /Users/woolee/benchmark/frontend
+
+ ✓ src/views/AdminLoginView.test.ts (9 tests) 66ms
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  16:21:38
+   Duration  855ms (transform 88ms, setup 0ms, collect 134ms, tests 66ms, environment 404ms, prepare 65ms)
+
+EXIT=0

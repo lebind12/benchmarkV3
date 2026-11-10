@@ -1,0 +1,21 @@
+$ npm --prefix frontend run build
+
+> match-preview-frontend@0.1.0 build
+> vue-tsc --noEmit && vite build
+
+vite v6.4.6 building for production...
+transforming...
+✓ 38 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                     0.41 kB │ gzip:  0.30 kB
+dist/assets/PreviewRunsView-Bbt2vLi2.css            0.06 kB │ gzip:  0.08 kB
+dist/assets/AdminLoginView-mequBMBa.css             0.31 kB │ gzip:  0.21 kB
+dist/assets/index-DPS1SJPN.css                      6.36 kB │ gzip:  1.77 kB
+dist/assets/NotFoundView-HRVYydWq.js                0.69 kB │ gzip:  0.51 kB
+dist/assets/_plugin-vue_export-helper-B8Ly2MwV.js   1.55 kB │ gzip:  0.91 kB
+dist/assets/AdminLoginView-CJ-1jxOx.js              2.52 kB │ gzip:  1.30 kB
+dist/assets/PreviewRunsView-BNDKKAJ4.js             3.02 kB │ gzip:  1.52 kB
+dist/assets/index-BmfQUqcA.js                      96.29 kB │ gzip: 37.67 kB
+✓ built in 435ms
+EXIT=0

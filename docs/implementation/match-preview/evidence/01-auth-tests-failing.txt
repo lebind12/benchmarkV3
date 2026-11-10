@@ -1,0 +1,348 @@
+FFFFFFFFFFFFFFFFFFFFFFF                                                  [100%]
+=================================== FAILURES ===================================
+__________________________ test_anonymous_is_rejected __________________________
+
+client = <starlette.testclient.TestClient object at 0x106fd7290>
+
+    def test_anonymous_is_rejected(client):
+>       _assert_anonymous(client)
+
+tests/preview/test_admin_access.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x106fd7290>
+
+    def _assert_anonymous(client) -> None:
+        response = client.get(PROTECTED)
+>       assert response.status_code == 401, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 401
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:29: AssertionError
+______________________ test_login_rejects_wrong_password _______________________
+
+client = <starlette.testclient.TestClient object at 0x107256250>
+make_user = <function make_user.<locals>._make at 0x10721d8a0>
+
+    def test_login_rejects_wrong_password(client, make_user):
+        user = make_user(role=Role.ADMIN)
+        response = _login(client, user["email"], "not-the-password")
+>       assert response.status_code == 401
+E       assert 404 == 401
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:46: AssertionError
+_______________________ test_login_rejects_unknown_email _______________________
+
+client = <starlette.testclient.TestClient object at 0x10725d290>
+
+    def test_login_rejects_unknown_email(client):
+        response = _login(client, "missing@example.test", "correct-horse-battery-9")
+>       assert response.status_code == 401
+E       assert 404 == 401
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:53: AssertionError
+______________ test_admin_login_returns_principal_without_secrets ______________
+
+client = <starlette.testclient.TestClient object at 0x1072dc5d0>
+make_user = <function make_user.<locals>._make at 0x10729f560>
+
+    def test_admin_login_returns_principal_without_secrets(client, make_user):
+        user = make_user(role=Role.ADMIN)
+        response = _login(client, user["email"], user["password"])
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:59: AssertionError
+___________________ test_valid_admin_reaches_protected_route ___________________
+
+client = <starlette.testclient.TestClient object at 0x1072b8250>
+make_user = <function make_user.<locals>._make at 0x1072b2480>
+
+    def test_valid_admin_reaches_protected_route(client, make_user):
+        user = make_user(role=Role.ADMIN)
+>       assert _login(client, user["email"], user["password"]).status_code == 200
+E       AssertionError: assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+E        +    where <Response [404 Not Found]> = _login(<starlette.testclient.TestClient object at 0x1072b8250>, '6fafb8e694fe4617a4213045e9fcd000@example.test', 'correct-horse-battery-9')
+
+tests/preview/test_admin_access.py:71: AssertionError
+______________________ test_user_role_is_denied_with_403 _______________________
+
+client = <starlette.testclient.TestClient object at 0x10725e5d0>
+make_user = <function make_user.<locals>._make at 0x1072b19e0>
+
+    def test_user_role_is_denied_with_403(client, make_user):
+        user = make_user(role=Role.USER)
+>       assert _login(client, user["email"], user["password"]).status_code == 403
+E       AssertionError: assert 404 == 403
+E        +  where 404 = <Response [404 Not Found]>.status_code
+E        +    where <Response [404 Not Found]> = _login(<starlette.testclient.TestClient object at 0x10725e5d0>, 'd849cf48505b4bfbab34e19fba5ae7f2@example.test', 'correct-horse-battery-9')
+
+tests/preview/test_admin_access.py:84: AssertionError
+____________________ test_streamer_is_not_treated_as_admin _____________________
+
+client = <starlette.testclient.TestClient object at 0x107284690>
+make_user = <function make_user.<locals>._make at 0x1072f5c60>
+
+    def test_streamer_is_not_treated_as_admin(client, make_user):
+        user = make_user(role=Role.STREAMER)
+        response = _login(client, user["email"], user["password"])
+>       assert response.status_code == 403, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 403
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:91: AssertionError
+________________ test_authenticated_non_admin_gets_403_not_401 _________________
+
+client = <starlette.testclient.TestClient object at 0x107463d90>
+make_user = <function make_user.<locals>._make at 0x1072b3240>
+session_factory = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://preview:***@127.0.0.1:55432/preview_mp01_test), autoflush=False, expire_on_commit=False)
+
+    def test_authenticated_non_admin_gets_403_not_401(client, make_user, session_factory):
+        """세션은 유효하지만 역할이 USER인 경우. 로그인 거부와 다른 경계다."""
+>       from app.auth.service import issue_session
+E       ModuleNotFoundError: No module named 'app.auth.service'
+
+tests/preview/test_admin_access.py:98: ModuleNotFoundError
+________________________ test_inactive_admin_is_denied _________________________
+
+client = <starlette.testclient.TestClient object at 0x107455950>
+make_user = <function make_user.<locals>._make at 0x1072be160>
+session_factory = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://preview:***@127.0.0.1:55432/preview_mp01_test), autoflush=False, expire_on_commit=False)
+
+    def test_inactive_admin_is_denied(client, make_user, session_factory):
+        """비활성 계정은 기존 세션이 있어도 인증되지 않는다."""
+>       from app.auth.service import issue_session
+E       ModuleNotFoundError: No module named 'app.auth.service'
+
+tests/preview/test_admin_access.py:113: ModuleNotFoundError
+________________________ test_expired_session_is_denied ________________________
+
+client = <starlette.testclient.TestClient object at 0x1072a78d0>
+make_user = <function make_user.<locals>._make at 0x10744cc20>
+session_factory = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://preview:***@127.0.0.1:55432/preview_mp01_test), autoflush=False, expire_on_commit=False)
+
+    def test_expired_session_is_denied(client, make_user, session_factory):
+>       from app.auth.service import issue_session
+E       ModuleNotFoundError: No module named 'app.auth.service'
+
+tests/preview/test_admin_access.py:129: ModuleNotFoundError
+_________________________ test_logout_revokes_session __________________________
+
+client = <starlette.testclient.TestClient object at 0x1074396d0>
+make_user = <function make_user.<locals>._make at 0x1072b1f80>
+session_factory = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://preview:***@127.0.0.1:55432/preview_mp01_test), autoflush=False, expire_on_commit=False)
+
+    def test_logout_revokes_session(client, make_user, session_factory):
+        user = make_user(role=Role.ADMIN)
+>       assert _login(client, user["email"], user["password"]).status_code == 200
+E       AssertionError: assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+E        +    where <Response [404 Not Found]> = _login(<starlette.testclient.TestClient object at 0x1074396d0>, 'd63540b0c5584ca3a125ef941dc7d66c@example.test', 'correct-horse-battery-9')
+
+tests/preview/test_admin_access.py:146: AssertionError
+________________ test_revoked_session_token_cannot_be_replayed _________________
+
+client = <starlette.testclient.TestClient object at 0x1074a3110>
+make_user = <function make_user.<locals>._make at 0x10744f600>
+session_factory = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://preview:***@127.0.0.1:55432/preview_mp01_test), autoflush=False, expire_on_commit=False)
+
+    def test_revoked_session_token_cannot_be_replayed(client, make_user, session_factory):
+        """로그아웃 뒤 남아 있던 쿠키 값을 다시 보내도 통과하지 않는다."""
+        user = make_user(role=Role.ADMIN)
+        response = _login(client, user["email"], user["password"])
+>       assert response.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:162: AssertionError
+________________ test_session_token_is_not_stored_in_plaintext _________________
+
+client = <starlette.testclient.TestClient object at 0x107409d90>
+make_user = <function make_user.<locals>._make at 0x107473920>
+session_factory = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://preview:***@127.0.0.1:55432/preview_mp01_test), autoflush=False, expire_on_commit=False)
+
+    def test_session_token_is_not_stored_in_plaintext(client, make_user, session_factory):
+        user = make_user(role=Role.ADMIN)
+        response = _login(client, user["email"], user["password"])
+>       assert response.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:174: AssertionError
+____________________ test_forged_session_cookie_is_rejected ____________________
+
+client = <starlette.testclient.TestClient object at 0x107457050>
+
+    def test_forged_session_cookie_is_rejected(client):
+        client.cookies.set("preview_admin_session", "forged-token-value")
+>       _assert_anonymous(client)
+
+tests/preview/test_admin_access.py:186: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+client = <starlette.testclient.TestClient object at 0x107457050>
+
+    def _assert_anonymous(client) -> None:
+        response = client.get(PROTECTED)
+>       assert response.status_code == 401, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 401
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:29: AssertionError
+___________________ test_login_response_sets_httponly_cookie ___________________
+
+client = <starlette.testclient.TestClient object at 0x1074e3e50>
+make_user = <function make_user.<locals>._make at 0x10746bb00>
+
+    def test_login_response_sets_httponly_cookie(client, make_user):
+        user = make_user(role=Role.ADMIN)
+        response = _login(client, user["email"], user["password"])
+>       assert response.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:192: AssertionError
+__________________ test_login_requires_both_fields[payload0] ___________________
+
+client = <starlette.testclient.TestClient object at 0x1074f0290>, payload = {}
+
+    @pytest.mark.parametrize("payload", [{}, {"email": ""}, {"email": "a@b.test"}, {"password": "x"}])
+    def test_login_requires_both_fields(client, payload):
+        response = client.post(LOGIN, json=payload)
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:203: AssertionError
+__________________ test_login_requires_both_fields[payload1] ___________________
+
+client = <starlette.testclient.TestClient object at 0x107513b90>
+payload = {'email': ''}
+
+    @pytest.mark.parametrize("payload", [{}, {"email": ""}, {"email": "a@b.test"}, {"password": "x"}])
+    def test_login_requires_both_fields(client, payload):
+        response = client.post(LOGIN, json=payload)
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:203: AssertionError
+__________________ test_login_requires_both_fields[payload2] ___________________
+
+client = <starlette.testclient.TestClient object at 0x1074b0050>
+payload = {'email': 'a@b.test'}
+
+    @pytest.mark.parametrize("payload", [{}, {"email": ""}, {"email": "a@b.test"}, {"password": "x"}])
+    def test_login_requires_both_fields(client, payload):
+        response = client.post(LOGIN, json=payload)
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:203: AssertionError
+__________________ test_login_requires_both_fields[payload3] ___________________
+
+client = <starlette.testclient.TestClient object at 0x1074b23d0>
+payload = {'password': 'x'}
+
+    @pytest.mark.parametrize("payload", [{}, {"email": ""}, {"email": "a@b.test"}, {"password": "x"}])
+    def test_login_requires_both_fields(client, payload):
+        response = client.post(LOGIN, json=payload)
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:203: AssertionError
+_________________ test_login_with_malformed_json_does_not_500 __________________
+
+client = <starlette.testclient.TestClient object at 0x1075492d0>
+
+    def test_login_with_malformed_json_does_not_500(client):
+        response = client.post(
+            LOGIN, content=b"not-json", headers={"content-type": "application/json"}
+        )
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:210: AssertionError
+_____________________ test_logout_without_session_is_safe ______________________
+
+client = <starlette.testclient.TestClient object at 0x107563e10>
+
+    def test_logout_without_session_is_safe(client):
+        response = client.post(LOGOUT)
+>       assert response.status_code == 204
+E       assert 404 == 204
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/preview/test_admin_access.py:215: AssertionError
+_________________ test_session_endpoint_without_cookie_is_401 __________________
+
+client = <starlette.testclient.TestClient object at 0x10753aad0>
+
+    def test_session_endpoint_without_cookie_is_401(client):
+>       assert client.get(SESSION).status_code == 401
+E       AssertionError: assert 404 == 401
+E        +  where 404 = <Response [404 Not Found]>.status_code
+E        +    where <Response [404 Not Found]> = get('/api/v1/auth/session')
+E        +      where get = <starlette.testclient.TestClient object at 0x10753aad0>.get
+
+tests/preview/test_admin_access.py:219: AssertionError
+____________________ test_health_reports_database_reachable ____________________
+
+client = <starlette.testclient.TestClient object at 0x107554990>
+
+    def test_health_reports_database_reachable(client):
+        response = client.get("/api/v1/health")
+        assert response.status_code == 200, response.text
+>       assert response.json() == {"status": "ok", "database": "ok"}
+E       AssertionError: assert {'env': 'test...status': 'ok'} == {'database': ...status': 'ok'}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'env': 'test'}
+E         Right contains 1 more item:
+E         {'database': 'ok'}
+E         Use -v to get more diff
+
+tests/preview/test_admin_access.py:225: AssertionError
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/starlette/testclient.py:40
+  /Users/woolee/benchmark/.venv/lib/python3.11/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/preview/test_admin_access.py::test_anonymous_is_rejected - Asser...
+FAILED tests/preview/test_admin_access.py::test_login_rejects_wrong_password
+FAILED tests/preview/test_admin_access.py::test_login_rejects_unknown_email
+FAILED tests/preview/test_admin_access.py::test_admin_login_returns_principal_without_secrets
+FAILED tests/preview/test_admin_access.py::test_valid_admin_reaches_protected_route
+FAILED tests/preview/test_admin_access.py::test_user_role_is_denied_with_403
+FAILED tests/preview/test_admin_access.py::test_streamer_is_not_treated_as_admin
+FAILED tests/preview/test_admin_access.py::test_authenticated_non_admin_gets_403_not_401
+FAILED tests/preview/test_admin_access.py::test_inactive_admin_is_denied - Mo...
+FAILED tests/preview/test_admin_access.py::test_expired_session_is_denied - M...
+FAILED tests/preview/test_admin_access.py::test_logout_revokes_session - Asse...
+FAILED tests/preview/test_admin_access.py::test_revoked_session_token_cannot_be_replayed
+FAILED tests/preview/test_admin_access.py::test_session_token_is_not_stored_in_plaintext
+FAILED tests/preview/test_admin_access.py::test_forged_session_cookie_is_rejected
+FAILED tests/preview/test_admin_access.py::test_login_response_sets_httponly_cookie
+FAILED tests/preview/test_admin_access.py::test_login_requires_both_fields[payload0]
+FAILED tests/preview/test_admin_access.py::test_login_requires_both_fields[payload1]
+FAILED tests/preview/test_admin_access.py::test_login_requires_both_fields[payload2]
+FAILED tests/preview/test_admin_access.py::test_login_requires_both_fields[payload3]
+FAILED tests/preview/test_admin_access.py::test_login_with_malformed_json_does_not_500
+FAILED tests/preview/test_admin_access.py::test_logout_without_session_is_safe
+FAILED tests/preview/test_admin_access.py::test_session_endpoint_without_cookie_is_401
+FAILED tests/preview/test_admin_access.py::test_health_reports_database_reachable
+23 failed, 1 warning in 1.68s

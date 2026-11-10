@@ -1,72 +1,55 @@
-"""FastAPI application entrypoint.
+"""FastAPI 앱 팩토리.
 
-Phase 0 scaffold: only exposes `/health` for liveness verification. Real
-endpoints arrive in later phases per `Plans.md`.
+MP-01 범위는 ADMIN 로그인과 빈 실행 목록까지다. 실행 추적 저장소·조사 모듈·
+지표·배포는 이 앱에 아직 없다.
 """
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.fixture_detail import router as fixture_detail_router
-from app.api.v1.admin import router as admin_router
-from app.api.v1.auth import router as auth_router
-from app.api.v1.management import router as management_router
-from app.api.v1.broadcast import router as broadcast_router
-from app.api.v1.fixture_detail_analytics import router as fixture_detail_analytics_router
-from app.api.v1.general import router as general_router
-from app.api.v1.home import router as home_router
-from app.api.v1.home_preview import router as home_preview_router
-from app.core.config import allowed_web_origins
-from app.core.worker_scheduler import shutdown_worker_scheduler, start_worker_scheduler
+from app.api.v1 import auth, preview_admin
+from app.core.config import get_settings
+from app.db import get_session_factory
+
+logger = logging.getLogger("match_preview")
+
+LOCAL_DEV_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"]
 
 
-def _cors_origins() -> list[str]:
-    return allowed_web_origins()
+def create_app() -> FastAPI:
+    settings = get_settings()
+    app = FastAPI(title="Match Preview", version="0.1.0")
+
+    if settings.env in ("dev", "test"):
+        # 세션 쿠키를 주고받으려면 자격 증명 허용과 정확한 오리진이 필요하다.
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=LOCAL_DEV_ORIGINS,
+            allow_credentials=True,
+            allow_methods=["GET", "POST"],
+            allow_headers=["content-type"],
+        )
+
+    @app.get("/api/v1/health")
+    def health() -> dict[str, str]:
+        """DB까지 실제로 확인한다. 연결 실패를 ok로 꾸미지 않는다."""
+        try:
+            with get_session_factory()() as session:
+                session.execute(text("SELECT 1"))
+        except (SQLAlchemyError, RuntimeError):
+            logger.exception("database health check failed")
+            return {"status": "degraded", "database": "unavailable"}
+        return {"status": "ok", "database": "ok"}
+
+    app.include_router(auth.router)
+    app.include_router(preview_admin.router)
+    return app
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    scheduler = start_worker_scheduler()
-    app.state.worker_scheduler = scheduler
-    try:
-        yield
-    finally:
-        shutdown_worker_scheduler(scheduler)
-
-
-app = FastAPI(
-    title="benchmark API",
-    description="축구 정보 사이트 백엔드 (방송용 페이지 포함).",
-    version="0.0.0",
-    lifespan=lifespan,
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.get("/health", tags=["meta"])
-def health() -> dict[str, str]:
-    """Liveness probe used by Koyeb / load balancer health checks."""
-    return {"status": "ok"}
-
-
-app.include_router(home_router, prefix="/api/v1/home")
-app.include_router(auth_router)
-app.include_router(broadcast_router)
-app.include_router(admin_router)
-app.include_router(management_router)
-app.include_router(general_router)
-app.include_router(fixture_detail_router)
-app.include_router(fixture_detail_analytics_router)
-
-app.include_router(home_preview_router)
+app = create_app()
