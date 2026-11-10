@@ -256,15 +256,17 @@ JSON은 **한 줄 + 단일 인용**으로 저장했다. 여러 줄 JSON을 그�
 
 | 커밋 | 경로 수 | 내용 |
 |---|---|---|
-| _(아래 "커밋 실행 결과"에 실제 해시 기록)_ | | |
+| `c59c54b` `feat(preview): keep metric filters on drilldown and verify integration end to end` | 20개 항목(수정 8 + 신규 12) | 이번 wave 전량. 다른 변경·809 삭제·`Plans.md`는 포함되지 않음 |
 
 ### 커밋 실행 결과
 
-이 절은 커밋 직후 실제 해시·경로 목록으로 채웠다. 실제 값은 아래와 같다.
-
-- 커밋: `COMMIT_PLACEHOLDER`
-- 스테이징 전 `git diff --cached --name-only` 결과: 비어 있음(다른 워커의 스테이징 없음)
-- 스테이징한 경로: 이 보고서 §"소유·편집한 경로"의 12개(수정 7·신규 4·증거 디렉터리 1)
+- 스테이징 전 `git diff --cached --name-only` 결과: **비어 있음**(다른 워커의 스테이징 없음)
+- 스테이징 명령: `git add -- <위 12개 경로>` (경로 한정, `-A`·`.` 없음)
+- 커밋 명령: `git commit -- <같은 12개 경로>` (경로 한정)
+- 커밋 후 `git show --stat --oneline HEAD`: **20개 항목, 1287 insertions(+), 51 deletions(-)**.
+  경로 12개 중 증거 디렉터리가 파일 9개(스크린샷 7·JSON 1·명령기록 1)로 펼쳐져 20개다.
+- 이 시점의 미스테이징 삭제(809 historic deletions 계열): **808건 그대로 남아 있음**
+  (`git status --porcelain | grep -c '^ D '`). 스테이징·복구·커밋하지 않았다.
 
 ## 9. 남은 위험과 다음 작업
 
