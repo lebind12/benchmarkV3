@@ -208,9 +208,14 @@ def test_unimplemented_modules_are_not_runnable(client, make_user):
     _login_admin(client, make_user)
     registry = client.get("/api/v1/admin/preview/registry").json()
     implemented = {module["module_id"] for module in registry["modules"] if module["implemented"]}
-    assert {"mock_demo", "R1", "R2", "R3", "S1"} <= implemented
+    # 실행 가능 목록은 등록부가 정한다. 검사는 그 사실과 "미구현은 실행 불가" 규칙만 본다.
+    from app.preview.modules import backed_modules
+
+    expected_implemented = set(backed_modules()) | {"mock_demo"}
+    assert expected_implemented <= implemented
+    assert {"R1", "R4", "S1"} <= implemented
     for module in registry["modules"]:
-        if module["module_id"] in {"mock_demo", "R1", "R2", "R3", "S1"}:
+        if module["module_id"] in expected_implemented:
             assert module["unrunnable_reason"] is None
             continue
         assert module["implemented"] is False

@@ -1,0 +1,107 @@
+{
+  "task": "MP-10 whole preview integration and resume",
+  "observed_at_kst": "2026-11-11T04:30 KST",
+  "agent": {
+    "profile": "dsh-tui",
+    "provider": "hive",
+    "model": "deepseek-ai/deepseek-v4.1-flash-1017",
+    "reasoning_effort": "max",
+    "subworkers": 0
+  },
+  "commit": "de4bf00",
+  "external_calls": {
+    "model_requests": 0,
+    "api_football_requests": 0,
+    "transport": "provider.RecordedTransport only"
+  },
+  "checks": {
+    "test_pipeline_and_resume": "22 passed",
+    "affected_integration": "148 passed",
+    "r1_module_tests": "21 passed",
+    "frontend_type_check": "clean",
+    "normal_path_calls": 5,
+    "normal_path_logical_calls": [
+      "R1-form",
+      "section_availability/research-r2",
+      "R3-outlook",
+      "section_players/research-r4",
+      "section_synthesis/research-s1"
+    ],
+    "interim_evidence_note": "earlier 4-call measurement was the pre-R4 3-research+S1 path; the post-R4 integrated target is 4 research + 1 synthesis = 5",
+    "branches_overlap_measured": true,
+    "resume_reuses_success_without_recall": true,
+    "stale_fencing_rejected": true,
+    "unknown_outcome_preserved": true,
+    "duplicate_join": true,
+    "explicit_rerun_new_id": true,
+    "admission_refused_without_approval": true,
+    "section_players_body_separates_name_and_reason": true
+  },
+  "budget": {
+    "model_total": 8,
+    "normal_calls": 5,
+    "research_branches": 4,
+    "synthesis": 1,
+    "attempts_per_call": 3,
+    "api_total": 24,
+    "model_concurrency": 2,
+    "api_concurrency": 2,
+    "deadline_seconds": 1800,
+    "model_timeout": 300,
+    "api_timeout": 30
+  },
+  "checkpoints": {
+    "backend": "langgraph.checkpoint.postgres.PostgresSaver",
+    "schema": "preview_dev",
+    "public_tables_created": 0,
+    "setup": "explicit once via scripts/preview_dev_migrate.py"
+  },
+  "schema": {
+    "new_table": "preview_dev.preview_pipeline_runs",
+    "migration": "alembic/versions/0005_pipeline_runs.py",
+    "public_ddl": 0
+  },
+  "limitations": [
+    "API-Football live transport is still unwired (MP-03 remaining); D0 reads stored material only.",
+    "replay mode is rejected for whole preview; stored-response replay stays a per-result path.",
+    "unknown-outcome does not give exactly-once external execution.",
+    "real preview_dev whole-preview live run not executed (no paid calls).",
+    "runtime restart and Korean names on the running UI are unverified until the backend restarts."
+  ],
+  "commits": {
+    "3c8a479": "MP-10 graph, leases/resume, shared budget, checkpoints, migration 0005",
+    "a45599c": "pipeline admin API + DB Korean display names (preview_admin.py +332 is in this commit, not names-only)",
+    "de4bf00": "R1 form-only split + R4 section_players integration"
+  },
+  "surface": {
+    "registry_workflows": [
+      "section_form",
+      "section_availability",
+      "section_outlook",
+      "section_players",
+      "section_synthesis"
+    ],
+    "synthesis_inputs": [
+      "R1",
+      "R2",
+      "R3",
+      "R4"
+    ],
+    "player_fields": [
+      "selected_player",
+      "selection_reason"
+    ]
+  },
+  "names": {
+    "setting": "names_database_url (PREVIEW_NAMES_DATABASE_URL)",
+    "applies_at": "display boundary only (fixture label, player list, headline, body)",
+    "stored_body_or_approval_changed": false,
+    "real_db_verified": [
+      "맨체스터 시티 vs 풀럼",
+      "엘링 홀란드",
+      "알렉산더 츄카 이워비",
+      "로드리고 무니즈"
+    ],
+    "unmapped_count": 0
+  }
+}
