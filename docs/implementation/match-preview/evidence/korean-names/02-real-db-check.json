@@ -1,0 +1,47 @@
+{
+  "teams_read": [
+    {
+      "team_id": 4,
+      "external_id": 36,
+      "english_name": "Fulham",
+      "name_ko": "풀럼",
+      "short_name_ko": "풀럼"
+    },
+    {
+      "team_id": 13,
+      "external_id": 50,
+      "english_name": "Manchester City",
+      "name_ko": "맨체스터 시티",
+      "short_name_ko": "맨시티"
+    }
+  ],
+  "roster_rows_read": 66,
+  "fixture_label": "맨체스터 시티 vs 풀럼",
+  "watch_rows": [
+    "엘링 홀란드",
+    "알렉산더 츄카 이워비",
+    "로드리고 무니즈"
+  ],
+  "watch_teams": [
+    "맨체스터 시티",
+    "풀럼",
+    "풀럼"
+  ],
+  "watch_unmapped": [],
+  "stored_body_chars": 868,
+  "rewritten_body_chars": 824,
+  "paragraphs_before_after": [
+    6,
+    6
+  ],
+  "leftover_english": {
+    "Manchester City": false,
+    "Fulham": false,
+    "Erling Haaland": false,
+    "Alex Iwobi": false,
+    "Rodrigo Muniz": false
+  },
+  "unmapped_total": [],
+  "rewritten_body": "맨체스터 시티와 풀럼의 맞대결입니다. Premier League 경기이며, 킥오프는 2026-11-21 12:30 UTC입니다.\n\n맨체스터 시티는 현재 리그 3위(승점 21점)이며, 풀럼은 리그 15위(승점 10점)에 머물러 있습니다. AI 해석으로는, 맨체스터 시티는 선두권 경쟁을 유지하기 위해, 풀럼은 강등권과의 격차를 벌리기 위해 승점 확보가 절실한 경기입니다.\n\n맨체스터 시티는 최근 5경기에서 2승 3패(LLLWW)를 기록하며 리그 3위에 위치해 있습니다. AI 해석으로는, 최근 연패 흐름을 끊고 2연승을 거두며 분위기 반전에 성공한 상태입니다. 풀럼는 최근 5경기에서 2승 2무 1패(DDWWL)를 기록하며 리그 15위에 위치해 있습니다. AI 해석으로는, 패배가 적은 편이나 무승부가 많아 승점 쌓기가 더딘 흐름을 보이고 있습니다.\n\n맨체스터 시티의 압도적인 천적 관계. 맨체스터 시티가 심리적 우위를 점한 채 경기를 주도할 가능성이 큽니다.\n\n풀럼의 에이스 알렉스 이워비의 창의성. 맨체스터 시티의 강력한 압박 속에서 이워비가 얼마나 창의적인 패스로 역습을 전개할 수 있을지가 풀럼 공격의 핵심입니다.\n\n주목할 선수는 이렇습니다. 엘링 홀란드(맨체스터 시티)는 풀럼의 수비진을 상대로 압도적인 피지컬과 결정력을 발휘해 팀의 승리를 이끌 가장 유력한 해결사입니다. 알렉산더 츄카 이워비(풀럼)는 풀럼의 공격 전개와 기회 창출을 도맡아 하는 핵심 플레이메이커로서 맨체스터 시티의 수비진을 위협할 가장 날카로운 무기입니다. 로드리고 무니즈(풀럼)는 기회가 왔을 때 과감하게 슈팅을 시도하는 성향을 바탕으로 맨체스터 시티의 골문을 직접적으로 겨냥할 공격수입니다.",
+  "url_preserved": "출처 https://example.com/Manchester-City/Erling-Haaland 와 맨체스터 시티."
+}

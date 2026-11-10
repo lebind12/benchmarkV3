@@ -477,3 +477,70 @@ def test_module_rerun_rejects_non_research_module(client, make_user):
         json={"module_id": "S1", "mode": "mock"},
     )
     assert response.status_code == 422, response.text
+
+
+# --------------------------------------------------------------------------
+# 표시 이름 (한국어) — 표시 경계에서만 변환
+# --------------------------------------------------------------------------
+
+
+def test_display_names_absent_keeps_original_text(session_factory, monkeypatch):
+    """이름 읽기 설정이 없으면 원문 표기를 그대로 쓰고 실행을 깨지 않는다."""
+    from app.core.config import get_settings
+    from app.preview.display_names import open_display_names
+
+    monkeypatch.delenv("PREVIEW_NAMES_DATABASE_URL", raising=False)
+    get_settings.cache_clear()
+    bridge = open_display_names(
+        fixture=_fixture(), dsn=None, fallback_label="Manchester City vs Fulham"
+    )
+    assert bridge.active is False
+    assert bridge.label(fixture=_fixture(), fallback="Manchester City vs Fulham") == (
+        "Manchester City vs Fulham"
+    )
+    # 본문·선수 목록은 원문 그대로다(지어낸 번역 없음).
+    assert bridge.rewrite_body("Manchester City와 Fulham") == "Manchester City와 Fulham"
+    rows = bridge.localize_players(
+        [{"player": "Erling Haaland", "team": "Manchester City"}], scope_team_ids=[13, 4]
+    )
+    assert rows[0]["player"] == "Erling Haaland"
+    assert bridge.note
+    get_settings.cache_clear()
+
+
+def test_saved_body_is_not_rewritten_by_display_names(session_factory, monkeypatch):
+    """표시 이름 변환은 저장 본문을 바꾸지 않는다(승인 스탬프도 그대로)."""
+    monkeypatch.delenv("PREVIEW_NAMES_DATABASE_URL", raising=False)
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    with session_factory() as session:
+        outcome = _start(session, _transport())
+        session.commit()
+        stored = session.execute(
+            text(
+                "SELECT body, workflow_version FROM preview_dev.preview_section_results"
+                " WHERE run_id = :run AND workflow_id = 'section_form'"
+            ),
+            {"run": str(outcome.run_id)},
+        ).first()
+        assert stored is not None
+        before = stored[0]
+        assert "Manchester City" in before or "맨체스터" in before
+
+        # 독자용 투영을 이름 파사드 없이/있이 만들어도 저장 값은 변하지 않는다.
+        from app.preview import store
+        from app.preview.section_preview import build_reader_view
+
+        detail = store.get_run_detail(session, outcome.run_id, include_artifact_bodies=False)
+        build_reader_view(session, detail)
+
+        after = session.execute(
+            text(
+                "SELECT body FROM preview_dev.preview_section_results"
+                " WHERE run_id = :run AND workflow_id = 'section_form'"
+            ),
+            {"run": str(outcome.run_id)},
+        ).scalar()
+        assert after == before
+    get_settings.cache_clear()

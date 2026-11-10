@@ -80,8 +80,12 @@ def _synthesis_section(detail: Any) -> Mapping[str, Any] | None:
     return sections[-1]
 
 
-def build_reader_view(session, detail: Any) -> dict[str, Any] | None:
-    """독자용 응답. 결과가 없거나 본문이 없으면 `None`(빈 프리뷰를 만들지 않는다)."""
+def build_reader_view(session, detail: Any, *, names=None) -> dict[str, Any] | None:
+    """독자용 응답. 결과가 없거나 본문이 없으면 `None`(빈 프리뷰를 만들지 않는다).
+
+    `names`(`display_names.DisplayNameBridge`)를 주면 **표시 값만** 한국어 표기로
+    바꾼다. 저장된 본문·payload는 건드리지 않는다. 변환을 못 하면 원문을 그대로 낸다.
+    """
     payload = synthesis_result_payload(detail)
     section = _synthesis_section(detail)
     if payload is None and section is None:
@@ -115,6 +119,9 @@ def build_reader_view(session, detail: Any) -> dict[str, Any] | None:
     body = str(reader.get("body") or "").strip()
     if not body:
         return None
+    if names is not None and getattr(names, "active", False):
+        # 화면에 낼 선수를 먼저 확정한 뒤 본문을 치환한다(모델 표기 등록 순서).
+        reader = _apply_display_names(reader, names=names)
     # 실행 방식·실행 ID·워크플로우 ID는 **독자용 응답에 넣지 않는다**. 관리자 화면은
     # 진단 경로(`/preview/diagnostics`)에서 같은 실행의 그 값을 함께 본다.
     return reader
@@ -194,3 +201,40 @@ def _selected_inputs(detail: Any, validated: Mapping[str, Any]) -> list[dict[str
             }
         )
     return rows
+
+
+def _apply_display_names(reader: dict[str, Any], *, names) -> dict[str, Any]:
+    """독자용 응답의 표시 문자열만 한국어 표기로 바꾼 사본을 만든다.
+
+    저장된 본문·payload는 그대로 두고, 응답 값만 바꾼다. 실패하면 원문을 쓴다.
+    """
+    localized = dict(reader)
+    fixture_block = localized.get("fixture")
+    fixture = fixture_block if isinstance(fixture_block, Mapping) else {}
+    players = [
+        item for item in (localized.get("players_to_watch") or ()) if isinstance(item, Mapping)
+    ]
+    scope = [
+        int(value)
+        for key in ("home_team_id", "away_team_id")
+        for value in [_int_or_none(fixture.get(key))]
+        if value is not None
+    ]
+    if players and scope:
+        converted = names.localize_players(players, scope_team_ids=scope)
+        if converted:
+            localized["players_to_watch"] = converted
+    text = str(localized.get("body") or "")
+    if text:
+        localized["body"] = names.rewrite_body(text)
+    headline = localized.get("headline")
+    if isinstance(headline, str) and headline:
+        localized["headline"] = names.rewrite_body(headline)
+    return localized
+
+
+def _int_or_none(value: Any) -> int | None:
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None

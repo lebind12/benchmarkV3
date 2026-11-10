@@ -659,7 +659,9 @@ def get_reader_preview(
             status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
         ) from None
 
-    view = build_reader_view(session, detail)
+    view = build_reader_view(
+        session, detail, names=_display_names_for(session, detail)
+    )
     if view is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -669,6 +671,27 @@ def get_reader_preview(
             ),
         )
     return view
+
+
+def _display_names_for(session, detail):
+    """이 실행의 표시 이름 파사드. 설정이 없거나 실패하면 `None`(원문 유지)."""
+    from app.core.config import get_settings
+    from app.preview.display_names import open_display_names
+
+    summary = getattr(detail, "summary", None)
+    fixture = getattr(detail, "fixture", None)
+    fixture_dict = (
+        fixture.to_dict() if fixture is not None and hasattr(fixture, "to_dict") else None
+    )
+    label = getattr(summary, "fixture_label", None) or ""
+    try:
+        return open_display_names(
+            fixture=fixture_dict,
+            dsn=get_settings().names_database_url,
+            fallback_label=str(label),
+        )
+    except Exception:  # noqa: BLE001 - 표시 이름 때문에 조회를 실패시키지 않는다
+        return None
 
 
 @router.get("/runs/{run_id}/preview/diagnostics")
@@ -879,3 +902,310 @@ def get_audit(
         "write_scope": run.write_scope,
         "events": list(store.iter_audit(session, run_id)),
     }
+
+
+# --------------------------------------------------------------------------
+# MP-10 전체 프리뷰 실행·재개·모듈 재실행·재종합
+# --------------------------------------------------------------------------
+
+
+class PreviewRunRequest(BaseModel):
+    """전체 프리뷰 실행 요청.
+
+    `admission`은 이 실행이 **승인된 버전**으로 도는지, 관리자가 명시적으로 연
+    **시험**인지 구분한다. 기본값은 승인 버전이며, 승인이 없으면 실행하지 않고
+    대기 상태를 돌려준다. 시험 실행은 승인 근거가 아니다.
+    """
+
+    fixture_id: int | None = None
+    league_id: int | None = None
+    season: int | None = None
+    home_team_id: int | None = None
+    away_team_id: int | None = None
+    kickoff_at: datetime | None = None
+    mode: str = RunMode.MOCK.value
+    admission: str = "approved"
+    label: str | None = Field(default=None, max_length=200)
+    explicit_rerun: bool = False
+
+
+class PreviewRunResponse(BaseModel):
+    run_id: UUID | None = None
+    admission: str
+    status: str
+    quality: str
+    stage: str
+    mode: str
+    external_calls: int
+    joined_existing: bool
+    waiting: bool
+    waiting_reason: str | None
+    unavailable_reason: str | None
+    note: str
+    budget: dict = Field(default_factory=dict)
+    workflow_versions: dict = Field(default_factory=dict)
+    section_result_ids: dict = Field(default_factory=dict)
+    resume_of_run_id: UUID | None = None
+
+
+class ModuleRerunRequest(BaseModel):
+    module_id: str
+    mode: str = RunMode.MOCK.value
+
+
+class SynthesisRunRequest(BaseModel):
+    selected_result_ids: list[UUID] = Field(default_factory=list)
+    mode: str = RunMode.MOCK.value
+
+
+def _pipeline_transport(mode: RunMode):
+    """전체 프리뷰용 transport. live는 설정이 있을 때만 열고, 없으면 거부한다."""
+    transport = _model_transport(mode)
+    if transport is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "모델 설정이 없거나 live 실행이 설정으로 열려 있지 않아 전체 프리뷰를"
+                " 시작하지 않았습니다. 모의로 대체하지 않습니다."
+            ),
+        )
+    return transport
+
+
+def _preview_fixture(payload) -> dict:
+    required = (
+        payload.fixture_id,
+        payload.league_id,
+        payload.season,
+        payload.home_team_id,
+        payload.away_team_id,
+        payload.kickoff_at,
+    )
+    if any(value is None for value in required):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "전체 프리뷰에는 경기 식별자(fixture_id·리그·시즌·팀·킥오프)가"
+                " 필요합니다. 경기 선택 화면에서 경기를 고르세요."
+            ),
+        )
+    return {
+        "fixture_id": payload.fixture_id,
+        "league_id": payload.league_id,
+        "season": payload.season,
+        "home_team_id": payload.home_team_id,
+        "away_team_id": payload.away_team_id,
+        "kickoff_at": payload.kickoff_at.isoformat(),
+    }
+
+
+def _admission_response(outcome) -> PreviewRunResponse:
+    return PreviewRunResponse(
+        run_id=outcome.run_id,
+        admission=outcome.admission,
+        status=outcome.status.value,
+        quality=outcome.quality.value,
+        stage=outcome.stage,
+        mode=outcome.mode.value,
+        external_calls=outcome.external_calls,
+        joined_existing=outcome.joined_existing,
+        waiting=outcome.waiting_reason is not None,
+        waiting_reason=outcome.waiting_reason,
+        unavailable_reason=outcome.unavailable_reason,
+        note=(
+            "승인된 섹션 워크플로우 버전으로 실행한 전체 프리뷰입니다."
+            if outcome.admission == "approved"
+            else (
+                "관리자 명시 시험 실행입니다. 승인 근거가 아니며 공개 프리뷰로"
+                " 게시되지 않습니다."
+            )
+        ),
+        budget=dict(outcome.budget),
+        workflow_versions=dict(outcome.workflow_versions),
+        section_result_ids={
+            key: str(value) for key, value in outcome.section_result_ids.items()
+        },
+        resume_of_run_id=outcome.resume_of_run_id,
+    )
+
+
+@router.post("/runs", response_model=PreviewRunResponse)
+def create_preview_run(
+    payload: PreviewRunRequest,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> PreviewRunResponse:
+    """전체 프리뷰를 시작한다. 승인이 없으면 실행하지 않고 대기 상태를 돌려준다."""
+    from app.preview import jobs as jobs_module
+    from app.preview import pipeline as pipeline_module
+
+    try:
+        mode = RunMode(payload.mode)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unknown run mode"
+        ) from None
+    if payload.admission not in (
+        jobs_module.ADMISSION_MODE.APPROVED,
+        jobs_module.ADMISSION_MODE.ADMIN_PREVIEW,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="admission은 approved 또는 admin_preview만 쓸 수 있습니다.",
+        )
+    fixture = _preview_fixture(payload)
+    transport = _pipeline_transport(mode)
+    try:
+        outcome = pipeline_module.start_preview_run(
+            session,
+            fixture=fixture,
+            actor_id=principal.user_id,
+            transport=transport,
+            reader=_fixture_reader(),
+            admission=payload.admission,
+            mode=mode,
+            label=payload.label,
+            explicit_rerun=payload.explicit_rerun,
+        )
+    except pipeline_module.AdmissionRefused as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": exc.message,
+                "missing": list(exc.missing),
+                "state": pipeline_module.admission_state(session),
+            },
+        ) from None
+    session.commit()
+    return _admission_response(outcome)
+
+
+@router.post("/runs/{run_id}/resume", response_model=PreviewRunResponse)
+def resume_preview_run(
+    run_id: UUID,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> PreviewRunResponse:
+    """멈춘 전체 프리뷰를 남은 예산으로 이어서 돈다. 성공한 조사는 다시 부르지 않는다."""
+    from app.preview import pipeline as pipeline_module
+
+    detail = _detail_or_404(session, run_id)
+    mode = RunMode(detail["summary"]["mode"])
+    transport = _pipeline_transport(mode)
+    try:
+        outcome = pipeline_module.resume_preview_run(
+            session,
+            run_id=run_id,
+            actor_id=principal.user_id,
+            transport=transport,
+            reader=_fixture_reader(),
+        )
+    except store.RunNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="preview run not found"
+        ) from None
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from None
+    except RuntimeError as exc:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
+    session.commit()
+    return _admission_response(outcome)
+
+
+@router.post("/runs/{run_id}/module-reruns", response_model=PreviewRunResponse)
+def rerun_preview_module(
+    run_id: UUID,
+    payload: ModuleRerunRequest,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> PreviewRunResponse:
+    """조사 모듈 하나를 새 결과 버전으로 다시 돈다. 다른 결과는 지우지 않는다."""
+    from app.preview import pipeline as pipeline_module
+
+    try:
+        mode = RunMode(payload.mode)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unknown run mode"
+        ) from None
+    transport = _pipeline_transport(mode)
+    try:
+        outcome = pipeline_module.rerun_module(
+            session,
+            run_id=run_id,
+            module_id=payload.module_id,
+            actor_id=principal.user_id,
+            transport=transport,
+            reader=_fixture_reader(),
+        )
+    except store.RunNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="preview run not found"
+        ) from None
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from None
+    except RuntimeError as exc:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
+    session.commit()
+    return _admission_response(outcome)
+
+
+@router.post("/runs/{run_id}/synthesis-runs", response_model=PreviewRunResponse)
+def rerun_preview_synthesis(
+    run_id: UUID,
+    payload: SynthesisRunRequest,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> PreviewRunResponse:
+    """관리자가 고른 결과 버전으로 종합만 다시 한다. 선택 없이는 실행하지 않는다."""
+    from app.preview import pipeline as pipeline_module
+
+    try:
+        mode = RunMode(payload.mode)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unknown run mode"
+        ) from None
+    transport = _pipeline_transport(mode)
+    try:
+        outcome = pipeline_module.resynthesize_preview(
+            session,
+            run_id=run_id,
+            actor_id=principal.user_id,
+            selected_result_ids=tuple(payload.selected_result_ids),
+            transport=transport,
+        )
+    except store.RunNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="preview run not found"
+        ) from None
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from None
+    except RuntimeError as exc:
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
+    session.commit()
+    return _admission_response(outcome)
+
+
+@router.get("/admission")
+def get_admission_state(
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """지금 코드로 기본 전체 프리뷰를 돌릴 수 있는지. 저장된 승인 행만 읽는다."""
+    from app.preview import pipeline as pipeline_module
+
+    return pipeline_module.admission_state(session)

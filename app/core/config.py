@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     # 저장된 경기·부상·순위 자료 읽기 전용 연결(별도 좁은 역할).
     # 설정이 없으면 조회기는 붙지 않고 화면에 `stored_access.readable=false`가 남는다.
     fixtures_database_url: str | None = None
+    # 팀·선수 표시 이름(한국어) 읽기 전용 연결. 이름 열만 SELECT하는 별도 역할이라
+    # fixture/identity DSN을 재사용하지 않는다. 설정이 없으면 표시 이름 변환을
+    # 건너뛰고 원문 표기를 그대로 쓴다(번역을 지어내지 않는다).
+    names_database_url: str | None = None
     env: Environment = "dev"
     session_ttl_seconds: int = Field(default=8 * 60 * 60, gt=0, le=7 * 24 * 60 * 60)
     cookie_secure: bool = False
