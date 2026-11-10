@@ -10,7 +10,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import PreviewRunsView from '@/views/PreviewRunsView.vue'
 
 const SESSION = {
-  user_id: '00000000-0000-4000-8000-000000000001',
+  user_id: 1,
   email: 'admin@local.test',
   role: 'admin',
   session_id: '00000000-0000-4000-8000-000000000002',

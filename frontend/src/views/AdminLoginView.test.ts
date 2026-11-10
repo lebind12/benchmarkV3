@@ -131,7 +131,7 @@ describe('AdminLoginView', () => {
 
     resolveRequest(
       jsonResponse({
-        user_id: '1b0e0b7e-0000-4000-8000-000000000001',
+        user_id: 1,
         email: 'admin@local.test',
         role: 'admin',
         session_id: '1b0e0b7e-0000-4000-8000-000000000002',
@@ -144,7 +144,7 @@ describe('AdminLoginView', () => {
   it('navigates to the protected run list after a successful login', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse({
-        user_id: '1b0e0b7e-0000-4000-8000-000000000001',
+        user_id: 1,
         email: 'admin@local.test',
         role: 'admin',
         session_id: '1b0e0b7e-0000-4000-8000-000000000002',
@@ -161,7 +161,7 @@ describe('AdminLoginView', () => {
   it('sends credentials only in the POST body with credentials, never in the URL', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse({
-        user_id: '1b0e0b7e-0000-4000-8000-000000000001',
+        user_id: 1,
         email: 'admin@local.test',
         role: 'admin',
         session_id: '1b0e0b7e-0000-4000-8000-000000000002',

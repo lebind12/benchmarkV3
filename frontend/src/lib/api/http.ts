@@ -114,7 +114,7 @@ export const previewApi = {
 }
 
 export type SessionPayload = {
-  user_id: string
+  user_id: number
   email: string
   role: string
   session_id: string

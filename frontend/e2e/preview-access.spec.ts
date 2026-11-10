@@ -89,7 +89,7 @@ test('the app renders the server 403 for a non-admin role instead of an empty li
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        user_id: '00000000-0000-4000-8000-000000000001',
+        user_id: 1,
         email: 'streamer@example.test',
         role: 'streamer',
         session_id: '00000000-0000-4000-8000-000000000002',
