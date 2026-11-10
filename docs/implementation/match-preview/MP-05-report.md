@@ -226,6 +226,20 @@ npx tsx frontend/scripts/mp05-section-browser-check.mts   (격리 백엔드 8022
 | 공유 서버 재시작 | **조정자에게 요청함.** 내가 8000/5173을 재시작하지 않았다 |
 | 배포·푸시·환경 변수 변경 | 없음 |
 
+### R3 검사 개수 차이(증거 정리)
+
+MP-07 보고의 "25 backend"와 내 ACK의 "focused R3 23"은 **다른 시점의 선택 범위**다.
+
+| 시점 | 파일 | 개수 | 내용 |
+|---|---|---|---|
+| MP-07 최종 | `tests/preview/test_outlook_module.py` | **25** | 재시도 live 2회 계산, 설정 오류 0회 계산 포함 |
+| 내 ACK(중간) | 같은 파일 | 23 | 내 통합 수정 직후 실행한 시점 값 |
+| 최종 | 같은 파일 | **25 passed** | `test_retried_live_call_counts_every_sent_attempt`, `test_configuration_error_is_not_counted_as_a_sent_call` 포함 |
+
+즉 25가 최종 값이고, 23은 내 편집 직후의 중간 관측치다. 두 동작 사례는 그대로 남아
+있고 방금 다시 통과를 확인했다(`-k "retried_live or configuration_error"` → 2 passed).
+개수를 맞추려고 새 테스트를 추가하지 않았다.
+
 ## 8. 커밋
 
 경로 한정 스테이징·커밋만 했다. `git add -A`/`.`/`--amend`/`reset`/`restore`/
