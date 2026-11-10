@@ -28,17 +28,26 @@ from pathlib import Path
 import psycopg
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MIGRATION_PATH = REPO_ROOT / "alembic" / "versions" / "0002_preview_runs.py"
+MIGRATION_PATHS = (
+    REPO_ROOT / "alembic" / "versions" / "0002_preview_runs.py",
+    REPO_ROOT / "alembic" / "versions" / "0003_preview_approvals.py",
+)
 DEFAULT_CREDENTIALS = Path.home() / ".config" / "match-preview" / "preview-dev.env"
 SCHEMA = "preview_dev"
 
 
-def load_migration():
-    spec = importlib.util.spec_from_file_location("mp02_migration", MIGRATION_PATH)
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
+def load_migrations() -> list:
+    """적용 순서대로 마이그레이션 모듈을 읽는다. 순서는 파일명이 아니라 목록이 정한다."""
+    modules = []
+    for index, path in enumerate(MIGRATION_PATHS):
+        if not path.exists():
+            raise SystemExit(f"missing migration file: {path}")
+        spec = importlib.util.spec_from_file_location(f"mp02_migration_{index}", path)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        modules.append(module)
+    return modules
 
 
 def read_dev_url(credentials: Path) -> str:
@@ -79,37 +88,43 @@ def main(argv: list[str] | None = None) -> int:
     url = os.environ.get("PREVIEW_DEV_DATABASE_URL") or read_dev_url(
         Path(args.credentials_file)
     )
-    migration = load_migration()
+    migrations = load_migrations()
 
     with psycopg.connect(url, connect_timeout=15) as conn:
         conn.autocommit = True
         applied = _applied(conn)
-        if migration.VERSION in applied:
-            print(f"{migration.VERSION}: already applied")
-            return 0
+        pending = [m for m in migrations if m.VERSION not in applied]
 
         print(f"target schema: {SCHEMA}")
-        print(f"pending version: {migration.VERSION}")
-        if args.dry_run:
-            print(f"dry run: {len(migration.UPGRADE_STATEMENTS)} statements pending")
+        for migration in migrations:
+            state = "already applied" if migration.VERSION in applied else "pending"
+            print(f"{migration.VERSION}: {state}")
+        if not pending:
             return 0
 
-        # DDL과 이력 기록을 한 트랜잭션으로 묶는다. 실패하면 테이블도 남지 않는다.
-        with conn.transaction():
-            with conn.cursor() as cur:
-                for statement in migration.UPGRADE_STATEMENTS:
-                    cur.execute(statement)
-                cur.execute(
-                    f"CREATE TABLE IF NOT EXISTS {SCHEMA}.schema_migrations ("
-                    " version text PRIMARY KEY,"
-                    " applied_at timestamptz NOT NULL DEFAULT now())"
-                )
-                cur.execute(
-                    f"INSERT INTO {SCHEMA}.schema_migrations (version) VALUES (%s)"
-                    " ON CONFLICT (version) DO NOTHING",
-                    (migration.VERSION,),
-                )
-        print(f"{migration.VERSION}: applied")
+        if args.dry_run:
+            total = sum(len(m.UPGRADE_STATEMENTS) for m in pending)
+            print(f"dry run: {total} statements pending")
+            return 0
+
+        for migration in pending:
+            # DDL과 이력 기록을 한 트랜잭션으로 묶는다. 실패하면 그 마이그레이션의
+            # 테이블도 남지 않고 이력도 남지 않는다.
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    for statement in migration.UPGRADE_STATEMENTS:
+                        cur.execute(statement)
+                    cur.execute(
+                        f"CREATE TABLE IF NOT EXISTS {SCHEMA}.schema_migrations ("
+                        " version text PRIMARY KEY,"
+                        " applied_at timestamptz NOT NULL DEFAULT now())"
+                    )
+                    cur.execute(
+                        f"INSERT INTO {SCHEMA}.schema_migrations (version) VALUES (%s)"
+                        " ON CONFLICT (version) DO NOTHING",
+                        (migration.VERSION,),
+                    )
+            print(f"{migration.VERSION}: applied")
 
     return 0
 

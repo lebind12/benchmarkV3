@@ -61,7 +61,7 @@ function detailPayload(overrides: Record<string, unknown> = {}) {
       label: '기록 시연 (mock, 외부 호출 없음)',
       cancelled_at: null,
     },
-    actor_id: 1,
+    actor_id: '1',
     config_version: 'mp02-demo/mp02-1',
     limits: { model_requests: 0, api_requests: 0 },
     fixture: null,
@@ -231,6 +231,34 @@ function detailPayload(overrides: Record<string, unknown> = {}) {
       implemented: ['mock_demo'],
       unavailable: ['D0', 'R1', 'R2', 'R3', 'S1'],
     },
+    approvals: {
+      contract_version: 'mp02-approval-1',
+      workflows: {},
+      approved: [],
+      unapproved: ['section_form'],
+      scope_note: '승인 단위는 섹션 워크플로우입니다.',
+    },
+    section_result_id: null,
+    section_approvals: [
+      {
+        workflow_id: 'section_form',
+        state: 'none',
+        label: '승인 전',
+        detail: '아직 승인된 버전이 없습니다.',
+        current_version: 'section_form@abc123',
+        active_approval: null,
+        pinned_approval: null,
+        can_approve: true,
+      },
+    ],
+    section_workflows: {
+      workflows: [],
+      implemented: [],
+      unavailable: ['section_form'],
+      approval_scope_note: '승인 단위는 섹션 워크플로우입니다.',
+    },
+    approval_note:
+      '승인 단위는 프리뷰 섹션을 만드는 완결된 워크플로우입니다. 내부 노드와 D0 같은 자료 준비 단계에는 따로 승인하지 않으며, 모의 시연 실행은 승인 근거가 아닙니다.',
     mock_demo_module_id: 'mock_demo',
     availability_note: 'D0·R1·R2·R3·S1은 아직 구현되지 않아 실행할 수 없습니다.',
     undo: {
@@ -415,6 +443,61 @@ describe('RunInspector', () => {
     expect(wrapper.get('[data-testid="claims-added"]').text()).toContain('claim-context-2')
     expect(wrapper.get('[data-testid="compare-input-changed"]').text()).toContain(
       '같은 입력의 수정 전후 비교가 아닙니다',
+    )
+  })
+
+  it('shows section approval state and refuses approval without section evidence', async () => {
+    routeFetch()
+    const wrapper = mountInspector()
+    await flushPromises()
+
+    const panel = wrapper.get('[data-testid="inspector-approval"]')
+    expect(wrapper.get('[data-testid="section-approvals"]').text()).toContain('section_form')
+    expect(panel.text()).toContain('승인 전')
+    // 승인 단위가 섹션임을 화면이 밝히고, 근거가 없다는 사실도 숨기지 않는다.
+    expect(panel.text()).toContain('섹션')
+    expect(wrapper.get('[data-testid="approval-no-evidence"]').text()).toContain(
+      '승인 근거로 쓸 섹션 결과가 아직 없습니다',
+    )
+
+    // 섹션을 고르고 승인을 눌러도 근거가 없으므로 요청을 보내지 않는다.
+    await wrapper.get('[data-testid="approve-section-section_form"]').trigger('click')
+    await wrapper.get('[data-testid="approval-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="approval-error"]').text()).toContain('섹션 결과가 없습니다')
+    const postCalls = fetchMock.mock.calls.filter(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'POST',
+    )
+    expect(postCalls).toHaveLength(0)
+  })
+
+  it('shows the server rejection when a section approval is refused', async () => {
+    routeFetch()
+    const detail = detailPayload()
+    // 섹션 결과가 저장된 상황을 가정해 서버 거부 경로를 확인한다.
+    ;(detail as Record<string, unknown>).section_result_id =
+      '33333333-3333-4333-8333-333333333333'
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/approvals') && (init?.method ?? 'GET') === 'POST') {
+        return Promise.resolve(
+          json({ detail: '섹션 결과 기록이 아직 없습니다.' }, 422),
+        )
+      }
+      if (url.includes('/versions')) return Promise.resolve(json(COMPARE))
+      if (url.endsWith(`/runs/${RUN_ID}`)) return Promise.resolve(json(detail))
+      return Promise.resolve(json({ detail: 'not found' }, 404))
+    })
+
+    const wrapper = mountInspector()
+    await flushPromises()
+    await wrapper.get('[data-testid="approve-section-section_form"]').trigger('click')
+    await wrapper.get('[data-testid="approval-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="approval-error"]').text()).toContain(
+      '요청을 처리하지 못했습니다',
     )
   })
 

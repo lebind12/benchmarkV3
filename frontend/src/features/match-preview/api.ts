@@ -6,6 +6,8 @@
  */
 import { previewRequest, type ApiResult } from '@/lib/api/http'
 import type {
+  ApproveSectionResponse,
+  ApprovalsSummary,
   AuditResponse,
   CancelRunResponse,
   CreateMockRunResponse,
@@ -53,6 +55,25 @@ export const previewRunsApi = {
   /** 이 실행이 남긴 개발 영역 쓰기 내역. */
   audit(runId: string): Promise<ApiResult<AuditResponse>> {
     return previewRequest<AuditResponse>(`${BASE}/runs/${runId}/audit`)
+  },
+
+  /** 섹션 워크플로우 승인 현황. 승인 기록이 없으면 없다고 온다. */
+  approvals(): Promise<ApiResult<ApprovalsSummary>> {
+    return previewRequest<ApprovalsSummary>(`${BASE}/approvals`)
+  },
+
+  /**
+   * 관리자가 확인한 섹션 워크플로우 버전을 승인한다. 승인 근거로 실행·섹션 결과 ID를
+   * 함께 보낸다. 이 호출은 개발 완료 보고나 테스트로 대신할 수 없다.
+   */
+  approveSection(
+    workflowId: string,
+    payload: { run_id: string; section_result_id: string; note?: string },
+  ): Promise<ApiResult<ApproveSectionResponse>> {
+    return previewRequest<ApproveSectionResponse>(
+      `${BASE}/sections/${workflowId}/approvals`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    )
   },
 
   /** 녹화된 모의 실행을 만든다. 관리자가 명시적으로 눌러야 실행된다. 외부 호출 0회. */

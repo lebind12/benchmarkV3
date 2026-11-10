@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import secrets
 import sys
 from pathlib import Path
@@ -89,20 +90,26 @@ def main(argv: list[str] | None = None) -> int:
     from app.preview import models as _preview_models  # noqa: F401
 
     password = f"mp02-ui-{secrets.token_urlsafe(9)}"
-    migration_path = REPO_ROOT / "alembic" / "versions" / "0002_preview_runs.py"
-    import importlib.util
 
-    spec = importlib.util.spec_from_file_location("mp02_ui_migration", migration_path)
-    migration = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(migration)
+    # 마이그레이션 파일이 정의한 DDL을 적용 순서대로 모두 실행한다. 목록을 여기에
+    # 손으로 적지 않으므로 새 마이그레이션이 생겨도 이 스크립트가 뒤처지지 않는다.
+    migration_paths = sorted((REPO_ROOT / "alembic" / "versions").glob("[0-9]*.py"))
+    migrations = []
+    for path in migration_paths:
+        spec = importlib.util.spec_from_file_location(f"mp02_ui_migration_{path.stem}", path)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        migrations.append(module)
 
     with engine.begin() as conn:
         conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA}"))
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS public"))
         conn.execute(text(IDENTITY_DDL))
-        for statement in migration.UPGRADE_STATEMENTS:
-            conn.execute(text(statement))
+        for migration in migrations:
+            # 0001은 Alembic op 기반이라 DDL 목록이 없다. 그 표는 Base.metadata가 만든다.
+            for statement in getattr(migration, "UPGRADE_STATEMENTS", ()):
+                conn.execute(text(statement))
     Base.metadata.create_all(engine)
 
     with engine.begin() as conn:

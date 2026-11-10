@@ -396,7 +396,9 @@ def test_undo_keeps_the_cancellation_audit_marker(client, make_user):
     assert "run_cancelled" in actions
     cancelled = next(e for e in audit["events"] if e["action"] == "run_cancelled")
     assert cancelled["detail"]["reason"] == "감사 표시 확인"
-    assert cancelled["actor_id"] > 0
+    # 계정 ID는 bigint이며 JSON에서 문자열로 나간다(JS 숫자 안전 범위 보호).
+    assert isinstance(cancelled["actor_id"], str)
+    assert int(cancelled["actor_id"]) > 0
     assert audit["write_scope"] == "preview_dev"
 
     # 두 번째 취소는 충돌이며 아무것도 바꾸지 않는다.

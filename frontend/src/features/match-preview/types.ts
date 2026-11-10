@@ -146,6 +146,80 @@ export type CoverageView = {
   detail: string | null
 }
 
+export type ApprovalState = 'none' | 'superseded' | 'approved'
+
+export type ConstituentVersion = {
+  module_id: string
+  prompt_version: string
+  implementation_version: string
+  contract_version: string
+}
+
+export type ReviewedSectionEvidence = {
+  run_id: string
+  section_result_id: string
+  reviewed_at: string | null
+}
+
+export type SectionApprovalRecord = {
+  approval_id: string
+  workflow_id: string
+  workflow_version: string
+  constituents: ConstituentVersion[]
+  evidence: ReviewedSectionEvidence
+  approved_by_actor_id: string
+  approved_at: string
+  reviewed_note: string | null
+  supersedes_approval_id: string | null
+}
+
+export type SectionApprovalStatus = {
+  workflow_id: string
+  state: ApprovalState
+  active_approval: SectionApprovalRecord | null
+  pinned_approval: SectionApprovalRecord | null
+  current_version: string | null
+  current_constituents: ConstituentVersion[]
+  candidate_note: string | null
+}
+
+export type SectionWorkflowRegistration = {
+  workflow_id: string
+  display_name: string
+  description: string
+  module_ids: string[]
+  output_contract_version: string
+  implemented: boolean
+  unrunnable_reason: string | null
+}
+
+export type ApprovalsSummary = {
+  contract_version: string
+  workflows: Record<string, SectionApprovalStatus>
+  approved: string[]
+  unapproved: string[]
+  scope_note: string
+  sections?: {
+    workflows: SectionWorkflowRegistration[]
+    implemented: string[]
+    unavailable: string[]
+    approval_scope_note: string
+  }
+  mock_demo_module_id?: string
+  mock_demo_note?: string
+}
+
+export type SectionApprovalRow = {
+  workflow_id: string
+  state: ApprovalState
+  label: string
+  detail: string | null
+  current_version: string | null
+  active_approval: SectionApprovalRecord | null
+  pinned_approval: SectionApprovalRecord | null
+  can_approve: boolean
+}
+
 export type ModulePanelInfo = {
   panel: string
   registered: boolean
@@ -265,7 +339,7 @@ export type VersionComparison = {
 export type UndoState = {
   state: 'cancellable' | 'blocked' | 'cancelled'
   cancelled_at: string | null
-  cancelled_by_actor_id: number | null
+  cancelled_by_actor_id: string | null
   reason: string | null
   can_cancel: boolean
   blocked_reason: string | null
@@ -273,7 +347,7 @@ export type UndoState = {
 
 export type RunDetail = {
   summary: RunSummary
-  actor_id: number
+  actor_id: string
   config_version: string
   limits: Record<string, number | null>
   fixture: FixtureIdentityPayload | null
@@ -298,6 +372,17 @@ export type RunDetail = {
   mode_detail: ModeDetail
   inspector_modules: ModuleInspection[]
   registry: ModuleRegistry
+  approvals: ApprovalsSummary | null
+  /** 이 실행에 저장된 섹션 결과. MP-02에는 섹션 실행이 없으므로 항상 null이다. */
+  section_result_id: string | null
+  section_approvals: SectionApprovalRow[]
+  section_workflows: {
+    workflows: SectionWorkflowRegistration[]
+    implemented: string[]
+    unavailable: string[]
+    approval_scope_note: string
+  } | null
+  approval_note: string
   mock_demo_module_id: string
   availability_note: string
   undo: UndoState
@@ -378,7 +463,9 @@ export type AuditResponse = {
     target_table: string
     target_id: string | null
     detail: Record<string, unknown>
-    actor_id: number
+    actor_id: string
     created_at: string | null
   }[]
 }
+
+export type ApproveSectionResponse = SectionApprovalRecord

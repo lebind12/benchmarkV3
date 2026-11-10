@@ -708,7 +708,8 @@ def get_run_detail(
     summary = _summary(row, session)
     return RunDetail(
         summary=summary,
-        actor_id=row.actor_id,
+        # 계정 ID는 bigint다. JS 숫자의 안전 범위를 넘을 수 있으므로 문자열로 내보낸다.
+        actor_id=str(row.actor_id),
         config_version=row.config_version,
         limits=ExecutionLimits(**(row.limits or {})),
         fixture=_fixture_from_row(row),
@@ -912,7 +913,11 @@ def _undo_view(session: Session, row: PreviewRun) -> dict[str, Any]:
         return {
             "state": "cancelled",
             "cancelled_at": row.cancelled_at.isoformat(),
-            "cancelled_by_actor_id": row.cancelled_by_actor_id,
+            "cancelled_by_actor_id": (
+                str(row.cancelled_by_actor_id)
+                if row.cancelled_by_actor_id is not None
+                else None
+            ),
             "reason": row.cancellation_reason,
             "can_cancel": False,
             "blocked_reason": "이미 취소된 실행입니다. 기록은 감사용으로 남습니다.",
@@ -1126,6 +1131,6 @@ def iter_audit(session: Session, run_id: uuid.UUID) -> Iterable[dict[str, Any]]:
             "target_table": row.target_table,
             "target_id": row.target_id,
             "detail": row.detail,
-            "actor_id": row.actor_id,
+            "actor_id": str(row.actor_id),
             "created_at": row.created_at.isoformat() if row.created_at else None,
         }

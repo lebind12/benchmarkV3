@@ -30,10 +30,23 @@ PROVIDER_CONTRACT_VERSION = "mp02-provider-1"
 MODULE_INPUT_VERSION = "mp02-module-input-1"
 PREVIEW_DOCUMENT_VERSION = "mp02-preview-1"
 INSPECTOR_VERSION = "mp02-inspector-1"
+APPROVAL_CONTRACT_VERSION = "mp02-approval-1"
 
 # §5 초기 보관 설정. 개발 기본값이며 운영 정책은 배포 전에 다시 확인한다.
 RAW_ARTIFACT_RETENTION_DAYS = 30
 STRUCTURED_RECORD_RETENTION_DAYS = 180
+
+# 승인 판정에 쓰는 버전 축. 이 중 하나라도 바뀌면 결과 의미가 바뀐 변경으로 본다.
+APPROVAL_VERSION_AXES = (
+    "prompt_version",
+    "implementation_version",
+    "contract_version",
+    "output_contract_version",
+)
+APPROVAL_SCOPE_NOTE = (
+    "승인 단위는 프리뷰 섹션을 만드는 완결된 워크플로우다. 내부 노드나 D0 같은 자료"
+    " 준비 단계마다 따로 승인하지 않는다."
+)
 
 
 class ContractError(ValueError):
@@ -48,6 +61,7 @@ def contract_versions() -> dict[str, str]:
         "module_input": MODULE_INPUT_VERSION,
         "preview_document": PREVIEW_DOCUMENT_VERSION,
         "inspector": INSPECTOR_VERSION,
+        "approvals": APPROVAL_CONTRACT_VERSION,
     }
 
 
@@ -522,6 +536,123 @@ class ModuleRegistration:
 
 
 # --------------------------------------------------------------------------
+# 섹션 워크플로우 승인
+# --------------------------------------------------------------------------
+
+
+class ApprovalState(str, Enum):
+    """섹션 워크플로우 버전의 승인 상태.
+
+    승인 단위는 **프리뷰 섹션을 만드는 완결된 워크플로우**다. 내부 노드나 D0 같은
+    자료 준비 단계마다 따로 승인을 요구하지 않는다. 승인은 개발 워커가 만들지
+    않는다.
+    """
+
+    # 한 번도 승인된 적이 없다.
+    NONE = "none"
+    # 승인된 적이 있으나 결과 의미를 바꾸는 변경이 있어 새 버전 확인이 필요하다.
+    # 옛 승인은 유지되며 덮어쓰지 않는다.
+    SUPERSEDED = "superseded"
+    # 이 버전이 현재 활성 승인이다.
+    APPROVED = "approved"
+
+
+class ApprovalRequestError(ValueError):
+    """승인 요청이 계약을 어긴다. 호출자가 저장 전에 거부해야 한다."""
+
+
+@dataclass(frozen=True)
+class SectionWorkflowRegistration:
+    """프리뷰 섹션 하나를 만드는 워크플로우.
+
+    한 섹션은 여러 노드·모듈·공유 자료 준비(D0)·검증·표현 처리를 포함할 수 있다.
+    사용자는 이 단위의 **결과 본문과 근거**를 확인하고 승인한다. 모듈과 일대일이
+    아니며, 이 목록은 승인 대상 구성과 진단 경로를 연결하는 용도다.
+    """
+
+    workflow_id: str
+    display_name: str
+    description: str
+    # 이 섹션 결과에 영향을 주는 모듈들. D0 같은 공유 자료 준비도 포함된다.
+    module_ids: tuple[str, ...]
+    # 결과 의미를 바꾸는 출력 계약 버전. 이 값이 바뀌면 재확인이 필요하다.
+    output_contract_version: str
+    implemented: bool
+    unrunnable_reason: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return _plain(self)
+
+
+@dataclass(frozen=True)
+class ConstituentVersion:
+    """승인 대상 섹션을 구성한 모듈 하나의 버전. 승인 기록에 함께 남긴다."""
+
+    module_id: str
+    prompt_version: str
+    implementation_version: str
+    contract_version: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return _plain(self)
+
+
+@dataclass(frozen=True)
+class ReviewedSectionEvidence:
+    """승인자가 실제로 확인한 실행과 섹션 결과.
+
+    `section_result_id`는 섹션 본문 결과다. MP-02에는 섹션 실행이 없으므로 아직
+    만들 수 없고, 승인도 그때까지 거부된다. 모의 실행은 이 자리에 넣지 않는다.
+    """
+
+    run_id: uuid.UUID
+    section_result_id: uuid.UUID
+    reviewed_at: datetime | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return _plain(self)
+
+
+@dataclass(frozen=True)
+class SectionApproval:
+    """섹션 워크플로우 버전 승인 기록 한 건. append-only다."""
+
+    approval_id: uuid.UUID
+    workflow_id: str
+    workflow_version: str
+    constituents: tuple[ConstituentVersion, ...]
+    evidence: ReviewedSectionEvidence
+    approved_by_actor_id: str
+    approved_at: datetime
+    reviewed_note: str | None = None
+    supersedes_approval_id: uuid.UUID | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return _plain(self)
+
+
+@dataclass(frozen=True)
+class SectionApprovalStatus:
+    """섹션 하나의 승인 현황. 승인된 활성 버전과 재확인 후보를 구분한다."""
+
+    workflow_id: str
+    state: ApprovalState
+    active_approval: SectionApproval | None
+    # 승인된 적은 있으나 지금 구성이 바뀐 경우의 옛 승인. 계속 유효하다.
+    pinned_approval: SectionApproval | None
+    current_version: str | None
+    current_constituents: tuple[ConstituentVersion, ...]
+    candidate_note: str | None = None
+
+    @property
+    def approved(self) -> bool:
+        return self.state is ApprovalState.APPROVED
+
+    def to_dict(self) -> dict[str, Any]:
+        return _plain(self)
+
+
+# --------------------------------------------------------------------------
 # 제공자 요청·응답과 시도
 # --------------------------------------------------------------------------
 
@@ -742,7 +873,8 @@ class RunDetail:
     """실행 하나의 전체 기록. 조회는 저장된 행만 읽는다."""
 
     summary: RunSummary
-    actor_id: int
+    # 관리자 계정 ID(bigint). JS 숫자 안전 범위를 넘을 수 있으므로 문자열로 나간다.
+    actor_id: str
     config_version: str
     limits: ExecutionLimits
     fixture: FixtureIdentity | None

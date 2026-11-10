@@ -1,0 +1,26 @@
+# MP-02 section workflow approval acceptance tests
+# date: 2026-11-10T19:35:37+09:00
+# cmd: .venv/bin/python -m pytest tests/preview/test_section_approvals.py -q
+
+tests/preview/test_section_approvals.py::test_unapproved_sections_are_not_shown_as_approved
+tests/preview/test_section_approvals.py::test_approval_unit_is_a_section_not_an_inner_module
+tests/preview/test_section_approvals.py::test_approval_is_refused_without_section_evidence
+tests/preview/test_section_approvals.py::test_unknown_section_is_404
+tests/preview/test_section_approvals.py::test_approval_requires_admin
+tests/preview/test_section_approvals.py::test_mock_run_detail_shows_sections_without_claiming_approval
+tests/preview/test_section_approvals.py::test_recording_a_workflow_version_changes_when_versions_change
+tests/preview/test_section_approvals.py::test_approval_status_reads_stored_rows_only
+
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/starlette/testclient.py:40
+  /Users/woolee/benchmark/.venv/lib/python3.11/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+
+........                                                                 [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/starlette/testclient.py:40
+  /Users/woolee/benchmark/.venv/lib/python3.11/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+8 passed, 1 warning in 2.47s
+EXIT CODE: 0

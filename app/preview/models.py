@@ -286,3 +286,40 @@ class PreviewWriteAudit(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class PreviewSectionApproval(Base):
+    """섹션 워크플로우 버전 승인 기록.
+
+    승인 단위는 프리뷰 섹션을 만드는 완결된 워크플로우다. 내부 노드나 D0 같은 자료
+    준비 단계마다 따로 승인하지 않는다. 승인은 관리자가 섹션 본문 결과를 확인한 뒤
+    만들며, 개발 워커가 만들지 않는다.
+
+    이 표는 append-only다. 새 승인은 이전 승인을 `supersedes_approval_id`로 가리킬
+    뿐 이전 행을 고치거나 지우지 않는다. 그래서 "언제 무엇을 어떤 실행 근거로
+    승인했는지"가 나중에도 그대로 남는다. `active`는 섹션당 하나만 참이다.
+    """
+
+    __tablename__ = "preview_section_approvals"
+    __table_args__ = _TABLE_ARGS
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workflow_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    # 결과에 영향을 주는 축으로 계산한 섹션 워크플로우 버전.
+    workflow_version: Mapped[str] = mapped_column(Text, nullable=False)
+    version_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    # 구성 모듈/프롬프트/구현/계약 버전 집합. 승인 당시 값을 그대로 보존한다.
+    constituents: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    # 승인자가 확인한 실행과 섹션 결과.
+    reviewed_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_runs.id", ondelete="SET NULL"), nullable=True
+    )
+    section_result_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+
+    approved_by_actor_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    approved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reviewed_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    supersedes_approval_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)

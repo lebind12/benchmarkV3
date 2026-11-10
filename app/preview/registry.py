@@ -22,16 +22,21 @@ from app.preview.contracts import (
     MODULE_INPUT_VERSION,
     ModuleRegistration,
     RunMode,
+    SectionWorkflowRegistration,
 )
 
 __all__ = [
     "MODULE_REGISTRY",
     "MOCK_DEMO_MODULE_ID",
     "REGISTRY_VERSION",
+    "SECTION_WORKFLOWS",
     "describe_registry",
+    "describe_section_workflows",
     "get_module",
+    "get_section_workflow",
     "list_modules",
     "registered_module_ids",
+    "section_workflow_ids",
 ]
 
 REGISTRY_VERSION = "mp02-registry-1"
@@ -155,6 +160,7 @@ def describe_registry() -> dict[str, object]:
         "contract_version": CONTRACT_VERSION,
         "inspector_version": INSPECTOR_VERSION,
         "modules": [registration.to_dict() for registration in _REGISTRATIONS],
+        "section_workflows": describe_section_workflows(),
         "implemented": [
             registration.module_id
             for registration in _REGISTRATIONS
@@ -181,3 +187,91 @@ def _override_in_tests(
         for registration in _REGISTRATIONS
     )
     return updated
+
+
+# --------------------------------------------------------------------------
+# 섹션 워크플로우 — 사용자가 테스트·조정·승인하는 단위
+# --------------------------------------------------------------------------
+
+# 정책(AGENTS.md): 사용자 테스트·승인 단위는 프리뷰 섹션을 만드는 완결된
+# 워크플로우다. 내부 노드와 D0 같은 자료 준비 단계에는 별도 승인을 요구하지 않는다.
+# 그래서 D0는 여기 없다. 각 섹션은 자기 결과에 영향을 주는 모듈 목록을 갖는다.
+_SECTION_WORKFLOWS: tuple[SectionWorkflowRegistration, ...] = (
+    SectionWorkflowRegistration(
+        workflow_id="section_form",
+        display_name="경기력·주목 선수 섹션",
+        description=(
+            "공유 자료 준비(D0)와 경기력 조사(R1)를 묶어 관전 포인트·주목 선수 본문을"
+            " 만드는 섹션입니다."
+        ),
+        module_ids=("D0", "R1"),
+        output_contract_version="section_form-output-1",
+        implemented=False,
+        unrunnable_reason="아직 구현되지 않았습니다. MP-03·MP-05 이후 확인할 수 있습니다.",
+    ),
+    SectionWorkflowRegistration(
+        workflow_id="section_availability",
+        display_name="부상·결장 영향 섹션",
+        description="API 부상 자료와 검색 근거로 결장 영향 본문을 만드는 섹션입니다.",
+        module_ids=("D0", "R2"),
+        output_contract_version="section_availability-output-1",
+        implemented=False,
+        unrunnable_reason="아직 구현되지 않았습니다. MP-03·MP-06 이후 확인할 수 있습니다.",
+    ),
+    SectionWorkflowRegistration(
+        workflow_id="section_outlook",
+        display_name="배당·외부 전망 섹션",
+        description="공개 배당·매체 전망·API 예측을 구분해 전망 본문을 만드는 섹션입니다.",
+        module_ids=("D0", "R3"),
+        output_contract_version="section_outlook-output-1",
+        implemented=False,
+        unrunnable_reason="아직 구현되지 않았습니다. MP-03·MP-07 이후 확인할 수 있습니다.",
+    ),
+    SectionWorkflowRegistration(
+        workflow_id="section_synthesis",
+        display_name="AI 예상·종합 섹션",
+        description=(
+            "검증된 조사 결과를 조합해 AI 예상과 이유를 만드는 섹션입니다."
+            " 다른 섹션들의 결과를 입력으로 받습니다."
+        ),
+        module_ids=("R1", "R2", "R3", "S1"),
+        output_contract_version="section_synthesis-output-1",
+        implemented=False,
+        unrunnable_reason="아직 구현되지 않았습니다. MP-09 이후 확인할 수 있습니다.",
+    ),
+)
+
+SECTION_WORKFLOWS: dict[str, SectionWorkflowRegistration] = {
+    workflow.workflow_id: workflow for workflow in _SECTION_WORKFLOWS
+}
+
+
+def describe_section_workflows() -> dict[str, object]:
+    """화면·인계용 섹션 목록. 구현 여부를 숨기지 않는다."""
+    return {
+        "registry_version": REGISTRY_VERSION,
+        "workflows": [workflow.to_dict() for workflow in _SECTION_WORKFLOWS],
+        "implemented": [
+            workflow.workflow_id for workflow in _SECTION_WORKFLOWS if workflow.implemented
+        ],
+        "unavailable": [
+            workflow.workflow_id
+            for workflow in _SECTION_WORKFLOWS
+            if not workflow.implemented
+        ],
+        "approval_scope_note": (
+            "승인 단위는 섹션 워크플로우다. 내부 노드와 D0 같은 자료 준비 단계는"
+            " 따로 승인하지 않는다."
+        ),
+    }
+
+
+def get_section_workflow(workflow_id: str) -> SectionWorkflowRegistration:
+    try:
+        return SECTION_WORKFLOWS[workflow_id]
+    except KeyError:
+        raise KeyError(f"section workflow {workflow_id!r} is not registered") from None
+
+
+def section_workflow_ids() -> tuple[str, ...]:
+    return tuple(SECTION_WORKFLOWS)

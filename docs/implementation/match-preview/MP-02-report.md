@@ -29,7 +29,7 @@
 
 | 항목 | 이번 작업 | 근거 |
 |---|---|---|
-| 쓰기 대상 | `preview_dev` 스키마 새 테이블만 | `alembic/versions/0002_preview_runs.py`, `scripts/preview_dev_migrate.py` |
+| 쓰기 대상 | `preview_dev` 스키마 새 테이블만 | `alembic/versions/0002_preview_runs.py`, `alembic/versions/0003_preview_approvals.py`, `scripts/preview_dev_migrate.py` |
 | 기존 `public` 영역 | 읽기만. DDL·DML 없음 | `scripts/preview_dev_status.py` (write to public.app_user denied) |
 | 운영 배포·환경 변수 | 변경 없음 | Koyeb·Supabase 설정 접근하지 않음 |
 | 외부 모델·API 호출 | 0회 (mock 파이프라인만) | `app/preview/demo_pipeline.py`, 실행 라벨 `mock` |
@@ -95,7 +95,7 @@
 | `preview_write_audit` | 쓰기·취소 감사. 값이 아니라 동작·대상만 |
 
 마이그레이션 이력은 기존 규칙대로 `preview_dev.schema_migrations(version, applied_at)`에
-남긴다. `0002_preview_runs`가 추가되었다.
+남긴다. `0002_preview_runs`와 `0003_preview_approvals`가 추가되었다.
 
 ## 공통 저장 함수
 
@@ -194,13 +194,13 @@
 
 | 명령 | 결과 |
 |---|---|
-| `.venv/bin/python -m pytest tests/preview -q` | 141 passed |
+| `.venv/bin/python -m pytest tests/preview -q` | 149 passed |
 | `.venv/bin/python -m pytest tests/preview/test_run_store.py tests/preview/test_inspection_api.py tests/preview/test_retention.py tests/preview/test_migration_schema.py -q` | 37 passed, exit 0 |
-| `npm --prefix frontend run test:unit` | 3 files, 24 tests passed |
+| `npm --prefix frontend run test:unit` | 3 files, 26 tests passed |
 | `npm --prefix frontend run type-check` | 통과 (출력 없음) |
 | `npm --prefix frontend run build` | 빌드 성공 |
-| `npx playwright test --config=playwright.mp02.config.ts` | 3 passed (격리 환경, 실제 백엔드·DB) |
-| `.venv/bin/python scripts/preview_dev_migrate.py` | `0002_preview_runs: applied` |
+| `npx playwright test --config=playwright.mp02.config.ts` | 4 passed (격리 환경, 실제 백엔드·DB) |
+| `.venv/bin/python scripts/preview_dev_migrate.py` | `0002_preview_runs`·`0003_preview_approvals` applied |
 | `.venv/bin/python scripts/preview_dev_status.py` | `result: PASS` |
 
 계획 §6이 요구한 backend 세 파일의 수용 테스트를 모두 포함한다. 마이그레이션 DDL↔모델
@@ -288,8 +288,9 @@
 | 원문·보관 | `app/preview/artifacts.py`, `app/preview/retention.py` |
 | 검사 구조 | `app/preview/inspection.py` |
 | 등록부 | `app/preview/registry.py` (등록은 이 파일 한 곳) |
+| 승인 | `app/preview/approvals.py`, `preview_section_approvals` |
 | 라우터 | `app/api/v1/preview_admin.py` (통합 소유자만 편집) |
-| 마이그레이션 | `alembic/versions/0002_preview_runs.py` + `scripts/preview_dev_migrate.py` |
+| 마이그레이션 | `alembic/versions/0002_preview_runs.py`, `0003_preview_approvals.py` + `scripts/preview_dev_migrate.py` |
 | 프론트 공유 파일 | `frontend/src/features/match-preview/{types,api}.ts`, `RunInspector.vue`, `ModuleResultPanel.vue` |
 
 새 모듈을 붙이는 방법: `registry.py`에 `ModuleRegistration`을 추가하고 `implemented=True`로
@@ -312,9 +313,48 @@ undo와 충돌 처리, 감사 표시, 앱 재시작 후 동일 실행 유지, GE
 | 프리뷰 반영 탭 | S1·V1이 생기는 MP-09 이후 |
 | 지표 표·그래프 | MP-08. `MetricsQuery`/`MetricsResult` 계약만 고정 |
 | LangGraph 실행·체크포인트 | 사용자 선택 문서(`docs/decisions/2026-11-10-preview-framework.md`)에 따라 후속. 이번 저장 구조는 그 위에서 재사용 가능 |
-| 모듈 버전 사용자 승인 기록 | 정책에 추가됨. 승인 대상 모듈이 생기는 MP-05 이후에 붙이는 것이 자연스러움 |
+| 섹션 승인 기록 만들기(행 생성) | 승인 계약·표·화면·거부 경계는 이번에 넣었다. 실제 승인 행은 섹션 본문 결과가 저장되는 MP-09 이후에 열린다 |
 | 만료 자동 처리 스케줄러 | 운영 보관 정책 확정 전 금지 |
 | 180일 구조화 기록 삭제 경로 | 정책 값만 고정, 실행 시점 미확정 |
+
+## 추가 범위: 섹션 워크플로우 승인 (정책 변경 반영)
+
+작업 중 `AGENTS.md`의 승인 단위가 **모듈 버전 → 섹션 워크플로우 버전**으로 바뀌었다.
+그래서 처음 만든 모듈 단위 승인 코드를 버리고 섹션 단위로 다시 만들었다. 바뀐 정책의
+핵심은 승인 단위가 "프리뷰 섹션의 내용을 생성하는 완결된 워크플로우"이며, 내부 노드와
+D0 같은 자료 준비 단계에는 따로 승인하지 않는다는 것이다.
+
+| 항목 | 내용 |
+|---|---|
+| 승인 단위 | 섹션 워크플로우(`section_form`, `section_availability`, `section_outlook`, `section_synthesis`) |
+| 승인 대상 아님 | 노드·개별 모듈·D0. D0는 `section_form` 등의 **구성 모듈**로만 등장 |
+| 기록 항목 | 워크플로우 ID·버전, 구성 모듈/프롬프트/구현/계약 버전 집합, 확인한 실행·섹션 결과 ID, 승인자·시각, 검토 메모 |
+| 표 | `preview_dev.preview_section_approvals` (append-only, 섹션당 활성 1건을 부분 유일 인덱스로 강제) |
+| 계약 | `SectionWorkflowRegistration`, `SectionApproval`, `SectionApprovalStatus`, `APPROVAL_CONTRACT_VERSION=mp02-approval-1` |
+| API | `GET /api/v1/admin/preview/approvals`, `POST /api/v1/admin/preview/sections/{workflow_id}/approvals` |
+| 화면 | 검사 화면의 "섹션 워크플로우 승인" 표와 승인 폼 |
+
+승인 행을 지금 만들지 않는 이유를 분명히 해 둔다. 승인 근거는 **실제 섹션 본문 결과**여야
+하는데 그 저장 구조는 MP-09 소유다. 그래서 지금 승인 요청은 422로 거부되고
+(`approve_section_version`이 근거 확인 뒤 항상 거부), 화면도 "승인 근거로 쓸 섹션 결과가
+아직 없습니다"를 표시한다. 없는 승인을 만들어 승인된 것처럼 보이게 하지 않기 위한
+선택이다.
+
+버전 계산은 결과 의미를 바꾸는 축(출력 계약 버전 + 구성 모듈들의 프롬프트·구현·계약
+버전)만 쓴다. 표시 문구만 바꾸는 변경이 재승인을 유발하지 않게 하기 위함이다. 모듈 순서가
+달라도 같은 버전이 나온다(`test_recording_a_workflow_version_changes_when_versions_change`).
+
+검증: `tests/preview/test_section_approvals.py` 8건 통과([evidence/28](evidence/28-mp02-approvals.txt)),
+실제 개발 영역의 승인 상태는 전부 `none`이고 승인 행은 0건([evidence/29](evidence/29-mp02-section-approvals.txt)).
+브라우저 확인도 섹션 경계를 포함해 4건 통과([evidence/24](evidence/24-mp02-browser.txt)).
+
+### 이번 정책 변경으로 함께 손본 것
+
+| 변경 | 이유 |
+|---|---|
+| 계정 ID를 JSON에서 문자열로 | `app_user.id`는 bigint다. JS 숫자 안전 범위를 넘을 수 있으므로 새 계약(`RunDetail.actor_id`, `approved_by_actor_id`, 감사 `actor_id`)은 문자열로 내보낸다. 현재 값은 8건 모두 작지만 계약을 미리 안전하게 둔다 |
+| `preview_module_approvals` 제거 | 잘못된 단위로 만든 빈 표였다(0행). 0003을 `preview_section_approvals`로 고쳐 다시 적용했고, 삭제 전에 스키마·이름·0행을 확인했다 |
+| 검사 화면 승인 위치 | 모듈 카드가 아니라 실행 하단의 섹션 단위 표로 옮겼다. 모듈별 승인 버튼을 두면 정책과 어긋난다 |
 
 ## 제약으로 확인한 것
 

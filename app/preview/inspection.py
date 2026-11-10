@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Sequence
 
-from app.preview.contracts import INSPECTOR_VERSION, RunMode
+from app.preview.contracts import INSPECTOR_VERSION, ApprovalState, RunMode
 from app.preview.registry import MOCK_DEMO_MODULE_ID, describe_registry, get_module
 
 __all__ = [
@@ -255,7 +255,45 @@ def build_module_inspection(
     }
 
 
-def build_run_inspection(run_detail: Mapping[str, Any]) -> dict[str, Any]:
+APPROVAL_STATE_LABELS = {
+    ApprovalState.APPROVED.value: "승인된 버전",
+    ApprovalState.SUPERSEDED.value: "재확인 필요 (이전 승인 유지)",
+    ApprovalState.NONE.value: "승인 전",
+}
+
+
+def section_approval_rows(approval_status: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+    """섹션 워크플로우 승인 현황을 화면 행으로 만든다.
+
+    승인 단위는 섹션이며 내부 모듈·D0에는 따로 승인하지 않는다. 그래서 승인 표시를
+    모듈 카드가 아니라 이 실행이 속한 섹션 단위로 보여준다.
+    """
+    if not approval_status:
+        return []
+    rows: list[dict[str, Any]] = []
+    for workflow_id, status in (approval_status.get("workflows") or {}).items():
+        state = str((status or {}).get("state", ApprovalState.NONE.value))
+        rows.append(
+            {
+                "workflow_id": workflow_id,
+                "state": state,
+                "label": APPROVAL_STATE_LABELS.get(state, state),
+                "detail": (status or {}).get("candidate_note"),
+                "current_version": (status or {}).get("current_version"),
+                "active_approval": (status or {}).get("active_approval"),
+                "pinned_approval": (status or {}).get("pinned_approval"),
+                "can_approve": state != ApprovalState.APPROVED.value,
+            }
+        )
+    return rows
+
+
+def build_run_inspection(
+    run_detail: Mapping[str, Any],
+    *,
+    approval_status: Mapping[str, Any] | None = None,
+    section_workflows: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """실행 상세를 검사 화면 구조로 만든다. 모듈 목록은 등록부 기준으로 보강한다."""
     run_mode = str((run_detail.get("summary") or {}).get("mode", RunMode.MOCK.value))
     modules = [
@@ -269,9 +307,18 @@ def build_run_inspection(run_detail: Mapping[str, Any]) -> dict[str, Any]:
         "mode_detail": describe_mode(run_mode),
         "inspector_modules": modules,
         "registry": registry,
+        "approvals": approval_status,
+        # 섹션 결과 저장은 MP-09 소유다. 이 실행에는 아직 없다는 사실을 값으로 밝힌다.
+        "section_result_id": None,
+        "section_approvals": section_approval_rows(approval_status),
+        "section_workflows": section_workflows,
         "mock_demo_module_id": MOCK_DEMO_MODULE_ID,
         "availability_note": (
             "D0·R1·R2·R3·S1은 아직 구현되지 않아 실행할 수 없습니다. "
             "MP-02가 제공하는 것은 기록 시연(모의) 실행과 그 검사 경로입니다."
+        ),
+        "approval_note": (
+            "승인 단위는 프리뷰 섹션을 만드는 완결된 워크플로우입니다. 내부 노드와 D0 같은"
+            " 자료 준비 단계에는 따로 승인하지 않으며, 모의 시연 실행은 승인 근거가 아닙니다."
         ),
     }

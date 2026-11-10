@@ -84,6 +84,14 @@ test('the mock run is created by an explicit action and opens in the inspector',
 
   await page.screenshot({ path: `${SHOT_DIR}/ui-06-inspector-next-input.png`, fullPage: true })
 
+  // 승인 패널: 승인 단위가 섹션이며, 모의 실행은 승인 근거가 아님을 밝힌다.
+  await expect(page.getByTestId('inspector-approval')).toBeVisible()
+  await expect(page.getByTestId('section-approvals')).toContainText('section_form')
+  await expect(page.getByTestId('inspector-approval')).toContainText('승인 전')
+  await expect(page.getByTestId('approval-no-evidence')).toContainText(
+    '승인 근거로 쓸 섹션 결과가 아직 없습니다',
+  )
+
   // 버전 비교: 이전 버전이 남아 있다.
   await expect(page.getByTestId('compare-base')).toBeVisible()
   await expect(page.getByTestId('compare-target')).toContainText('v2')
@@ -115,6 +123,31 @@ test('stored runs keep secrets out of the trace and reopen with the same id', as
   await page.goto('/admin/runs')
   await page.getByTestId(`open-run-${target.run_id}`).click()
   await expect(page.getByTestId('inspector-run-id')).toHaveText(target.run_id)
+})
+
+test('a recorded mock run cannot be approved as a real section result', async ({ page }) => {
+  await login(page)
+
+  const listing = await page.request.get('/api/v1/admin/preview/runs')
+  const target = (await listing.json()).runs[0]
+
+  const attempt = await page.request.post(
+    `/api/v1/admin/preview/sections/section_form/approvals`,
+    {
+      data: {
+        run_id: target.run_id,
+        section_result_id: '00000000-0000-4000-8000-000000000000',
+      },
+    },
+  )
+  expect(attempt.status()).toBe(422)
+
+  const approvals = await page.request.get('/api/v1/admin/preview/approvals')
+  const body = await approvals.json()
+  // 모의 실행으로는 어떤 섹션도 승인되지 않는다.
+  expect(body.approved).toEqual([])
+  expect(body.unapproved).toContain('section_form')
+  expect(body.scope_note).toContain('섹션 워크플로우')
 })
 
 test('the inspector read path makes no external calls from the browser', async ({ page }) => {

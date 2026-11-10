@@ -1,0 +1,15 @@
+# MP-02 section approval boundary on the real preview_dev
+# date: 2026-11-10T19:40:12+09:00
+# note: no user approval was created; no external calls
+
+run: e091436e-074d-44b9-983b-1fab31acf9c6
+mode / environment: mock / dev
+approved sections: []
+unapproved sections: ['section_form', 'section_availability', 'section_outlook', 'section_synthesis']
+section rows: [('section_form', 'none'), ('section_availability', 'none'), ('section_outlook', 'none'), ('section_synthesis', 'none')]
+section_result_id (evidence for approval): None
+approval rows stored: 0
+scope note: 승인 단위는 섹션 워크플로우입니다. 내부 노드와 D0 같은 자료 준비 단계는 따로 승인하지 않습니다. 승인은 관리자가 결과를 확인한 뒤에만 만들어집니다.
+
+D0 as its own approval unit: False
+section_form constituents: [['D0', 'R1']]

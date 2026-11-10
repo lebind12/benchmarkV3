@@ -23,11 +23,11 @@ from sqlalchemy.orm import Session
 
 from app.auth.service import AdminPrincipal, require_preview_admin
 from app.db import get_db
-from app.preview import demo_pipeline, store
-from app.preview.contracts import ContractError, RunMode
+from app.preview import approvals, demo_pipeline, store
+from app.preview.contracts import ApprovalRequestError, ContractError, RunMode
 from app.preview.inspection import build_run_inspection
 from app.preview.models import PreviewRun
-from app.preview.registry import describe_registry
+from app.preview.registry import describe_registry, describe_section_workflows
 from app.preview.retention import (
     expire_raw_artifacts,
     retention_policy,
@@ -64,6 +64,18 @@ class CancelRunResponse(BaseModel):
     reason: str
 
 
+class ApproveSectionRequest(BaseModel):
+    """관리자가 확인한 섹션 워크플로우 버전을 승인한다.
+
+    승인 근거는 실제 섹션 실행 결과여야 한다. 섹션 결과 저장은 MP-09 소유이므로
+    지금은 요청이 거부된다. 근거 없는 승인 행을 만들지 않기 위한 것이다.
+    """
+
+    run_id: UUID
+    section_result_id: UUID
+    note: str | None = Field(default=None, max_length=1000)
+
+
 class CompareResponse(BaseModel):
     module_execution_id: UUID
     module_id: str
@@ -78,7 +90,11 @@ def _detail_or_404(session: Session, run_id: UUID) -> dict:
         detail = store.get_run_detail(session, run_id)
     except store.RunNotFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found") from None
-    return build_run_inspection(detail.to_dict())
+    return build_run_inspection(
+        detail.to_dict(),
+        approval_status=approvals.describe_approvals(session),
+        section_workflows=describe_section_workflows(),
+    )
 
 
 @router.get("/runs", response_model=RunListResponse)
@@ -176,6 +192,61 @@ def compare_result_versions(
     except store.RunNotFound as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from None
     return CompareResponse(**comparison)
+
+
+@router.get("/approvals")
+def get_approvals(
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """섹션 워크플로우 승인 현황. 승인 기록이 없으면 없다고 알린다.
+
+    승인 전 섹션을 승인된 것처럼 표시하지 않는다. 조회는 저장된 행만 읽는다.
+    """
+    status = approvals.describe_approvals(session)
+    status["sections"] = describe_section_workflows()
+    status["mock_demo_module_id"] = demo_pipeline.MOCK_DEMO_MODULE_ID
+    status["mock_demo_note"] = (
+        "모의 시연 실행은 UI 확인용이며 실제 섹션 생성 승인 근거로 쓰지 않습니다."
+        " 승인 단위는 섹션 워크플로우입니다."
+    )
+    return status
+
+
+@router.post("/sections/{workflow_id}/approvals", response_model=dict)
+def approve_section(
+    workflow_id: str,
+    payload: ApproveSectionRequest,
+    session: Session = Depends(get_db),
+    principal: AdminPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """관리자가 확인한 섹션 워크플로우 버전을 승인한다.
+
+    승인 단위는 섹션을 만드는 완결된 워크플로우이며, 내부 노드·D0에는 따로 승인하지
+    않는다. 개발 완료 보고·테스트 통과·worker_done은 승인이 아니다. 섹션 결과 저장이
+    없는 지금은 근거가 없으므로 422로 거부한다.
+    """
+    try:
+        approval = approvals.approve_section_version(
+            session,
+            workflow_id=workflow_id,
+            run_id=payload.run_id,
+            section_result_id=payload.section_result_id,
+            actor_id=principal.user_id,
+            note=payload.note,
+        )
+    except KeyError:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="section workflow not found"
+        ) from None
+    except ApprovalRequestError as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from None
+    session.commit()
+    return approval.to_dict()
 
 
 @router.get("/registry")

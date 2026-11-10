@@ -24,6 +24,10 @@ const loading = ref(true)
 const errorMessage = ref<string | null>(null)
 const activeModuleId = ref<string | null>(null)
 const undoPreview = ref<UndoReport | null>(null)
+const approvalPending = ref(false)
+const approvalError = ref<string | null>(null)
+const approvalNote = ref('')
+const selectedWorkflowId = ref<string | null>(null)
 const undoError = ref<string | null>(null)
 const undoPending = ref(false)
 
@@ -52,6 +56,43 @@ const activeModule = computed(
 )
 
 const summary = computed(() => detail.value?.summary ?? null)
+
+/**
+ * 선택한 섹션 워크플로우를 승인한다.
+ *
+ * 승인 단위는 프리뷰 섹션을 만드는 완결된 워크플로우이며, 내부 노드나 D0에는 따로
+ * 승인하지 않는다. 승인은 관리자가 결과를 확인한 뒤의 명시적 동작이므로 개발 완료
+ * 보고나 테스트 통과로 대신할 수 없다. 섹션 결과가 아직 없는 지금은 서버가 거부하며,
+ * 화면은 그 거부를 그대로 보여준다(승인된 것처럼 꾸미지 않는다).
+ */
+async function approveSection() {
+  const workflowId = selectedWorkflowId.value
+  if (!workflowId) {
+    approvalError.value = '승인할 섹션을 선택하세요.'
+    return
+  }
+  const sectionResultId = detail.value?.section_result_id ?? null
+  if (!sectionResultId) {
+    approvalError.value =
+      '이 실행에는 승인 근거로 쓸 섹션 결과가 없습니다. 섹션 결과가 저장된 뒤에 승인할 수 있습니다.'
+    return
+  }
+
+  approvalPending.value = true
+  approvalError.value = null
+  const result = await previewRunsApi.approveSection(workflowId, {
+    run_id: props.runId,
+    section_result_id: sectionResultId,
+    note: approvalNote.value || undefined,
+  })
+  approvalPending.value = false
+  if (!result.ok) {
+    approvalError.value = result.message
+    return
+  }
+  approvalNote.value = ''
+  await load()
+}
 
 async function loadUndoPreview() {
   undoError.value = null
@@ -170,6 +211,86 @@ function formatTime(value: string | null): string {
         :run-id="runId"
         :module-execution-id="activeModule.module_execution_id"
       />
+
+      <section class="approval" data-testid="inspector-approval">
+        <h3 class="undo__title">섹션 워크플로우 승인</h3>
+        <p class="inspector__note">{{ detail.approval_note }}</p>
+
+        <table v-if="detail.section_approvals.length" class="table" data-testid="section-approvals">
+          <caption>승인 현황 {{ detail.section_approvals.length }}개 섹션</caption>
+          <thead>
+            <tr>
+              <th scope="col">섹션</th>
+              <th scope="col">상태</th>
+              <th scope="col">현재 버전</th>
+              <th scope="col">승인 근거</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in detail.section_approvals" :key="row.workflow_id">
+              <td>
+                <button
+                  class="approval__select"
+                  type="button"
+                  :data-testid="`approve-section-${row.workflow_id}`"
+                  @click="selectedWorkflowId = row.workflow_id"
+                >
+                  {{ row.workflow_id }}
+                </button>
+              </td>
+              <td data-testid="approval-state">{{ row.label }}</td>
+              <td class="measured">
+                {{ row.current_version ? row.current_version.slice(0, 24) : '—' }}
+              </td>
+              <td class="measured">
+                {{ row.active_approval ? row.active_approval.evidence.run_id : '없음' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else class="inspector__note" data-testid="approvals-empty">
+          승인 현황을 불러오지 못했습니다.
+        </p>
+
+        <p
+          v-if="detail.section_approvals.length && !detail.section_result_id"
+          class="notice notice--info"
+          data-testid="approval-no-evidence"
+        >
+          이 실행에는 승인 근거로 쓸 섹션 결과가 아직 없습니다. 승인은 섹션 본문 결과를 확인한
+          뒤에만 만들 수 있고, 그 경로는 섹션 실행이 생긴 뒤에 열립니다.
+        </p>
+
+        <div v-if="selectedWorkflowId" class="approval__form">
+          <label class="label" for="approval-note">검토 메모 (선택)</label>
+          <input
+            id="approval-note"
+            v-model="approvalNote"
+            class="input"
+            type="text"
+            maxlength="1000"
+            data-testid="approval-note"
+            placeholder="결과를 어떻게 확인했는지 남깁니다"
+          />
+          <button
+            class="button"
+            type="button"
+            :disabled="approvalPending"
+            data-testid="approval-submit"
+            @click="approveSection"
+          >
+            {{ approvalPending ? '승인하는 중…' : '이 섹션 버전 승인' }}
+          </button>
+        </div>
+        <p
+          v-if="approvalError"
+          class="notice notice--error"
+          role="alert"
+          data-testid="approval-error"
+        >
+          {{ approvalError }}
+        </p>
+      </section>
 
       <section class="undo" data-testid="inspector-undo">
         <h3 class="undo__title">개발 기록 취소</h3>
@@ -324,6 +445,47 @@ function formatTime(value: string | null): string {
 
 .module-list__status {
   color: var(--color-muted);
+}
+
+.approval {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-top: var(--rule-hair) solid var(--color-rule);
+  padding-top: var(--space-4);
+}
+
+.approval__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.approval__state {
+  color: var(--color-ink);
+}
+
+.approval__select {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--color-accent);
+  font-family: var(--font-measured);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.approval__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.approval__form .input {
+  width: 100%;
 }
 
 .undo {
