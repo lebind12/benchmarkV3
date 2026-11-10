@@ -244,6 +244,8 @@ START → prepare_data → research → compose_body → finalize → END
 
 ### 실행 명령과 결과
 
+원문 출력은 [evidence/37](evidence/37-mp04-execution.txt)에 그대로 남겼다.
+
 | 명령 | 결과 |
 |---|---|
 | `PREVIEW_TEST_DATABASE_URL=…/preview_mp04_test .venv/bin/python -m pytest tests/preview -q` | **233 passed** |

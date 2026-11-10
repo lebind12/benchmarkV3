@@ -1,0 +1,84 @@
+# MP-04 execution evidence (2026-11-10)
+
+All commands run in /Users/woolee/benchmark. No live model call was made.
+
+## 1. preview_dev migration (schema-local history, no shared Alembic chain)
+$ .venv/bin/python scripts/preview_dev_migrate.py --dry-run
+target schema: preview_dev
+0002_preview_runs: already applied
+0003_preview_approvals: already applied
+0004_section_results: already applied
+
+$ .venv/bin/python scripts/preview_dev_migrate.py
+target schema: preview_dev
+0002_preview_runs: already applied
+0003_preview_approvals: already applied
+0004_section_results: already applied
+
+## 2. Existing public area still read-only
+$ .venv/bin/python scripts/preview_dev_status.py   (tail)
+  write to public.app_user: denied
+  read public.app_user: denied
+  read public.fixture: denied
+  create table in public: denied
+identity: public.app_user rows = 8
+identity: connected as preview_dev_identity_ro
+identity role (preview_dev_identity_ro):
+  select public.app_user: allowed
+  update public.app_user: denied
+  select public.fixture: denied
+  select preview_dev sessions: denied
+result: PASS
+
+## 3. Backend tests on a dedicated test database
+$ PREVIEW_TEST_DATABASE_URL=…/preview_mp04_test .venv/bin/python -m pytest tests/preview -q   (tail)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+233 passed, 1 warning in 42.50s
+
+## 4. Frontend verification
+$ npm --prefix frontend run test:unit   (summary)
+ Test Files  8 passed (8)
+      Tests  55 passed (55)
+
+$ npm --prefix frontend run type-check
+> vue-tsc --noEmit
+
+
+$ npm --prefix frontend run build   (tail)
+dist/assets/PreviewRunsView-BSZUMn9K.js            35.44 kB │ gzip: 10.77 kB
+dist/assets/index-B6_Hi77Y.js                      96.58 kB │ gzip: 37.77 kB
+✓ built in 659ms
+
+## 5. Section workflow runs on the real development schema (mock, zero external calls)
+$ .venv/bin/python -m app.workers.preview list-sections
+section_form             실행 가능    modes=mock
+  구성: D0 + R1
+  안내: 지금 등록된 구현은 명시적 모의 시연뿐입니다. 화면·저장 경로는 확인할 수 있지만 실제 조사·생성 결과가 아니며 승인 근거로도 쓰지 않습니다.
+section_availability     실행 가능    modes=mock
+  구성: D0 + R2
+  안내: 지금 등록된 구현은 명시적 모의 시연뿐입니다. 화면·저장 경로는 확인할 수 있지만 실제 조사·생성 결과가 아니며 승인 근거로도 쓰지 않습니다.
+section_outlook          실행 가능    modes=mock
+  구성: D0 + R3
+  안내: 지금 등록된 구현은 명시적 모의 시연뿐입니다. 화면·저장 경로는 확인할 수 있지만 실제 조사·생성 결과가 아니며 승인 근거로도 쓰지 않습니다.
+section_synthesis        실행 가능    modes=mock
+  구성: R1 + R2 + R3 + S1
+  안내: 지금 등록된 구현은 명시적 모의 시연뿐입니다. 화면·저장 경로는 확인할 수 있지만 실제 조사·생성 결과가 아니며 승인 근거로도 쓰지 않습니다.
+
+$ .venv/bin/python -m app.workers.preview show --run-id dfd9d371-83e4-4e6b-9fe0-74dbaa2b391d
+run: dfd9d371-83e4-4e6b-9fe0-74dbaa2b391d
+mode: mock / env: dev / status: succeeded / quality: pending
+modules: 3 / attempts: 0
+
+[section_form] 경기력·주목 선수 섹션 (모의 시연) (v1, mock)
+경기력·주목 선수 섹션 모의 시연 본문입니다.
+
+이 본문은 화면과 저장 경로를 확인하기 위한 예시이며 실제 경기 조사 결과가 아닙니다. 실제 조사·생성 구현이 등록되면 같은 화면에서 실제 본문을 봅니다.
+  근거: 모의 자료 (실제 출처 아님) 
+
+## 6. Application boot against the real development schema, unauthenticated probe
+(temporary uvicorn on 127.0.0.1:8011 with the private 0600 credentials file; stopped after probing)
+GET /api/v1/health          -> {"status":"ok","database":"ok","identity":"ok"}
+GET /admin/preview/sections -> 401 {"detail":"authentication required"}
+POST /admin/preview/section-runs -> 401
+GET /admin/preview/fixtures -> 401   GET /admin/preview/metrics -> 401
