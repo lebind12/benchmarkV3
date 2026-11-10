@@ -1,0 +1,17 @@
+# MP-02 isolated browser check (real backend :8010, dedicated local test DB preview_mp02_ui_test)
+# date: 2026-11-10T19:08:40+09:00
+# account: synthetic ADMIN in the test DB only (mp02-ui-admin@example.test)
+# note: no user credentials used; no external model/API calls
+
+$ npx playwright test --config=playwright.mp02.config.ts
+
+Running 3 tests using 1 worker
+
+(node:36147) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/match-preview-inspector.spec.ts:35:1 › the mock run is created by an explicit action and opens in the inspector (1.2s)
+  ✓  2 [chromium] › e2e/match-preview-inspector.spec.ts:95:1 › stored runs keep secrets out of the trace and reopen with the same id (519ms)
+  ✓  3 [chromium] › e2e/match-preview-inspector.spec.ts:120:1 › the inspector read path makes no external calls from the browser (548ms)
+
+  3 passed (2.9s)
+EXIT: 0

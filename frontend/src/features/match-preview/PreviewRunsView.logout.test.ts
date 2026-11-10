@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import PreviewRunsView from '@/views/PreviewRunsView.vue'
+import PreviewRunsView from '@/features/match-preview/PreviewRunsView.vue'
 
 const SESSION = {
   user_id: 1,

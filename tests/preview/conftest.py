@@ -74,6 +74,7 @@ def schema(engine) -> Iterator[None]:
 
     from app.auth import models as _models  # noqa: F401  (모델 등록)
     from app.db import SCHEMA, Base
+    from app.preview import models as _preview_models  # noqa: F401  (모델 등록)
 
     with engine.begin() as conn:
         conn.execute(text(f"DROP SCHEMA IF EXISTS {SCHEMA} CASCADE"))

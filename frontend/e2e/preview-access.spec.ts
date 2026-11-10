@@ -22,7 +22,7 @@ test.beforeAll(() => {
   }
 })
 
-test('admin logs in through the form, sees the empty run list, and logs out', async ({ page }) => {
+test('admin logs in through the form, reaches the run list, and logs out', async ({ page }) => {
   await page.goto('/admin/runs')
   await expect(page).toHaveURL(/\/admin\/login$/)
 
@@ -39,9 +39,11 @@ test('admin logs in through the form, sees the empty run list, and logs out', as
   await page.getByTestId('login-submit').click()
   await expect(page).toHaveURL(/\/admin\/runs$/)
 
-  await expect(page.getByTestId('runs-empty')).toBeVisible()
-  await expect(page.getByTestId('runs-empty')).toContainText('아직 실행 기록이 없습니다')
-  await page.screenshot({ path: `${SHOT_DIR}/ui-02-runs-empty.png`, fullPage: true })
+  // MP-02부터 목록에는 저장된 실행이 있을 수 있다. 어느 상태든 인증을 통과한 관리자에게
+  // 실행 목록 영역이 보이고, 오류가 아니라 실제 조회 결과가 보이는 것을 확인한다.
+  await expect(page.getByTestId('runs-panel')).toBeVisible()
+  await expect(page.getByTestId('runs-error')).toHaveCount(0)
+  await page.screenshot({ path: `${SHOT_DIR}/ui-02-runs-list.png`, fullPage: true })
 
   await page.getByTestId('logout').click()
   await expect(page).toHaveURL(/\/admin\/login$/)

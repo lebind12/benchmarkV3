@@ -1,0 +1,27 @@
+# MP-02 real dev-server verification (preview_dev on the production DB, existing admin session env)
+# date: 2026-11-10T19:13:38+09:00
+# note: no credentials printed; no external model/API calls
+
+## migration applied to preview_dev only
+$ .venv/bin/python scripts/preview_dev_migrate.py --dry-run
+0002_preview_runs: already applied
+$ .venv/bin/python scripts/preview_dev_migrate.py
+0002_preview_runs: already applied
+
+## role boundaries unchanged
+shape: preview_dev.preview_admin_sessions matches expectations
+shape: migration rows = 2
+shape: session rows = 1
+writer role (preview_dev_app):
+  write to public.app_user: denied
+  read public.app_user: denied
+  read public.fixture: denied
+  create table in public: denied
+identity: public.app_user rows = 8
+identity: connected as preview_dev_identity_ro
+identity role (preview_dev_identity_ro):
+  select public.app_user: allowed
+  update public.app_user: denied
+  select public.fixture: denied
+  select preview_dev sessions: denied
+result: PASS

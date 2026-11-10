@@ -1,0 +1,22 @@
+# MP-02 scoped undo against the real preview_dev (task-owned run only)
+# date: 2026-11-10T19:13:59+09:00
+
+$ .venv/bin/python scripts/preview_dev_mock_runs.py cancel --run-id c4e95076-063b-4bad-b92d-70864b1e059a
+cancelled: c4e95076-063b-4bad-b92d-70864b1e059a
+  removed preview_artifacts: 3
+  removed preview_source_snapshots: 1
+  removed preview_attempts: 1
+  removed preview_results: 2
+  removed preview_module_executions: 1
+  kept: preview_runs, preview_write_audit
+
+This transcript is the recorded output of the command above, re-printed because
+the run was already cancelled. The command is idempotent-safe: a second cancel
+conflicts (409) and removes nothing.
+
+## audit trail kept after cancellation
+undo state: cancelled
+cancelled_by_actor_id: 0
+reason: MP-02 검증 실행 정리
+would_remove now: {'preview_artifacts': 0, 'preview_source_snapshots': 0, 'preview_attempts': 0, 'preview_results': 0, 'preview_module_executions': 0}
+audit actions: ['artifact_saved', 'attempt_appended', 'module_started', 'result_saved', 'run_cancelled', 'run_created', 'run_finished', 'snapshot_recorded']

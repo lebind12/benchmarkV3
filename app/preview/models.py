@@ -1,0 +1,288 @@
+"""MP-02 실행 기록 저장 구조.
+
+모든 테이블은 `preview_dev` 스키마에만 만든다. 기존 `public` 영역은 읽기 전용이며
+이 앱이 만들거나 바꾸지 않는다. 스키마를 생략한 쿼리에 의존하지 않는다
+(`app/db.py`가 `search_path`도 `preview_dev`로 고정한다).
+
+설계 메모:
+
+- `preview_runs.environment`(dev/test/prod)와 `.mode`(live/replay/mock)는 서로
+  다른 축이고, 자료 출처(`preview_source_snapshots.source_kind`, api/search)는
+  또 다른 축이다. 재생·모의 실행을 live 성공으로 세지 않으려면 세 값을 분리해
+  보관해야 한다.
+- 결과는 덮어쓰지 않는다. 같은 모듈 실행에 새 결과를 저장하면 `version`이 하나
+  올라간 행이 추가되고, 이전 행은 그대로 남는다.
+- 원문 아티팩트는 비밀값을 제거한 본문과 요약을 함께 둔다. 보관 기간이 지나면
+  본문만 지우고 요약·해시·기간은 남겨 "왜 못 여는지"를 보여준다.
+- 실행 취소는 행을 지우되 실행 행과 감사 행은 남긴다. `cancelled_at`이 그 표시다.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db import SCHEMA, Base
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+_TABLE_ARGS = {"schema": SCHEMA}
+
+
+class PreviewRun(Base):
+    """실행 한 건. 목록·상세의 기준 행이다."""
+
+    __tablename__ = "preview_runs"
+    __table_args__ = _TABLE_ARGS
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    operation_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    environment: Mapped[str] = mapped_column(Text, nullable=False)
+    mode: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    quality: Mapped[str] = mapped_column(Text, nullable=False)
+    actor_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    config_version: Mapped[str] = mapped_column(Text, nullable=False)
+    limits: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    contract_versions: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+    # 표시용 경기 정보. 동일성 키는 이 열들이 아니라 fixture_id 조합이다.
+    fixture_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    league_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    season: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    home_team_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    away_team_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    kickoff_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    fixture_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # 이 실행이 어떤 데이터를 소유하는지. 취소 시 지울 수 있는 범위의 근거다.
+    write_scope: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="preview_dev"
+    )
+    label: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    failure_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failure_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # 실행 취소 감사 표시. 행을 지워도 이 값은 남는다.
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancelled_by_actor_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class PreviewModuleExecution(Base):
+    """모듈 실행 한 건. 논리적 실행 단위이며 시도와 1:N이다."""
+
+    __tablename__ = "preview_module_executions"
+    __table_args__ = (
+        UniqueConstraint("run_id", "module_id", "ordinal", name="uq_module_execution_ordinal"),
+        _TABLE_ARGS,
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    module_id: Mapped[str] = mapped_column(Text, nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    quality: Mapped[str] = mapped_column(Text, nullable=False)
+    failure_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # 모듈에 실제로 전달한 입력(ModuleInput)과 다음 단계로 넘긴 값.
+    input_payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    input_hash: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    delivered_next_input: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class PreviewAttempt(Base):
+    """논리 호출의 실제 시도 한 건. 재시도를 한 행으로 뭉개지 않는다."""
+
+    __tablename__ = "preview_attempts"
+    __table_args__ = (
+        UniqueConstraint(
+            "run_id", "logical_call_id", "attempt_ordinal", name="uq_attempt_ordinal"
+        ),
+        _TABLE_ARGS,
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    module_execution_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_module_executions.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    module_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    logical_call_id: Mapped[str] = mapped_column(Text, nullable=False)
+    attempt_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    provider: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mode: Mapped[str] = mapped_column(Text, nullable=False)
+    operation: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+
+    outcome: Mapped[str] = mapped_column(Text, nullable=False)
+    http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_class: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    request_spec: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    request_artifact_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    response_artifact_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    usage: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    wait_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PreviewSourceSnapshot(Base):
+    """자료 수집 한 건의 출처·시각·검증 상태."""
+
+    __tablename__ = "preview_source_snapshots"
+    __table_args__ = _TABLE_ARGS
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    attempt_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_attempts.id", ondelete="CASCADE"), nullable=True
+    )
+    source_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    provider: Mapped[str] = mapped_column(Text, nullable=False)
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    provider_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    fixture: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    catalog_query: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    artifact_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    validation_status: Mapped[str] = mapped_column(Text, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class PreviewResult(Base):
+    """모듈 결과 버전. 같은 모듈 실행의 이전 버전을 덮어쓰지 않는다."""
+
+    __tablename__ = "preview_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "module_execution_id", "version", name="uq_result_version"
+        ),
+        _TABLE_ARGS,
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    module_execution_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_module_executions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    module_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    input_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    quality: Mapped[str] = mapped_column(Text, nullable=False)
+    failure_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+    implementation_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    prompt_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    contract_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    supersedes_result_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+
+
+class PreviewArtifact(Base):
+    """비밀값을 제거한 원문·변환 결과 보관.
+
+    `expires_at`이 지나면 `body`만 지우고 `summary`·해시·기간은 남긴다. 조회 화면은
+    "만료됨"과 "읽기 실패"를 구분해 보여줘야 한다.
+    """
+
+    __tablename__ = "preview_artifacts"
+    __table_args__ = _TABLE_ARGS
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_runs.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    attempt_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(f"{SCHEMA}.preview_attempts.id", ondelete="CASCADE"), nullable=True
+    )
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    media_type: Mapped[str] = mapped_column(Text, nullable=False)
+    byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    redacted: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    summary: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    expired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PreviewWriteAudit(Base):
+    """개발 영역 쓰기·취소 감사 기록. 값이 아니라 무엇을 했는지만 남긴다."""
+
+    __tablename__ = "preview_write_audit"
+    __table_args__ = _TABLE_ARGS
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(nullable=False, index=True)
+    actor_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    target_table: Mapped[str] = mapped_column(Text, nullable=False)
+    target_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    detail: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

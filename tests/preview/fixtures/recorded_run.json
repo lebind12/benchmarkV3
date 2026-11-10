@@ -1,0 +1,51 @@
+{
+  "description": "MP-02 검사 화면 확인용 녹화 mock 실행 자료. 외부 모델·API 호출이 없음을 값으로 표시한다.",
+  "mode": "mock",
+  "operation_kind": "mock_demo",
+  "environment": "dev",
+  "module_id": "mock_demo",
+  "fixture": {
+    "fixture_id": 900001,
+    "league_id": 39,
+    "season": 2026,
+    "home_team_id": 50,
+    "away_team_id": 49,
+    "kickoff_at": "2026-11-11T10:00:00+00:00"
+  },
+  "request": {
+    "recorded_mock_request": true,
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          { "text": "다음 경기의 관전 포인트 후보를 근거와 함께 정리하세요." }
+        ]
+      }
+    ],
+    "generationConfig": { "temperature": 0.2, "maxOutputTokens": 512 },
+    "headers": {
+      "authorization": "Bearer mock-token-value-for-redaction-check",
+      "x-goog-api-key": "mock-api-key-value-for-redaction-check"
+    }
+  },
+  "response": {
+    "marker": "recorded_mock_response",
+    "candidates": [
+      {
+        "content": {
+          "parts": [
+            { "text": "홈팀은 최근 5경기에서 2승 2무 1패입니다. 관전 포인트는 중원 압박 전환입니다." }
+          ],
+          "role": "model"
+        },
+        "finishReason": "STOP"
+      }
+    ],
+    "usageMetadata": { "promptTokenCount": 412, "candidatesTokenCount": 188 }
+  },
+  "secrets_that_must_not_be_stored": [
+    "mock-token-value-for-redaction-check",
+    "mock-api-key-value-for-redaction-check"
+  ],
+  "result_versions": [1, 2]
+}

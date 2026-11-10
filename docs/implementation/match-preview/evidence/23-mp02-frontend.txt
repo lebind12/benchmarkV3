@@ -1,0 +1,34 @@
+# frontend unit + type-check (MP-02)
+# date: 2026-11-10T19:08:29+09:00
+
+$ npm --prefix frontend run test:unit
+
+ RUN  v3.2.7 /Users/woolee/benchmark/frontend
+
+ ✓ src/views/AdminLoginView.test.ts (9 tests) 72ms
+ ✓ src/features/match-preview/PreviewRunsView.logout.test.ts (7 tests) 55ms
+ ✓ src/features/match-preview/RunInspector.test.ts (8 tests) 99ms
+
+ Test Files  3 passed (3)
+      Tests  24 passed (24)
+   Start at  19:08:30
+   Duration  1.24s (transform 322ms, setup 0ms, collect 783ms, tests 225ms, environment 1.50s, prepare 223ms)
+
+EXIT: 0
+
+$ npm --prefix frontend run type-check
+> match-preview-frontend@0.1.0 type-check
+> vue-tsc --noEmit
+
+EXIT: 0
+
+$ npm --prefix frontend run build
+dist/assets/index-DPS1SJPN.css                      6.36 kB │ gzip:  1.77 kB
+dist/assets/PreviewRunsView-D0poG4ZX.css            7.64 kB │ gzip:  1.41 kB
+dist/assets/NotFoundView-DPNpY4na.js                0.70 kB │ gzip:  0.51 kB
+dist/assets/_plugin-vue_export-helper-DKBLlk0W.js   1.49 kB │ gzip:  0.89 kB
+dist/assets/AdminLoginView-BD1dY9N_.js              2.52 kB │ gzip:  1.30 kB
+dist/assets/PreviewRunsView-BO-pOLXG.js            24.48 kB │ gzip:  7.68 kB
+dist/assets/index-DBfYxjqL.js                      96.32 kB │ gzip: 37.68 kB
+✓ built in 558ms
+EXIT: 0

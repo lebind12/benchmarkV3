@@ -1,0 +1,12 @@
+# MP-02 focused backend acceptance tests (final)
+# date: 2026-11-10T19:13:31+09:00
+# cmd: .venv/bin/python -m pytest tests/preview/test_run_store.py tests/preview/test_inspection_api.py tests/preview/test_retention.py tests/preview/test_migration_schema.py -q
+.....................................                                    [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/starlette/testclient.py:40
+  /Users/woolee/benchmark/.venv/lib/python3.11/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+37 passed, 1 warning in 10.08s
+EXIT CODE: 0

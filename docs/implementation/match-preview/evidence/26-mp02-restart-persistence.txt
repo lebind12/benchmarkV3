@@ -1,0 +1,22 @@
+# MP-02 persisted run across a backend restart (real dev server, preview_dev)
+# date: 2026-11-10T19:13:48+09:00
+
+## task-owned mock runs in preview_dev
+$ .venv/bin/python scripts/preview_dev_mock_runs.py list
+c4e95076-063b-4bad-b92d-70864b1e059a    mock   cancelled  cancelled  MP-02 검증 실행 (작업 소유, mock) · undo-proof
+e091436e-074d-44b9-983b-1fab31acf9c6    mock   succeeded     active  MP-02 검증 실행 (작업 소유, mock) · inspect-keep
+
+## same run reopened after the backend was restarted (pid changed)
+run_id: e091436e-074d-44b9-983b-1fab31acf9c6
+mode / env: mock / dev
+label: MP-02 검증 실행 (작업 소유, mock) · inspect-keep
+status / quality: succeeded / pending
+module executions: ['mock_demo']
+result versions: [1, 2]
+attempts / artifacts: 1 / 3
+artifact statuses: ['available']
+redaction marker present: True
+canary absent (mock-token-v...): True
+canary absent (mock-api-key...): True
+inspector tabs: ['next_input', 'request', 'response', 'transform']
+version compare base/target: [1, 2]

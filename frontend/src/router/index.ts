@@ -14,7 +14,7 @@ const router = createRouter({
     {
       path: '/admin/runs',
       name: 'preview-runs',
-      component: () => import('@/views/PreviewRunsView.vue'),
+      component: () => import('@/features/match-preview/PreviewRunsView.vue'),
     },
     {
       path: '/:pathMatch(.*)*',
