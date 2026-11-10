@@ -9,6 +9,7 @@
  * 원문 응답은 데이터로만 표시한다. HTML로 실행하지 않는다(`<pre>` 텍스트).
  */
 import { computed, ref } from 'vue'
+import { parseNestedModelJson, prettyJsonText } from './panels/players'
 import type { ArtifactRef, ModuleInspection } from './types'
 
 const props = defineProps<{
@@ -40,7 +41,47 @@ function artifactText(artifact: ArtifactRef | null | undefined): string {
   if (artifact.status === 'expired') {
     return artifact.detail ?? '보관 기간이 지나 원문을 열 수 없습니다.'
   }
-  return pretty(artifact.body)
+  // artifact.body는 직렬화된 JSON **문자열**이다. 그대로 넣으면 압축된 한 줄이 나오므로
+  // 표시 경계에서 파싱해 들여쓰기한다. JSON이 아니면 원문을 그대로 쓴다.
+  return prettyJsonText(artifact.body)
+}
+
+/**
+ * 전체 응답 안에서 **모델이 생성한 JSON 텍스트**를 찾는다.
+ *
+ * Google 응답의 `candidates[].content.parts[].text`는 문자열이며, 그 안에 선수 선정
+ * JSON이 들어 있는 경우가 있다. 전체 원문 보기는 이 값을 **문자열 그대로** 두고,
+ * 사용자가 따로 읽고 싶을 때만 이 목록을 펼쳐 보여 준다(원문 변조 없음).
+ */
+function modelJsonParts(artifact: ArtifactRef | null | undefined): string[] {
+  if (!artifact || artifact.status === 'expired' || typeof artifact.body !== 'string') {
+    return []
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(artifact.body)
+  } catch {
+    return []
+  }
+  if (typeof parsed !== 'object' || parsed === null) return []
+  const candidates = (parsed as { candidates?: unknown }).candidates
+  if (!Array.isArray(candidates)) return []
+  const found: string[] = []
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'object' || candidate === null) continue
+    const content = (candidate as { content?: unknown }).content
+    if (typeof content !== 'object' || content === null) continue
+    const parts = (content as { parts?: unknown }).parts
+    if (!Array.isArray(parts)) continue
+    for (const part of parts) {
+      if (typeof part !== 'object' || part === null) continue
+      const text = (part as { text?: unknown }).text
+      if (typeof text !== 'string') continue
+      const formatted = parseNestedModelJson(text)
+      if (formatted !== null) found.push(formatted)
+    }
+  }
+  return found
 }
 
 function usageText(usage: Record<string, number | null> | null): string {
@@ -150,11 +191,13 @@ function usageText(usage: Record<string, number | null> | null): string {
           <dd class="measured" data-testid="response-usage">{{ usageText(attempt.usage) }}</dd>
         </dl>
         <h4 class="attempt__subhead">
-          Google API 전체 응답 (비밀값 제거 · 메타데이터 포함)
+          Google API 전체 응답 (정렬 보기 · 비밀값 제거 · 메타데이터 포함)
         </h4>
         <p class="module-card__note">
-          제공자가 보낸 응답 객체를 그대로 보여 줍니다(candidates, grounding_metadata,
-          usage 등). 모델이 만든 본문 JSON만 보려면 모듈별 패널의 해당 항목을 보세요.
+          제공자가 보낸 응답 객체를 들여쓰기해 그대로 보여 줍니다(candidates,
+          grounding_metadata, sdk_http_response, usage_metadata 등). 필드를 줄이거나
+          요약하지 않습니다. 검색 메타데이터는
+          <code>candidates[].grounding_metadata</code>에 있습니다.
         </p>
         <p
           v-if="attempt.content?.status === 'expired'"
@@ -163,7 +206,31 @@ function usageText(usage: Record<string, number | null> | null): string {
         >
           {{ attempt.content.detail }}
         </p>
-        <pre class="code" data-testid="response-body">{{ artifactText(attempt.content) }}</pre>
+        <pre class="code code--readable" data-testid="response-body">{{ artifactText(attempt.content) }}</pre>
+
+        <!--
+          전체 응답 안의 `candidates[].content.parts[].text`는 **문자열**이다(모델이 만든
+          JSON이 문자열로 들어 있다). 위 원문 보기에서는 그 값을 문자열 그대로 두고,
+          읽고 싶은 사용자를 위해 여기서만 따로 파싱해 펼쳐 보여 준다. 두 뷰의 이름을
+          섞지 않는다.
+        -->
+        <details
+          v-if="modelJsonParts(attempt.content).length"
+          class="model-json"
+          data-testid="response-model-json"
+        >
+          <summary>모델이 생성한 JSON (전체 응답 안의 텍스트를 따로 정렬)</summary>
+          <p class="module-card__note">
+            위 전체 응답의 <code>candidates[].content.parts[].text</code> 값입니다.
+            전체 응답을 대신하는 것이 아니라, 그 안의 문자열을 읽기 좋게 편 것입니다.
+          </p>
+          <pre
+            v-for="(part, index) in modelJsonParts(attempt.content)"
+            :key="index"
+            class="code code--readable"
+            data-testid="response-model-json-body"
+          >{{ part }}</pre>
+        </details>
       </div>
     </div>
 
@@ -370,6 +437,26 @@ function usageText(usage: Record<string, number | null> | null): string {
   overflow-wrap: anywhere;
   max-height: 22rem;
   overflow-y: auto;
+}
+
+/*
+ * 전체 응답은 필드가 깊고 길다. 들여쓰기를 유지한 채 더 넓게 보여 주고, 아주 긴
+ * 문자열 한 줄이 레이아웃을 밀지 않도록 감싼다(스크롤은 그대로).
+ */
+.code--readable {
+  max-height: 32rem;
+  tab-size: 2;
+}
+
+.model-json {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.model-json > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
 }
 
 .claims,

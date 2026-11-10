@@ -136,3 +136,52 @@ export function originLabel(mode: string | undefined, origin: string | undefined
   if (mode === 'mock') return '모의 실행(외부 호출 없음)'
   return mode ?? '실행 방식 미상'
 }
+
+/**
+ * 저장된 artifact 본문을 **읽기 좋은 텍스트**로 만든다.
+ *
+ * `artifact.body`는 이미 직렬화된 JSON **문자열**이다. 그대로 `<pre>`에 넣으면
+ * 한 줄로 뭉친 압축 JSON이 나온다(사용자가 "정리해서 보여달라"고 한 지점). 여기서
+ * 파싱해 2칸 들여쓰기로 다시 쓴다.
+ *
+ * 규칙:
+ * - JSON이 아니면(평문·비JSON) **원문 그대로** 돌려준다. 지어내지 않는다.
+ * - 파싱에 실패해도 원문을 그대로 돌려준다(빈 문자열로 만들지 않는다).
+ * - 필드를 빼거나 요약하지 않는다. 실제 구조와 값 타입을 그대로 보존한다.
+ * - `content.parts[].text` 같은 **문자열 필드는 문자열 그대로** 둔다(객체로 바꾸지 않음).
+ */
+export function prettyJsonText(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '—'
+  const text = value.trim()
+  if (!text) return value
+  // JSON처럼 보이지 않으면 파싱을 시도하지 않고 원문을 유지한다.
+  const looksJson = text.startsWith('{') || text.startsWith('[')
+  if (!looksJson) return value
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return JSON.stringify(parsed, null, 2)
+  } catch {
+    return value
+  }
+}
+
+/**
+ * 모델이 생성한 중첩 JSON 텍스트를 읽기 좋게 만든다(표시 전용).
+ *
+ * `candidates[].content.parts[].text`는 **문자열**이며, 그 안에 모델의 JSON이 들어
+ * 있는 경우가 많다. 전체 원문 보기에서는 이 값을 문자열 그대로 두고, 사용자가 따로
+ * 펼쳐 볼 때만 여기서 파싱한다.
+ *
+ * JSON이 아니면 `null`을 돌려준다(호출자는 이 뷰를 숨긴다). 원문을 변조하지 않는다.
+ */
+export function parseNestedModelJson(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null
+  const text = value.trim()
+  if (!text.startsWith('{') && !text.startsWith('[')) return null
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return JSON.stringify(parsed, null, 2)
+  } catch {
+    return null
+  }
+}
