@@ -140,7 +140,7 @@ npm --prefix frontend run type-check
 |---|---|---|
 | 어댑터 해석 로직 | 검증됨(기록 자료) | `tests/preview/fixtures/api_football.json`, 응답 모양은 API-Football v3 문서 |
 | D0 저장 경로 | 검증됨(모의 실행기) | `evidence/mp03/d0_mock_run.json`: 결과 1, 스냅샷 9, 시도 9 |
-| 기존 DB 경기 목록 | **미검증(권한 없음)** | 아래 읽기 권한 경계 |
+| 기존 DB 경기 목록 | **검증됨(실제 저장 자료)** | `preview_dev_fixture_ro`로 실 운영 DB 읽기, 외부 호출 0 |
 | 실제 API-Football 호출 | **미검증** | 전송 계층 없음, live 미실행 |
 | 화면 | 단위 검사만 통과 | 브라우저 실행 증거 없음(라우터 미등록) |
 
@@ -148,32 +148,79 @@ D0 증거 파일은 `mode: mock`, `provider_calls: 9`, `external_calls: 0`, 그�
 "실제 API 호출이 아니고 live 미검증"이라는 문장을 함께 담는다. 이 파일을 live 근거로
 인용하면 안 된다.
 
-## 읽기 권한 경계 (조정자 판단 필요)
+## 읽기 권한 경계 (해결됨)
 
-실제 DB에 읽기 전용 연결로 접속해 확인한 값이다(비밀값·호스트는 출력하지 않았다).
+착수 시점에는 읽을 수 없었다. 조정자 승인을 받아 **새** 전용 읽기 역할을 준비했다.
 
 | 역할 | `public.app_user` SELECT | 경기 관련 표 SELECT |
 |---|---|---|
-| `preview_dev_identity_ro` (기존 신원 읽기 역할) | 있음 | **없음** |
-| `preview_dev_app` (개발 쓰기 역할) | 없음 | **없음** |
+| `preview_dev_identity_ro` (기존) | 있음 | 없음 **(변경 없음)** |
+| `preview_dev_app` (기존) | 없음 | 없음 **(변경 없음)** |
+| `preview_dev_fixture_ro` (신규) | 없음 | `fixture`, `team`, `league`, `injury`, `standings` |
 
-필요한 경계는 다음 SELECT뿐이다. 앱이 `postgres`로 접속하거나 기존 역할을 넓히는 방식은
-쓰지 않았다.
+| 항목 | 값 |
+|---|---|
+| 준비 스크립트 | `scripts/preview_dev_fixture_ro_provision.py` (`--dry-run` 지원) |
+| 자격 증명 위치 | `~/.config/match-preview/preview-dev.env` (0600), 키 `PREVIEW_FIXTURES_DATABASE_URL` |
+| 관리자 DSN | `PREVIEW_PROVISION_ADMIN_URL` 환경변수로만 사용, 0600 임시 파일은 사용 후 삭제 |
+| 앱 접속 롤 | `preview_dev_fixture_ro` (앱이 관리자 롤로 접속하지 않음) |
 
-```sql
-GRANT SELECT ON TABLE
-  public.fixture, public.team, public.league, public.injury, public.standings
-TO <전용 읽기 역할>;
+새 역할에 준 것은 `CONNECT`·`public` `USAGE`·위 5개 표의 `SELECT`뿐이다.
+`SUPERUSER`·`CREATEDB`·`CREATEROLE`·`BYPASSRLS`는 없다. `public` `CREATE`와
+`preview_dev` 접근은 없다. 기존 두 역할의 권한·비밀번호는 바꾸지 않았고 다른 자격
+증명도 재설정하지 않았다.
+
+검증은 **권한 introspection과 읽기 전용 트랜잭션**으로만 했다. 운영 데이터에 실제
+쓰기 탐침을 실행하지 않았다.
+
+```
+preview_dev_identity_ro    SELECT -> ['public.app_user']                    # 변화 없음
+preview_dev_app            SELECT -> none                                   # 변화 없음
+preview_dev_fixture_ro     SELECT -> ['public.fixture','public.team',
+                                      'public.league','public.injury',
+                                      'public.standings']
+public CREATE=False · preview_dev USAGE=False
+UPDATE public.fixture 거부: InsufficientPrivilege (권한 단계에서 거부)
 ```
 
-제안: `preview_dev_fixture_ro` 같은 **새 읽기 전용 역할**에 위 SELECT만 주고, 앱은
-`PREVIEW_FIXTURES_DATABASE_URL`(신규 설정, MP-04 소유)로 그 역할에 접속한다. 기존
-`preview_dev_identity_ro`를 넓히지 않는다. 권한이 생기면 코드 변경 없이
-`StoredFixtureReader.from_url(...)`을 `list_fixtures(reader=...)`에 넘기면 된다.
+### 실제 저장 자료 읽기 (live 확인)
 
-권한이 없는 지금 동작: `list_fixtures`는 `stored_access.readable=false`와 필요한 SELECT
-목록, 그리고 "읽기 권한이 없어 목록 수집 기록만 표시합니다"라는 문장을 응답에 담는다.
-조회기가 아예 주입되지 않은 경우도 같은 모양이다. 조용한 빈 목록으로 만들지 않는다.
+새 역할로 실제 운영 DB의 저장 경기를 읽었다. 외부 API 호출은 0회다.
+
+```
+list_fixtures(reader=StoredFixtureReader.from_url(PREVIEW_FIXTURES_DATABASE_URL))
+  external_calls: 0
+  stored_access.readable: True
+  stored_access.role: preview_dev_fixture_ro
+  candidates: 1557474 Manchester City vs Fulham 2026-11-21 (origin=stored_db)
+              1557467 Aston Villa vs Sunderland 2026-11-21
+              1557468 Bournemouth vs Nottingham Forest 2026-11-21
+              1557470 Chelsea vs Leeds 2026-11-21
+```
+
+단건 조회·부상 조회·순위 조회도 같은 역할로 성공했다.
+
+### 이 과정에서 고친 결함
+
+경계를 실제로 열어 보니 조회기가 승인 범위 **밖** 표를 조인하고 있었다. 권한이
+없으니 드러나지 않던 문제다.
+
+| 조회 | 제거한 조인 | 처리 |
+|---|---|---|
+| `list_fixtures` | `public.venue` | 장소 이름을 필드에서 제거 |
+| `injuries_for_fixture` | `public.player` | 선수 이름은 `None`, ID만 남김 |
+| `standings_for_league` | `public.team` | `team_id`만 남김 |
+
+권한을 넓혀 맞추지 않고 조회를 경계 안으로 좁혔다. 이름이 필요하면 별도 읽기 경계를
+먼저 승인받아야 한다. 이 사실은 `sources/fixtures.py` 모듈 docstring에 남겼다.
+
+### MP-04에 필요한 연결
+
+1. 설정 키 `PREVIEW_FIXTURES_DATABASE_URL`을 `app/core/config.py`에 추가한다(설정
+   소유는 MP-04). 값은 위 0600 파일에 이미 있다. **경로와 키 이름만 넘긴다.**
+2. `list_fixtures(reader=StoredFixtureReader.from_url(settings.fixtures_database_url))`
+   로 넘기면 저장 경기 목록이 실제 자료로 채워진다. 설정이 없으면 `reader=None`으로
+   두고 `stored_access.readable=false`가 화면에 드러나게 한다.
 
 ## 이번에 고친 결함
 
@@ -200,7 +247,7 @@ TO <전용 읽기 역할>;
 |---|---|
 | 라우터 등록 | MP-04. `data` 두 함수를 호출만 하면 된다 |
 | 실제 API 전송·재시도·예산 | MP-04. `ApiExecutor` 구현 |
-| 저장 경기 읽기 권한 | **조정자 결정 필요**. 새 읽기 역할 + `PREVIEW_FIXTURES_DATABASE_URL` |
+| 저장 경기 읽기 권한 | **완료**. `preview_dev_fixture_ro` 준비, 키만 MP-04 설정에 연결하면 됨 |
 | live 검증 | 권한·전송 계층 이후 MP-11 |
 | 섹션 워크플로우 | D0는 섹션 승인 단위가 아니다. 승인은 MP-05~MP-09가 만드는 섹션 결과 기준 |
 
@@ -216,28 +263,50 @@ npm --prefix frontend run type-check                                            
 테스트 전용 DB는 다른 작업과 섞이지 않도록 `preview_mp03_test`(로컬 컨테이너, 루프백)를
 따로 만들어 사용했다. 공유 테스트 DB에서 다른 워커의 스키마 재생성과 충돌했기 때문이다.
 
-## 커밋 귀속 (읽는 사람에게 필요함)
+## 커밋 귀속 (실제 이력)
 
-MP-03 파일은 로컬 커밋에 들어갔지만 **커밋 메시지가 MP-08 것이다.**
+조정자 지시에 따라 히스토리를 재작성하지 않았다(`reset`/`amend`/`rebase`/`checkout` 없음).
+실제 이력은 다음과 같다.
 
-| 항목 | 값 |
-|---|---|
-| 내려간 커밋 | `7ef8821` "feat(preview): MP-08 stored-event operational metrics" |
-| 내 파일 수 | 12 (mp03 소유 전체, `git show --name-only`로 확인) |
-| 내가 만든 커밋 | 없음 (pathspec 커밋은 인덱스 경합으로 실패) |
+| 시점 | 커밋 | 실제 내용 |
+|---|---|---|
+| 1차 | `7ef8821` "feat(preview): MP-08 stored-event operational metrics" | **MP-08 소유 파일 + MP-03 소유 12개 파일**이 함께 들어갔다 |
+| 2차 | `5a8bbb2` "fix(preview): dedup D0 attempt records against the shared executor" | MP-03 소유 4개 파일만 |
 
-원인: 세 워커가 같은 작업 트리와 같은 git 인덱스를 공유한다. 내가 파일을 스테이징한
-뒤 MP-08 워커가 `git commit`을 실행하면서 스테이징된 항목 전체가 그 커밋에 들어갔다.
-내용은 최종본과 같고(`git status` 깨끗함, `provider_calls` 수정과 27개 통과 검사 포함),
-잘못된 것은 커밋 메시지와 작성자 귀속뿐이다.
+원인은 세 워커가 같은 작업 트리와 **같은 git 인덱스**를 공유한 것이다. 내가 파일을
+스테이징한 뒤 MP-08 워커가 커밋하면서 스테이징된 항목 전체가 그 커밋에 들어갔다.
+`git commit -- <pathspec>`으로 좁혀 커밋한 2차는 의도대로 분리됐다.
 
-고치려면 히스토리 재작성(reset/checkout/amend)이 필요한데 이 작업의 금지 범위다.
-그래서 **고치지 않았고, MP-03 내용은 `7ef8821` 안에 있다**고 기록한다. 다시 커밋하지
-않은 이유도 같다. 같은 인덱스를 쓰는 상태에서 또 커밋하면 다른 워커 파일을 쓸어 담을
-수 있다. 커밋 경계를 고치는 판단은 조정자에게 넘긴다.
-
-파일 내용은 `7ef8821` 기준으로 다음 명령으로 확인할 수 있다.
+`7ef8821`에 함께 들어간 MP-03 소유 경로(12개):
 
 ```
-git show --name-only 7ef8821 | grep -E "preview/data|sources/|FixtureSelector|panels/Data|test_data|test_api_football|api_football.json|MP-03|mp03"
+app/preview/data.py
+app/preview/sources/__init__.py
+app/preview/sources/api_football.py
+app/preview/sources/fixtures.py
+frontend/src/features/match-preview/fixtures.ts
+frontend/src/features/match-preview/FixtureSelector.vue
+frontend/src/features/match-preview/FixtureSelector.test.ts
+frontend/src/features/match-preview/panels/DataPanel.vue
+frontend/src/features/match-preview/panels/DataPanel.test.ts
+tests/preview/test_data.py
+tests/preview/test_api_football.py
+tests/preview/fixtures/api_football.json
+docs/implementation/match-preview/MP-03-report.md
+docs/implementation/match-preview/evidence/mp03/d0_mock_run.json
 ```
+
+위 14개 경로 중 12개가 코드·테스트, 2개가 문서·증거다.
+
+이후 지시("이 워커의 모든 스테이징·커밋 중단")에 따라 **이 시점 이후로는 스테이징도
+커밋도 하지 않았다.** 아래 "미커밋 변경"에 남은 것은 MP-04가 커밋해야 한다.
+
+## 미커밋 변경 (MP-04가 커밋)
+
+| 파일 | 상태 | 내용 |
+|---|---|---|
+| `app/preview/sources/fixtures.py` | 수정 | 승인 범위 밖 `venue`/`player`/`team` 조인 제거 |
+| `tests/preview/test_data.py` | 수정 | `venue_name` 인자 제거 반영 |
+| `scripts/preview_dev_fixture_ro_provision.py` | 신규 | 좁은 읽기 역할 준비 스크립트 |
+| `docs/implementation/match-preview/MP-03-report.md` | 수정 | 이 보고서 갱신 |
+

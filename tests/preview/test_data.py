@@ -587,7 +587,6 @@ def test_stored_reader_merges_db_fixtures(session_factory):
                     away_team_name="Recorded Away",
                     kickoff_at=FIXTURE.kickoff_at,
                     status_short="NS",
-                    venue_name="Recorded Stadium",
                     referee="Recorded Referee",
                     updated_at=MOMENT,
                 )

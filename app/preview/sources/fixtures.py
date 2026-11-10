@@ -12,7 +12,8 @@
   statement timeout을 건다.
 - 스키마를 항상 명시한다(`public.fixture`). 전역 `search_path`에 의존하지 않는다.
 - 실제로 필요한 읽기 경계는 `public.fixture`, `public.team`, `public.league`,
-  `public.injury`, `public.standings`의 `SELECT`다. 기존 역할을 넓히지 않고, 앱이
+  `public.injury`, `public.standings`의 `SELECT`다. `public.venue`는 이 경계 밖이라
+  조회하지 않는다. 장소 이름이 필요하면 별도 승인된 읽기 경계를 먼저 정한다. 기존 역할을 넓히지 않고, 앱이
   `postgres`로 접속하지도 않는다. 권한이 없으면 `FixtureReadAccess.probe()`가
   받은 거부를 그대로 보고한다.
 - 저장된 부상 행이 없다는 것은 "부상자 0명"의 증거가 아니다. `coverage`에서
@@ -147,7 +148,6 @@ class StoredFixture:
     away_team_name: str | None
     kickoff_at: datetime
     status_short: str | None
-    venue_name: str | None
     referee: str | None
     updated_at: datetime | None
 
@@ -189,7 +189,6 @@ class StoredFixture:
             "label": self.label,
             "kickoff_at": self.kickoff_at.isoformat(),
             "status_short": self.status_short,
-            "venue_name": self.venue_name,
             "referee": self.referee,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "id_note": (
@@ -224,7 +223,6 @@ _FIXTURE_COLUMNS = """
     at.name AS away_team_name,
     f.kickoff_at,
     f.status_short,
-    v.name AS venue_name,
     f.referee,
     f.updated_at
 """
@@ -234,7 +232,6 @@ _FIXTURE_FROM = """
     LEFT JOIN public.league l ON l.id = f.league_id
     LEFT JOIN public.team ht ON ht.id = f.home_team_id
     LEFT JOIN public.team at ON at.id = f.away_team_id
-    LEFT JOIN public.venue v ON v.id = f.venue_id
 """
 
 
@@ -251,7 +248,6 @@ def _row_to_fixture(row: Mapping[str, Any]) -> StoredFixture:
         away_team_name=row["away_team_name"],
         kickoff_at=row["kickoff_at"],
         status_short=row["status_short"],
-        venue_name=row["venue_name"],
         referee=row["referee"],
         updated_at=row["updated_at"],
     )
@@ -350,11 +346,12 @@ class StoredFixtureReader:
 
     def injuries_for_fixture(self, fixture_id: int) -> list[StoredInjury]:
         """저장된 부상 행. 빈 결과는 '부상자 없음'이 아니다."""
+        # `public.player`는 승인된 읽기 경계 밖이다. 선수 이름은 여기서 붙이지 않고
+        # ID만 남긴다. 이름이 필요하면 별도 읽기 경계를 먼저 승인받는다.
         statement = """
-            SELECT i.player_id, p.name AS player_name, i.team_id,
+            SELECT i.player_id, i.team_id,
                    i.type AS type_marker, i.reason, i.reported_at, i.fixture_id
             FROM public.injury i
-            LEFT JOIN public.player p ON p.id = i.player_id
             WHERE i.fixture_id = :fixture_id
             ORDER BY i.player_id ASC
         """
@@ -362,7 +359,7 @@ class StoredFixtureReader:
         return [
             StoredInjury(
                 player_id=int(row["player_id"]),
-                player_name=row["player_name"],
+                player_name=None,
                 team_id=int(row["team_id"]) if row["team_id"] is not None else None,
                 type_marker=row["type_marker"],
                 reason=row["reason"],
@@ -379,10 +376,9 @@ class StoredFixtureReader:
     ) -> list[Mapping[str, Any]]:
         """저장된 순위 행. 폼 문자열을 포함한다."""
         statement = """
-            SELECT s.team_id, t.name AS team_name, s.rank, s.points, s.played,
+            SELECT s.team_id, s.rank, s.points, s.played,
                    s.win, s.draw, s.loss, s.goals_for, s.goals_against, s.form
             FROM public.standings s
-            LEFT JOIN public.team t ON t.id = s.team_id
             WHERE s.league_id = :league_id AND s.season_year = :season
             ORDER BY s.rank ASC
             LIMIT :limit
