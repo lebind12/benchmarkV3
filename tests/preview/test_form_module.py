@@ -629,6 +629,161 @@ def test_internal_source_ids_do_not_reach_reader_body():
     assert composed.sources and composed.sources[0]["kind"] == "api"
 
 
+def _judgment_payload(*, watch_detail: str, player_reason: str, evidence: list[str],
+                      player: str = "Erling Haaland") -> dict:
+    """판단 항목 하나씩만 담은 최소 payload. 사실/판단 경계 검사용."""
+    return {
+        "match_context": {"importance": "", "importance_evidence": []},
+        "recent_form": [],
+        "watch_points": [
+            {"title": "관전 포인트", "detail": watch_detail, "evidence": evidence}
+        ],
+        "hot_players": [
+            {
+                "player": player,
+                "team": "Manchester City",
+                "reason": player_reason,
+                "evidence": evidence,
+                "superlative_basis": None,
+            }
+        ],
+        "search_note": None,
+        "uncertainties": [],
+    }
+
+
+def test_api_fact_supported_opinion_accepted_without_search_url():
+    """API 사실로 충분한 AI 선정·판단은 검색 URL 없이도 채택된다(설계 §5).
+
+    주목 선수를 고른 외부 기사, 같은 결론의 보도를 요구하지 않는다. 판단의 근거가 된
+    API 사실 id만 연결되어 있으면 된다.
+    """
+    payload = _judgment_payload(
+        watch_detail="City의 최근 폼이 좋아 측면 전개에서 우위를 점할 것으로 봅니다.",
+        player_reason="최근 폼이 좋은 팀의 주 공격수라 이번 경기 해결사로 주목합니다.",
+        evidence=["api:form-mci"],
+    )
+    # 검색 출처가 전혀 없는 상태(grounding 없음)를 그대로 만든다.
+    raw = {"candidates": [{"content": {"parts": [{"text": json.dumps(payload, ensure_ascii=False)}]}}]}
+    research = _research(text=json.dumps(payload, ensure_ascii=False), raw=raw)
+
+    # 판단 항목이 살아 있다: 선정 자체의 외부 인용 부재는 탈락 사유가 아니다.
+    assert research.watch_points, research.diagnostics
+    assert research.hot_players, research.diagnostics
+    assert research.hot_players[0]["player"] == "Erling Haaland"
+    # 근거는 인용한 API 사실에 연결된다(검색 URL 없음).
+    assert research.hot_players[0]["source_url"] is None
+    assert research.grounding["sources"] == []
+
+
+def test_unverified_statistic_not_smuggled_through_as_opinion():
+    """`해석:` 표기만 붙은 미확인 수치는 판단으로 통과하지 못한다.
+
+    근거 API 사실에 없는 골 수를 판단 문장에 넣으면 그 문장만 덜어내고, 남는 판단은
+    살린다. 수치 자체가 본문에 남지 않아야 한다.
+    """
+    payload = _judgment_payload(
+        watch_detail="City의 압박이 강해 주도권을 잡을 것으로 봅니다.",
+        # 수치 문장과 판단 문장을 분리해 쓴 경우: 수치만 덜어내고 판단은 남긴다.
+        player_reason=(
+            "해석(interpretation): 이번 시즌 리그 47골을 넣었습니다."
+            " 해석(interpretation): 상대 수비를 흔들 가장 유력한 자원입니다."
+        ),
+        evidence=["api:form-mci"],
+    )
+    research = _research(text=json.dumps(payload, ensure_ascii=False))
+
+    assert research.hot_players, "분리 가능한 판단 문장은 남아야 한다"
+    reason = research.hot_players[0]["reason"]
+    assert "47" not in reason, f"미확인 수치가 남았다: {reason}"
+    assert "가장 유력한 자원" in reason, "분리 가능한 AI 판단은 유지돼야 한다"
+    # 덜어낸 사실은 관리자 진단에 남는다.
+    assert any("확인되지 않은 사실" in line for line in research.diagnostics)
+
+    # 한 문장 안에서 수치와 판단이 분리되지 않는 경우: 문장을 통째로 쓰지 않는다.
+    # (수치를 판단으로 위장해 남기지 않는다. 복구를 꾸며내지 않는다.)
+    inseparable = _judgment_payload(
+        watch_detail="City의 압박이 강해 주도권을 잡을 것으로 봅니다.",
+        player_reason="이번 시즌 리그 47골을 넣은 선수라 결정적입니다.",
+        evidence=["api:form-mci"],
+    )
+    dropped = _research(text=json.dumps(inseparable, ensure_ascii=False))
+    assert dropped.hot_players == ()
+    assert any("근거가 없어 채택하지 않았습니다" in line for line in dropped.diagnostics)
+
+
+def test_injury_reason_usable_with_unknown_onset_and_kept_in_admin_diagnostic():
+    """API 부상 사유가 있고 발생 시점·경위를 모르면: 단정하지 않되 사용 가능하다.
+
+    R2 기록에서 사유가 있는 사실은 그대로 채택되고, 발생 시점 미확인은 관리자
+    사유 문장에 남는다. 경위 미확인만으로 섹션을 실패시키지 않는다(설계 §5).
+    """
+    from app.preview.modules import availability as r2
+
+    fact = r2.InjuryFact(
+        evidence_id="api:injury-7101",
+        player_id=7101,
+        player_name="Test Player",
+        team_id=50,
+        type_marker="Questionable",
+        reason="Knee Injury",
+        uncertainty="uncertain",
+        reported_at=None,
+        collected_at=datetime(2026, 11, 10, 16, 0, tzinfo=timezone.utc),
+    )
+    reason = r2._api_fact_reason(fact)
+    # 사유는 사용 가능하고, 관측 시각을 발생일로 승격하지 않는다.
+    assert "Knee Injury" not in reason  # 사유 원문은 사실 본문에 남는다
+    assert "부상 발생 날짜가 아닙니다" in reason
+
+    # 미확인 경위만으로 R1 섹션 전체가 실패하지 않는다(판단 항목 유지).
+    payload = _judgment_payload(
+        watch_detail="City가 주도권을 잡을 것으로 봅니다.",
+        player_reason="이 선수의 컨디션이 이번 경기 변수로 보입니다.",
+        evidence=["api:form-mci"],
+    )
+    research = _research(text=json.dumps(payload, ensure_ascii=False))
+    assert research.watch_points
+    assert research.hot_players
+    assert research.unavailable is False
+
+
+def test_retrieval_time_is_not_injury_onset_date():
+    """API 관측/수집 시각을 부상 발생 시각으로 쓰지 않는다.
+
+    R2 기록에서 발생 시점 필드에 관측 시각을 넣지 않고, 관측 시각은 사유 문장에
+    '자료 기준 시각이며 발생 날짜가 아님'으로 남긴다.
+    """
+    from app.preview.modules import availability as r2
+
+    fact = r2.InjuryFact(
+        evidence_id="api:injury-7101",
+        player_id=7101,
+        player_name=None,
+        team_id=50,
+        type_marker="Questionable",
+        reason="Knee Injury",
+        uncertainty="uncertain",
+        reported_at=None,
+        collected_at=datetime(2026, 11, 10, 16, 0, tzinfo=timezone.utc),
+    )
+    reason = r2._api_fact_reason(fact)
+    assert "부상 발생 날짜가 아닙니다" in reason
+    assert "2026-11-10" in reason  # 관측 시각은 보존한다
+    # 사유가 없으면 경위 미확인을 단정하지 않는 문장으로 남긴다.
+    no_reason = r2.InjuryFact(
+        evidence_id="api:injury-7102",
+        player_id=7102,
+        player_name=None,
+        team_id=50,
+        type_marker="Doubtful",
+        reason=None,
+        uncertainty="uncertain",
+        collected_at=None,
+    )
+    assert "발생 경위는 확인되지 않았습니다" in r2._api_fact_reason(no_reason)
+
+
 def test_sections_endpoint_reports_real_implementation_and_model_state(client, make_user):
     """섹션 목록이 실제 구현 여부와 모델 설정 상태를 숨기지 않는다."""
     login = "/api/v1/auth/login"

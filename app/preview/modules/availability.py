@@ -87,9 +87,9 @@ __all__ = [
 
 # 섹션 워크플로우 등록부(`section_availability`)의 조사 모듈 id.
 AVAILABILITY_MODULE_ID = "R2"
-IMPLEMENTATION_VERSION = "mp06-r2-1"
+IMPLEMENTATION_VERSION = "mp06-r2-2"
 COMPOSE_IMPLEMENTATION_VERSION = "mp06-r2-compose-1"
-PROMPT_VERSION = "mp06-r2-prompt-1"
+PROMPT_VERSION = "mp06-r2-prompt-2"
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "availability.md"
 
@@ -1322,6 +1322,29 @@ def _coverage_entries(research: ValidatedAvailability) -> tuple[CoverageEntry, .
     )
 
 
+def _api_fact_reason(fact: InjuryFact) -> str:
+    """API 사실의 채택 사유. 관측·수집 시각을 **발생 시점이 아님**으로 표시한다.
+
+    설계 §5: API의 기준 경기/조회·수집 날짜를 부상 발생 날짜로 바꾸지 않는다.
+    확인된 시각은 관리자 기록에 남기되 발생 사건으로 승격하지 않는다.
+    """
+    if fact.uncertainty == "uncertain":
+        base = "출전 불확실 표기를 그대로 보존했습니다. 결장 확정이 아닙니다."
+    elif not fact.adopted:
+        base = "표기가 없어 확정 사실로 채택하지 않았습니다."
+    else:
+        base = "API 원문 표기를 그대로 옮겼습니다."
+    observed = fact.reported_at or fact.collected_at
+    if observed:
+        base += (
+            f" 관측 시각 {observed.isoformat()}은 자료 기준 시각이며"
+            " 부상 발생 날짜가 아닙니다."
+        )
+    if not fact.reason:
+        base += " API 사유가 없어 발생 경위는 확인되지 않았습니다(단정하지 않음)."
+    return base
+
+
 def _claims(research: ValidatedAvailability, *, search_snapshot_id: uuid.UUID | None) -> tuple[EvidenceClaim, ...]:
     claims: list[EvidenceClaim] = []
     for fact in research.facts:
@@ -1336,18 +1359,14 @@ def _claims(research: ValidatedAvailability, *, search_snapshot_id: uuid.UUID | 
                 ),
                 snapshot_ids=((fact.snapshot_id,) if fact.snapshot_id else ()),
                 decision=ClaimDecision.ADOPTED if fact.adopted else ClaimDecision.EXCLUDED,
-                decision_reason=(
-                    "출전 불확실 표기를 그대로 보존했습니다. 결장 확정이 아닙니다."
-                    if fact.uncertainty == "uncertain"
-                    else (
-                        "표기가 없어 확정 사실로 채택하지 않았습니다."
-                        if not fact.adopted
-                        else "API 원문 표기를 그대로 옮겼습니다."
-                    )
-                ),
+                decision_reason=_api_fact_reason(fact),
                 subject_team_id=fact.team_id,
                 subject_player_id=fact.player_id,
-                claimed_at=fact.reported_at or fact.collected_at,
+                # 여기 시각은 **자료 관측/수집 시각**이다. 부상 발생 날짜가 아니다.
+                # API 기준 경기·수집일을 발생 사건으로 승격하지 않는다(설계 §5).
+                # 그래서 발생 날짜 필드(claimed_at)에는 넣지 않고, 관측 시각은
+                # decision_reason과 관리자 진단에 남긴다.
+                claimed_at=None,
             )
         )
     for index, update in enumerate(research.player_updates):

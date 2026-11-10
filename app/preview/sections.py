@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+import json
+
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -47,6 +49,7 @@ from app.preview.registry import get_section_workflow
 
 __all__ = [
     "FORM_SECTION_ID",
+    "revalidate_section_from_stored_response",
     "StoredContext",
     "build_implementations",
     "implemented_section_ids",
@@ -686,3 +689,177 @@ def recompose_section_body(
         now=moment,
     )
     return row, composed
+
+
+def revalidate_section_from_stored_response(
+    session,
+    *,
+    run_id: uuid.UUID,
+    actor_id: int = 0,
+    now: datetime | None = None,
+):
+    """저장된 원문 응답을 **새 검증 규칙으로 다시 해석**하고 본문 버전을 추가한다.
+
+    외부 호출은 0회다. 원문 응답·이전 섹션 결과·승인은 건드리지 않고 새 버전만 올린다.
+
+    `recompose_section_body`와의 차이: 그쪽은 **이미 검증된** 조사 결과로 본문만 다시
+    조립한다. 이쪽은 검증 규칙 자체가 바뀌었을 때(사실/판단 경계 조정) 저장 원문을
+    다시 해석하므로, 이전 실행에서 부당하게 버려진 판단 항목이 되살아날 수 있다.
+    새 사실을 만들지는 않는다(원문·같은 facts만 쓴다).
+
+    반환: (새 섹션 결과 행, 새 검증 결과, 조립 결과)
+    """
+    from sqlalchemy import select
+
+    from app.preview.contracts import (
+        SECTION_RESULT_CONTRACT_VERSION,
+        Environment,
+        QualityStatus,
+        RunMode,
+    )
+    from app.preview.models import PreviewArtifact, PreviewAttempt, PreviewResult, PreviewSourceSnapshot
+
+    moment = now or _now()
+    run = store.get_run_detail(session, run_id)
+    if not run.section_results:
+        raise ValueError(f"run {run_id} has no stored section result to revalidate")
+
+    latest_section = run.section_results[-1]
+    if latest_section["workflow_id"] != FORM_SECTION_ID:
+        raise ValueError(f"revalidate is only implemented for {FORM_SECTION_ID}")
+
+    # 1) 저장된 R1 원문 응답을 찾는다(재호출 없음).
+    attempt = session.scalars(
+        select(PreviewAttempt)
+        .where(PreviewAttempt.run_id == run_id, PreviewAttempt.module_id == "R1")
+        .order_by(PreviewAttempt.attempt_ordinal.desc())
+    ).first()
+    if attempt is None or attempt.response_artifact_id is None:
+        raise ValueError(f"run {run_id} has no stored R1 response artifact")
+    artifact = session.get(PreviewArtifact, attempt.response_artifact_id)
+    if artifact is None or not artifact.body:
+        raise ValueError("stored R1 response artifact is missing or expired")
+    raw = json.loads(artifact.body)
+
+    # 2) 그 실행이 쓴 D0 사실을 그대로 복원한다(새 자료 수집 없음).
+    d0_rows = session.scalars(
+        select(PreviewResult)
+        .where(PreviewResult.run_id == run_id, PreviewResult.module_id == DATA_MODULE_ID)
+        .order_by(PreviewResult.version.desc())
+    ).all()
+    if not d0_rows:
+        raise ValueError(f"run {run_id} has no stored D0 result")
+    stored_d0 = dict(d0_rows[0].payload or {})
+    d0_inner = stored_d0.get("payload")
+    d0_payload = dict(d0_inner) if isinstance(d0_inner, Mapping) else stored_d0
+
+    fixture = d0_payload.get("fixture") or {}
+    facts = form.FormFacts(
+        fixture_id=int(fixture.get("fixture_id") or 0),
+        league_id=int(fixture.get("league_id") or 0),
+        season=int(fixture.get("season") or 0),
+        home_team_id=int(fixture.get("home_team_id") or 0),
+        away_team_id=int(fixture.get("away_team_id") or 0),
+        kickoff_at=_parse_iso(fixture.get("kickoff_at")) or moment,
+        home_team=str(fixture.get("home_team") or "홈팀"),
+        away_team=str(fixture.get("away_team") or "원정팀"),
+        league=fixture.get("league"),
+        facts=tuple(
+            form.Fact(
+                fact_id=str(item.get("fact_id")),
+                text=str(item.get("text") or ""),
+                snapshot_id=str(item.get("snapshot_id") or ""),
+                collected_at=_parse_iso(item.get("collected_at")),
+                subject_team_id=item.get("subject_team_id"),
+            )
+            for item in d0_payload.get("facts") or ()
+            if isinstance(item, Mapping)
+        ),
+    )
+
+    # 3) 같은 원문·같은 facts로 **새 검증 규칙**을 적용한다.
+    grounding = form.parse_grounding(raw)
+    try:
+        model_payload = form.parse_model_json(provider.extract_text(raw) or "")
+    except form.FormResearchError as exc:
+        raise ValueError(f"stored response is not valid JSON any more: {exc}") from None
+    validated = form.validate_response(model_payload, facts=facts, grounding=grounding, now=moment)
+
+    api_claims = form._api_fact_claims(facts)
+    claims = tuple(api_claims) + tuple(validated.claims)
+    importance = None
+    match_ctx = model_payload.get("match_context")
+    if isinstance(match_ctx, Mapping):
+        importance_text = str(match_ctx.get("importance") or "").strip()
+        importance = importance_text or None
+    no_evidence = not validated.watch_points and not validated.recent_form and not validated.hot_players
+    research = form.FormResearch(
+        facts=facts,
+        claims=claims,
+        coverage=tuple(validated.coverage),
+        diagnostics=tuple(validated.diagnostics),
+        uncertainties=tuple(validated.uncertainties),
+        watch_points=tuple(validated.watch_points),
+        hot_players=tuple(validated.hot_players),
+        recent_form=tuple(validated.recent_form),
+        match_importance=importance,
+        sources=form._result_sources(grounding),
+        grounding=grounding,
+        search_note=model_payload.get("search_note") if isinstance(model_payload.get("search_note"), str) else None,
+        unavailable_reason=(
+            "채택할 근거를 확보하지 못해 이 섹션의 본문을 만들지 않았습니다." if no_evidence else None
+        ),
+        quality=QualityStatus.PENDING if no_evidence else QualityStatus.READY,
+        external_calls=0,
+        implementation_version=form.FORM_IMPLEMENTATION_VERSION,
+        prompt_version=form.FORM_PROMPT_VERSION,
+    )
+
+    payload_for_body = dict(research.payload())
+    payload_for_body["claims"] = [claim.to_dict() for claim in research.claims]
+    payload_for_body["coverage"] = [entry.to_dict() for entry in research.coverage]
+    # API 출처 표시는 저장 D0 결과에서 그대로 가져온다.
+    if not payload_for_body.get("api_sources"):
+        payload_for_body["api_sources"] = list(d0_payload.get("api_sources") or ())
+    composed = compose.compose_form_body(payload_for_body)
+    if not composed.body:
+        raise ValueError("stored response did not yield a body under the new rules")
+
+    next_version = int(latest_section["version"]) + 1
+    row = store.save_section_result(
+        session,
+        run_id=run_id,
+        workflow_id=latest_section["workflow_id"],
+        workflow_version=latest_section["workflow_version"],
+        title=composed.title,
+        body=composed.body,
+        version=next_version,
+        mode=RunMode(latest_section["mode"]),
+        environment=Environment(latest_section["environment"]),
+        quality=composed.quality,
+        output_contract_version=latest_section["output_contract_version"],
+        contract_version=SECTION_RESULT_CONTRACT_VERSION,
+        sources=composed.sources,
+        module_execution_ids=[uuid.UUID(x) for x in latest_section["module_execution_ids"]],
+        result_ids=[uuid.UUID(x) for x in latest_section["result_ids"]],
+        diagnostics=(
+            "저장된 원문 응답을 새 사실/판단 검증 규칙으로 다시 해석했습니다(외부 호출 0회)."
+            " 새 근거를 추가하지 않았고, 이전 버전과 원문은 그대로 보존합니다."
+            f" 검증 구현 버전: {form.FORM_IMPLEMENTATION_VERSION}."
+        ),
+        actor_id=actor_id,
+        now=moment,
+    )
+    return row, research, composed
+
+
+def _parse_iso(value) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None

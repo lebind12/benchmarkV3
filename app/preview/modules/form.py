@@ -89,6 +89,33 @@ DATE_PATTERN = re.compile(r"(20\d{2})-(\d{2})-(\d{2})")
 MAX_WATCH_POINTS = 3
 MAX_HOT_PLAYERS = 3
 
+# --------------------------------------------------------------------------
+# 사실과 AI 판단의 경계 (설계 §5 '사실 검증과 AI 판단의 경계 — 사용자 확정')
+# --------------------------------------------------------------------------
+#
+# 주목 선수 선정·관전 포인트·전술 해석은 **AI 판단**이다. 그 결론 자체를 외부 자료로
+# 증명하거나 같은 결론의 보도를 찾도록 요구하지 않는다. 대신 판단 문장에 섞여 들어간
+# **확인 가능한 사실**(수치, 부상·결장 같은 발생 사건, 매체가 말했다는 주장)은 근거가
+# 있어야 한다. 근거가 없는 사실 조각만 문장 단위로 덜어내고, 남는 판단은 살린다.
+_EVENT_WORDS = re.compile(r"부상|결장|이탈|복귀|징계|수술|재활|이적")
+_NUMBER = re.compile(r"\d+(?:\.\d+)?")
+# **이미 일어난** 득점·경기 사건을 서술하는 표현. 예측("득점포를 가동할", "노릴")과
+# 구분한다. 완료·과거 서술만 잡으므로 판단 문장을 사실로 오인하지 않는다.
+_PAST_EVENT = re.compile(
+    r"골을\s*(?:터뜨린|넣었|기록했|성공했)"
+    r"|득점(?:했|을\s*기록했)"
+    r"|해트트릭(?:을\s*)?(?:기록|달성)?"
+)
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?。])\s+")
+# 모델이 스스로 붙인 사실/해석 표기. 이 표기가 있으면 구간 종류를 그대로 신뢰한다.
+_SEGMENT_MARKER = re.compile(
+    r"(?P<kind>사실|fact|해석|interpretation)"
+    r"\s*(?:[(（]\s*(?P<inner>fact|interpretation)\s*[)）])?"
+    r"\s*[:：]",
+    re.IGNORECASE,
+)
+_JUDGMENT_KINDS = frozenset({"해석", "interpretation"})
+
 
 class FormResearchError(ValueError):
     """모델 응답을 R1 결과로 해석할 수 없다. 빈 성공으로 바꾸지 않는다."""
@@ -363,6 +390,71 @@ def _evidence_ids(item: Mapping[str, Any]) -> tuple[str, ...]:
 
 
 # --------------------------------------------------------------------------
+# 문장 단위 사실/판단 분리
+# --------------------------------------------------------------------------
+
+
+def _segments(text: str) -> tuple[tuple[bool, str], ...]:
+    """모델이 붙인 표기 기준으로 구간을 나눈다. (판단 구간 여부, 구간 문장)."""
+    matches = list(_SEGMENT_MARKER.finditer(text))
+    if not matches:
+        return ((False, text.strip()),) if text.strip() else ()
+    segments: list[tuple[bool, str]] = []
+    cursor = 0
+    judgment = False
+    for match in matches:
+        piece = text[cursor : match.start()].strip(" :：")
+        if piece:
+            segments.append((judgment, piece))
+        kind = (match.group("kind") or "").lower()
+        inner = (match.group("inner") or "").lower()
+        judgment = kind in _JUDGMENT_KINDS or inner == "interpretation"
+        cursor = match.end()
+    tail = text[cursor:].strip(" :：")
+    if tail:
+        segments.append((judgment, tail))
+    return tuple(segments)
+
+
+def _clauses(text: str) -> tuple[tuple[bool, str], ...]:
+    """문장 목록. (검증할 사실 조각인지, 문장).
+
+    **표기만으로 수치·사건을 판단으로 바꾸지 않는다.** `해석:` 구간이라도 구체적
+    수치나 부상·결장 같은 발생 사건이 들어 있으면 확인 대상 사실 조각으로 본다.
+    반대로 수치·사건이 없는 평가·전망 문장은 AI 판단이므로 근거를 요구하지 않는다.
+    """
+    clauses: list[tuple[bool, str]] = []
+    for _judgment_segment, segment in _segments(text):
+        for sentence in _SENTENCE_SPLIT.split(segment):
+            cleaned = sentence.strip()
+            if not cleaned:
+                continue
+            needs_check = bool(
+                _NUMBER.search(cleaned)
+                or _EVENT_WORDS.search(cleaned)
+                or _PAST_EVENT.search(cleaned)
+            )
+            clauses.append((needs_check, cleaned))
+    return tuple(clauses)
+
+
+def _clause_supported(clause: str, *, cited_text: str, fixture_year: str) -> bool:
+    """문장 속 수치·사건이 **인용된 근거 문장 안에** 있는지 확인한다.
+
+    인용하지 않은 자료를 뒤늦게 끌어와 근거로 붙이지 않는다. 그래서 `cited_text`는
+    모델이 실제로 인용한 사실의 본문만 담는다.
+    """
+    haystack = f"{cited_text} {fixture_year}"
+    for number in _NUMBER.findall(clause):
+        if number not in haystack:
+            return False
+    for event in _EVENT_WORDS.findall(clause):
+        if event not in cited_text:
+            return False
+    return True
+
+
+# --------------------------------------------------------------------------
 # 프롬프트 조립
 # --------------------------------------------------------------------------
 
@@ -544,28 +636,103 @@ def _claim(
     )
 
 
-def _validate_item(
+def _cited_fact_text(facts: FormFacts, usable: Sequence[str]) -> str:
+    """모델이 실제로 인용한 사실의 본문만 모은다.
+
+    인용하지 않은 자료를 근거처럼 끌어오지 않기 위해서다(설계 §5).
+    """
+    texts = [fact.text for fact in facts.facts if fact.fact_id in usable]
+    return " ".join(texts)
+
+
+def _supported_text(
+    text: str,
     *,
-    index: int,
+    facts: FormFacts,
+    usable: Sequence[str],
+    has_source: bool,
+    require_search: bool,
+) -> tuple[str, tuple[str, ...]]:
+    """호환용 별칭. 실제 규칙은 `_filter_judgment_text` 한 곳에 있다."""
+    return _filter_judgment_text(
+        text,
+        facts=facts,
+        usable=usable,
+        has_source=has_source,
+        require_search=require_search,
+    )
+
+
+def _clean_clause_text(
+    value: Any,
+    *,
+    facts: FormFacts,
+    usable: Sequence[str],
+    has_source: bool,
+    require_search: bool,
+) -> tuple[str, tuple[str, ...]]:
+    """항목의 개별 문장(제목/이유)을 **같은 규칙**으로 걸러 돌려준다.
+
+    검증한 본문과 별개로 원문 조각을 다시 거르므로, 덜어낸 사실 조각이 제목이나
+    이유 쪽으로 새어 나가지 않는다. 반환: (남길 문장, 덜어낸 문장들).
+    """
+    original = " ".join(str(value or "").split())
+    if not original:
+        return "", ()
+    return _filter_judgment_text(
+        original,
+        facts=facts,
+        usable=usable,
+        has_source=has_source,
+        require_search=require_search,
+    )
+
+
+def _filter_judgment_text(
+    text: str,
+    *,
+    facts: FormFacts,
+    usable: Sequence[str],
+    has_source: bool,
+    require_search: bool,
+) -> tuple[str, tuple[str, ...]]:
+    """판단 문장에서 확인되지 않은 사실 조각만 덜어낸다.
+
+    `_validate_item`과 관전 포인트·주목 선수의 개별 문장(제목/본문/이유)이 **같은
+    규칙**을 쓰도록 한 곳에 둔다. 반환: (남길 문장, 덜어낸 문장들).
+    """
+    cited = _cited_fact_text(facts, usable)
+    fixture_year = str(facts.kickoff_at.year)
+    kept: list[str] = []
+    dropped: list[str] = []
+    for needs_check, clause in _clauses(text):
+        if not needs_check:
+            kept.append(clause)
+            continue
+        if not has_source:
+            dropped.append(clause)
+            continue
+        if _clause_supported(clause, cited_text=cited, fixture_year=fixture_year):
+            kept.append(clause)
+        else:
+            dropped.append(clause)
+    return " ".join(kept).strip(), tuple(dropped)
+
+
+def _resolve_sources(
     item: Mapping[str, Any],
-    kind: ClaimKind,
-    label: str,
+    *,
     facts: FormFacts,
     allowed_ids: set[str],
     url_map: Mapping[str, str],
     grounding_urls: set[str],
-    kickoff_at: datetime,
-    require_search: bool,
-) -> tuple[EvidenceClaim | None, str | None]:
-    """항목 하나를 검증한다. 채택할 수 없으면 (None, 사유)를 돌려준다."""
-    text = _entry_text(item).strip()
-    if not text:
-        return None, "내용이 비어 있어 채택하지 않았습니다."
+) -> tuple[list[str], list[uuid.UUID], str | None, bool]:
+    """항목이 인용한 근거를 해석한다.
 
-    reason = _old_news_reason(item, kickoff_at)
-    if reason:
-        return None, reason
-
+    반환: (인정된 근거 id 목록, snapshot id 목록, 검색 URL, 근거 유무).
+    `_validate_item`과 항목의 개별 문장(제목/이유) 필터가 **같은 판정**을 쓰도록
+    한 곳에 둔다.
+    """
     evidence = _evidence_ids(item)
     usable = [value for value in evidence if value in allowed_ids or value in grounding_urls]
     # snapshot은 fact마다 붙은 실제 snapshot_id를 그대로 쓴다. 순서로 짝짓지 않는다.
@@ -581,8 +748,75 @@ def _validate_item(
             if mapped in grounding_urls:
                 url = mapped
                 break
+    return usable, snapshot_ids, url, bool(snapshot_ids or url)
 
-    if not snapshot_ids and not url:
+
+def _validate_item(
+    *,
+    index: int,
+    item: Mapping[str, Any],
+    kind: ClaimKind,
+    label: str,
+    facts: FormFacts,
+    allowed_ids: set[str],
+    url_map: Mapping[str, str],
+    grounding_urls: set[str],
+    kickoff_at: datetime,
+    require_search: bool,
+    allow_judgment: bool = False,
+) -> tuple[EvidenceClaim | None, str | None]:
+    """항목 하나를 검증한다. 채택할 수 없으면 (None, 사유)를 돌려준다.
+
+    `allow_judgment=True`(관전 포인트·주목 선수·이번 경기 의미)면 **AI 판단 문장은
+    근거 인용을 요구하지 않는다**(설계 §5). 대신 문장에 섞인 확인 가능한 사실만
+    근거와 대조하고, 확인되지 않은 사실 조각은 덜어낸다.
+    """
+    text = _entry_text(item).strip()
+    if not text:
+        return None, "내용이 비어 있어 채택하지 않았습니다."
+
+    reason = _old_news_reason(item, kickoff_at)
+    if reason:
+        return None, reason
+
+    usable, snapshot_ids, url, has_source = _resolve_sources(
+        item,
+        facts=facts,
+        allowed_ids=allowed_ids,
+        url_map=url_map,
+        grounding_urls=grounding_urls,
+    )
+
+    if allow_judgment:
+        kept, dropped = _supported_text(
+            text,
+            facts=facts,
+            usable=usable,
+            has_source=has_source,
+            require_search=require_search,
+        )
+        if not kept:
+            if dropped:
+                return None, (
+                    "확인 가능한 사실 조각에 근거가 없어 채택하지 않았습니다"
+                    f"(덜어낸 문장: {len(dropped)}개)."
+                )
+            return None, "내용이 비어 있어 채택하지 않았습니다."
+        claim = _claim(
+            f"r1-{label}-{index}",
+            kind,
+            kept,
+            snapshot_ids=snapshot_ids,
+            source_url=url,
+        )
+        if dropped:
+            return claim, (
+                f"확인되지 않은 사실 조각 {len(dropped)}개를 덜어내고 AI 판단만 남겼습니다: "
+                + " / ".join(dropped)
+            )
+        return claim, None
+
+    if not has_source:
         return None, "근거 식별자(snapshot 또는 검색 출처 URL)가 없어 채택하지 않았습니다."
     if require_search and url is None and SEARCH_EVIDENCE_HINT.search(text):
         return None, "매체·맥락 진술인데 검색 출처 URL이 없어 채택하지 않았습니다."
@@ -639,6 +873,8 @@ def validate_response(
             grounding_urls=grounding_urls,
             kickoff_at=kickoff_at,
             require_search=False,
+            # 이번 경기의 의미는 AI 판단이다. 판단 문장에 검색 인용을 요구하지 않는다.
+            allow_judgment=True,
         )
         if claim:
             claims.append(claim)
@@ -691,12 +927,37 @@ def validate_response(
             grounding_urls=grounding_urls,
             kickoff_at=kickoff_at,
             require_search=True,
+            # 관전 포인트는 AI 선정·해석이다. 선정 자체의 외부 인용을 요구하지 않는다.
+            allow_judgment=True,
         )
         if claim is None:
             note_exclusion(f"관전 포인트 {index + 1}", reason or "채택 근거 없음")
             continue
-        title = str(item.get("title") or "").strip()
-        detail = str(item.get("detail") or "").strip()
+        if reason:
+            note_exclusion(f"관전 포인트 {index + 1}", reason)
+        # 제목·본문도 같은 규칙으로 걸러 저장한다. 원문을 남겨 두면 뒤 단계에서
+        # 확인되지 않은 사실 조각이 다시 본문으로 나갈 수 있다.
+        usable, _snapshots, _url, has_source = _resolve_sources(
+            item,
+            facts=facts,
+            allowed_ids=allowed_ids,
+            url_map=url_map,
+            grounding_urls=grounding_urls,
+        )
+        title, _title_dropped = _clean_clause_text(
+            item.get("title"),
+            facts=facts,
+            usable=usable,
+            has_source=has_source,
+            require_search=True,
+        )
+        detail, _detail_dropped = _clean_clause_text(
+            item.get("detail"),
+            facts=facts,
+            usable=usable,
+            has_source=has_source,
+            require_search=True,
+        )
         claims.append(
             _claim(
                 f"{claim.claim_id}-detail",
@@ -708,7 +969,7 @@ def validate_response(
         )
         watch_points.append(
             {
-                "title": title or detail[:40],
+                "title": title or claim.text[:40],
                 "detail": detail,
                 "claim_id": claim.claim_id,
                 "source_url": claim.source_url,
@@ -744,15 +1005,37 @@ def validate_response(
             grounding_urls=grounding_urls,
             kickoff_at=kickoff_at,
             require_search=False,
+            # 주목 선수 **선정**은 AI 판단이다. 같은 선수를 고른 외부 자료를 요구하지
+            # 않는다. 다만 이유 문장에 섞인 수치·부상 사건은 근거와 대조한다.
+            allow_judgment=True,
         )
         if claim is None:
             note_exclusion(f"주목 선수 {player}", reason or "채택 근거 없음")
             continue
+        # 확인되지 않은 사실 조각을 덜어낸 경우 사유를 남긴다(관리자 진단).
+        if reason:
+            note_exclusion(f"주목 선수 {player}", reason)
+        # 저장 문장은 걸러낸 이유를 쓴다. 원문을 쓰면 덜어낸 사실 조각이 다시 나간다.
+        usable, _snapshots, _url, has_source = _resolve_sources(
+            {"evidence": item.get("evidence")},
+            facts=facts,
+            allowed_ids=allowed_ids,
+            url_map=url_map,
+            grounding_urls=grounding_urls,
+        )
+        filtered_reason = _clean_clause_text(
+            item.get("reason"),
+            facts=facts,
+            usable=usable,
+            has_source=has_source,
+            # 주목 선수 이유에는 매체 인용을 요구하지 않는다(선정은 AI 판단).
+            require_search=False,
+        )[0]
         claims.append(
             _claim(
                 claim.claim_id,
                 ClaimKind.AI_INTERPRETATION,
-                text,
+                f"{player}: {filtered_reason}".strip(),
                 snapshot_ids=claim.snapshot_ids,
                 source_url=claim.source_url,
             )
@@ -761,7 +1044,7 @@ def validate_response(
             {
                 "player": player,
                 "team": str(item.get("team") or "").strip() or None,
-                "reason": str(item.get("reason") or "").strip(),
+                "reason": filtered_reason,
                 "claim_id": claim.claim_id,
                 "source_url": claim.source_url,
                 "superlative_basis": basis or None,
