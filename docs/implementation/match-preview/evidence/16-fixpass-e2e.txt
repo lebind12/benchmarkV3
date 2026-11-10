@@ -1,4 +1,4 @@
-$ npm --prefix frontend run test:e2e -- e2e/preview-access.spec.ts   # 수정 후, 실제 브라우저 + 실제 DB
+$ npm --prefix frontend run test:e2e -- e2e/preview-access.spec.ts   # 수정 패스 최종, 실제 브라우저 + 실제 DB
 
 > match-preview-frontend@0.1.0 test:e2e
 > playwright test e2e/preview-access.spec.ts
@@ -6,12 +6,12 @@ $ npm --prefix frontend run test:e2e -- e2e/preview-access.spec.ts   # 수정 �
 
 Running 4 tests using 1 worker
 
-(node:49316) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:52638) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-  ✓  1 [chromium] › e2e/preview-access.spec.ts:25:1 › admin logs in through the form, sees the empty run list, and logs out (949ms)
-  ✓  2 [chromium] › e2e/preview-access.spec.ts:53:1 › a cleared session cookie sends the admin back to the login screen (385ms)
-  ✓  3 [chromium] › e2e/preview-access.spec.ts:78:1 › the app renders the server 403 for a non-admin role instead of an empty list (176ms)
-  ✓  4 [chromium] › e2e/preview-access.spec.ts:113:1 › anonymous requests to the protected endpoint are rejected by the server (11ms)
+  ✓  1 [chromium] › e2e/preview-access.spec.ts:25:1 › admin logs in through the form, sees the empty run list, and logs out (902ms)
+  ✓  2 [chromium] › e2e/preview-access.spec.ts:53:1 › a cleared session cookie sends the admin back to the login screen (356ms)
+  ✓  3 [chromium] › e2e/preview-access.spec.ts:78:1 › the app renders the server 403 for a non-admin role instead of an empty list (171ms)
+  ✓  4 [chromium] › e2e/preview-access.spec.ts:113:1 › anonymous requests to the protected endpoint are rejected by the server (10ms)
 
-  4 passed (2.2s)
+  4 passed (2.1s)
 EXIT=0
