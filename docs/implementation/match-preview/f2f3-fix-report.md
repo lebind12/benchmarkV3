@@ -13,7 +13,7 @@ F1(R1 판단 문장의 축약 전제)은 이 작업 범위가 아니며 별도 �
 재검증(`revalidate_section_from_stored_response`)이 **덜어낸 사실·사유를 문장 목록으로
 저장**하고 **버전이 붙은 R1 검증 결과 행과 provenance**를 남기게 했고, 승인
 (`approve_section_version`)이 **검토한 섹션 결과 행이 실제로 남긴 구성**을 쓰게 했다.
-그래서 최신 후보 본문을 승인하면 승인 기록이 `section_form@dff5ef9da8f20f8a`로 남고
+그래서 최신 후보 본문을 승인하면 승인 기록이 **그 섹션 결과가 가진 스탬프**로 남고
 곧바로 SUPERSEDED가 되지 않는다. 옛 본문·옛 승인·현재 후보 계산은 그대로 분리했다.
 
 ## 1. 검토 지적과 수정 대응
@@ -74,6 +74,15 @@ PREVIEW_TEST_DATABASE_URL=...preview_mp05_test \
 PREVIEW_TEST_DATABASE_URL=...preview_mp05_test \
 .venv/bin/python -m pytest tests/preview/test_inspection_api.py tests/preview/test_presentation.py -q
 #   30 passed
+```
+
+F1 인계 뒤 공유 버전 등록까지 포함한 최종 확인(같은 날, 같은 커밋 트리)이다.
+
+```sh
+.venv/bin/python -m pytest tests/preview/test_f2_f3_revalidation_approval.py -q                     # 7 passed
+PREVIEW_TEST_DATABASE_URL=...preview_mp05_test \
+  .venv/bin/python -m pytest tests/preview/test_module_runner.py tests/preview/test_workflow_version.py \
+    tests/preview/test_section_approvals.py tests/preview/test_form_module.py -q                     # 48 passed
 ```
 
 수정 전 같은 회귀 검사(소스 변경 전)는 **5 failed / 2 passed**였고, 대표 실패 문구는 검토
