@@ -15,6 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.v1 import auth, preview_admin
 from app.core.config import get_settings
+from app.core.validation import install_validation_error_scrubber
 from app.db import get_session_factory
 
 logger = logging.getLogger("match_preview")
@@ -25,6 +26,7 @@ LOCAL_DEV_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"]
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="Match Preview", version="0.1.0")
+    install_validation_error_scrubber(app)
 
     if settings.env in ("dev", "test"):
         # 세션 쿠키를 주고받으려면 자격 증명 허용과 정확한 오리진이 필요하다.

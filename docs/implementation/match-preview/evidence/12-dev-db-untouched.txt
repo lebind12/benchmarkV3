@@ -1,0 +1,15 @@
+# 개발 DB를 테스트 대상으로 지정했을 때: 거부 + 데이터 보존 확인
+$ docker exec ... psql -d preview_mp01_dev -tAc 'SELECT count(*) FROM preview_users;'   # 실행 전
+1
+
+$ PREVIEW_TEST_DATABASE_URL=<dev db> .venv/bin/python -m pytest tests/preview/test_admin_access.py -q
+ERROR tests/preview/test_admin_access.py::test_logout_without_session_is_safe
+ERROR tests/preview/test_admin_access.py::test_session_endpoint_without_cookie_is_401
+ERROR tests/preview/test_admin_access.py::test_health_reports_database_reachable
+1 warning, 25 errors in 0.20s
+EXIT=1 (expected refusal)
+
+$ docker exec ... psql -d preview_mp01_dev -tAc 'SELECT email FROM preview_users;'   # 실행 후
+admin@local.test|admin
+$ docker exec ... psql -d preview_mp01_dev -tAc 'SELECT version_num FROM alembic_version;'
+0001_preview_access

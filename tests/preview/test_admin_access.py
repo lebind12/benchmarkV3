@@ -106,6 +106,31 @@ def test_authenticated_non_admin_gets_403_not_401(client, make_user, session_fac
 
     client.cookies.set("preview_admin_session", raw_token)
     _assert_non_admin(client, Role.USER)
+    # 세션 조회도 같은 경계를 지킨다.
+    assert client.get(SESSION).status_code == 403
+
+
+def test_authenticated_streamer_with_valid_session_is_denied(client, make_user, session_factory):
+    """STREAMER는 유효한 세션이 있어도 ADMIN 경로에 들어오지 못한다.
+
+    익명 401 테스트와 다른 경계다. 이 케이스는 이미 인증된 세션 위에서 역할만
+    다르므로, 서버가 403으로 구분해 거부하는지 확인한다.
+    """
+    from app.auth.service import issue_session
+
+    user = make_user(role=Role.STREAMER)
+    with session_factory() as session:
+        db_user = session.get(User, user["id"])
+        issued = issue_session(session, db_user)
+        raw_token = issued.token
+        session.commit()
+
+    client.cookies.set("preview_admin_session", raw_token)
+    _assert_non_admin(client, Role.STREAMER)
+    assert client.get(SESSION).status_code == 403
+
+    # 세션 자체는 살아 있으므로 401이 아니라 403이어야 한다.
+    assert client.get(PROTECTED).status_code == 403
 
 
 def test_inactive_admin_is_denied(client, make_user, session_factory):
@@ -138,6 +163,28 @@ def test_expired_session_is_denied(client, make_user, session_factory):
         raw_token = issued.token
 
     client.cookies.set("preview_admin_session", raw_token)
+    _assert_anonymous(client)
+
+
+def test_session_expiry_is_enforced_from_the_clock_not_a_flag(client, make_user, session_factory):
+    """만료 판정이 시각 비교로 이뤄지는지 확인한다. 만료 직전은 통과, 직후는 거부."""
+    from app.auth.service import issue_session
+
+    user = make_user(role=Role.ADMIN)
+    with session_factory() as session:
+        db_user = session.get(User, user["id"])
+        issued = issue_session(session, db_user)
+        raw_token = issued.token
+        session.commit()
+
+    client.cookies.set("preview_admin_session", raw_token)
+    assert client.get(PROTECTED).status_code == 200
+
+    with session_factory() as session:
+        row = session.scalar(select(AdminSession).where(AdminSession.id == issued.session_id))
+        row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        session.commit()
+
     _assert_anonymous(client)
 
 

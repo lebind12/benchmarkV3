@@ -1,0 +1,3 @@
+# 수정 전 재현(당시 서버, 422가 제출 본문을 그대로 반환)
+$ POST /api/v1/auth/login {"email":12345,"password":{"$secret":"PASSWORD_LEAK_CANARY_abc123"}}
+{"detail":[{"type":"string_type","loc":["body","email"],"msg":"Input should be a valid string","input":12345},{"type":"string_type","loc":["body","password"],"msg":"Input should be a valid string","input":{"$secret":"PASSWORD_LEAK_CANARY_abc123"}}]}

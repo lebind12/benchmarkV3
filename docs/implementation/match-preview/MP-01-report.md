@@ -249,3 +249,113 @@ MP-02 담당자가 이어받을 지점은 다음과 같다.
 | PostgreSQL | 127.0.0.1:55432 | Docker 컨테이너 `match-preview-pg-mp01` |
 
 세 프로세스 모두 이 작업자가 띄운 것이고 검사 가능한 상태로 남겨 둔다.
+
+---
+
+# 수정 패스 (검증 대기 피드백 반영)
+
+앞의 내용은 처음 구현 시점의 기록이다. 아래는 검증 대기 상태에서 받은 지적을 고친
+내용이다. 지적은 모두 재현해 확인한 뒤 고쳤고, 원래 증거 파일은 지우거나 덮어쓰지
+않았다.
+
+수정 시점 모델은 동일하다. DSH 세션 메타데이터의 `model/selection`은
+provider `hive`, model `deepseek-ai/deepseek-v4.1-flash-1017`, reasoningEffort `max`이고
+강도는 바꾸지 않았다.
+
+## 수정 1. 테스트 준비 단계가 개발 DB를 지울 수 있었다
+
+**문제.** `tests/preview/conftest.py`가 모든 테스트마다 `DROP SCHEMA public CASCADE`를
+실행했다. 대상 검사는 호스트만 봤고, `PREVIEW_ALLOW_NONLOCAL_DB=1`이면 호스트 제한까지
+열렸다. `PREVIEW_TEST_DATABASE_URL`을 개발 DB로 바꾸면 개발 데이터가 지워질 수 있었다.
+
+**수정.** `tests/preview/_dbguard.py`를 추가해 연결 전에 두 조건을 함께 검사한다.
+
+- 호스트가 루프백이어야 한다. 테스트 경로는 `PREVIEW_ALLOW_NONLOCAL_DB`를 읽지 않으므로
+  애플리케이션용 우회 플래그로 열리지 않는다.
+- DB 이름이 `test_*` 또는 `*_test`여야 한다. `postgres`, `template0/1`, `preview_mp01_dev`
+  같은 이름은 거부한다.
+
+검사는 순수 문자열 판정이고 연결을 열지 않는다. `_environment` 세션 픽스처가 어떤
+픽스처보다 먼저 이 검사를 호출하므로, 거부되면 엔진 생성 전에 실패한다.
+
+**확인한 동작.** 개발 DB를 테스트 대상으로 지정하고 실행하면 25건이 픽스처 오류로
+즉시 실패하고, 개발 DB의 `preview_users` 1행과 `alembic_version=0001_preview_access`가
+그대로 남았다(`evidence/12-dev-db-untouched.txt`). 가드 자체는 DB에 붙지 않는 11개
+테스트로 검사한다(`evidence/10-test-db-guard.txt`).
+
+## 수정 2. 컨테이너가 0.0.0.0에 게시되어 있었다
+
+**문제.** `-p 55432:5432` 때문에 `docker ps`가 `0.0.0.0:55432`와 `[::]:55432`를 보였다.
+보고서는 격리된 루프백이라고 적었지만 실제 게시 범위가 달랐다.
+
+**수정.** 데이터 볼륨을 유지한 채 컨테이너만 다시 만들었다. 순서는 `pg_dump` 백업 →
+`docker stop`/`rm`(볼륨 유지) → 같은 볼륨을 `-v`로 붙이고 `-p 127.0.0.1:55432:5432`로
+재생성이다. 볼륨은 지우지 않았다.
+
+**확인한 동작.** `PortBindings`는 `{"5432/tcp":[{"HostIp":"127.0.0.1","HostPort":"55432"}]}`,
+`docker ps`는 `127.0.0.1:55432->5432/tcp`만 보여준다. 호스트 리스너도
+`TCP 127.0.0.1:55432` 하나다. 재생성 후에도 `preview_mp01`, `preview_mp01_dev`,
+`preview_mp01_test` 세 DB와 개발 관리자 계정이 남아 있었고 로그인·보호 경로·로그아웃이
+그대로 동작했다(`evidence/13-loopback-binding.txt`).
+
+## 수정 3. 로그인 422 응답이 제출 본문을 되돌려줬다
+
+**문제.** 루트가 `POST /api/v1/auth/login`에 비밀번호 객체를 보냈고, FastAPI 기본
+422 응답이 `detail[].input`에 제출값을 그대로 담아 반환했다. email이 빠지고 password만
+있을 때도 본문 전체가 `input`으로 돌아왔다.
+
+**수정.** `app/core/validation.py`의 `install_validation_error_scrubber`를 앱에 등록해
+검증 오류 항목을 `type`·`loc`·`msg`만 남기도록 바꿨다. `input`·`ctx`·`url`은 버린다.
+로그인뿐 아니라 앱 전체 검증 오류에 적용된다.
+
+**확인한 동작.** 수정 전후를 같은 합성 표식으로 비교했다. 수정 후 다섯 경우(객체
+password, email 누락, password 누락, 잘못된 JSON, 배열 본문) 모두 제출값을 되돌려주지
+않았다(`evidence/14-login-422-before.txt`, `evidence/15-login-422-after.txt`). 행동
+테스트 10건이 같은 경계를 검사한다(`evidence/11-login-redaction.txt`). 표식은 테스트
+전용 문자열이며 실제 자격 증명이 아니다.
+
+## 수정 4. E2E 이름이 실제 검사 범위와 달랐다
+
+**문제.** `expired session` 케이스는 실제로는 쿠키만 지웠고, `non-admin accounts` 케이스는
+익명 401만 확인했다. 이름이 서버 만료·역할 거부를 검증한 것처럼 읽혔다.
+
+**수정.** 이름을 실제 검사 내용으로 바꾸고, 커버리지 범위를 주석과 Playwright
+annotation에 명시했다. 익명 401이 USER/STREAMER 거부를 증명한다고 적지 않았다.
+
+- `admin logs in through the form, sees the empty run list, and logs out`
+- `a cleared session cookie sends the admin back to the login screen`
+- `the app renders the server 403 for a non-admin role instead of an empty list`
+  (응답은 스텁이며, MP-01에 계정 생성 UI가 없어 브라우저에서 실제 STREAMER 세션을 만들 수
+  없다. 역할 거부 자체는 백엔드가 증명한다.)
+- `anonymous requests to the protected endpoint are rejected by the server`
+
+서버 판정은 백엔드 테스트가 맡는다. 이번에 `test_authenticated_streamer_with_valid_session_is_denied`
+(유효 세션 + STREAMER → 403, 익명 401과 다른 경계)와
+`test_session_expiry_is_enforced_from_the_clock_not_a_flag`를 추가했다.
+
+## 수정 패스 검증
+
+| 명령 | 종료 코드 | 결과 |
+|---|---|---|
+| `.venv/bin/python -m pytest tests/preview -q` | 0 | 46 passed |
+| `.venv/bin/python -m pytest tests/preview/test_db_isolation.py -q` | 0 | 11 passed |
+| `.venv/bin/python -m pytest tests/preview/test_auth_input_redaction.py -q` | 0 | 10 passed |
+| `npm --prefix frontend run test:unit -- src/views/AdminLoginView.test.ts` | 0 | 9 passed |
+| `npm --prefix frontend run type-check` | 0 | 오류 없음 |
+| `npm --prefix frontend run build` | 0 | 산출물 생성 |
+| `npm --prefix frontend run test:e2e -- e2e/preview-access.spec.ts` | 0 | 4 passed |
+
+증거 파일은 `evidence/09`~`evidence/16`이다. 처음 구현의 `01`~`08`은 당시 상태 그대로
+남겨 두었다. `08-local-db.txt`의 포트 표기는 수정 전 상태이므로 위 수정 2의 근거와 함께
+읽어야 한다.
+
+## 수정 패스에서 남은 것
+
+- E2E의 403 케이스는 응답을 스텁한다. 브라우저에서 실제 STREAMER 세션을 만들려면 계정
+  생성 경로가 필요한데, MP-01은 회원 관리 기능을 제공하지 않는다. 서버 판정은 백엔드
+  테스트가 실제 세션으로 검사한다.
+- 로그인 레이트 리밋, 세션 만료 행 정리, Safari·Firefox 검증은 여전히 범위 밖 또는
+  미검증이다.
+- 앱 설정의 `PREVIEW_ALLOW_NONLOCAL_DB`는 애플리케이션 기동 경로에 남아 있다. 테스트
+  가드는 이 값을 무시하지만, 애플리케이션 쪽 우회 플래그 자체를 없애는 일은 이 작업의
+  범위가 아니다.

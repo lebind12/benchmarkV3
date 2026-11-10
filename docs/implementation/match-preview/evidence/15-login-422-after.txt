@@ -1,0 +1,27 @@
+# POST /api/v1/auth/login 수정 후 응답
+# 케이스 이름 옆 응답 본문에 제출값이 되돌아오지 않는지 확인한다.
+
+[case] 객체 password + 숫자 email (루트 재현)
+[request bytes] {"email": 12345, "password": {"$secret": "SYNTHETIC_CANARY_do_not_echo_8f3a9c"}}
+[response] {"detail":[{"type":"string_type","loc":["body","email"],"msg":"Input should be a valid string"},{"type":"string_type","loc":["body","password"],"msg":"Input should be a valid string"}]}
+[echoes submitted value?] no
+
+[case] email 누락, password 존재
+[request bytes] {"password": "SYNTHETIC_CANARY_do_not_echo_8f3a9c"}
+[response] {"detail":[{"type":"missing","loc":["body","email"],"msg":"Field required"}]}
+[echoes submitted value?] no
+
+[case] password 누락, email 존재
+[request bytes] {"email": "someone@example.test"}
+[response] {"detail":[{"type":"missing","loc":["body","password"],"msg":"Field required"}]}
+[echoes submitted value?] no
+
+[case] malformed json
+[request bytes] {"email":"a@b.test","password":"SYNTHETIC_CANARY_do_not_echo_8f3a9c"
+[response] {"detail":[{"type":"json_invalid","loc":["body","68"],"msg":"JSON decode error"}]}
+[echoes submitted value?] no
+
+[case] 배열 본문
+[request bytes] ["SYNTHETIC_CANARY_do_not_echo_8f3a9c"]
+[response] {"detail":[{"type":"model_attributes_type","loc":["body"],"msg":"Input should be a valid dictionary or object to extract fields from"}]}
+[echoes submitted value?] no
