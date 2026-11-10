@@ -1,0 +1,13 @@
+F1 focused commands (2026-11-11)
+1) .venv/bin/python -m pytest tests/preview/test_form_module.py -q
+   -> 21 passed, 1 warning
+2) .venv/bin/python -m pytest tests/preview/test_form_module.py tests/preview/test_workflow_version.py tests/preview/test_module_runner.py tests/preview/test_section_approvals.py tests/preview/test_presentation.py tests/preview/test_synthesis.py -q
+   -> 83 passed, 1 warning
+3) .venv/bin/python -m pytest tests/preview/test_inspection_api.py -q
+   -> 17 passed, 1 warning
+4) .venv/bin/python -m pytest tests/preview/test_form_module.py tests/preview/test_workflow_version.py tests/preview/test_module_runner.py tests/preview/test_section_approvals.py tests/preview/test_presentation.py tests/preview/test_synthesis.py tests/preview/test_inspection_api.py -q
+   -> 100 passed, 1 warning
+5) .venv/bin/python docs/implementation/match-preview/evidence/f1-premise/reproduce_offline.py
+   -> baseline: saved 885자 -> 868자, counts={'watch_points': 2, 'hot_players': 3, 'recent_form': 2}, premises=1
+   -> candidate: saved 878자 -> 837자, counts={'watch_points': 3, 'hot_players': 3, 'recent_form': 2}, premises=3
+6) readonly DB counts after work: preview_attempts 5, preview_section_approvals 0, preview_section_results 11, preview_results 16, preview_runs 8

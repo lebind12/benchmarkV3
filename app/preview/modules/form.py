@@ -101,9 +101,13 @@ _EVENT_WORDS = re.compile(r"부상|결장|이탈|복귀|징계|수술|재활|이
 _NUMBER = re.compile(r"\d+(?:\.\d+)?")
 # **이미 일어난** 득점·경기 사건을 서술하는 표현. 예측("득점포를 가동할", "노릴")과
 # 구분한다. 완료·과거 서술만 잡으므로 판단 문장을 사실로 오인하지 않는다.
+#
+# 기존 어간 목록은 그대로 두고 **활용형만 바로잡는다**. "터뜨린"만 두면 같은 사건의
+# 활용형 "터뜨렸"이 빠져, 그 사건이 다른 문장의 전제로 남았다. 미래 어형("터뜨릴")은
+# 여전히 잡지 않으므로 전망을 사실로 오인하지 않는다.
 _PAST_EVENT = re.compile(
-    r"골을\s*(?:터뜨린|넣었|기록했|성공했)"
-    r"|득점(?:했|을\s*기록했)"
+    r"골을\s*(?:터뜨렸|터뜨린|넣었|넣은|기록했|기록한|성공했|성공한)"
+    r"|득점(?:했|한|을\s*기록했)"
     r"|해트트릭(?:을\s*)?(?:기록|달성)?"
 )
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?。])\s+")
@@ -115,6 +119,32 @@ _SEGMENT_MARKER = re.compile(
     re.IGNORECASE,
 )
 _JUDGMENT_KINDS = frozenset({"해석", "interpretation"})
+
+# 판단 문장이 **앞선 사실을 전제로 삼는** 연결 표지. 표지 앞부분은 판단이 아니라
+# 그 판단이 딛고 선 사실이고, 표지 뒤가 AI 판단이다. 같은 항목에서 근거를 확인하지
+# 못한 사실이 이미 덜어졌다면, 그 사실을 전제로 삼은 앞부분도 함께 내려놓는다.
+# 동의어를 늘려 잡는 목록이 아니라 한국어의 근거·원인 연결 어형만 본다.
+_BASIS_CONNECTIVE = re.compile(
+    r"(?:을|를|에|으로|로)?\s*(?:바탕으로|바탕해|바탕한|토대로|근거로|기반으로)"
+    r"|(?:으로|로)\s*인해"
+    r"|(?:기|었기|았기)?\s*때문에"
+    r"|(?:었|았|였|했|겠|는|은|던)\s*만큼"
+    r"|덕분에|힘입어"
+)
+# 전제가 **과거 사건·기록**을 가리키는지 판정하는 시간 지시어. 같은 항목에서 사실이
+# 덜어진 뒤, 시간 지시어가 붙은 전제는 확인되지 않은 과거 사건의 요약이다. 반대로
+# 시간 지시어 없는 전제("…성향을 바탕으로")는 주관적 전술 평가이므로 그대로 둔다.
+# 사건 어휘 목록을 늘리는 대신 경계를 시간성 하나로 고정한다.
+_TEMPORAL_DEIXIS = re.compile(r"최근|지난|과거|역대|역사|작년|지난해|전반기|직전")
+# 제3자 **비판을 옮긴 표현**. "최근 지적받은 중원 제어력 문제"처럼 누군가 특정 시점에
+# 그렇게 말했다는 구체적 과거 사건이므로, 주관적 어휘로 바꿔 읽어 넘기지 않는다.
+# 인용한 근거에 그 동사가 없으면 그 부분만 덜어낸다(뒤의 전망·전술 평가는 남긴다).
+_REPORTED_ATTRIBUTION = re.compile(
+    r"(?:최근|지난|직전)?\s*(?:지적|비판|혹평|지탄)(?:을|를)?\s*(?:받|되|된|됐)(?:은|는|던)?"
+)
+# 위 표현에서 실제로 확인해야 할 어근. 근거 문장에 이 말이 있어야 "누가 그렇게
+# 말했다"는 주장이 출처를 갖는다.
+_ATTRIBUTION_HEAD = re.compile(r"지적|비판|혹평|지탄")
 
 
 class FormResearchError(ValueError):
@@ -451,7 +481,44 @@ def _clause_supported(clause: str, *, cited_text: str, fixture_year: str) -> boo
     for event in _EVENT_WORDS.findall(clause):
         if event not in cited_text:
             return False
+    # 완료된 사건은 **인용 문장에 같은 사건 서술이 있어야** 확인된 것이다. 이 검사가
+    # 없으면 `_PAST_EVENT`가 수치·부상 어휘가 없는 사건을 "확인할 것이 없다"고 보고
+    # 통과시켰다(같은 결함의 반대편).
+    cited_compact = _compact(cited_text)
+    for match in _PAST_EVENT.finditer(clause):
+        if _compact(match.group(0)) not in cited_compact:
+            return False
     return True
+
+
+def _compact(text: str) -> str:
+    """공백 차이만 다른 같은 문장을 같게 본다."""
+    return " ".join(str(text).split())
+
+
+def _basis_split(clause: str) -> tuple[str, str] | None:
+    """판단 문장을 (전제, 남는 전망)으로 가른다. 전제 표지가 없으면 None.
+
+    예: "역사적인 상성 우위를 바탕으로 맨시티가 주도할 것입니다" →
+    ("역사적인 상성 우위를 바탕으로", "맨시티가 주도할 것입니다").
+    """
+    match = _BASIS_CONNECTIVE.search(clause)
+    if match is None:
+        return None
+    prefix = clause[: match.end()].strip()
+    rest = clause[match.end() :].lstrip(" ,·、")
+    if not prefix or not rest:
+        return None
+    return prefix, rest
+
+
+def _attribution_in_citation(phrase: str, cited_text: str) -> bool:
+    """보도·평가를 옮긴 표현이 **인용한 근거 문장에 실제로 있는지** 본다.
+
+    근거에 없는 "지적받은" 같은 표현은 AI 판단이 아니라 출처 없는 주장이다.
+    """
+    heads = _ATTRIBUTION_HEAD.findall(phrase)
+    return bool(heads) and all(head in cited_text for head in heads)
 
 
 # --------------------------------------------------------------------------
@@ -609,6 +676,10 @@ class _Validated:
     uncertainties: list[str]
     diagnostics: list[str]
     coverage: list[CoverageEntry]
+    # 항목 안에서 확인되지 않아 덜어낸 사실과, 그 사실을 전제로 삼아 내려놓은 부분.
+    # 관리자·F2/F3 기록 담당이 "무엇을 왜 뺐는지"를 문장 단위로 쓸 수 있게 구조로 남긴다.
+    dropped_facts: tuple[str, ...] = ()
+    unasserted_premises: tuple[str, ...] = ()
 
 
 def _claim(
@@ -652,7 +723,7 @@ def _supported_text(
     usable: Sequence[str],
     has_source: bool,
     require_search: bool,
-) -> tuple[str, tuple[str, ...]]:
+) -> _Filtered:
     """호환용 별칭. 실제 규칙은 `_filter_judgment_text` 한 곳에 있다."""
     return _filter_judgment_text(
         text,
@@ -670,15 +741,15 @@ def _clean_clause_text(
     usable: Sequence[str],
     has_source: bool,
     require_search: bool,
-) -> tuple[str, tuple[str, ...]]:
+) -> _Filtered:
     """항목의 개별 문장(제목/이유)을 **같은 규칙**으로 걸러 돌려준다.
 
     검증한 본문과 별개로 원문 조각을 다시 거르므로, 덜어낸 사실 조각이 제목이나
-    이유 쪽으로 새어 나가지 않는다. 반환: (남길 문장, 덜어낸 문장들).
+    이유 쪽으로 새어 나가지 않는다.
     """
     original = " ".join(str(value or "").split())
     if not original:
-        return "", ()
+        return _Filtered("")
     return _filter_judgment_text(
         original,
         facts=facts,
@@ -695,28 +766,106 @@ def _filter_judgment_text(
     usable: Sequence[str],
     has_source: bool,
     require_search: bool,
-) -> tuple[str, tuple[str, ...]]:
-    """판단 문장에서 확인되지 않은 사실 조각만 덜어낸다.
+) -> "_Filtered":
+    """판단 항목에서 확인되지 않은 사실과 그 사실에 기댄 전제를 덜어낸다.
 
-    `_validate_item`과 관전 포인트·주목 선수의 개별 문장(제목/본문/이유)이 **같은
-    규칙**을 쓰도록 한 곳에 둔다. 반환: (남길 문장, 덜어낸 문장들).
+    세 가지를 순서대로 본다.
+
+    1. 문장마다 수치·사건이 든 **사실 조각**인지 보고, 근거와 대조해 채택 여부를 정한다.
+    2. "지적받은"처럼 **누가 그렇게 말했다**는 보도를 옮긴 표현은, 그 말이 인용한
+       근거에 없으면 그 표현만 덜어낸다. 남는 전술 평가·전망은 AI 판단이다.
+    3. 같은 항목에서 사실 조각이 이미 덜어졌다면, **그 사실을 전제로 삼는 판단 문장**은
+       전제부만 내려놓고 뒤의 전망을 살린다.
+
+    3번이 없으면 "최근 득점으로 자신감을 얻은 만큼 …"처럼 이미 버린 사건이 다른 문장의
+    전제로 남아 확인된 지식처럼 읽힌다. 그래서 **같은 항목 안에서** 덜어낸 사실이 있을
+    때만, 그리고 전제가 시간 지시어로 과거를 가리킬 때만 내려놓는다. 항목 전체를 다시
+    거절하지도, 모든 의견에 출처를 요구하지도 않는다.
     """
     cited = _cited_fact_text(facts, usable)
     fixture_year = str(facts.kickoff_at.year)
+    clauses = _clauses(text)
+
+    supported_fact: list[bool] = []
+    for needs_check, clause in clauses:
+        if not needs_check:
+            supported_fact.append(False)
+            continue
+        supported_fact.append(
+            has_source
+            and _clause_supported(clause, cited_text=cited, fixture_year=fixture_year)
+        )
+    rejected_fact = any(
+        needs_check and not ok for (needs_check, _), ok in zip(clauses, supported_fact)
+    )
+
     kept: list[str] = []
     dropped: list[str] = []
-    for needs_check, clause in _clauses(text):
-        if not needs_check:
+    unasserted: list[str] = []
+    for (needs_check, clause), ok in zip(clauses, supported_fact):
+        if needs_check:
+            (kept if ok else dropped).append(clause)
+            continue
+        # "최근 지적받은 …"은 **누가 그렇게 말했다**는 구체적 과거 사건을 옮긴 표현이다.
+        # 그 보도가 모델이 인용한 근거에 없으면 확인된 판단이 아니라 출처 없는 주장이므로
+        # 그 표현만 덜어낸다. 뒤에 남는 전술 평가·전망은 AI 판단이라 그대로 둔다.
+        reported = _REPORTED_ATTRIBUTION.search(clause)
+        if reported is not None and not _attribution_in_citation(clause, cited):
+            unasserted.append(_compact(reported.group(0)))
+            stripped = _compact(clause[: reported.start()] + " " + clause[reported.end() :])
+            if stripped:
+                kept.append(stripped)
+            else:
+                dropped.append(clause)
+            continue
+        # 같은 항목에서 이미 덜어낸 사실이 있을 때만 전제를 내려놓는다. 덜어낸 사실이
+        # 없는 항목의 판단은 그대로 둔다(선정·전망은 AI 판단이다).
+        if not rejected_fact:
             kept.append(clause)
             continue
-        if not has_source:
-            dropped.append(clause)
+        basis = _basis_split(clause)
+        if basis is not None and _TEMPORAL_DEIXIS.search(basis[0]):
+            # "최근 득점으로 …", "역사적인 상성 우위를 바탕으로 …"처럼 과거 사건·기록을
+            # 전제로 세운 부분만 내려놓고, 그 뒤의 전망은 그대로 남긴다.
+            premise, rest = basis
+            unasserted.append(premise)
+            kept.append(rest)
             continue
-        if _clause_supported(clause, cited_text=cited, fixture_year=fixture_year):
-            kept.append(clause)
-        else:
-            dropped.append(clause)
-    return " ".join(kept).strip(), tuple(dropped)
+        kept.append(clause)
+    return _Filtered(" ".join(kept).strip(), tuple(dropped), tuple(unasserted))
+
+
+def _filter_note(filtered: "_Filtered") -> str | None:
+    """덜어낸 사실과 내려놓은 전제를 **관리자 진단 한 줄**로 남긴다.
+
+    사용자 본문에는 들어가지 않는다. 무엇을 왜 뺐는지가 실행 기록에 남아야 검토할 수
+    있다(설계 §5·§6.1).
+    """
+    parts: list[str] = []
+    if filtered.dropped_facts:
+        parts.append(
+            f"확인되지 않은 사실 조각 {len(filtered.dropped_facts)}개를 덜어냈습니다: "
+            + " / ".join(filtered.dropped_facts)
+        )
+    if filtered.unasserted_premises:
+        parts.append(
+            "덜어낸 사실을 전제로 삼던 부분을 주장하지 않고 내려놓았습니다: "
+            + " / ".join(filtered.unasserted_premises)
+        )
+    return " ".join(parts) if parts else None
+
+
+@dataclass(frozen=True)
+class _Filtered:
+    """필터 결과. 남길 문장·덜어낸 사실 문장·내려놓은 전제."""
+
+    text: str
+    dropped_facts: tuple[str, ...] = ()
+    unasserted_premises: tuple[str, ...] = ()
+
+    @property
+    def lost_anything(self) -> bool:
+        return bool(self.dropped_facts or self.unasserted_premises)
 
 
 def _resolve_sources(
@@ -764,6 +913,7 @@ def _validate_item(
     kickoff_at: datetime,
     require_search: bool,
     allow_judgment: bool = False,
+    record: list[tuple[str, "_Filtered"]] | None = None,
 ) -> tuple[EvidenceClaim | None, str | None]:
     """항목 하나를 검증한다. 채택할 수 없으면 (None, 사유)를 돌려준다.
 
@@ -788,33 +938,30 @@ def _validate_item(
     )
 
     if allow_judgment:
-        kept, dropped = _supported_text(
+        filtered = _supported_text(
             text,
             facts=facts,
             usable=usable,
             has_source=has_source,
             require_search=require_search,
         )
-        if not kept:
-            if dropped:
+        if not filtered.text:
+            if filtered.lost_anything:
                 return None, (
                     "확인 가능한 사실 조각에 근거가 없어 채택하지 않았습니다"
-                    f"(덜어낸 문장: {len(dropped)}개)."
+                    f"(덜어낸 문장: {len(filtered.dropped_facts)}개)."
                 )
             return None, "내용이 비어 있어 채택하지 않았습니다."
         claim = _claim(
             f"r1-{label}-{index}",
             kind,
-            kept,
+            filtered.text,
             snapshot_ids=snapshot_ids,
             source_url=url,
         )
-        if dropped:
-            return claim, (
-                f"확인되지 않은 사실 조각 {len(dropped)}개를 덜어내고 AI 판단만 남겼습니다: "
-                + " / ".join(dropped)
-            )
-        return claim, None
+        if record is not None and filtered.lost_anything:
+            record.append((f"{label} {index + 1}", filtered))
+        return claim, _filter_note(filtered)
 
     if not has_source:
         return None, "근거 식별자(snapshot 또는 검색 출처 URL)가 없어 채택하지 않았습니다."
@@ -856,9 +1003,21 @@ def validate_response(
     recent_form: list[dict[str, Any]] = []
     uncertainties = [str(item) for item in payload.get("uncertainties") or () if str(item).strip()]
     diagnostics: list[str] = []
+    dropped_fact_notes: list[str] = []
+    unasserted_premise_notes: list[str] = []
 
     def note_exclusion(label: str, reason: str) -> None:
         diagnostics.append(f"{label}: {reason}")
+
+    importance_record: list[tuple[str, "_Filtered"]] = []
+
+    def note_filter(label: str, filtered: "_Filtered") -> None:
+        """덜어낸 사실·내려놓은 전제를 항목 이름과 함께 한 줄씩 남긴다."""
+        prefix = f"{label}: " if label else ""
+        for fact in filtered.dropped_facts:
+            dropped_fact_notes.append(prefix + fact)
+        for premise in filtered.unasserted_premises:
+            unasserted_premise_notes.append(prefix + premise)
 
     ctx = payload.get("match_context") or {}
     if isinstance(ctx, Mapping) and str(ctx.get("importance") or "").strip():
@@ -875,9 +1034,12 @@ def validate_response(
             require_search=False,
             # 이번 경기의 의미는 AI 판단이다. 판단 문장에 검색 인용을 요구하지 않는다.
             allow_judgment=True,
+            record=importance_record,
         )
         if claim:
             claims.append(claim)
+            for _label, filtered in importance_record:
+                note_filter("이번 경기 의미", filtered)
         elif reason:
             note_exclusion("이번 경기 의미", reason)
 
@@ -944,20 +1106,23 @@ def validate_response(
             url_map=url_map,
             grounding_urls=grounding_urls,
         )
-        title, _title_dropped = _clean_clause_text(
+        title_filter = _clean_clause_text(
             item.get("title"),
             facts=facts,
             usable=usable,
             has_source=has_source,
             require_search=True,
         )
-        detail, _detail_dropped = _clean_clause_text(
+        detail_filter = _clean_clause_text(
             item.get("detail"),
             facts=facts,
             usable=usable,
             has_source=has_source,
             require_search=True,
         )
+        title, detail = title_filter.text, detail_filter.text
+        note_filter(f"관전 포인트 {index + 1}", title_filter)
+        note_filter(f"관전 포인트 {index + 1}", detail_filter)
         claims.append(
             _claim(
                 f"{claim.claim_id}-detail",
@@ -1023,14 +1188,16 @@ def validate_response(
             url_map=url_map,
             grounding_urls=grounding_urls,
         )
-        filtered_reason = _clean_clause_text(
+        reason_filter = _clean_clause_text(
             item.get("reason"),
             facts=facts,
             usable=usable,
             has_source=has_source,
             # 주목 선수 이유에는 매체 인용을 요구하지 않는다(선정은 AI 판단).
             require_search=False,
-        )[0]
+        )
+        filtered_reason = reason_filter.text
+        note_filter(f"주목 선수 {player}", reason_filter)
         claims.append(
             _claim(
                 claim.claim_id,
@@ -1101,6 +1268,8 @@ def validate_response(
         uncertainties=uncertainties,
         diagnostics=diagnostics + warnings,
         coverage=coverage,
+        dropped_facts=tuple(dropped_fact_notes),
+        unasserted_premises=tuple(unasserted_premise_notes),
     )
 
 

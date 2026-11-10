@@ -741,6 +741,93 @@ def test_unverified_statistic_not_smuggled_through_as_opinion():
     assert any("근거가 없어 채택하지 않았습니다" in line for line in dropped.diagnostics)
 
 
+def test_rejected_fact_premise_not_left_as_asserted_opinion():
+    """같은 항목에서 덜어낸 과거 사건은 다른 문장의 **전제로도** 남지 않는다.
+
+    실제 후보 실행(7c0af3c0 v4)에서 미확인 득점 문장은 덜어냈지만, 그 사건을 전제로
+    삼은 "최근 득점으로 자신감을 얻은 만큼 …" 문장은 남아 확인된 지식처럼 읽혔다.
+    여기서 확인하는 사용자 결과는 셋이다.
+
+    1. 덜어낸 사건을 전제로 삼은 부분은 **주장되지 않는다**(전제만 내려놓는다).
+    2. 그 뒤의 **미래 전망·선정은 그대로 남는다**. 예측 자체에 외부 증명을 요구하지
+       않는다는 확정 기준을 되돌리지 않는다.
+    3. 전제가 아닌 **주관적 전술 평가**와, 덜어낸 사실이 없는 항목의 의견은 건드리지
+       않는다. 동의어 목록을 늘리는 방식으로 판단 문장을 통째로 지우지 않는다.
+    """
+    payload = {
+        "match_context": {"importance": "", "importance_evidence": []},
+        "recent_form": [],
+        "watch_points": [
+            {
+                # 숫자 없는 과거 사건(골을 터뜨렸) + 그 사건을 전제로 삼은 전망.
+                "title": "풀럼의 역습",
+                "detail": (
+                    "fact: 호드리구 무니스는 최근 뉴캐슬전에서 골을 터뜨렸습니다."
+                    " interpretation: 최근 득점으로 자신감을 얻은 만큼"
+                    " 이번 경기에서도 최전방을 책임질 것으로 기대됩니다."
+                ),
+                "evidence": ["api:form-mci"],
+            },
+            {
+                # 제3자 보도("지적받은")를 조건절로 삼은 판단.
+                "title": "중원 창의성 대결",
+                "detail": (
+                    "fact: 알렉스 이워비는 지난 라운드에서 결승골을 터뜨렸습니다."
+                    " interpretation: 맨시티가 최근 지적받은 중원 제어력 문제를"
+                    " 해결하지 못한다면 이워비의 패스에 고전할 수 있습니다."
+                ),
+                "evidence": ["api:form-mci"],
+            },
+        ],
+        "hot_players": [
+            {
+                # 덜어낸 사실은 있으나, 전제가 시간 지시어 없는 주관적 평가다.
+                "player": "Rodrigo Muniz",
+                "team": "Fulham",
+                "reason": (
+                    "fact: 이번 시즌 경기당 평균 2.8회의 유효 슈팅을 기록했습니다."
+                    " interpretation: 과감하게 슈팅을 시도하는 성향을 바탕으로"
+                    " 맨시티의 골문을 겨냥할 공격수입니다."
+                ),
+                "evidence": ["api:form-mci"],
+                "superlative_basis": None,
+            }
+        ],
+        "search_note": None,
+        "uncertainties": [],
+    }
+    research = _research(text=json.dumps(payload, ensure_ascii=False))
+
+    detail = research.watch_points[0]["detail"]
+    # 1. 덜어낸 과거 사건을 전제로 삼은 부분은 주장되지 않는다.
+    assert "골을 터뜨렸" not in detail
+    assert "자신감을 얻은 만큼" not in detail
+    # 2. 미래 전망은 그대로 남는다(예측 자체에 외부 증명을 요구하지 않는다).
+    assert "최전방을 책임질 것으로 기대됩니다" in detail
+
+    # 제3자 보도를 조건으로 삼은 판단: 조건만 내려놓고 전망은 남긴다.
+    second = research.watch_points[1]["detail"]
+    assert "지적받은" not in second
+    assert "고전할 수 있습니다" in second
+
+    # 3. 덜어낸 사실이 있어도 전제가 주관적 전술 평가면 그대로 둔다.
+    reason = research.hot_players[0]["reason"]
+    assert "2.8" not in reason
+    assert "성향을 바탕으로" in reason
+    assert "골문을 겨냥할 공격수입니다" in reason
+
+    # 무엇을 왜 뺐는지가 관리자 진단과 **구조화된 검증 결과**에 남는다.
+    # F2/F3 기록 담당이 문장 단위로 저장할 수 있도록 `validate_response`가 값을 돌려준다.
+    assert any("자신감을 얻은 만큼" in line for line in research.diagnostics)
+    validated = form.validate_response(
+        payload, facts=_facts(), grounding={"sources": []}, now=FIXED_NOW
+    )
+    assert any("자신감을 얻은 만큼" in item for item in validated.unasserted_premises)
+    assert any("골을 터뜨렸" in item for item in validated.dropped_facts)
+    assert research.unavailable is False
+
+
+
 def test_injury_reason_usable_with_unknown_onset_and_kept_in_admin_diagnostic():
     """API 부상 사유가 있고 발생 시점·경위를 모르면: 단정하지 않되 사용 가능하다.
 
