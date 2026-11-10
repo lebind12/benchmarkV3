@@ -14,9 +14,9 @@
     "D0-odds",
     "D0-predictions"
   ],
-  "run_id": "4013cfe2-6760-419c-8e1b-575499c9b0b3",
-  "result_id": "5ba4285c-9f8f-40f5-b848-5b20ddb3e14a",
-  "module_execution_id": "c730baf4-2639-49b5-8199-1fa20f53001f",
+  "run_id": "ae7b39cc-5f99-4f3b-8372-3333dd814d34",
+  "result_id": "47abe9c3-8dd8-4456-a1c4-19cccc1a87d9",
+  "module_execution_id": "6e7a7c1f-ec10-4ff6-a6e0-1cf44025eaa0",
   "version": 1,
   "status": "succeeded",
   "quality": "pending",
@@ -135,93 +135,93 @@
   ],
   "snapshots": [
     {
-      "snapshot_id": "6ec118d8-6bb7-49f7-b534-71db11598612",
+      "snapshot_id": "f6cd9416-22c8-4171-aa94-ddbd8dea06b5",
       "provider": "api-football",
       "source_kind": "api",
       "collected_at": "2026-11-10T16:00:00+00:00",
       "provider_updated_at": null,
       "validation": "verified",
-      "artifact_id": "6550b6cf-0e12-4896-ba68-521efec698c5",
+      "artifact_id": "28db47eb-2361-4e08-a32b-b98a3fd30276",
       "note": "D0-fixture: 경기 식별·킥오프·상태 확인 (실행 방식 mock)"
     },
     {
-      "snapshot_id": "4127427c-371f-4d11-8cba-48b311fdeb30",
+      "snapshot_id": "05bb10fc-b734-4875-a0e1-ab8d0e30678c",
       "provider": "api-football",
       "source_kind": "api",
       "collected_at": "2026-11-10T16:00:00+00:00",
       "provider_updated_at": null,
       "validation": "verified",
-      "artifact_id": "aac27dbd-7625-4570-b60f-4fbf14718a14",
+      "artifact_id": "81a8bdf0-94d3-4950-8e4d-fe2f6de67809",
       "note": "D0-form-home: 홈팀 시즌 기록·최근 흐름 (실행 방식 mock)"
     },
     {
-      "snapshot_id": "84d9e0e3-032e-4a93-b98c-7fa40d029159",
+      "snapshot_id": "d3132006-9d82-41e1-ad34-5976378b64b3",
       "provider": "api-football",
       "source_kind": "api",
       "collected_at": "2026-11-10T16:00:00+00:00",
       "provider_updated_at": null,
       "validation": "verified",
-      "artifact_id": "5c032fa1-0249-494d-adb1-dc66e5d80a0a",
+      "artifact_id": "193f58d3-21d6-490f-93cd-27096707d122",
       "note": "D0-form-away: 원정팀 시즌 기록·최근 흐름 (실행 방식 mock)"
     },
     {
-      "snapshot_id": "bfab3d40-a3da-45c1-911d-c812e3c54c00",
+      "snapshot_id": "da91a8c7-9022-454a-b547-a645ab7076ba",
       "provider": "api-football",
       "source_kind": "api",
       "collected_at": "2026-11-10T16:00:00+00:00",
       "provider_updated_at": null,
       "validation": "verified",
-      "artifact_id": "5b772c9f-60bd-44ba-a3b0-1a231e996f48",
+      "artifact_id": "978c0d3d-b8cf-4473-a5fa-ea0c268093eb",
       "note": "D0-standings: 리그 순위·폼 (실행 방식 mock)"
     },
     {
-      "snapshot_id": "fe687e6a-2c20-44d5-9a8c-6f6c448a4f02",
+      "snapshot_id": "4d290a70-63bd-48a3-a948-2fb2e759ea65",
       "provider": "api-football",
       "source_kind": "api",
       "collected_at": "2026-11-10T16:00:00+00:00",
       "provider_updated_at": null,
       "validation": "verified",
-      "artifact_id": "3087cfb5-d850-4667-bca7-0b3ecf1eb66a",
+      "artifact_id": "3bda6663-d074-48c0-97fb-c04d6c5ad58e",
       "note": "D0-players-home: 홈팀 선수 시즌 기록 (실행 방식 mock)"
     },
     {
-      "snapshot_id": "d49da254-43fb-4515-b92e-cd9c9fffdf85",
+      "snapshot_id": "c4f26787-954a-4ad5-a83c-cea161e0cbf6",
       "provider": "api-football",
       "source_kind": "api",
       "collected_at": "2026-11-10T16:00:00+00:00",
       "provider_updated_at": null,
       "validation": "verified",
-      "artifact_id": "c1a635db-5c1d-4bec-b098-567909e4b8b6",
+      "artifact_id": "cc31ae8b-9a07-4abd-8570-2b3ee3bea463",
       "note": "D0-players-away: 원정팀 선수 시즌 기록 (실행 방식 mock)"
     },
     {
-      "snapshot_id": "d59a8741-fa0c-4a45-9e64-3164270e3336",
+      "snapshot_id": "86708cbf-0f34-4a6a-8bf7-8cfb4c6dd225",
       "provider": "api-football",
       "source_kind": "api",
       "collected_at": "2026-11-10T16:00:00+00:00",
       "provider_updated_at": null,
       "validation": "verified",
-      "artifact_id": "36152eb9-dc25-488c-a193-228aefabb150",
+      "artifact_id": "d4cc2e28-316d-4d54-bda5-0dacaeef65b5",
       "note": "D0-injuries: 해당 경기 부상·출전 불확실 (실행 방식 mock)"
     },
     {
-      "snapshot_id": "810bdef4-3811-4c6e-a00f-353a92219e11",
+      "snapshot_id": "1793e169-139e-4263-94e7-0d37b28e691c",
       "provider": "api-football",
       "source_kind": "api",
       "collected_at": "2026-11-10T16:00:00+00:00",
       "provider_updated_at": null,
       "validation": "verified",
-      "artifact_id": "943455aa-ffc2-4786-807a-48a3c3f1f8a0",
+      "artifact_id": "fd25655d-41e2-43b1-86e8-cb37a2d028cf",
       "note": "D0-odds: 경기 전 승무패 배당 (실행 방식 mock)"
     },
     {
-      "snapshot_id": "9d0af26f-6f50-4244-9552-378b8d6c9f57",
+      "snapshot_id": "da0e231f-cfc7-494b-9eee-326cc296c90b",
       "provider": "api-football",
       "source_kind": "api",
       "collected_at": "2026-11-10T16:00:00+00:00",
       "provider_updated_at": null,
       "validation": "verified",
-      "artifact_id": "ec7f0bd2-e38a-4570-a427-9fe4ee2cf424",
+      "artifact_id": "9ec26c7c-f219-40cc-8cba-67716323003e",
       "note": "D0-predictions: 제공자 알고리즘 예측(매체 의견과 구분) (실행 방식 mock)"
     }
   ],
@@ -232,7 +232,7 @@
     "attempts": 9
   },
   "catalog_import": {
-    "run_id": "1b552a94-98e9-4392-ab08-75d4973b3d5f",
+    "run_id": "cd9d894e-ca00-482c-9be1-f824f2da29cd",
     "operation_kind": "fixture_catalog",
     "mode": "mock",
     "provider_calls": 1,

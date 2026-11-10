@@ -80,6 +80,11 @@ FixtureReadAccess.probe(engine) -> FixtureReadAccess
 9개에 대해 정확히 9번 부르고, 재시도는 하지 않는다. 재시도·예산·시도 순번은 공통
 실행기의 몫이며, D0는 실패한 호출을 `CALL_ERROR`로 남기고 다음 호출로 넘어간다.
 
+**중복 기록 금지 규칙.** 공통 실행기가 시도를 이미 남겼다면(`ProviderResponse.attempt_id`
+가 있음) D0는 시도도 원문 아티팩트도 만들지 않고, 스냅샷이 그 ID를 가리키게 한다. 같은
+요청을 두 번 기록하면 시도 수·재시도 빈도·429 빈도가 두 배로 부푼다. 주입한 실행기가
+아무것도 남기지 않는 경우(기록 자료로 도는 모의 실행기)에만 D0가 기록을 만든다.
+
 ### MP-04에 필요한 연결 (라우터·전송 계층)
 
 1. `POST /api/v1/admin/preview/fixtures/import` → `data.import_fixtures`
@@ -103,7 +108,7 @@ FixtureReadAccess.probe(engine) -> FixtureReadAccess
 ```
 PREVIEW_TEST_DATABASE_URL=.../preview_mp03_test \
   .venv/bin/python -m pytest tests/preview/test_data.py tests/preview/test_api_football.py -q
-27 passed, 1 warning in 5.17s
+28 passed, 1 warning in 5.87s
 ```
 
 수용 기준 매핑:
@@ -116,6 +121,7 @@ PREVIEW_TEST_DATABASE_URL=.../preview_mp03_test \
 | `test_wrong_fixture_rejected` | 응답 경기 ID 불일치 → `VALIDATION_REJECTED`, 나머지 호출 중단 |
 | `test_api_error_not_missing` | 제공자 오류 → `CALL_ERROR`(≠ `API_NOT_PROVIDED`), 시도 1건 |
 | `test_view_uses_stored_fixtures` | 목록 조회 중 수집 함수 호출 금지, `external_calls=0` |
+| (추가) `test_executor_recorded_attempt_is_not_double_counted` | 공통 실행기가 남긴 시도·원문을 D0가 다시 만들지 않음 |
 
 ### 프론트엔드
 
@@ -182,6 +188,11 @@ TO <전용 읽기 역할>;
 3. **저장된 목록을 읽지 못하던 문제.** 저장 결과 행은 `ModuleResult.to_dict()`를 그대로
    담아 payload가 한 단계 아래에 있다. 화면 조회가 조용히 빈 목록을 돌려주지 않도록
    두 모양을 모두 읽게 고쳤다.
+4. **공통 실행기와 같은 요청을 두 번 기록하던 문제.** MP-04의 `execute_request`는
+   시도 행과 원문 아티팩트를 스스로 남기고 그 ID를 `ProviderResponse.attempt_id`·
+   `raw_artifact_id`로 돌려준다. D0가 같은 요청을 다시 기록하면 시도 수와 429 빈도가
+   두 배로 부푼다. 응답에 `attempt_id`가 있으면 D0는 기록을 만들지 않고 그 ID를
+   스냅샷에 연결한다. `test_executor_recorded_attempt_is_not_double_counted`로 고정했다.
 
 ## 남은 일과 인계
 
@@ -196,7 +207,7 @@ TO <전용 읽기 역할>;
 ## 실행한 명령
 
 ```
-.venv/bin/python -m pytest tests/preview/test_data.py tests/preview/test_api_football.py -q   # 27 passed
+.venv/bin/python -m pytest tests/preview/test_data.py tests/preview/test_api_football.py -q   # 28 passed
 npm --prefix frontend run test:unit -- src/features/match-preview/FixtureSelector.test.ts \
   src/features/match-preview/panels/DataPanel.test.ts                                        # 15 passed
 npm --prefix frontend run type-check                                                         # 통과
@@ -204,3 +215,29 @@ npm --prefix frontend run type-check                                            
 
 테스트 전용 DB는 다른 작업과 섞이지 않도록 `preview_mp03_test`(로컬 컨테이너, 루프백)를
 따로 만들어 사용했다. 공유 테스트 DB에서 다른 워커의 스키마 재생성과 충돌했기 때문이다.
+
+## 커밋 귀속 (읽는 사람에게 필요함)
+
+MP-03 파일은 로컬 커밋에 들어갔지만 **커밋 메시지가 MP-08 것이다.**
+
+| 항목 | 값 |
+|---|---|
+| 내려간 커밋 | `7ef8821` "feat(preview): MP-08 stored-event operational metrics" |
+| 내 파일 수 | 12 (mp03 소유 전체, `git show --name-only`로 확인) |
+| 내가 만든 커밋 | 없음 (pathspec 커밋은 인덱스 경합으로 실패) |
+
+원인: 세 워커가 같은 작업 트리와 같은 git 인덱스를 공유한다. 내가 파일을 스테이징한
+뒤 MP-08 워커가 `git commit`을 실행하면서 스테이징된 항목 전체가 그 커밋에 들어갔다.
+내용은 최종본과 같고(`git status` 깨끗함, `provider_calls` 수정과 27개 통과 검사 포함),
+잘못된 것은 커밋 메시지와 작성자 귀속뿐이다.
+
+고치려면 히스토리 재작성(reset/checkout/amend)이 필요한데 이 작업의 금지 범위다.
+그래서 **고치지 않았고, MP-03 내용은 `7ef8821` 안에 있다**고 기록한다. 다시 커밋하지
+않은 이유도 같다. 같은 인덱스를 쓰는 상태에서 또 커밋하면 다른 워커 파일을 쓸어 담을
+수 있다. 커밋 경계를 고치는 판단은 조정자에게 넘긴다.
+
+파일 내용은 `7ef8821` 기준으로 다음 명령으로 확인할 수 있다.
+
+```
+git show --name-only 7ef8821 | grep -E "preview/data|sources/|FixtureSelector|panels/Data|test_data|test_api_football|api_football.json|MP-03|mp03"
+```

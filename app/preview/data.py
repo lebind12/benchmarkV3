@@ -924,40 +924,50 @@ def prepare_match_data(
         exchange = executor(spec)
         provider_calls += 1
         response = exchange.response
+        # 실행기가 이미 시도·원문을 기록했으면(MP-04의 execute_request) 그것을 쓴다.
+        # 같은 요청을 두 번 기록하면 시도 수와 429 빈도가 부풀어 지표가 틀어진다.
+        recorded_elsewhere = response.attempt_id is not None
         response_artifact = None
-        if exchange.body is not None:
-            response_artifact = artifact_store.save_artifact(
+        if recorded_elsewhere:
+            # 원문도 실행기가 이미 저장했다. 여기서 또 저장하면 같은 본문이 두 벌 생긴다.
+            attempt_id = response.attempt_id
+            response_artifact_id = response.raw_artifact_id
+        else:
+            if exchange.body is not None:
+                response_artifact = artifact_store.save_artifact(
+                    session,
+                    run_id=run.id,
+                    kind=artifact_store.ArtifactKind.RAW_RESPONSE,
+                    content=exchange.body,
+                    actor_id=actor,
+                    now=moment,
+                )
+            attempt = store.append_attempt(
                 session,
                 run_id=run.id,
-                kind=artifact_store.ArtifactKind.RAW_RESPONSE,
-                content=exchange.body,
+                module_execution_id=execution_id,
+                module_id=D0_MODULE_ID,
+                logical_call_id=logical_call_id,
+                attempt_ordinal=0,
+                provider=spec.provider,
+                model=None,
+                mode=context.mode,
+                operation=call.endpoint,
+                outcome=response.outcome.value,
+                request_spec=spec.to_dict(),
+                http_status=response.http_status,
+                error_class=response.error_class,
+                error_message=response.error_message,
+                request_artifact_id=request_artifact.id,
+                response_artifact_id=response_artifact.id if response_artifact else None,
+                usage=response.usage.to_dict() if response.usage else None,
+                wait_ms=0,
+                started_at=moment,
+                finished_at=response.received_at or moment,
                 actor_id=actor,
-                now=moment,
             )
-        attempt = store.append_attempt(
-            session,
-            run_id=run.id,
-            module_execution_id=execution_id,
-            module_id=D0_MODULE_ID,
-            logical_call_id=logical_call_id,
-            attempt_ordinal=0,
-            provider=spec.provider,
-            model=None,
-            mode=context.mode,
-            operation=call.endpoint,
-            outcome=response.outcome.value,
-            request_spec=spec.to_dict(),
-            http_status=response.http_status,
-            error_class=response.error_class,
-            error_message=response.error_message,
-            request_artifact_id=request_artifact.id,
-            response_artifact_id=response_artifact.id if response_artifact else None,
-            usage=response.usage.to_dict() if response.usage else None,
-            wait_ms=0,
-            started_at=moment,
-            finished_at=response.received_at or moment,
-            actor_id=actor,
-        )
+            attempt_id = attempt.id
+            response_artifact_id = response_artifact.id if response_artifact else None
         collected_at = response.received_at or moment
         ok = exchange.ok and response.outcome is AttemptOutcome.OK
         if not ok:
@@ -972,8 +982,8 @@ def prepare_match_data(
                 ValidationStatus.VERIFIED if ok else ValidationStatus.UNVERIFIED
             ),
             fixture=fixture,
-            attempt_id=attempt.id,
-            artifact_id=response_artifact.id if response_artifact else None,
+            attempt_id=attempt_id,
+            artifact_id=response_artifact_id,
             note=f"{call.call_id}: {call.description} (실행 방식 {context.mode.value})",
             actor_id=actor,
         )
@@ -986,7 +996,7 @@ def prepare_match_data(
             "endpoint": call.endpoint,
             "provider": api.API_PROVIDER,
             "snapshot_id": str(snapshot.snapshot_id),
-            "artifact_id": str(response_artifact.id) if response_artifact else None,
+            "artifact_id": str(response_artifact_id) if response_artifact_id else None,
             "collected_at": collected_at.isoformat(),
             "provider_updated_at": (
                 snapshot.provider_updated_at.isoformat()

@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
+from app.preview import artifacts as artifact_store
 from app.preview import data as preview_data
 from app.preview import store
 from app.preview.contracts import (
@@ -41,6 +42,7 @@ from app.preview.contracts import (
     compute_input_hash,
 )
 from app.preview.models import (
+    PreviewArtifact,
     PreviewAttempt,
     PreviewModuleExecution,
     PreviewResult,
@@ -356,6 +358,94 @@ def test_live_run_counts_provider_calls_as_external(session_factory):
 
         assert result.provider_calls == len(executor.calls) == 9
         assert result.external_calls == 9
+
+
+def test_executor_recorded_attempt_is_not_double_counted(session_factory):
+    """공통 실행기가 이미 남긴 시도·원문을 D0가 또 기록하지 않는다.
+
+    MP-04의 `execute_request`는 요청마다 시도 행과 원문을 스스로 남기고 그 ID를
+    `ProviderResponse`로 돌려준다. D0가 같은 요청을 다시 기록하면 시도 수와 429 빈도가
+    두 배로 부풀어 운영 지표가 틀어진다.
+    """
+    context = _context(mode=RunMode.LIVE)
+    with session_factory() as session:
+        _prepare_run(session, context)
+
+        recorded: list[tuple[uuid.UUID, uuid.UUID]] = []
+
+        class RecordingElsewhereExecutor(RecordingExecutor):
+            """MP-04의 execute_request처럼 시도·원문을 스스로 남기는 실행기."""
+
+            def __call__(self, spec):
+                exchange = super().__call__(spec)
+                if exchange.response.outcome is AttemptOutcome.ERROR:
+                    return exchange
+                artifact = artifact_store.save_artifact(
+                    session,
+                    run_id=context.run_id,
+                    kind=artifact_store.ArtifactKind.RAW_RESPONSE,
+                    content=exchange.body or {},
+                    now=MOMENT,
+                )
+                attempt = store.append_attempt(
+                    session,
+                    run_id=context.run_id,
+                    logical_call_id=spec.logical_call_id,
+                    attempt_ordinal=0,
+                    provider=spec.provider,
+                    mode=context.mode,
+                    operation=spec.operation,
+                    outcome=exchange.response.outcome.value,
+                    request_spec=spec.to_dict(),
+                    http_status=exchange.response.http_status,
+                    response_artifact_id=artifact.id,
+                    started_at=MOMENT,
+                    finished_at=MOMENT,
+                )
+                recorded.append((attempt.id, artifact.id))
+                return api.ApiExchange(
+                    response=_response(
+                        attempt_id=attempt.id, raw_artifact_id=artifact.id
+                    ),
+                    body=exchange.body,
+                )
+
+        executor = RecordingElsewhereExecutor(_default_payloads())
+        result = preview_data.prepare_match_data(
+            session, FIXTURE, context, executor=executor, now=MOMENT
+        )
+        session.commit()
+
+        attempts = session.scalars(
+            select(PreviewAttempt).where(PreviewAttempt.run_id == context.run_id)
+        ).all()
+        # 실행기가 남긴 9건뿐이다. D0가 같은 요청을 다시 남기지 않는다.
+        assert len(attempts) == 9
+        assert {(row.id, row.attempt_ordinal) for row in attempts} == {
+            (attempt_id, 0) for attempt_id, _ in recorded
+        }
+
+        snapshots = session.scalars(
+            select(PreviewSourceSnapshot).where(
+                PreviewSourceSnapshot.run_id == context.run_id
+            )
+        ).all()
+        assert len(snapshots) == 9
+        # 스냅샷은 실행기가 남긴 시도·원문을 가리킨다.
+        assert {snapshot.attempt_id for snapshot in snapshots} == {
+            attempt_id for attempt_id, _ in recorded
+        }
+        assert {snapshot.artifact_id for snapshot in snapshots} == {
+            artifact_id for _, artifact_id in recorded
+        }
+        assert result.provider_calls == 9
+
+        # 원문도 한 벌만 저장된다. 같은 본문을 두 번 저장하지 않는다.
+        artifacts = session.scalars(
+            select(PreviewArtifact).where(PreviewArtifact.run_id == context.run_id)
+        ).all()
+        raw_responses = [row for row in artifacts if row.kind == "raw_response"]
+        assert len(raw_responses) == 9
 
 
 def test_catalog_import_is_separate_operation(session_factory):
