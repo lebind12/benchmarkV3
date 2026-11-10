@@ -88,9 +88,9 @@ __all__ = [
 
 # 섹션 워크플로우(`section_players`)의 조사 모듈 id.
 PLAYERS_MODULE_ID = "R4"
-IMPLEMENTATION_VERSION = "mp05p-r4-1"
+IMPLEMENTATION_VERSION = "mp05p-r4-2"
 COMPOSE_IMPLEMENTATION_VERSION = "mp05p-r4-compose-1"
-PROMPT_VERSION = "mp05p-r4-prompt-1"
+PROMPT_VERSION = "mp05p-r4-prompt-2"
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "players.md"
 LOGICAL_CALL_ID = "section_players/research-r4"
@@ -611,6 +611,32 @@ def build_prompt(
 # --------------------------------------------------------------------------
 
 
+def _model_korean_labels(payload: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:
+    """응답이 함께 낸 `korean_labels`를 안전하게 꺼낸다.
+
+    모델이 준 값만 옮긴다. 이 함수가 번역하거나 이름을 만들지 않는다. 모양이 다르거나
+    비어 있으면 빈 튜플을 돌려준다(표시는 DB 값 또는 원문 유지).
+    """
+    raw = payload.get("korean_labels")
+    if not isinstance(raw, (list, tuple)):
+        return ()
+    out: list[Mapping[str, Any]] = []
+    for entry in raw:
+        if not isinstance(entry, Mapping):
+            continue
+        original = str(entry.get("original") or "").strip()
+        korean = str(entry.get("korean") or "").strip()
+        kind = str(entry.get("kind") or "").strip().lower()
+        if not original or not korean:
+            continue
+        if kind not in {"team", "player", "coach"}:
+            continue
+        out.append({"original": original, "korean": korean, "kind": kind})
+        if len(out) >= contract.MAX_KOREAN_LABELS:
+            break
+    return tuple(out)
+
+
 def parse_model_output(text: str | None) -> Mapping[str, Any] | None:
     """모델 텍스트에서 JSON 객체 하나를 읽는다. 없으면 `None`.
 
@@ -734,6 +760,9 @@ class PlayersResearch:
     # 아니다. 관리자 진단과 검토에서 "무엇을 왜 뺐는지"를 확인하는 데 쓴다.
     dropped_facts: tuple[str, ...] = ()
     unasserted_premises: tuple[str, ...] = ()
+    # 이 응답이 함께 낸 한국어 표기(모델 번역). DB 값이 없을 때만 표시에 쓰인다.
+    # 내부 메타데이터이며 독자 본문에 그대로 노출하지 않는다.
+    korean_labels: tuple[Mapping[str, Any], ...] = ()
     search_note: str | None = None
     grounding: Mapping[str, Any] = field(default_factory=dict)
     raw_model_text: str | None = None
@@ -793,6 +822,7 @@ class PlayersResearch:
             "uncertainties": list(self.uncertainties),
             "dropped_facts": list(self.dropped_facts),
             "unasserted_premises": list(self.unasserted_premises),
+            "korean_labels": [dict(item) for item in self.korean_labels],
             "search_note": self.search_note,
             "raw_grounding": dict(self.grounding),
             "raw_model_text": (self.raw_model_text or "")[:8000] or None,
@@ -1203,6 +1233,7 @@ def research_players(
         mode=mode,
         players=tuple(players),
         unmapped=tuple(unmapped),
+        korean_labels=_model_korean_labels(payload),
         claims=claims,
         coverage=tuple(coverage),
         diagnostics=tuple(diagnostics),

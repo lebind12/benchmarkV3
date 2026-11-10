@@ -50,6 +50,11 @@ NAME_COLUMNS: dict[str, tuple[str, ...]] = {
     "public.team_translation": ("team_id", "name_ko", "short_name_ko"),
     "public.player": ("id", "external_id", "name", "firstname", "lastname", "current_team_id"),
     "public.player_translation": ("player_id", "name_ko", "short_name_ko"),
+    # 감독 이름(사용자 요청 범위: 신원·이름·한국어 표기만). 경력·통계·계약 열은 없다.
+    "public.coach": ("id", "external_id", "name"),
+    "public.coach_translation": ("coach_id", "name_ko", "short_name_ko"),
+    # 어느 팀의 감독인지 이름을 고르는 데 필요한 최소 연결 열만 읽는다.
+    "public.team_coach": ("team_id", "coach_id"),
 }
 
 # 이 역할이 절대 가져서는 안 되는 열. 확인용 목록이며 부여하지 않는다.
@@ -59,6 +64,9 @@ FORBIDDEN_COLUMNS: dict[str, tuple[str, ...]] = {
     "public.team": ("country", "code", "founded", "logo_url", "venue_id", "created_at", "updated_at"),
     "public.team_translation": ("editor_id", "version", "human_modified", "updated_at"),
     "public.player_translation": ("editor_id", "version", "human_modified", "updated_at"),
+    "public.coach": ("photo_url", "slug", "created_at", "updated_at"),
+    "public.coach_translation": ("editor_id", "version", "human_modified", "updated_at"),
+    "public.team_coach": ("league_id", "season_year", "first_seen_at", "last_seen_at", "updated_at"),
 }
 
 CREDENTIALS_KEY = "PREVIEW_NAMES_DATABASE_URL"

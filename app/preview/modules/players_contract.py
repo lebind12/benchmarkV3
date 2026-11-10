@@ -27,6 +27,7 @@ __all__ = [
     "DISPLAY_FIELDS",
     "DISPLAY_LABELS",
     "INTERNAL_FIELDS",
+    "MAX_KOREAN_LABELS",
     "MAX_SELECTED_PLAYERS",
     "MODEL_OUTPUT_SCHEMA",
     "MODULE_PAYLOAD_SCHEMA",
@@ -38,11 +39,15 @@ __all__ = [
 ]
 
 # R4 출력 계약 버전. 두 표시 필드 분리·DB 한글명 규칙이 들어간 첫 버전이다.
-OUTPUT_CONTRACT_VERSION = "mp05p-r4-players-output-1"
+OUTPUT_CONTRACT_VERSION = "mp05p-r4-players-output-2"
 
 # 한 경기에서 고를 수 있는 최대 인원. R1의 기존 상한(3명)과 같은 값이며,
 # 품질 평가 기준이 아니라 출력 길이 계약이다.
 MAX_SELECTED_PLAYERS = 3
+
+# 한 응답이 돌려줄 수 있는 한국어 표기(팀·선수·감독) 최대 개수. 번역 사전이 아니라
+# 그 응답에서 실제로 언급한 고유명사의 표기만 담는다.
+MAX_KOREAN_LABELS = 12
 
 SELECTED_PLAYER_FIELD = "selected_player"
 SELECTION_REASON_FIELD = "selection_reason"
@@ -73,7 +78,13 @@ INTERNAL_FIELDS: tuple[str, ...] = (
 )
 
 # 이름 출처 구분. `original`은 DB 한국어 값을 찾지 못해 원래 표기를 유지한 상태다.
-NAME_SOURCES: tuple[str, ...] = ("db_korean", "db_short_korean", "original")
+NAME_SOURCES: tuple[str, ...] = (
+    "db_korean",
+    "db_short_korean",
+    "original",
+    # DB에 없어 모델이 같은 응답에서 준 한국어 표기를 쓴 경우(관리자 진단 전용).
+    "ai_translation",
+)
 
 # 선정 자체는 AI 판단이라는 경계를 결과에 함께 남긴다(설계 §5 사용자 확정).
 SELECTION_RULE_NOTE = (
@@ -136,6 +147,29 @@ MODEL_OUTPUT_SCHEMA: Mapping[str, Any] = {
                         "description": (
                             "'압도적'·'최고' 같은 단정 표현을 썼을 때 그 근거. 없으면 null"
                         ),
+                    },
+                },
+            },
+        },
+        "korean_labels": {
+            "type": "array",
+            "maxItems": MAX_KOREAN_LABELS,
+            "items": {
+                "type": "object",
+                "required": ["original", "korean", "kind"],
+                "additionalProperties": False,
+                "properties": {
+                    "original": {
+                        "type": "string",
+                        "description": "본문에 등장한 영어 표기(팀·선수·감독 이름)",
+                    },
+                    "korean": {
+                        "type": "string",
+                        "description": "그 표기의 한국어 표기. 확실하지 않으면 이 항목을 넣지 않는다",
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["team", "player", "coach"],
                     },
                 },
             },

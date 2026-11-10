@@ -440,3 +440,101 @@ def test_replacement_is_applied_once_and_never_reprocessed() -> None:
     assert rewritten == "맨체스터 시티 vs 풀럼. 맨체스터 시티 won."
     # 같은 문장을 두 번 넘겨도 결과가 안정적이다(멱등).
     assert names.rewrite_body(rewritten) == rewritten
+
+
+# --------------------------------------------------------------------------
+# 축구 용어 한국어 표기 + 모델 제공 번역 fallback (사용자 피드백)
+# --------------------------------------------------------------------------
+
+
+def test_football_terms_are_korean_and_do_not_touch_urls_or_facts():
+    """대회명·축구 용어는 한국어로 바뀌고, URL과 수치·사건 문장은 그대로다.
+
+    실제 live R4 본문에 남아 있던 영어 표현(hat-trick, Champions League)이 대상이다.
+    사용자 지정 표기(헤트트릭)를 따르며, 표기 연구는 하지 않는다.
+    """
+    from app.preview.football_terms import rewrite_football_terms
+
+    body = (
+        "최근 Champions League AEK Athens전에서 hat-trick을 기록하는 등 "
+        "Enzo Maresca 감독 체제 하에서 되찾아가고 있습니다."
+    )
+    rewritten = rewrite_football_terms(body)
+
+    assert "hat-trick" not in rewritten.lower()
+    assert "헤트트릭" in rewritten
+    assert "Champions League" not in rewritten
+    assert "챔피언스리그" in rewritten
+    # 고유명사는 이 단계에서 건드리지 않는다(DB/모델 번역 담당).
+    assert "Enzo Maresca" in rewritten
+    assert "AEK Athens" in rewritten
+    # 수치·사건 문장은 그대로 남는다.
+    assert "되찾아가고 있습니다" in rewritten
+
+    # URL 구간은 바꾸지 않는다.
+    url = "https://example.com/hat-trick?q=Champions League"
+    assert url in rewrite_football_terms(f"기록 https://example.com/hat-trick?q=Champions League")
+
+    # 조사가 받침에 맞게 고쳐진다(무실점 + 를 → 을).
+    assert "무실점을" in rewrite_football_terms("clean sheet를 지켰습니다")
+
+
+def test_db_korean_wins_over_model_label_and_missing_db_uses_it():
+    """DB 한국어 값이 있으면 모델 표기를 쓰지 않고, DB에 없으면 모델 표기를 쓴다.
+
+    사용자 확정 우선순위: 실제 DB 엔티티/한국어 값 우선, 없을 때만 같은 생성 응답이 준
+    한국어 표기. 모델 번역은 신원·ID를 만들지 않는다.
+    """
+    from app.preview.localized_names import (
+        CoachNameRow,
+        DisplayNames,
+        LocalizedNameIndex,
+        NameSource,
+        PlayerNameRow,
+        TeamNameRow,
+    )
+
+    index = LocalizedNameIndex(
+        teams=(
+            TeamNameRow(
+                team_id=13,
+                external_id=50,
+                english_name="Manchester City",
+                name_ko="맨체스터 시티",
+            ),
+            TeamNameRow(team_id=99, external_id=77, english_name="RB Leipzig", name_ko=None),
+        ),
+        players=(),
+        coaches=(CoachNameRow(coach_id=5, external_id=9, english_name="Enzo Maresca", name_ko=None),),
+    )
+    names = DisplayNames(index)
+
+    results = names.register_model_labels(
+        [
+            # DB 한국어 값이 있는 팀: 모델이 다른 표기를 줘도 DB가 이긴다.
+            {"original": "Manchester City", "korean": "맨시티", "kind": "team"},
+            # DB에 한국어 값이 없는 팀: 모델 표기를 쓴다.
+            {"original": "RB Leipzig", "korean": "RB 라이프치히", "kind": "team"},
+            # 감독 한국어 값이 비어 있다: 모델 표기를 쓴다.
+            {"original": "Enzo Maresca", "korean": "엔초 마레스카", "kind": "coach"},
+        ]
+    )
+    by_original = {row["original"]: row for row in results}
+
+    assert by_original["Manchester City"]["applied"] is False
+    assert by_original["Manchester City"]["reason"] == "db_value_wins"
+    assert by_original["RB Leipzig"]["applied"] is True
+    assert by_original["RB Leipzig"]["source"] == NameSource.AI_TRANSLATION.value
+    assert by_original["Enzo Maresca"]["applied"] is True
+
+    body = names.rewrite_body(
+        "Manchester City와 RB Leipzig의 경기, Enzo Maresca 감독 체제"
+    )
+    assert "맨체스터 시티" in body          # DB 값
+    assert "맨시티" not in body            # 모델 표기는 쓰지 않았다
+    assert "RB 라이프치히" in body          # DB 없음 → 모델 번역
+    assert "엔초 마레스카" in body
+
+    # 신원을 만들지 않는다: 번역은 표시 이름만 바꾸고 ID를 새로 붙이지 않는다.
+    assert "player_id" not in str(results)
+    assert not any(row.get("applied") and row.get("kind") == "player" for row in results)

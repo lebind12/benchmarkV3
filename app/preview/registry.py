@@ -145,7 +145,7 @@ _REGISTRATIONS: tuple[ModuleRegistration, ...] = (
         operation="research_players",
         depends_on=("D0",),
         contract_version=MODULE_INPUT_VERSION,
-        prompt_version="mp05p-r4-prompt-1",
+        prompt_version="mp05p-r4-prompt-2",
         inspector_panel="players",
         implemented=True,
         mode_scope=(RunMode.LIVE, RunMode.REPLAY),
@@ -292,7 +292,7 @@ _SECTION_WORKFLOWS: tuple[SectionWorkflowRegistration, ...] = (
             " 선정 선수와 선정 이유를 분리해 표시합니다."
         ),
         module_ids=("D0", "R4"),
-        output_contract_version="mp05p-r4-players-output-1",
+        output_contract_version="mp05p-r4-players-output-2",
         implemented=True,
         unrunnable_reason=None,
     ),

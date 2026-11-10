@@ -24,6 +24,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Sequence
 
+from app.preview.football_terms import rewrite_football_terms
+
 __all__ = [
     "DisplayNameBridge",
     "open_display_names",
@@ -43,6 +45,8 @@ class DisplayNameBridge:
     note: str | None = None
     fixture_label: str | None = None
     unmapped: list[dict[str, Any]] = field(default_factory=list)
+    # 모델이 같은 응답에서 준 한국어 표기 반영 결과(관리자 진단 전용).
+    model_labels: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def active(self) -> bool:
@@ -92,15 +96,43 @@ class DisplayNameBridge:
             rows.append(dict(row))
         return rows or [dict(item) for item in items]
 
-    def rewrite_body(self, text: str) -> str:
-        """본문 문장의 확인된 표기만 바꾼다. URL·미확인 이름은 그대로 둔다."""
-        if self.names is None or not text:
-            return text
+    def register_model_labels(self, labels: Any) -> None:
+        """같은 생성 응답이 준 한국어 표기를 반영한다(DB 값이 있으면 DB가 이긴다).
+
+        번역은 모델이 낸 것이며 이 코드가 만들지 않는다. 해석기가 없으면(설정 없음)
+        아무것도 하지 않고, 그 사실을 진단에 남긴다.
+        """
+        if not labels:
+            return
+        if self.names is None:
+            self.note = (
+                "이름 해석기가 없어 모델이 준 한국어 표기를 표시에 반영하지 못했습니다."
+            )
+            return
+        register = getattr(self.names, "register_model_labels", None)
+        if not callable(register):
+            return
         try:
-            return str(self.names.rewrite_body(text) or text)
+            self.model_labels.extend(dict(item) for item in register(labels))
+        except Exception as exc:  # noqa: BLE001
+            self.note = f"모델 번역 표기를 반영하지 못했습니다: {exc}"
+
+    def rewrite_body(self, text: str) -> str:
+        """본문 문장을 한국어 표기로 바꾼다. URL·미확인 고유명사는 그대로 둔다.
+
+        순서: ① 축구 용어·대회명 사전 ② 해석기가 확인한 팀·선수 표기(DB 우선).
+        두 단계 모두 표기만 바꾸며 수치·사건·신원을 만들지 않는다.
+        """
+        if not text:
+            return text
+        rewritten = rewrite_football_terms(text)
+        if self.names is None:
+            return rewritten
+        try:
+            return str(self.names.rewrite_body(rewritten) or rewritten)
         except Exception as exc:  # noqa: BLE001
             self.note = f"본문 표시 이름을 바꾸지 못했습니다: {exc}"
-            return text
+            return rewritten
 
 
 def _int_or_none(value: Any) -> int | None:
@@ -179,8 +211,18 @@ def localize_section_payload(
 
     반환값은 새 딕셔너리다. 입력 payload(저장 행 내용)는 수정하지 않는다.
     """
+    # 모델이 같은 응답에서 준 한국어 표기를 먼저 반영한다(DB 값이 있으면 DB가 이긴다).
+    # 해석기가 없어도 용어 사전은 동작하므로 아래 body 처리는 계속한다.
+    bridge.register_model_labels(payload.get("korean_labels"))
+
     if not bridge.active:
-        return dict(payload)
+        localized = dict(payload)
+        text = body_text if body_text is not None else payload.get("body")
+        if isinstance(text, str) and text:
+            # 해석기가 없어도 축구 용어·대회명은 한국어로 바꾼다.
+            localized["body"] = bridge.rewrite_body(text)
+        return localized
+
     localized = dict(payload)
     scope = [int(item) for item in scope_team_ids if item is not None]
     for key in ("hot_players", "players"):

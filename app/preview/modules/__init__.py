@@ -19,7 +19,7 @@ _IMPLEMENTED = {
     "R1": ("mp05-form-3", "mp05-form-prompt-2"),
     "R2": ("mp06-r2-2", "mp06-r2-prompt-2"),
     "R3": ("mp07-r3-1", "r3-outlook-1"),
-    "R4": ("mp05p-r4-1", "mp05p-r4-prompt-1"),
+    "R4": ("mp05p-r4-2", "mp05p-r4-prompt-2"),
     "S1": ("mp09-s1-1", "mp09-s1-prompt-1"),
 }
 

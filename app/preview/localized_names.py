@@ -40,11 +40,13 @@ from sqlalchemy.engine import Engine
 from app.auth.identity import build_read_only_engine
 
 __all__ = [
+    "CoachNameRow",
     "DbNameLookup",
     "DisplayNames",
     "LocalizedNameIndex",
     "NameReason",
     "NameSource",
+    "COACH_NAME_COLUMNS",
     "PLAYER_NAME_COLUMNS",
     "PlayerNameRow",
     "PlayerResolution",
@@ -62,6 +64,13 @@ READ_ONLY_STATEMENT_TIMEOUT_MS = 5_000
 
 # 이 모듈이 읽는 열. 이름 확인에 필요한 최소 항목만 둔다(통계·계정·연락처 없음).
 TEAM_NAME_COLUMNS: tuple[str, ...] = (
+    "id",
+    "external_id",
+    "name",
+    "name_ko",
+    "short_name_ko",
+)
+COACH_NAME_COLUMNS: tuple[str, ...] = (
     "id",
     "external_id",
     "name",
@@ -101,6 +110,9 @@ class NameSource(str, Enum):
     DB_KOREAN = "db_korean"
     DB_SHORT_KOREAN = "db_short_korean"
     ORIGINAL = "original"
+    # DB에 그 엔티티나 한국어 값이 없어, **같은 생성 응답에서 모델이 준** 한국어 표기를
+    # 쓴 경우다. 고정 사전이나 이 코드가 만든 번역이 아니다. 관리자 진단에서만 구분한다.
+    AI_TRANSLATION = "ai_translation"
 
 
 class NameReason(str, Enum):
@@ -227,6 +239,34 @@ def _first_text(*values: Any) -> str | None:
 
 
 @dataclass(frozen=True)
+class CoachNameRow:
+    """`public.coach` + `public.coach_translation`의 이름 관련 열만 담는다.
+
+    감독은 선수와 다른 표다. 이름·ID·한국어 값만 읽고, 경력·통계·계약 정보는 가져오지
+    않는다.
+    """
+
+    coach_id: int
+    external_id: int | None
+    english_name: str
+    name_ko: str | None = None
+    short_name_ko: str | None = None
+
+    @property
+    def korean(self) -> str | None:
+        return _first_text(self.name_ko, self.short_name_ko)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "coach_id": self.coach_id,
+            "external_id": self.external_id,
+            "english_name": self.english_name,
+            "name_ko": self.name_ko,
+            "short_name_ko": self.short_name_ko,
+        }
+
+
+@dataclass(frozen=True)
 class UnmappedName:
     """DB 한국어 값으로 맞추지 못한 이름 하나. 원래 표기를 유지한 채 사유를 남긴다."""
 
@@ -323,11 +363,15 @@ class LocalizedNameIndex:
 
     teams: tuple[TeamNameRow, ...] = ()
     players: tuple[PlayerNameRow, ...] = ()
+    coaches: tuple[CoachNameRow, ...] = ()
     _teams_by_id: dict[int, TeamNameRow] = field(default_factory=dict, init=False, repr=False)
     _teams_by_external: dict[int, TeamNameRow] = field(default_factory=dict, init=False, repr=False)
     _players_by_id: dict[int, PlayerNameRow] = field(default_factory=dict, init=False, repr=False)
     _players_by_external: dict[int, PlayerNameRow] = field(default_factory=dict, init=False, repr=False)
     _players_by_team: dict[int | None, tuple[PlayerNameRow, ...]] = field(
+        default_factory=dict, init=False, repr=False
+    )
+    _coaches_by_id: dict[int, CoachNameRow] = field(
         default_factory=dict, init=False, repr=False
     )
 
@@ -345,6 +389,7 @@ class LocalizedNameIndex:
         self._players_by_team = {
             key: tuple(value) for key, value in by_team.items()
         }
+        self._coaches_by_id = {row.coach_id: row for row in self.coaches}
 
     # --- 팀 ---------------------------------------------------------------
 
@@ -365,6 +410,22 @@ class LocalizedNameIndex:
         found: list[TeamNameRow] = []
         for row in self.teams:
             surfaces = {_surface_key(row.english_name), _surface_key(row.name_ko), _surface_key(row.short_name_ko)}
+            if key in surfaces:
+                found.append(row)
+        return found
+
+    def coach_by_name(self, value: Any) -> list[CoachNameRow]:
+        """표시 이름(영어·한국어·짧은 한국어)으로 감독 후보를 찾는다. 후보를 모두 준다."""
+        key = _surface_key(value)
+        if not key:
+            return []
+        found: list[CoachNameRow] = []
+        for row in self.coaches:
+            surfaces = {
+                _surface_key(row.english_name),
+                _surface_key(row.name_ko),
+                _surface_key(row.short_name_ko),
+            }
             if key in surfaces:
                 found.append(row)
         return found
@@ -496,6 +557,8 @@ class DisplayNames:
         self._pattern: re.Pattern[str] | None = None
         self._term_map: dict[str, _Term] = {}
         self._fold_map: dict[str, _Term] = {}
+        # 같은 생성 응답이 준 한국어 표기(DB 값이 없을 때만 반영). 진단 추적용.
+        self._model_labels: dict[str, dict[str, Any]] = {}
 
     # --- 구성 -------------------------------------------------------------
 
@@ -838,6 +901,178 @@ class DisplayNames:
         for surface in (row.english_name, row.name_ko, row.short_name_ko):
             self._register_alias(surface, display, key)
 
+    # --- 모델 제공 번역 표기 -----------------------------------------------
+
+    def register_model_labels(self, labels: Any) -> tuple[dict[str, Any], ...]:
+        """같은 생성 응답이 준 한국어 표기를 **DB 값이 없는 경우에만** 등록한다.
+
+        `labels`는 모델이 낸 구조 목록이며 각 항목은
+        `{"original": <영어 표기>, "korean": <한국어 표기>, "kind": "team|player|coach",
+        "db_id": <선택>}` 모양이다.
+
+        우선순위(사용자 확정): **DB 한국어 값이 있으면 그 값이 이긴다.** 모델이 다른
+        표기를 줬더라도 DB 값을 덮어쓰지 않는다. DB에 그 엔티티나 한국어 값이 없을 때만
+        모델 표기를 `ai_translation`으로 쓴다.
+
+        번역은 표시에만 쓴다. 신원(ID)·소속·역할을 만들지 않는다. 같은 영어 표기가
+        이미 다른 엔티티에 묶여 있으면(충돌) 어느 쪽도 고르지 않는다.
+
+        반환: 반영 결과 목록(관리자 진단용). 각 항목은
+        `{"original", "korean", "kind", "applied", "reason", "source"}`.
+        """
+        results: list[dict[str, Any]] = []
+        for entry in _iter_model_labels(labels):
+            original = _first_text(entry.get("original"))
+            korean = _first_text(entry.get("korean"))
+            kind = str(entry.get("kind") or "").strip().lower() or "unknown"
+            if not original or not korean:
+                results.append(
+                    {
+                        "original": original or "",
+                        "korean": korean or "",
+                        "kind": kind,
+                        "applied": False,
+                        "reason": "empty",
+                        "source": NameSource.AI_TRANSLATION.value,
+                    }
+                )
+                continue
+            if not _has_korean(korean):
+                # 한국어 표기가 아니면 번역으로 쓰지 않는다(영어를 그대로 넣지 않는다).
+                results.append(
+                    {
+                        "original": original,
+                        "korean": korean,
+                        "kind": kind,
+                        "applied": False,
+                        "reason": "not_korean",
+                        "source": NameSource.AI_TRANSLATION.value,
+                    }
+                )
+                continue
+
+            db_display, db_source, entity_key = self._db_korean_for(
+                kind=kind, original=original, entry=entry
+            )
+            if db_display:
+                results.append(
+                    {
+                        "original": original,
+                        "korean": korean,
+                        "kind": kind,
+                        "applied": False,
+                        "reason": "db_value_wins",
+                        "db_display": db_display,
+                        "source": db_source,
+                    }
+                )
+                continue
+
+            # DB에 그 엔티티가 있으나 한국어 값이 비어 있으면, 그 **엔티티 키**로 묶는다.
+            # 합성 키를 쓰면 같은 표기에 대한 엔티티 항목과 충돌해 둘 다 사라진다.
+            key = entity_key or f"{kind}:model:{_surface_key(original)}"
+            existing = self._aliases.get(_surface_key(original))
+            if existing is not None and existing.entity_key != key:
+                # 다른 엔티티가 같은 표기를 이미 쓰고 있다. 덮어쓰지 않는다.
+                results.append(
+                    {
+                        "original": original,
+                        "korean": korean,
+                        "kind": kind,
+                        "applied": False,
+                        "reason": "surface_conflict",
+                        "source": NameSource.AI_TRANSLATION.value,
+                    }
+                )
+                continue
+            self._register_alias(original, korean, key)
+            self._model_labels[_surface_key(original)] = {
+                "original": original,
+                "korean": korean,
+                "kind": kind,
+            }
+            results.append(
+                {
+                    "original": original,
+                    "korean": korean,
+                    "kind": kind,
+                    "applied": True,
+                    "reason": "db_value_missing",
+                    "source": NameSource.AI_TRANSLATION.value,
+                }
+            )
+        return tuple(results)
+
+    def _db_korean_for(
+        self, *, kind: str, original: str, entry: Mapping[str, Any]
+    ) -> tuple[str | None, str | None, str | None]:
+        """이 표기에 대응하는 DB 한국어 값과 엔티티 키를 돌려준다.
+
+        반환: (한국어 값 또는 None, 값의 출처 또는 None, 엔티티 키 또는 None).
+        엔티티가 DB에 있으면 한국어 값이 비어 있어도 그 키를 돌려준다. 호출자는 모델
+        표기를 그 키에 묶어, 같은 엔티티의 기존 항목과 충돌하지 않게 한다.
+        
+
+        DB 값이 있으면 모델 번역을 쓰지 않는다. 엔티티를 새로 만들지 않고, 저장된
+        이름 표기와 일치할 때만 그 행의 한국어 값을 쓴다.
+        """
+        if kind == "team":
+            team = self._index.team_by_name(original)
+            if len(team) == 1:
+                row = team[0]
+                key = f"team:{row.team_id}"
+                if row.korean:
+                    return row.korean, self._source_for_team(row), key
+                return None, None, key
+        if kind == "player":
+            candidates = self._index.match_player(original, candidates=self._index.players)
+            if len(candidates) == 1:
+                row = candidates[0]
+                key = f"player:{row.player_id}"
+                if row.korean:
+                    return row.korean, self._source_for_player(row), key
+                return None, None, key
+        if kind == "coach":
+            coaches = self._index.coach_by_name(original)
+            if len(coaches) == 1:
+                row = coaches[0]
+                key = f"coach:{row.coach_id}"
+                if row.korean:
+                    return row.korean, NameSource.DB_KOREAN.value, key
+                return None, None, key
+            coach_label = self._coach_korean(original)
+            if coach_label:
+                return coach_label, NameSource.DB_KOREAN.value, None
+        return None, None, None
+
+    def _source_for_team(self, row: TeamNameRow) -> str:
+        if row.name_ko:
+            return NameSource.DB_KOREAN.value
+        return NameSource.DB_SHORT_KOREAN.value
+
+    def _source_for_player(self, row: PlayerNameRow) -> str:
+        if getattr(row, "name_ko", None):
+            return NameSource.DB_KOREAN.value
+        return NameSource.DB_SHORT_KOREAN.value
+
+    def _coach_korean(self, original: Any) -> str | None:
+        """감독 한국어 이름. 이름 인덱스에 없으면 `None`(이 코드는 번역하지 않는다)."""
+        text = _first_text(original)
+        if not text:
+            return None
+        lookup = getattr(self._index, "coach_by_name", None)
+        if not callable(lookup):
+            return None
+        rows = lookup(text)
+        if len(rows) != 1:
+            return None
+        row = rows[0]
+        return _first_text(getattr(row, "name_ko", None))
+
+    def model_label_rows(self) -> tuple[dict[str, Any], ...]:
+        """반영된 모델 번역 목록(관리자 진단용). 화면 본문에는 쓰지 않는다."""
+        return tuple(dict(item) for item in self._model_labels.values())
+
     def _register_alias(self, surface: Any, replacement: str, entity_key: str) -> None:
         text = _first_text(surface)
         if not text or not _korean_surface_allowed(text):
@@ -914,6 +1149,14 @@ class DisplayNames:
             # 성 단독 해석은 `resolve_player`가 범위·유일성 검사를 거쳐 처리하고,
             # 본문 치환은 DB 표기(`A. Iwobi`)와 이름+성 표기만 쓴다.
 
+        for coach in self._index.coaches:
+            # 감독 한국어 값이 DB에 있으면 그 값이 이긴다(모델 번역보다 우선).
+            if not coach.korean:
+                continue
+            key = f"coach:{coach.coach_id}"
+            add(coach.english_name, coach.korean, key)
+            add(coach.name_ko, coach.korean, key)
+
         for alias in self._aliases.values():
             add(alias.surface, alias.replacement, alias.entity_key)
 
@@ -973,6 +1216,15 @@ class DisplayNames:
             cursor = match.end()
         pieces.append(_replace_segment(value[cursor:], pattern, self._term_map, self._fold_map))
         return "".join(pieces)
+
+
+def _iter_model_labels(labels: Any):
+    """모델이 준 번역 표기 목록을 항목 단위로 넘긴다. 모양이 다르면 건너뛴다."""
+    if not isinstance(labels, (list, tuple)):
+        return
+    for entry in labels:
+        if isinstance(entry, Mapping):
+            yield entry
 
 
 def _replace_segment(
@@ -1068,6 +1320,46 @@ class DbNameLookup:
             for row in self._rows(statement, parameters)
         )
 
+    def load_coaches(
+        self,
+        *,
+        team_ids: Sequence[int] | None = None,
+        coach_ids: Sequence[int] | None = None,
+    ) -> tuple[CoachNameRow, ...]:
+        """감독 이름 행. 팀(`team_coach`) 또는 지정한 감독만 읽는다(이름 열만)."""
+        if not team_ids and not coach_ids:
+            raise ValueError("team_ids or coach_ids is required")
+        clauses: list[str] = []
+        parameters: dict[str, Any] = {}
+        if team_ids:
+            ids = sorted({int(value) for value in team_ids})[:MAX_TEAMS_PER_QUERY]
+            clauses.append(
+                "c.id IN (SELECT tc.coach_id FROM public.team_coach tc"
+                " WHERE tc.team_id = ANY(:team_ids))"
+            )
+            parameters["team_ids"] = ids
+        if coach_ids:
+            ids = sorted({int(value) for value in coach_ids})[:MAX_PLAYERS_PER_QUERY]
+            clauses.append("c.id = ANY(:coach_ids)")
+            parameters["coach_ids"] = ids
+        statement = f"""
+            SELECT c.id, c.external_id, c.name,
+                   ct.name_ko, ct.short_name_ko
+            FROM public.coach c
+            LEFT JOIN public.coach_translation ct ON ct.coach_id = c.id
+            WHERE {' OR '.join(clauses)}
+        """
+        return tuple(
+            CoachNameRow(
+                coach_id=int(row["id"]),
+                external_id=int(row["external_id"]) if row["external_id"] is not None else None,
+                english_name=str(row["name"]),
+                name_ko=row["name_ko"],
+                short_name_ko=row["short_name_ko"],
+            )
+            for row in self._rows(statement, parameters)
+        )
+
     def load_players(
         self,
         *,
@@ -1133,12 +1425,18 @@ def load_name_index(
     teams = lookup.load_teams(team_ids=team_ids, external_ids=team_external_ids)
     internal_ids = [team.team_id for team in teams]
     players: tuple[PlayerNameRow, ...] = ()
+    coaches: tuple[CoachNameRow, ...] = ()
     if include_rosters and internal_ids:
         players = lookup.load_players(team_ids=internal_ids)
+        # 감독 이름도 같은 범위에서 읽는다. 이름 열만 읽고 권한이 없으면 건너뛴다.
+        try:
+            coaches = lookup.load_coaches(team_ids=internal_ids)
+        except Exception:  # noqa: BLE001 - 감독 이름 권한이 없어도 나머지는 동작한다
+            coaches = ()
     if player_ids:
         picked = lookup.load_players(player_ids=player_ids)
         merged = {row.player_id: row for row in players}
         for row in picked:
             merged[row.player_id] = row
         players = tuple(merged[key] for key in sorted(merged))
-    return LocalizedNameIndex(teams=teams, players=players)
+    return LocalizedNameIndex(teams=teams, players=players, coaches=coaches)
