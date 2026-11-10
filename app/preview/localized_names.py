@@ -88,6 +88,9 @@ PLAYER_NAME_COLUMNS: tuple[str, ...] = (
     "short_name_ko",
 )
 
+# 이름 하나로 확인할 때 돌려받는 최대 후보 수. 동명이 엔티티가 많으면 고르지 않는다.
+MAX_NAME_CANDIDATES = 5
+
 # 한 번에 읽는 상한. 필요한 범위를 넘는 전체 조회를 막는다.
 MAX_TEAMS_PER_QUERY = 60
 MAX_PLAYERS_PER_QUERY = 800
@@ -364,6 +367,8 @@ class LocalizedNameIndex:
     teams: tuple[TeamNameRow, ...] = ()
     players: tuple[PlayerNameRow, ...] = ()
     coaches: tuple[CoachNameRow, ...] = ()
+    # 본문에 나온 범위 밖 이름을 DB에서 직접 확인할 때 쓰는 좁은 조회기(선택).
+    catalog: Any = None
     _teams_by_id: dict[int, TeamNameRow] = field(default_factory=dict, init=False, repr=False)
     _teams_by_external: dict[int, TeamNameRow] = field(default_factory=dict, init=False, repr=False)
     _players_by_id: dict[int, PlayerNameRow] = field(default_factory=dict, init=False, repr=False)
@@ -955,6 +960,11 @@ class DisplayNames:
                 kind=kind, original=original, entry=entry
             )
             if db_display:
+                # DB 값이 이긴다. 그 값을 **본문 치환 표기로 등록**해서, 모델 표기
+                # (`RB Leipzig`)가 본문에 있으면 DB 한국어로 바뀌게 한다. 모델이 준
+                # 표기는 쓰지 않는다.
+                if entity_key:
+                    self._register_alias(original, db_display, entity_key)
                 results.append(
                     {
                         "original": original,
@@ -1032,6 +1042,7 @@ class DisplayNames:
                 if row.korean:
                     return row.korean, self._source_for_player(row), key
                 return None, None, key
+        # 1차: 이 실행이 이미 읽은 범위(그 경기의 두 팀·로스터·감독).
         if kind == "coach":
             coaches = self._index.coach_by_name(original)
             if len(coaches) == 1:
@@ -1043,7 +1054,50 @@ class DisplayNames:
             coach_label = self._coach_korean(original)
             if coach_label:
                 return coach_label, NameSource.DB_KOREAN.value, None
-        return None, None, None
+
+        # 2차: 메모리 범위에 없으면 **DB 카탈로그를 이름으로 직접** 확인한다.
+        # 범위 밖 상대 팀·감독(예: 본문에만 나온 클럽)이 여기서 걸린다. 정확 일치만
+        # 보고, 후보가 하나일 때만 인정한다(동명이면 고르지 않는다).
+        return self._catalog_lookup(kind=kind, original=original)
+
+    def _catalog_lookup(
+        self, *, kind: str, original: str
+    ) -> tuple[str | None, str | None, str | None]:
+        """이름으로 DB 카탈로그를 한 번 조회한다. 없거나 모호하면 (None, None, None)."""
+        catalog = self._index.catalog
+        if catalog is None or not _catalog_allowed(original):
+            return None, None, None
+        try:
+            if kind == "team":
+                rows = catalog.find_teams_by_name(original)
+            elif kind == "coach":
+                rows = catalog.find_coaches_by_name(original)
+            else:
+                return None, None, None
+        except Exception:  # noqa: BLE001 - 이름 확인 실패로 실행을 깨지 않는다
+            return None, None, None
+        row = _pick_unique_name_match(original, rows)
+        if row is None:
+            return None, None, None
+        if not row.korean:
+            # DB에 엔티티는 있으나 한국어 값이 비어 있다. 그 사실은 관리자에게 남긴다.
+            key = (
+                f"team:{row.team_id}"
+                if kind == "team"
+                else f"coach:{getattr(row, 'coach_id', '')}"
+            )
+            return None, None, key
+        source = (
+            NameSource.DB_KOREAN.value
+            if (getattr(row, "name_ko", None) or "")
+            else NameSource.DB_SHORT_KOREAN.value
+        )
+        key = (
+            f"team:{row.team_id}"
+            if kind == "team"
+            else f"coach:{getattr(row, 'coach_id', '')}"
+        )
+        return row.korean, source, key
 
     def _source_for_team(self, row: TeamNameRow) -> str:
         if row.name_ko:
@@ -1218,6 +1272,74 @@ class DisplayNames:
         return "".join(pieces)
 
 
+def _pick_unique_name_match(original: str, rows: Sequence[Any]) -> Any | None:
+    """조회 후보 중 이 표기를 확정하는 단 하나를 고른다. 못 고르면 `None`.
+
+    결정적 규칙만 쓴다(선수 이름 해석과 같은 방식).
+
+    1. 표기가 DB `name`과 같다.
+    2. 표기가 DB `name`으로 시작한다(긴 이름: `AEK Athens` ↔ `AEK Athens FC`).
+       이때 후보가 **하나**일 때만 인정한다.
+    3. DB `name`이 머리글자+성(`E. Maresca`)이고 표기가 이름+성(`Enzo Maresca`)이면
+       성이 같고 이름 첫 글자가 같을 때 인정한다.
+    """
+    if not rows:
+        return None
+    target = " ".join(_tokens(original))
+    if not target:
+        return None
+    exact = [row for row in rows if " ".join(_tokens(row.english_name)) == target]
+    if len(exact) == 1:
+        return exact[0]
+    if exact:
+        return None
+    # 모델 표기가 DB 이름으로 시작한다(`AEK Athens` → `AEK Athens FC`).
+    prefixed = [
+        row
+        for row in rows
+        if " ".join(_tokens(row.english_name)).startswith(target + " ")
+    ]
+    if len(prefixed) == 1:
+        return prefixed[0]
+    if len(prefixed) > 1:
+        return None
+    # 또는 DB 이름이 모델 표기로 시작한다(`Coventry` → `Coventry City`).
+    shortened = [
+        row
+        for row in rows
+        if target.startswith(" ".join(_tokens(row.english_name)) + " ")
+    ]
+    if len(shortened) == 1:
+        return shortened[0]
+    if len(shortened) > 1:
+        return None
+    # 머리글자 표기(DB `E. Maresca` ↔ 모델 `Enzo Maresca`).
+    tokens = tuple(_tokens(original))
+    if len(tokens) == 2:
+        initials = [
+            row
+            for row in rows
+            if len(_tokens(row.english_name)) == 2
+            and _tokens(row.english_name)[1] == tokens[1]
+            and _tokens(row.english_name)[0].rstrip(".") == tokens[0][:1]
+        ]
+        if len(initials) == 1:
+            return initials[0]
+    return None
+
+
+def _catalog_allowed(name: str) -> bool:
+    """이 표기로 DB 카탈로그를 조회해도 되는지. 너무 짧거나 일반적인 문자열은 막는다.
+
+    이름 하나를 정확 일치로만 찾으므로 전수 스캔은 아니지만, `FC`·`1` 같은 표기로
+    엉뚱한 다수 후보를 부르지 않도록 최소 길이를 요구한다.
+    """
+    compact = _WS.sub("", name or "")
+    if len(compact) < MIN_LATIN_SURFACE_LEN:
+        return False
+    return bool(compact)
+
+
 def _iter_model_labels(labels: Any):
     """모델이 준 번역 표기 목록을 항목 단위로 넘긴다. 모양이 다르면 건너뛴다."""
     if not isinstance(labels, (list, tuple)):
@@ -1318,6 +1440,71 @@ class DbNameLookup:
                 short_name_ko=row["short_name_ko"],
             )
             for row in self._rows(statement, parameters)
+        )
+
+    def find_teams_by_name(self, name: Any) -> tuple[TeamNameRow, ...]:
+        """이름 표기로 팀을 **DB 카탈로그에서 직접** 찾는다(정확 일치만).
+
+        본문에 등장한 상대 팀처럼 그 경기의 두 팀 범위 밖에 있는 이름을 확인하는
+        경로다. 정확 일치(`name`)만 보고, 퍼지 검색이나 전체 스캔을 하지 않는다.
+        후보가 여럿이면 호출자가 고르지 않는다(동명이 팀).
+        """
+        text = _first_text(name)
+        if not text:
+            return ()
+        statement = """
+            SELECT t.id, t.external_id, t.name,
+                   tt.name_ko, tt.short_name_ko
+            FROM public.team t
+            LEFT JOIN public.team_translation tt ON tt.team_id = t.id
+            WHERE upper(t.name) = upper(:name)
+               OR upper(t.name) LIKE upper(:name) || ' %'
+               OR upper(:name) LIKE upper(t.name) || ' %'
+            LIMIT :limit
+        """
+        return tuple(
+            TeamNameRow(
+                team_id=int(row["id"]),
+                external_id=int(row["external_id"]) if row["external_id"] is not None else None,
+                english_name=str(row["name"]),
+                name_ko=row["name_ko"],
+                short_name_ko=row["short_name_ko"],
+            )
+            for row in self._rows(
+                statement, {"name": text, "limit": MAX_NAME_CANDIDATES}
+            )
+        )
+
+    def find_coaches_by_name(self, name: Any) -> tuple[CoachNameRow, ...]:
+        """이름 표기로 감독을 DB에서 직접 찾는다(정확 일치만, 범위 한정)."""
+        text = _first_text(name)
+        if not text:
+            return ()
+        statement = """
+            SELECT c.id, c.external_id, c.name,
+                   ct.name_ko, ct.short_name_ko
+            FROM public.coach c
+            LEFT JOIN public.coach_translation ct ON ct.coach_id = c.id
+            WHERE upper(c.name) = upper(:name)
+               OR upper(c.name) LIKE '% ' || upper(:surname)
+            LIMIT :limit
+        """
+        return tuple(
+            CoachNameRow(
+                coach_id=int(row["id"]),
+                external_id=int(row["external_id"]) if row["external_id"] is not None else None,
+                english_name=str(row["name"]),
+                name_ko=row["name_ko"],
+                short_name_ko=row["short_name_ko"],
+            )
+            for row in self._rows(
+                statement,
+                {
+                    "name": text,
+                    "surname": (_tokens(text) or ("",))[-1],
+                    "limit": MAX_NAME_CANDIDATES,
+                },
+            )
         )
 
     def load_coaches(
@@ -1426,6 +1613,9 @@ def load_name_index(
     internal_ids = [team.team_id for team in teams]
     players: tuple[PlayerNameRow, ...] = ()
     coaches: tuple[CoachNameRow, ...] = ()
+    # 본문에 나온 범위 밖 이름을 DB에서 직접 확인할 때 쓰는 좁은 조회기.
+    # 이미 열려 있는 읽기 전용 조회기를 그대로 재사용한다(새 연결·권한 없음).
+    catalog: Any = lookup
     if include_rosters and internal_ids:
         players = lookup.load_players(team_ids=internal_ids)
         # 감독 이름도 같은 범위에서 읽는다. 이름 열만 읽고 권한이 없으면 건너뛴다.
@@ -1439,4 +1629,6 @@ def load_name_index(
         for row in picked:
             merged[row.player_id] = row
         players = tuple(merged[key] for key in sorted(merged))
-    return LocalizedNameIndex(teams=teams, players=players, coaches=coaches)
+    return LocalizedNameIndex(
+        teams=teams, players=players, coaches=coaches, catalog=catalog
+    )

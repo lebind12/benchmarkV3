@@ -538,3 +538,87 @@ def test_db_korean_wins_over_model_label_and_missing_db_uses_it():
     # 신원을 만들지 않는다: 번역은 표시 이름만 바꾸고 ID를 새로 붙이지 않는다.
     assert "player_id" not in str(results)
     assert not any(row.get("applied") and row.get("kind") == "player" for row in results)
+
+
+# --------------------------------------------------------------------------
+# DB 카탈로그 직접 조회 (범위 밖 이름) — 관측된 결함 수정
+# --------------------------------------------------------------------------
+
+
+def test_catalog_lookup_finds_names_outside_the_fixture_scope():
+    """본문에만 나온 팀·감독도 DB 카탈로그에서 직접 찾아 DB 한국어 값을 쓴다.
+
+    관측된 결함: 이름 조회가 그 경기의 두 팀·로스터(메모리 인덱스)만 뒤졌기 때문에,
+    `RB Leipzig` 같은 상대 팀이 "DB에 없음"으로 잘못 판정돼 AI 표기가 쓰였다. 실제로는
+    DB에 한국어 값이 있다. 이 검사는 카탈로그 조회 경로가 그 값을 찾아내고, 모델 표기를
+    덮어쓰지 않음을 확인한다(합성 카탈로그, 네트워크 없음).
+    """
+    from app.preview.localized_names import (
+        CoachNameRow,
+        DisplayNames,
+        LocalizedNameIndex,
+        NameSource,
+        TeamNameRow,
+    )
+
+    class _Catalog:
+        """DB 조회 대역. 실제 쿼리 대신 정해진 행을 돌려준다(네트워크 없음)."""
+
+        def find_teams_by_name(self, name):
+            if name == "RB Leipzig":
+                return (TeamNameRow(2100, 173, "RB Leipzig", name_ko="RB 라이프치히"),)
+            return ()
+
+        def find_coaches_by_name(self, name):
+            if name == "Enzo Maresca":
+                return (CoachNameRow(801, 55, "E. Maresca", name_ko="엔초 마레스카"),)
+            return ()
+
+    index = LocalizedNameIndex(teams=(), players=(), coaches=(), catalog=_Catalog())
+    names = DisplayNames(index)
+
+    results = names.register_model_labels(
+        [
+            {"original": "RB Leipzig", "korean": "라이프치히(모델)", "kind": "team"},
+            {"original": "Enzo Maresca", "korean": "마레스카(모델)", "kind": "coach"},
+            {"original": "No Such Club", "korean": "없는클럽", "kind": "team"},
+        ]
+    )
+    by_original = {row["original"]: row for row in results}
+
+    # 범위 밖이지만 DB에 있는 이름: DB 값이 이기고 모델 표기는 쓰지 않는다.
+    assert by_original["RB Leipzig"]["reason"] == "db_value_wins"
+    assert by_original["RB Leipzig"]["db_display"] == "RB 라이프치히"
+    assert by_original["Enzo Maresca"]["reason"] == "db_value_wins"
+    assert by_original["Enzo Maresca"]["db_display"] == "엔초 마레스카"
+    # 카탈로그에도 없는 이름만 모델 번역을 쓴다.
+    assert by_original["No Such Club"]["applied"] is True
+    assert by_original["No Such Club"]["source"] == NameSource.AI_TRANSLATION.value
+
+    body = names.rewrite_body("RB Leipzig와 No Such Club의 경기, Enzo Maresca 감독")
+    assert "RB 라이프치히" in body
+    assert "라이프치히(모델)" not in body      # 모델 표기는 쓰지 않았다
+    assert "엔초 마레스카" in body
+    assert "없는클럽" in body                  # DB에 없으므로 모델 번역
+
+
+def test_catalog_without_match_does_not_guess_identity():
+    """카탈로그에 없거나 동명이면 DB 값을 만들지 않고 모델 표기로 넘어간다."""
+    from app.preview.localized_names import DisplayNames, LocalizedNameIndex, TeamNameRow
+
+    class _AmbiguousCatalog:
+        def find_teams_by_name(self, name):
+            # 같은 표기의 팀이 둘 → 어느 쪽도 고르지 않는다.
+            return (
+                TeamNameRow(1, 10, "United", name_ko="유나이티드A"),
+                TeamNameRow(2, 20, "United", name_ko="유나이티드B"),
+            )
+
+    names = DisplayNames(LocalizedNameIndex(catalog=_AmbiguousCatalog()))
+    results = names.register_model_labels(
+        [{"original": "United", "korean": "유나이티드(모델)", "kind": "team"}]
+    )
+    row = results[0]
+    # 동명이인은 DB 값을 고르지 않는다. 모델 표기를 쓰되 신원을 단정하지 않는다.
+    assert row["reason"] != "db_value_wins"
+    assert row.get("db_display") is None

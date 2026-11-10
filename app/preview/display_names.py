@@ -45,12 +45,25 @@ class DisplayNameBridge:
     note: str | None = None
     fixture_label: str | None = None
     unmapped: list[dict[str, Any]] = field(default_factory=list)
+    # 읽기 전용 조회기. 범위 밖 이름을 DB에 물어보는 동안 살아 있어야 한다.
+    _lookup: Any = field(default=None, repr=False)
     # 모델이 같은 응답에서 준 한국어 표기 반영 결과(관리자 진단 전용).
     model_labels: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def active(self) -> bool:
         return self.names is not None
+
+    def close(self) -> None:
+        """읽기 전용 연결을 닫는다. 여러 번 불러도 안전하다."""
+        lookup = self._lookup
+        self._lookup = None
+        close = getattr(lookup, "close", None)
+        if callable(close):
+            try:
+                close()
+            except Exception:  # noqa: BLE001 - 정리 실패로 응답을 깨지 않는다
+                pass
 
     def label(self, *, fixture: Mapping[str, Any] | None, fallback: str) -> str:
         """경기 제목. 해석하지 못하면 저장된 원래 표기를 그대로 쓴다."""
@@ -151,8 +164,10 @@ def open_display_names(
 ) -> DisplayNameBridge:
     """실행 하나의 표시 이름 파사드를 연다. 실패는 원문 유지로 흡수한다.
 
-    호출자는 반환값의 `.close()`를 부를 필요가 없다. 조회기는 여기서 만들고 여기서
-    닫되, 파사드가 들고 있는 인덱스는 이미 메모리 값이라 연결 없이 동작한다.
+    조회기(읽기 전용 연결)는 파사드가 **닫을 때까지** 살아 있어야 한다. 본문에만 나온
+    상대 팀·감독은 메모리 인덱스에 없으므로 DB에 이름으로 직접 물어봐야 하기 때문이다.
+    그래서 여기서 닫지 않고 `bridge.close()`에 맡긴다(호출자는 한 번만 부르면 된다).
+    닫지 않아도 프로세스 종료 시 정리되지만, 요청 단위로 닫는 것이 정상 경로다.
     """
     bridge = DisplayNameBridge()
     if not dsn:
@@ -177,16 +192,14 @@ def open_display_names(
         )
 
         lookup = DbNameLookup.from_url(dsn)
-        try:
-            index = load_name_index(
-                lookup,
-                team_ids=[home, away],
-                include_rosters=True,
-                player_ids=[int(item) for item in player_ids if item],
-            )
-        finally:
-            # 인덱스는 메모리 값이다. 연결은 여기서 닫고 파사드는 계속 쓴다.
-            lookup.close()
+        index = load_name_index(
+            lookup,
+            team_ids=[home, away],
+            include_rosters=True,
+            player_ids=[int(item) for item in player_ids if item],
+        )
+        # 조회기는 파사드가 들고 간다(닫으면 범위 밖 이름 조회가 조용히 실패한다).
+        bridge._lookup = lookup
     except Exception as exc:  # noqa: BLE001 - 설정·권한·연결 실패를 숨기지 않되 막지 않는다
         bridge.note = (
             "이름 읽기를 사용할 수 없어 저장된 원래 표기를 그대로 표시합니다:"

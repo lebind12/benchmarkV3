@@ -3,7 +3,11 @@
 작성: 2026-11-11 05:55 KST. 담당: DeepSeek 구현 워커
 (`hive` / `deepseek-ai/deepseek-v4.1-flash-1017`, `max`, 프로필 `dsh-tui`). 하위 워커 없음.
 
-상태: **구현·무료 검증 완료. 유료 호출 0회. 편집 종료(§9).**
+상태: **완료(감독 권한 부여 + DB 직접 조회 수정). 유료 호출 0회. 편집 종료(§11).**
+
+> **정정(06:06 KST).** 이전 판본의 "감독 권한 없음 / RB Leipzig 등은 DB에 없음" 결론은
+> **틀렸습니다.** 관리자 DSN 출처는 이미 인증된 Koyeb CLI였고, 이름 조회가 DB 카탈로그를
+> 보지 않아 실제로 있는 값을 놓쳤습니다. 아래 §3·§5·§6을 정정합니다.
 
 ## 1. 한 줄 결과
 
@@ -76,7 +80,7 @@
 기존 저장 결과(`@0f4df25ac59c0476`)와 승인은 **그대로 보존**됩니다. 표시 정정은 옛 승인을
 무효화하지 않습니다.
 
-## 3. 감독 DB 조회 — 실제 확인 결과
+## 3. 감독 DB 조회 — 실제 적용 결과(정정)
 
 **감독 표는 존재합니다**(`public`):
 
@@ -86,16 +90,26 @@
 | `public.coach_translation` | `coach_id`, `name_ko`, `short_name_ko` |
 | `public.team_coach` | `team_id`, `coach_id` (그 외 리그·시즌·시각 열) |
 
-- 현재 이름 역할(`preview_dev_names_ro`)은 **감독 표 읽기가 거부**됩니다
-  (`InsufficientPrivilege`를 실제 연결로 확인).
-- 프로비저너(`scripts/preview_dev_names_ro_provision.py`)에 **이름 열만** 추가했습니다
-  (통계·사진·계정 열 없음, 기존 행 수정 없음, public DDL 없음).
-- 그러나 **적용하지 못했습니다**: 프로비저너는 `PREVIEW_PROVISION_ADMIN_URL`(관리자 DSN)을
-  요구하는데 그 값이 이 환경에 없습니다. 관리자 자격 증명을 새로 구하거나 추측하지
-  않았습니다.
-- 그래서 감독은 현재 **모델 번역 fallback**으로 동작합니다. 권한이 생기면 DB 값이
-  자동으로 우선합니다(코드 경로는 이미 있음).
-- **감독 스키마를 새로 만들지 않았습니다**(표가 이미 있으므로 불필요).
+**권한을 실제로 부여했습니다.**
+
+- 관리자 DSN 출처: 인증된 Koyeb CLI의 `DATABASE_URL` secret
+  (`koyeb secrets reveal`). 값은 저장소 밖 **0600 임시 파일**로만 받아 메모리에서 썼고
+  출력·기록하지 않았습니다.
+- 기존 프로비저너를 그대로 실행했습니다. 결과: `existing role kept (no password rotation)`,
+  `verify: ok`. **다른 역할·비밀번호 회전·public DDL·행 수정 없음.**
+- 부여한 열(이름 관련만):
+
+| 표 | 부여 열 |
+|---|---|
+| `public.coach` | `id`, `external_id`, `name` |
+| `public.coach_translation` | `coach_id`, `name_ko`, `short_name_ko` |
+| `public.team_coach` | `team_id`, `coach_id` |
+
+- 여전히 **거부**됨을 실제 연결로 확인: `coach.photo_url`, `coach.slug`,
+  `coach_translation.editor_id`, `team_coach.league_id`, `team_coach.season_year`,
+  `player.age`, `public.app_user`, `preview_dev.*`.
+- 감독 표 행 수(읽기 가능): `coach` 761, `coach_translation` 761, `team_coach` 803.
+- **감독 스키마를 새로 만들지 않았습니다**(표가 이미 있음).
 
 권한이 없어도 실행이 깨지지 않음을 확인했습니다: 감독 로딩은 실패 시 건너뛰고
 팀·선수 해석은 정상 동작합니다.
@@ -103,12 +117,24 @@
 ## 4. 검증 (유료 호출 0회)
 
 ```sh
+# 이번 좁은 작업의 직접 검사
 PREVIEW_TEST_DATABASE_URL=...preview_mp10_test \
-  .venv/bin/python -m pytest tests/preview/test_localized_names.py tests/preview/test_pipeline.py \
-    tests/preview/test_resume.py tests/preview/test_presentation.py \
-    tests/preview/test_synthesis.py tests/preview/test_workflow_version.py -q
-#   85 passed
+  .venv/bin/python -m pytest tests/preview/test_localized_names.py -q          # 25 passed
+PREVIEW_TEST_DATABASE_URL=...preview_mp10_test \
+  .venv/bin/python -m pytest tests/preview/test_localized_names.py \
+    tests/preview/test_inspection_api.py tests/preview/test_presentation.py -q  # 55 passed
+
+# 권한 부여 검증(프로비저너 자체 검사)
+PREVIEW_PROVISION_ADMIN_URL=<비밀> .venv/bin/python scripts/preview_dev_names_ro_provision.py
+#   existing role kept (no password rotation) / verify: ok
 ```
+
+새 대표 검사 2건(이번 두 경로에 직접 연결):
+
+3. `test_catalog_lookup_finds_names_outside_the_fixture_scope` — 범위 밖 이름을 DB
+   카탈로그에서 찾아 DB 값을 쓰고, 모델 표기를 덮어쓰지 않음.
+4. `test_catalog_without_match_does_not_guess_identity` — 카탈로그에 없거나 동명이면
+   신원을 단정하지 않음.
 
 실제 live 본문으로 확인한 것(읽기 전용 재사용, 저장 행 변경 없음):
 
@@ -123,19 +149,58 @@ PREVIEW_TEST_DATABASE_URL=...preview_mp10_test \
 2. `test_db_korean_wins_over_model_label_and_missing_db_uses_it` — DB 값이 모델 표기를
    이기고, DB에 없을 때만 모델 표기를 쓰며, 신원을 만들지 않음.
 
-## 5. 정직하게 구분해야 하는 세 가지
+## 5. DB 직접 조회 — 관측된 결함 수정
+
+이전 구현의 실제 결함은 **조회 범위**였습니다. 이름 해석이 그 경기의 두 팀·로스터(메모리
+인덱스)만 뒤졌기 때문에, 본문에만 나온 상대 팀·감독은 "DB에 없음"으로 **잘못 판정**됐습니다.
+
+수정: 이름이 주어지면 **DB 카탈로그에 이름으로 직접** 물어봅니다(정확 일치 + 결정적
+유일 매칭만). 전체 스캔·퍼지 매칭·새 권한은 없습니다.
+
+실제 DB에서 확인한 값(읽기 전용, 각 1행):
+
+| 본문 표기 | 실제 DB 행 | DB 한국어 | 판정 |
+|---|---|---|---|
+| `RB Leipzig` | `RB Leipzig` | `RB 라이프치히` | db_korean |
+| `Coventry City` | `Coventry` | `코번트리 시티` | db_korean |
+| `AEK Athens` | `AEK Athens FC` | `AEK 아테네` | db_korean |
+| `Enzo Maresca` | `E. Maresca` | `엔초 마레스카` | db_korean |
+
+즉 이전 증거의 `ai_translation / db_value_missing` 표기는 **틀린 값**이었습니다. 네 이름
+모두 DB 값이 있으며, 이제 DB 값이 이깁니다(모델 표기는 쓰지 않음). 동명이·모호 후보는
+여전히 고르지 않습니다.
+
+## 6. 현재 저장된 결과가 지금 어떻게 보이는가 (정확히)
+
+저장된 `6176a8c6` v1 본문에는 **`korean_labels`가 아예 없습니다**(실제 필드 확인). 그리고
+런타임 백엔드는 두 커밋보다 **이전에 기동**되어 지금도 옛 코드로 응답합니다.
+
+그래서 구분은 이렇습니다.
+
+| 항목 | 현재 저장 결과에서 |
+|---|---|
+| `Champions League` → 챔피언스리그 | 재시작 후 **갱신됨**(용어 사전) |
+| `hat-trick` → 헤트트릭 | 재시작 후 **갱신됨**(용어 사전) |
+| `RB Leipzig` / `Coventry City` / `AEK Athens` / `Enzo Maresca` | **갱신되지 않음** — 새 생성 없이는 불가 |
+
+이유: 렌더 시점 치환은 **이번 실행에서 확인된 표기**만 바꿉니다. 저장 행에는 모델
+`korean_labels`가 없고, 이름→DB 조회는 제공된 `korean_labels` 항목을 계기로 실행됩니다.
+본문 전체를 훑어 고유명사를 찾아내는 엔티티 검색기는 이번 범위가 아닙니다(지시대로 만들지
+않았습니다).
+
+## 7. 정직하게 구분해야 하는 세 가지
 
 | 구분 | 상태 |
 |---|---|
 | 앞으로 생성되는 결과의 표시 | **구현됨**(모델이 `korean_labels`를 함께 내면 반영) |
 | 이미 저장된 본문의 표시 | **구현됨**(읽을 때 변환, 저장 값 불변) |
 | 실제 AI 번역 품질 | **미검증** — 실제 응답이 아직 `korean_labels`를 낸 적이 없습니다 |
-| 감독 DB 한국어 값 | **미검증** — 역할 권한이 없어 코드 경로만 존재 |
+| 감독 DB 한국어 값 | **검증됨** — 권한 부여 후 `E. Maresca → 엔초 마레스카` 실제 조회 |
 
 증거의 AI 번역 레코드는 **합성(synthetic)** 이며 실제 모델 번역 증거가 아닙니다.
 `korean_labels`를 실제로 받으려면 새 유료 호출이 필요하고, 이 작업은 그 권한이 없습니다.
 
-## 6. 하지 않은 것
+## 8. 하지 않은 것
 
 - 유료 모델·API 호출 **0회**. 새 live 생성 없음.
 - 새 번역 엔진·캐시·표·마이그레이션 없음.
@@ -144,12 +209,15 @@ PREVIEW_TEST_DATABASE_URL=...preview_mp10_test \
 - backend(8000)/frontend(5173) 재시작·종료 없음.
 - `Plans.md`·정책 문서 미수정.
 
-## 7. 변경 파일
+## 9. 변경 파일
 
 - `app/preview/football_terms.py` (신규): 용어·대회명 사전 + 조사 교정 + URL 보호
 - `app/preview/localized_names.py`: `AI_TRANSLATION` 출처, `register_model_labels`,
-  감독 이름 행·로더·조회, 엔티티 키 바인딩
-- `app/preview/display_names.py`: 브리지에 용어 치환·모델 라벨 등록 연결
+  감독 이름 행·로더·조회, 엔티티 키 바인딩, **DB 카탈로그 직접 조회
+  (`find_teams_by_name`/`find_coaches_by_name`)와 결정적 유일 매칭**
+- `app/preview/display_names.py`: 브리지에 용어 치환·모델 라벨 등록 연결,
+  **조회기를 응답 완료까지 유지하고 `close()`로 정리**(닫으면 범위 밖 이름 조회가 조용히 실패)
+- `app/api/v1/preview_admin.py`: 독자 경로에서 파사드를 `finally`로 닫아 연결 누수 방지
 - `app/preview/modules/players.py`: `korean_labels` 파싱·payload 전달, 버전 상향
 - `app/preview/modules/players_contract.py`: `korean_labels` 스키마, `ai_translation`, 버전 상향
 - `app/preview/prompts/players.md`: 번역 필드 지시(10번 항목)
@@ -157,13 +225,13 @@ PREVIEW_TEST_DATABASE_URL=...preview_mp10_test \
 - `scripts/preview_dev_names_ro_provision.py`: 감독 이름 열 부여(적용은 미실행)
 - `tests/preview/test_localized_names.py`: 대표 검사 2건
 
-## 8. 재시작 필요
+## 10. 재시작 필요
 
 런타임 코드가 바뀌었습니다. 다만 이번 변경은 **읽기 시점 표시 변환**이라 저장 데이터
 마이그레이션이 없습니다. 새 코드가 화면에 적용되려면 backend 8000 **재시작 1회**가
 필요합니다(조정자 수행, 제가 하지 않았습니다).
 
-## 9. 편집 종료
+## 11. 편집 종료
 
 여기서 편집을 멈춥니다. 추가 지시는 조정자가 새 작업으로 배정해야 합니다.
 

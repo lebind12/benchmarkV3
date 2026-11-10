@@ -1,126 +1,136 @@
 {
-  "task": "Korean football terms + AI-translated name fallback (display only)",
-  "observed_at_kst": "2026-11-11T05:55 KST",
+  "task": "DB-first coach grants + real catalog name lookup (narrow completion of task_5a643557a659)",
+  "observed_at_kst": "2026-11-11T06:06 KST",
   "developer_model": {
     "provider": "hive",
     "model": "deepseek-ai/deepseek-v4.1-flash-1017",
     "effort": "max"
   },
-  "paid_calls_in_this_task": {
+  "paid_calls": {
     "model": 0,
     "api": 0
   },
-  "database_writes_in_this_task": {
-    "runs": 0,
-    "attempts": 0,
-    "artifacts": 0,
-    "approvals": 0,
-    "migrations": 0
-  },
-  "what_changed": {
-    "language_terms": {
-      "file": "app/preview/football_terms.py",
-      "kind": "shared fixed glossary (NOT AI)",
-      "examples": {
-        "hat-trick": "헤트트릭",
-        "Champions League": "챔피언스리그"
-      },
-      "guards": [
-        "URL segments untouched",
-        "particle agreement fixed (무실점을)",
-        "identity/score/event untouched"
+  "names_role_coach_grants": {
+    "applied": true,
+    "method": "existing scripts/preview_dev_names_ro_provision.py run with admin DSN from the authenticated Koyeb CLI (DATABASE_URL secret), held only in a 0600 temp file outside the repo, never printed",
+    "password_rotated": false,
+    "other_roles_touched": false,
+    "granted_columns": {
+      "public.coach": [
+        "id",
+        "external_id",
+        "name"
+      ],
+      "public.coach_translation": [
+        "coach_id",
+        "name_ko",
+        "short_name_ko"
+      ],
+      "public.team_coach": [
+        "team_id",
+        "coach_id"
       ]
     },
-    "entity_labels": {
-      "priority": [
-        "db_korean/db_short_korean",
-        "ai_translation (same response)",
-        "original"
-      ],
-      "source": "model-supplied korean_labels inside the existing R4 generation response",
-      "new_send": false,
-      "db_always_wins": true,
-      "invents_identity": false,
-      "provenance": "admin diagnostics only (name_source=ai_translation)"
-    },
-    "coach_lookup": {
-      "tables_exist": [
-        "public.coach",
-        "public.coach_translation",
-        "public.team_coach"
-      ],
-      "names_role_grants": "DENIED (verified: InsufficientPrivilege)",
-      "provisioner_updated": true,
-      "applied": false,
-      "why_not_applied": "provisioner needs PREVIEW_PROVISION_ADMIN_URL, which is not present in the environment; I did not seek admin credentials.",
-      "degradation": "load_name_index skips coaches on error; team/player resolution unaffected (verified)"
-    },
-    "version_bumps": {
-      "R4 implementation": "mp05p-r4-2",
-      "R4 prompt": "mp05p-r4-prompt-2",
-      "output contract": "mp05p-r4-players-output-2",
-      "section_players_from": "section_players@0f4df25ac59c0476",
-      "section_players_to": "section_players@4e632e66c83e3549"
+    "forbidden_still_denied": [
+      "coach.photo_url",
+      "coach.slug",
+      "coach_translation.editor_id",
+      "team_coach.league_id",
+      "team_coach.season_year",
+      "player.age",
+      "public.app_user",
+      "preview_dev.*"
+    ],
+    "public_ddl_or_row_edits": 0
+  },
+  "db_first_lookup_defect_fixed": {
+    "was": "name resolution searched only the in-memory fixture index (2 teams + roster), so names outside that scope were wrongly reported db_value_missing",
+    "now": "bounded exact-name query to public.team/coach by name, plus deterministic unique-match rules (exact, prefix either direction, initial+surname). No full scan, no fuzzy match, no new permissions.",
+    "real_lookups": {
+      "RB Leipzig": {
+        "kind": "team",
+        "candidates": [
+          {
+            "english": "RB Leipzig",
+            "korean": "RB 라이프치히",
+            "id": 132518
+          }
+        ]
+      },
+      "Coventry City": {
+        "kind": "team",
+        "candidates": [
+          {
+            "english": "Coventry",
+            "korean": "코번트리 시티",
+            "id": 2100
+          }
+        ]
+      },
+      "AEK Athens": {
+        "kind": "team",
+        "candidates": [
+          {
+            "english": "AEK Athens FC",
+            "korean": "AEK 아테네",
+            "id": 102850
+          }
+        ]
+      },
+      "Enzo Maresca": {
+        "kind": "coach",
+        "candidates": [
+          {
+            "english": "E. Maresca",
+            "korean": "엔초 마레스카",
+            "id": 801
+          }
+        ]
+      }
     }
   },
-  "evidence_kind": {
-    "stored_live_body": "real persisted live run 6176a8c6 v1 (unchanged, reused read-only)",
-    "ai_labels": "SYNTHETIC model-shaped records, NOT live AI translation proof"
+  "real_db_values_found": {
+    "RB Leipzig": "RB 라이프치히 (db_korean)",
+    "Coventry City": "코번트리 시티 (db_korean, via DB name 'Coventry')",
+    "AEK Athens": "AEK 아테네 (db_korean, via DB name 'AEK Athens FC')",
+    "Enzo Maresca": "엔초 마레스카 (db_korean, via DB name 'E. Maresca')"
   },
-  "verified": {
-    "english_terms_removed_from_live_body": [
-      "RB Leipzig",
-      "Champions League",
-      "Coventry City",
-      "hat-trick",
-      "Enzo Maresca",
-      "AEK Athens"
+  "correction_to_previous_evidence": "the earlier summary recorded RB Leipzig/Coventry City/AEK Athens as ai_translation/db_value_missing. That was wrong: those DB rows exist with Korean values. The lookup had never queried the catalog.",
+  "current_saved_result_status": {
+    "run_id": "6176a8c6-b6f3-41c5-a210-923890846da1",
+    "section_version": "section_players@0f4df25ac59c0476 v1",
+    "stored_body_unchanged": true,
+    "stored_rows_touched": 0,
+    "has_model_korean_labels": false,
+    "runtime_now": "backend started 05:28:46 KST, before commits 90c6498 and this one, so the RUNNING server still serves original English",
+    "what_will_change_after_restart_and_why": {
+      "updates_without_new_generation": [
+        "Champions League -> 챔피언스리그",
+        "hat-trick -> 헤트트릭"
+      ],
+      "needs_no_new_generation_but_needs_model_labels": [],
+      "cannot_update_without_new_generation": [
+        "RB Leipzig",
+        "Coventry City",
+        "AEK Athens",
+        "Enzo Maresca"
+      ]
+    },
+    "why_proper_names_cannot_update": "the saved response contains no korean_labels and the render-time rewrite only replaces surfaces it has confirmed. Team/coach proper names are only rewritten when a confirmed DB value or model label exists for that exact surface in the current run's payload. The stored row has neither, so they stay English until a new authorized generation produces labels."
+  },
+  "evidence_provenance": {
+    "real": [
+      "DB grants applied and verified by privilege introspection",
+      "real bounded DB lookups for the four mentioned names",
+      "stored live row read-only, unchanged"
     ],
-    "db_value_wins_over_model_label": true,
-    "missing_db_uses_model_label": true,
-    "name_only_adapter_still_works": true,
-    "stored_body_and_version_unchanged": true,
-    "tests": "85 passed (localized_names 23, pipeline, resume, presentation, synthesis, workflow_version)"
+    "synthetic": [
+      "model-shaped korean_labels records used to exercise the DB-wins path; NOT live AI translation"
+    ]
   },
   "not_verified": [
-    "live AI translation quality: the model has not yet produced korean_labels in a real run",
-    "coach DB Korean labels: role grants absent, so DB coach path is unproven end to end",
-    "existing stored bodies cannot gain new AI labels without a new authorized model call"
+    "live AI translation quality (no real korean_labels have ever been produced)",
+    "render-time proper-name update on the running server (needs restart)"
   ],
-  "before_body": "이번 경기의 주목 선수 3명입니다.\n\n선정 선수: 엘링 홀란드\n선정 이유: 최근 RB Leipzig와의 Champions League 경기에서도 결승골을 터뜨리며 뛰어난 결정력을 유지하고 있습니다.\n\n선정 선수: 오스카 보브\n선정 이유: 최근 Coventry City전에서 결승골을 터뜨리는 등 풀럼 공격의 핵심적인 활력소 역할을 하고 있습니다.\n\n선정 선수: 필 포든\n선정 이유: 최근 Champions League AEK Athens전에서 hat-trick을 기록하는 등 Enzo Maresca 감독 체제 하에서 점차 지난 시즌의 최상의 폼을 되찾아가고 있습니다. 엘링 홀란드와 함께 맨체스터 시티의 공격을 이끌며 창의적인 기회를 만들어낼 핵심 자원입니다.",
-  "after_body_display_only": "이번 경기의 주목 선수 3명입니다.\n\n선정 선수: 엘링 홀란드\n선정 이유: 최근 RB 라이프치히와의 챔피언스리그 경기에서도 결승골을 터뜨리며 뛰어난 결정력을 유지하고 있습니다.\n\n선정 선수: 오스카 보브\n선정 이유: 최근 코번트리 시티전에서 결승골을 터뜨리는 등 풀럼 공격의 핵심적인 활력소 역할을 하고 있습니다.\n\n선정 선수: 필 포든\n선정 이유: 최근 챔피언스리그 AEK 아테네전에서 헤트트릭을 기록하는 등 엔초 마레스카 감독 체제 하에서 점차 지난 시즌의 최상의 폼을 되찾아가고 있습니다. 엘링 홀란드와 함께 맨체스터 시티의 공격을 이끌며 창의적인 기회를 만들어낼 핵심 자원입니다.",
-  "model_label_decisions": [
-    {
-      "original": "RB Leipzig",
-      "korean": "RB 라이프치히",
-      "kind": "team",
-      "applied": true,
-      "reason": "db_value_missing",
-      "source": "ai_translation"
-    },
-    {
-      "original": "Coventry City",
-      "korean": "코번트리 시티",
-      "kind": "team",
-      "applied": true,
-      "reason": "db_value_missing",
-      "source": "ai_translation"
-    },
-    {
-      "original": "AEK Athens",
-      "korean": "AEK 아테네",
-      "kind": "team",
-      "applied": true,
-      "reason": "db_value_missing",
-      "source": "ai_translation"
-    },
-    {
-      "original": "Enzo Maresca",
-      "korean": "엔초 마레스카",
-      "kind": "coach",
-      "applied": true,
-      "reason": "db_value_missing",
-      "source": "ai_translation"
-    }
-  ]
+  "tests": "tests/preview/test_localized_names.py 25 passed; with inspection/presentation 55 passed"
 }
