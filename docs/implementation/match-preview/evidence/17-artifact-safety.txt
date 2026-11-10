@@ -1,0 +1,11 @@
+$ npm run test:e2e:artifact-safety   # 합성 카나리로 실패 아티팩트 검사, 저장소 밖 임시 경로
+
+> match-preview-frontend@0.1.0 test:e2e:artifact-safety
+> tsx scripts/check-e2e-artifacts.mts
+
+artifacts checked: 3 in /var/folders/hs/x2j36t7x5ks_6wp26py6s4nm0000gn/T/mp01-artifact-safety-1Wew4O
+  clean  /.last-run.json
+  clean  /__artifact_safety_probe-pr-fe361-st-not-survive-in-artifacts-chromium/error-context.md
+  clean  /__artifact_safety_probe-pr-fe361-st-not-survive-in-artifacts-chromium/test-failed-1.png
+PASS: no artifact contained the synthetic password
+EXIT=0

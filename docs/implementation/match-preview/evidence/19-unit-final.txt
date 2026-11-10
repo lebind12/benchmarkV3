@@ -1,0 +1,17 @@
+$ npm --prefix frontend run test:unit   # 로그아웃 실패/재시도, 만료 401, 403 처리 포함
+
+> match-preview-frontend@0.1.0 test:unit
+> vitest run
+
+
+ RUN  v3.2.7 /Users/woolee/benchmark/frontend
+
+ ✓ src/views/PreviewRunsView.logout.test.ts (7 tests) 63ms
+ ✓ src/views/AdminLoginView.test.ts (9 tests) 80ms
+
+ Test Files  2 passed (2)
+      Tests  16 passed (16)
+   Start at  16:45:14
+   Duration  1.05s (transform 174ms, setup 0ms, collect 336ms, tests 143ms, environment 914ms, prepare 157ms)
+
+EXIT=0

@@ -57,7 +57,7 @@ test('a cleared session cookie sends the admin back to the login screen', async 
   test.info().annotations.push({
     type: 'coverage',
     description:
-      'Browser-side handling of a missing session. Server-side expiry is covered by test_expired_session_is_denied.',
+      'Deleting the cookie in the browser, not server-side expiry. The app must handle the resulting 401. Server-side expired-session rejection is covered by test_expired_session_is_denied and test_session_expiry_is_enforced_from_the_clock_not_a_flag.',
   })
 
   await page.goto('/admin/login')
@@ -116,4 +116,42 @@ test('anonymous requests to the protected endpoint are rejected by the server', 
   const anonymous = await request.get('/api/v1/admin/preview/runs')
   expect(anonymous.status()).toBe(401)
   expect((await anonymous.json()).detail).toBe('authentication required')
+})
+
+test('a failed logout does not fake success and a retry revokes the same session', async ({
+  page,
+}) => {
+  test.info().annotations.push({
+    type: 'coverage',
+    description:
+      'Logout failure handling against the real server: the session stays valid, the UI reports the failure, and retrying revokes it.',
+  })
+
+  await page.goto('/admin/login')
+  await page.getByTestId('login-email').fill(ADMIN_EMAIL)
+  await page.getByTestId('login-password').fill(ADMIN_PASSWORD)
+  await page.getByTestId('login-submit').click()
+  await expect(page).toHaveURL(/\/admin\/runs$/)
+
+  await page.route('**/api/v1/auth/logout', (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'temporary failure' }),
+    }),
+  )
+
+  await page.getByTestId('logout').click()
+  await expect(page.getByTestId('logout-error')).toBeVisible()
+  expect(new URL(page.url()).pathname).toBe('/admin/runs')
+
+  const stillAuthenticated = await page.request.get('/api/v1/admin/preview/runs')
+  expect(stillAuthenticated.status()).toBe(200)
+
+  await page.unroute('**/api/v1/auth/logout')
+  await page.getByTestId('logout').click()
+  await expect(page).toHaveURL(/\/admin\/login$/)
+
+  const afterLogout = await page.request.get('/api/v1/admin/preview/runs')
+  expect(afterLogout.status()).toBe(401)
 })

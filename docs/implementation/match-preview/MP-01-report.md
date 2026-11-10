@@ -93,11 +93,16 @@ DB(`preview_mp01_test`)를 분리했고, 테스트는 매 테스트마다 `publi
 | 5 | `npm --prefix frontend run test:e2e -- e2e/preview-access.spec.ts` | 0 | 3 passed |
 | 6 | `sloplint ... --scope app` | 0 | 0 FAIL, 0 REFLEX, 0 WARN |
 
-**실패 선행 증거.** 인증을 만들기 전 같은 테스트를 돌려 23건이 모두 실패하는 것을 먼저
-확인했다(`01-auth-tests-failing.txt`). 첫 시도는 `app.main` 임포트 오류였으므로 그 결과를
-증거로 쓰지 않고, 앱을 임포트 가능한 최소 상태로 만든 뒤 다시 돌려 **동작 실패**를
-확인했다. 예를 들어 익명 요청은 보호 경로가 없어 `404 Not Found`였고 기대는 401이었다.
-환경·임포트 실패를 기대 실패로 대신하지 않았다.
+**실패 선행 증거 (정정).** 인증을 만들기 전 같은 테스트를 돌린 기록이
+`01-auth-tests-failing.txt`에 남아 있다. 이 파일에는 실패 23건이 있고, 그중 **3건은
+동작 실패가 아니라 `ModuleNotFoundError: No module named 'app.auth.service'` 임포트
+오류**다(`test_authenticated_non_admin_gets_403_not_401`, `test_inactive_admin_is_denied`,
+`test_expired_session_is_denied`). 나머지 20건은 401·403·204 기대와 실제 404 등이
+어긋난 동작 실패다. 예를 들어 익명 요청은 보호 경로가 없어 `404 Not Found`였고 기대는
+401이었다.
+
+앞선 보고서 초안은 "23건이 모두 실패"라고 적었는데, 이는 부정확했다. 파일은 그대로
+보존하고 이 문단으로 정정한다. 실패한 실행을 새로 만들어 대체하지 않았다.
 
 **백엔드 테스트가 검사하는 동작.** 익명 거부, 오답 401, 미존재 계정 401, ADMIN 로그인
 응답에 비밀값 미포함, ADMIN 보호 경로 200, USER 403, STREAMER 403, 유효 세션 + 비ADMIN
@@ -369,3 +374,88 @@ annotation에 명시했다. 익명 401이 USER/STREAMER 거부를 증명한다�
 그대로 통과한다. `tests/preview/__init__.py`도 같은 이유로 처음에 추가했다가, 이
 파일이 없어도 `from tests.preview._dbguard import ...`가 동작하고 46개 테스트가
 통과하는 것을 확인한 뒤 제거했다. 테스트 패키지에는 초기화 파일을 두지 않는다.
+
+---
+
+# 독립 리뷰 반영 (2차 수정)
+
+읽기 전용 독립 리뷰에서 나온 자료 수정 4건을 반영했다. 새 기획·재설계 없이 지적된
+범위만 고쳤다. 모델은 동일하다(`hive` / `deepseek-ai/deepseek-v4.1-flash-1017`, effort
+`max`).
+
+## 리뷰 1. 로그아웃 실패를 성공처럼 처리했다
+
+**문제.** `PreviewRunsView.vue`의 `signOut`이 `authApi.logout()`의 결과를 버리고 항상
+로그인 화면으로 이동했다. 로그아웃 요청이 실패하면 서버 세션은 살아 있는데 화면만
+로그인으로 가서, 사용자는 로그아웃됐다고 믿는다.
+
+**수정.** 결과를 검사하고, 실패하면 `logout-error` 영역에 원인을 알린 뒤 현재 화면에
+남는다. 같은 세션으로 다시 시도할 수 있다. 성공했을 때만 이동한다.
+
+**확인한 동작.** 새 유닛 테스트 7건이 실패·네트워크 오류·재시도 성공·정상 성공·만료
+401·403을 검사한다. 이 중 3건은 수정 전 코드에서 실제로 실패했다(`FAIL ... 3 failed |
+2 passed`). 실제 브라우저에서도 확인했다: 로그아웃을 500으로 실패시키면
+`logout-error`가 보이고 보호 경로는 여전히 200(세션 유효), 라우트를 풀고 다시 누르면
+로그인으로 이동하고 같은 세션의 보호 경로는 401이 된다. 이 흐름은 E2E 5번 케이스로
+남겼다.
+
+## 리뷰 2. Playwright trace가 로그인 비밀번호를 저장했다
+
+**문제.** `trace: 'retain-on-failure'`가 실패 시 실제 POST 본문을 아티팩트에 남겼다.
+
+**확인 방법.** 설정을 읽고 추정하지 않고 실제로 재현했다. 합성 카나리를 환경변수로만
+넘겨 로그인 화면에 입력하고 일부러 실패시켜 아티팩트를 생성했다. `trace.zip`에서
+카나리가 7회 발견됐고, `error-context.md`와 스크린샷에는 없었다
+(`evidence/18-trace-leak-repro.txt`).
+
+**수정.** `trace: 'off'`로 바꿨다. 실패 진단은 `error-context.md`와 스크린샷으로
+충분하다. 설정을 다시 켜는 회귀를 막기 위해 `npm run test:e2e:artifact-safety`를
+추가했다. 이 스크립트는 매번 새 합성 카나리로 실패를 만들고 아티팩트를 검사한다.
+`trace.zip`은 풀어서 확인한다. 검사 자체가 유효한지도 확인했다. trace를 잠시 다시
+켜면 `LEAK ... trace.zip`과 함께 종료 코드 1로 실패한다.
+
+**남은 한계.** 스크린샷과 `error-context.md`가 안전한 것은 이번에 관측한 구성
+(`trace: 'off'`, 비밀번호 입력란 마스킹)에서다. "모든 아티팩트가 항상 안전하다"고
+일반화하지 않는다. 리포터 설정을 바꾸면 이 검사를 다시 돌려야 한다.
+
+## 리뷰 3. 실패 선행 증거 서술이 부정확했다
+
+`evidence/01-auth-tests-failing.txt`에는 실패 23건 중 3건이
+`ModuleNotFoundError: No module named 'app.auth.service'`였다. 나머지 20건이 동작
+실패다. 앞선 문단의 "23건이 모두 실패"는 틀렸으므로 위쪽 항목을 정정했다. 원본
+증거 파일은 그대로 보존했고, 대체 실행을 새로 만들어 붙이지 않았다.
+
+## 리뷰 4. 주석과 실제 동작이 어긋난 부분
+
+- `tests/preview/conftest.py`: 가드가 수집(collection) 시점이 아니라 세션 범위 autouse
+  픽스처의 첫 테스트 준비 시점에 실행된다는 점을 명시했다.
+- `alembic/env.py`: "로컬이 아닌 DB는 거부된다"는 단정을 지우고,
+  `PREVIEW_ALLOW_NONLOCAL_DB=1`로 열린다는 사실과 마이그레이션에는 테스트 픽스처의
+  전용 DB 검사가 적용되지 않는다는 점을 적었다.
+- `frontend/e2e/preview-access.spec.ts`: 쿠키 삭제 케이스를 "서버 만료"가 아니라
+  "브라우저에서 쿠키 삭제 후 401 처리"로 정확히 적었다.
+- `tests/preview/test_admin_access.py`: 응답 비밀값 검사를 "해시·토큰·시크릿 단어가
+  본문에 없다"는 넓은 주장에서 "비밀번호 원문과 `password_hash`가 없고 쿠키가
+  HttpOnly"라는 실제 확인 범위로 좁혔다.
+
+## 프론트 만료 처리 근거
+
+리뷰가 요청한 프론트 만료 처리 근거를 명시적으로 남긴다. 서버 판정은 기존 백엔드
+테스트(만료 세션 401)가 담당한다. 프론트는 그 401을 받았을 때 로그인으로 돌아가는지를
+검사한다. `PreviewRunsView.logout.test.ts`에 두 경우를 두었다. 세션 확인 시점의 401과,
+세션 확인은 통과했지만 실행 목록 조회 시점에 401이 오는 경우다. 후자는 빈 목록이나
+오류 문구를 남기지 않고 로그인으로 이동해야 한다.
+
+## 2차 수정 검증
+
+| 명령 | 종료 코드 | 결과 |
+|---|---|---|
+| `.venv/bin/python -m pytest tests/preview -q` | 0 | 46 passed |
+| `npm --prefix frontend run test:unit` | 0 | 16 passed (2 files) |
+| `npm --prefix frontend run type-check` | 0 | 오류 없음 |
+| `npm --prefix frontend run build` | 0 | 산출물 생성 |
+| `npm --prefix frontend run test:e2e -- e2e/preview-access.spec.ts` | 0 | 5 passed |
+| `npm --prefix frontend run test:e2e:artifact-safety` | 0 | PASS, 아티팩트에 카나리 없음 |
+
+증거는 `evidence/17`~`evidence/21`이다. 의존성 추가는 `tsx`(dev) 하나이며, 검사
+스크립트 실행에만 쓴다.

@@ -1,6 +1,9 @@
 """Alembic 실행 환경.
 
-DB URL은 앱 설정에서 읽는다. 로컬이 아닌 DB는 설정 단계에서 거부된다.
+DB URL은 앱 설정에서 읽는다. 루프백이 아닌 DB는 기본적으로 거부되지만, 이는
+앱 설정과 같은 `PREVIEW_ALLOW_NONLOCAL_DB=1`로 열린다. 마이그레이션에는 테스트
+픽스처의 전용 테스트 DB 검사가 적용되지 않으므로, 운영 DB를 향하지 않도록
+대상 URL을 직접 확인해야 한다.
 """
 
 from __future__ import annotations

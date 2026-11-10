@@ -1,8 +1,10 @@
 """MP-01 테스트 공통 설정.
 
-테스트는 전용 로컬 테스트 DB만 사용한다. 대상 검사는 연결을 열기 전에
-`_dbguard`에서 수행한다. 개발·운영 DB 이름이나 루프백이 아닌 주소는
-파괴적 준비 단계에 도달하지 못한다.
+테스트는 전용 로컬 테스트 DB만 사용한다. 대상 검사(`_dbguard`)는 세션 범위
+autouse 픽스처 `_environment`에서 첫 테스트 준비 시점에 한 번 실행된다. 이는
+import·수집(collection) 시점이 아니며, 수집만으로는 DB 연결이 열리지 않는다.
+`engine`·`schema`는 `_environment`에 의존하므로, 검사에 실패하면 파괴적 준비
+단계에 도달하지 못한다.
 """
 
 from __future__ import annotations

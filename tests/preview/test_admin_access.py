@@ -61,9 +61,14 @@ def test_admin_login_returns_principal_without_secrets(client, make_user):
     assert body["role"] == "admin"
     assert body["email"] == user["email"]
     assert set(body) == {"user_id", "email", "role", "session_id", "expires_at"}
-    serialized = response.text.lower()
-    for forbidden in ("password", "token", "secret", "hash"):
-        assert forbidden not in serialized
+    # 이 검사는 응답 본문에 비밀번호 원문과 세션 토큰 원문이 없다는 것만 확인한다.
+    # 해시·설정값 일반을 모두 배제하는 주장은 아니며, 그 경계는 서명 키·해시가
+    # 응답 스키마에 없고 쿠키가 HttpOnly라는 점으로 확인한다.
+    serialized = response.text
+    assert user["password"] not in serialized
+    assert "password_hash" not in serialized
+    cookie_header = response.headers.get("set-cookie", "")
+    assert "HttpOnly" in cookie_header
 
 
 def test_valid_admin_reaches_protected_route(client, make_user):

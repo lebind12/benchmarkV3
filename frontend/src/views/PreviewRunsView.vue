@@ -17,11 +17,21 @@ const runs = ref<unknown[] | null>(null)
 const loading = ref(true)
 const errorMessage = ref<string | null>(null)
 const signingOut = ref(false)
+const logoutError = ref<string | null>(null)
 
 async function signOut() {
   signingOut.value = true
-  await authApi.logout()
+  logoutError.value = null
+  const result = await authApi.logout()
   signingOut.value = false
+
+  if (!result.ok) {
+    // 로그아웃이 실패하면 서버 세션은 아직 살아 있다. 성공한 것처럼 로그인 화면으로
+    // 보내지 않고, 실패를 알리고 같은 세션으로 다시 시도할 수 있게 둔다.
+    logoutError.value = result.message
+    return
+  }
+
   await router.push({ name: 'admin-login' })
 }
 
@@ -59,6 +69,9 @@ onMounted(load)
       <p class="shell__brand">경기 프리뷰 관리자</p>
       <div class="shell__account">
         <span v-if="session" class="shell__email">{{ session.email }}</span>
+        <p v-if="logoutError" class="shell__logout-error" role="alert" data-testid="logout-error">
+          로그아웃하지 못했습니다. {{ logoutError }}
+        </p>
         <button
           class="button button--quiet"
           type="button"
@@ -126,5 +139,20 @@ onMounted(load)
 <style scoped>
 .shell__account .button {
   white-space: nowrap;
+}
+
+.shell__logout-error {
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  background: var(--color-bad-soft);
+  border: var(--rule-hair) solid var(--color-bad);
+  border-radius: var(--radius-control);
+  padding: var(--space-1) var(--space-2);
+}
+
+@media (max-width: 40rem) {
+  .shell__logout-error {
+    flex-basis: 100%;
+  }
 }
 </style>
