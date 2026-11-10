@@ -131,6 +131,31 @@ section_form@3721e7df4a7f6a61
   compose_body prompt=""                  impl="mp05-compose-2"
 ```
 
+### 4.3 실제 재검증 → 승인 실측 (전용 loopback DB)
+
+같은 코드로 저장 원문을 재검증하고 그 후보를 승인한 결과다. 승인 행은 전용 테스트 DB에만
+만들었고 실제 승인 기록이 아니다.
+
+```json
+{
+  "reviewed_section_result_id": "28ec96d6-…",
+  "reviewed_section_version_stamp": "section_form@3721e7df4a7f6a61",
+  "approval_workflow_version": "section_form@3721e7df4a7f6a61",
+  "approval_matches_reviewed_stamp": true,
+  "approval_status": "approved",
+  "diagnostics_count": 2,
+  "diagnostics_are_whole_messages": true,
+  "diagnostics_sample": [
+    "저장된 원문 응답을 새 사실/판단 검증 규칙으로 다시 해석했습니다(외부 호출 0회). … 검증 구현 버전: mp05-form-3.",
+    "관전 포인트 1: 확인 가능한 사실 조각에 근거가 없어 채택하지 않았습니다(덜어낸 문장: 1개)."
+  ]
+}
+```
+
+- 승인 버전 = 검토한 섹션 결과 스탬프 (`true`).
+- 승인 상태는 즉시 **approved** (수정 전에는 옛 모듈 행 재계산으로 곧바로 superseded).
+- 진단은 글자 배열이 아니라 **완전한 문장 2건**이고, 덜어낸 문장 사유가 포함된다.
+
 ## 5. provenance 한계와 정직성 구분
 
 - **원문 생성과 재검증은 다르다.** 원문 문장은 **옛 프롬프트**가 만들었고, 채택/제외 판정과
