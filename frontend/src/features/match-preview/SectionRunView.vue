@@ -465,6 +465,9 @@ onMounted(load)
 .body p {
   margin: 0 0 0.75rem;
   line-height: 1.7;
+  /* 본문은 빈 줄로 문단을 나누고, 한 줄짜리 줄바꿈도 의미가 있다(예: R4의
+     `선정 선수:` / `선정 이유:`). `pre-line`으로 줄바꿈을 그대로 살린다. */
+  white-space: pre-line;
 }
 .sources {
   margin: 0;

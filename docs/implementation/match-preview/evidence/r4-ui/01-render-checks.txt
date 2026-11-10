@@ -1,0 +1,12 @@
+
+ RUN  v3.2.7 /Users/woolee/benchmark/frontend
+
+ ✓ src/features/match-preview/SectionRunView.test.ts (4 tests) 139ms
+ ✓ src/features/match-preview/R4PanelAndBody.test.ts (2 tests) 46ms
+ ✓ src/features/match-preview/RunInspector.test.ts (10 tests) 136ms
+
+ Test Files  3 passed (3)
+      Tests  16 passed (16)
+   Start at  05:02:05
+   Duration  1.11s (transform 416ms, setup 0ms, collect 946ms, tests 321ms, environment 784ms, prepare 215ms)
+

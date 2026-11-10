@@ -15,6 +15,7 @@ import AttemptPanel from './panels/AttemptPanel.vue'
 import AvailabilityPanel from './panels/AvailabilityPanel.vue'
 import FormPanel from './panels/FormPanel.vue'
 import OutlookPanel from './panels/OutlookPanel.vue'
+import PlayersPanel from './panels/PlayersPanel.vue'
 import type { RunDetail, SectionResultView, UndoReport } from './types'
 
 const props = defineProps<{
@@ -372,6 +373,15 @@ function formatTime(value: string | null): string {
           :key="`outlook-${activeModule.module_execution_id}`"
           :result="(activeModuleBody as never)"
         />
+        <!--
+          R4 주목 선수 선정 패널. 선정 선수와 선정 이유를 분리해 보여준다. R1 경기력과
+          별개의 섹션이며, 승인 단위는 이 노드가 아니라 섹션 본문 결과다.
+        -->
+        <PlayersPanel
+          v-else-if="activeModule.module_id === 'R4'"
+          :key="`players-${activeModule.module_execution_id}`"
+          :result="(activeModuleBody as never)"
+        />
         <AttemptPanel :attempts="activeModule.tabs.request.attempts" />
       </details>
 
@@ -711,6 +721,12 @@ function formatTime(value: string | null): string {
   gap: var(--space-2);
   max-width: 60ch;
   color: var(--color-ink);
+}
+
+/* 본문 문단 안의 한 줄짜리 줄바꿈도 의미가 있다(예: R4의 `선정 선수:` /
+   `선정 이유:`). 빈 줄은 문단으로, 한 줄 줄바꿈은 그대로 표시한다. */
+.section-result__body p {
+  white-space: pre-line;
 }
 
 .section-result__subtitle {
