@@ -46,3 +46,20 @@ $ npm --prefix frontend run build
 $ PREVIEW_TEST_DATABASE_URL=...preview_mp04_test .venv/bin/python -m pytest tests/preview/test_admin_access.py tests/preview/test_metrics.py -q
 38 passed, 1 warning
 ```
+
+## 실행 중 백엔드의 실제 쓰기 대상 확인 (읽기 전용 트랜잭션)
+
+```
+live proc PREVIEW_DATABASE_URL      : host=...pooler.supabase.com db=postgres user=preview_dev_app.<ref>
+live proc PREVIEW_IDENTITY_DATABASE_URL: host=...pooler.supabase.com db=postgres user=preview_dev_identity_ro.<ref>
+live proc PREVIEW_FIXTURES_DATABASE_URL: host=...pooler.supabase.com db=postgres user=preview_dev_fixture_ro.<ref>
+intended PREVIEW_DEV_DATABASE_URL   : host=...pooler.supabase.com db=postgres user=preview_dev_app.<ref>
+writer target matches intended DEV  : True
+current_user/db                    : ('preview_dev_app', 'postgres')
+to_regclass sessions/migrations    : ('preview_dev.preview_admin_sessions', 'preview_dev.schema_migrations')
+sessions rows                      : 2
+applied migrations                 : 0001_preview_dev_admin_sessions,0002_preview_runs,0003_preview_approvals,0004_section_results
+```
+
+읽기 전용(`conn.read_only = True`)으로만 조회했다. 테이블 생성·삭제·마이그레이션 실행 없음.
+사용자 비밀번호·세션 토큰은 읽지도 출력하지도 않았다.

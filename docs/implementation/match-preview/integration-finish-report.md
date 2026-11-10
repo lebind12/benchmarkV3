@@ -171,6 +171,22 @@ JSON은 **한 줄 + 단일 인용**으로 저장했다. 여러 줄 JSON을 그�
 이전과 똑같이 설정 없이 기동하고(화면은 "설정 없음"을 그대로 표시), 있으면 mode 600을
 검사한 뒤 `PREVIEW_MODEL_*`만 읽는다. 다른 DSN을 덮어쓰지 않는다.
 
+### 기동 명령은 반드시 기존 런처를 쓴다 (재발 방지)
+
+`uvicorn --env-file <preview-dev.env>`로 직접 띄우면 **쓰기 연결이 틀린다.** 개인 파일의
+키는 `PREVIEW_DEV_DATABASE_URL`인데 앱 설정은 `PREVIEW_` + `database_url`, 즉
+`PREVIEW_DATABASE_URL`을 찾는다. `--env-file`은 이름을 매핑하지 않으므로 쓰기 연결이
+기본값(`127.0.0.1:55432/preview_mp01_dev`)으로 떨어지고, 신원 읽기는 정상이라
+`/api/v1/health`는 `ok`로 보이는데 로그인만 `preview_dev.preview_admin_sessions` 없음으로
+500이 난다. 실제로 조정자 기동에서 이 증상이 났다.
+
+- **올바른 기동:** `sh scripts/run_preview_dev.sh` (스크립트가 `PREVIEW_DEV_DATABASE_URL`을
+  `PREVIEW_DATABASE_URL`로 매핑한다).
+- **현재 실행 중인 백엔드 확인(읽기 전용):** 쓰기 역할 `preview_dev_app`, 신원
+  `preview_dev_identity_ro`, 경기 `preview_dev_fixture_ro`, 세션 표 존재, 적용 마이그레이션
+  0001~0004. 근거는 [commands.txt](evidence/integration-finish/commands.txt) 하단.
+- 이 확인은 조회만 했다. 표 생성·삭제·마이그레이션 실행 없음, 비밀번호·세션 토큰 미열람.
+
 ### 전송 호출 1회 (상한 고정)
 
 `scripts/preview_model_probe.py`는 앱의 **공통 경로**(`request_model` →
