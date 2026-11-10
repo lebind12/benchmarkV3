@@ -49,6 +49,14 @@ _MARKER = re.compile(
 _INTERPRETATION_KINDS = frozenset({"해석", "interpretation"})
 _INTERPRETATION_PREFIX = "AI 해석으로는, "
 
+# 모델이 본문에 그대로 남기는 내부 근거 식별자. 실제 후보 실행에서
+# `…입니다 [api:standings-13, api:standings-4] …`처럼 대괄호로 노출됐다.
+# 읽는 사람에게는 내부 구현 값이므로 지운다. 근거 자체는 구조화된 claims·sources에
+# 그대로 남아 있으므로 정보가 사라지지 않는다.
+# 오탐을 줄이기 위해 **대괄호 안이 내부 접두사(`api:`) 항목들로만** 이루어진 경우만
+# 지운다. 일반 대괄호 서술·숫자 인용·실제 URL 링크는 건드리지 않는다.
+_INTERNAL_ID_MARKER = re.compile(r"\[\s*api:[^\[\]]*?\]", re.IGNORECASE)
+
 
 def _clean(text: Any) -> str:
     return " ".join(str(text or "").split())
@@ -59,8 +67,13 @@ def clean_model_labels(text: Any) -> str:
 
     표기 뒤 문장은 다음 표기 전까지 그 종류로 본다. 사실 표기는 지우고, 해석 구간에는
     "AI 해석으로는,"을 붙여 해석임을 본문에 남긴다.
+
+    모델이 문장 안에 남긴 내부 근거 식별자(`[api:…]`)도 함께 지운다. 독자용 본문에
+    내부 구현 값을 노출하지 않기 위해서다. 근거는 구조화된 `claims`·`sources`·관리자
+    진단에 그대로 남으므로 문장을 근거 없이 만드는 것이 아니다.
     """
-    raw = _clean(text)
+    raw = _INTERNAL_ID_MARKER.sub(" ", _clean(text))
+    raw = _clean(raw)
     if not raw:
         return ""
     pieces: list[str] = []

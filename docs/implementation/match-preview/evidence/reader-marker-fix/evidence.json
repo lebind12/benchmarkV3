@@ -1,0 +1,78 @@
+{
+  "run_id": "7c0af3c0-4f55-4270-9266-be58c65d8f6b",
+  "fix": "clean_model_labels strips internal [api:...] markers from reader prose",
+  "compose_implementation_version": "mp05-compose-2",
+  "external_calls_for_this_task": 0,
+  "api_football_calls": 0,
+  "vertex_attempts_total_after_task": 3,
+  "candidate_run_attempts": 1,
+  "approvals_total": 0,
+  "runs_total": 8,
+  "raw_response_artifact": {
+    "id": "95f5e638-7f73-41df-a439-a88450d58630",
+    "byte_size": 16855,
+    "sha256": "bc835368200575b523f9d540a9a03d473c8ebcf9ea6bdcb449bf4113d6c0c74a",
+    "mutation": "none"
+  },
+  "structured_evidence_retained": {
+    "claims": 5,
+    "claim_ids": [
+      "api:standings-13",
+      "api:standings-4",
+      "r1-importance-0",
+      "r1-form-0",
+      "r1-form-1"
+    ],
+    "source_ids": [
+      "52f3c43a-3fb2-4442-b7df-4fa0a11ec8f2"
+    ]
+  },
+  "versions": [
+    {
+      "version": 1,
+      "section_result_id": "2489bb7a-c8dd-41cd-a791-88a8111b438a",
+      "body_chars": 528,
+      "contains_internal_marker": true,
+      "quality": "ready",
+      "mode": "live",
+      "sources": [
+        {
+          "url": null,
+          "kind": "api",
+          "note": "수집 2026-11-10T13:14:24.051542+00:00 · API-Football 저장 자료",
+          "label": "API-Football 저장 자료"
+        }
+      ],
+      "diagnostics": [
+        "관전 포인트 1: 근거 식별자(snapshot 또는 검색 출처 URL)가 없어 채택하지 않았습니다.",
+        "관전 포인트 2: 근거 식별자(snapshot 또는 검색 출처 URL)가 없어 채택하지 않았습니다.",
+        "관전 포인트 3: 근거 식별자(snapshot 또는 검색 출처 URL)가 없어 채택하지 않았습니다.",
+        "주목 선수 Erling Haaland: 근거 식별자(snapshot 또는 검색 출처 URL)가 없어 채택하지 않았습니다.",
+        "주목 선수 Alex Iwobi: 근거 식별자(snapshot 또는 검색 출처 URL)가 없어 채택하지 않았습니다.",
+        "주목 선수 Rodrigo Muniz: 근거 식별자(snapshot 또는 검색 출처 URL)가 없어 채택하지 않았습니다.",
+        "검색을 통해 맨체스터 시티와 풀럼의 최근 공식전 경기 결과, 상대 전적(최근 23경기 맨시티 무패), 그리고 주요 선수들(홀란드, 이워비, 무니스)의 시즌 기록 및 최근 활약상을 확인했습니다. 다만, A매치 기간 중 발생할 수 있는 추가 부상자 정보는 현 시점에서 확인이 불가능합니다."
+      ],
+      "body": "Manchester City와 Fulham의 맞대결입니다. Premier League 경기이며, 킥오프는 2026-11-21 12:30 UTC입니다.\n\n맨체스터 시티는 승점 21점으로 리그 3위이며, 풀럼은 승점 10점으로 리그 15위에 위치해 있습니다. [api:standings-13, api:standings-4] AI 해석으로는, 맨체스터 시티는 선두권 경쟁을 이어가기 위해, 풀럼은 하위권 탈출을 위해 승점 확보가 매우 중요합니다.\n\nManchester City는 맨체스터 시티는 최근 5경기에서 LLLWW의 폼을 기록 중입니다. [api:standings-13] AI 해석으로는, 최근 공식전 연패를 끊고 연승을 거두며 분위기 반전에 성공했으나, 리그에서의 안정감을 되찾기 위해 승리가 필요합니다. Fulham는 풀럼은 최근 5경기에서 DDWWL의 폼을 기록 중입니다. [api:standings-4] AI 해석으로는, 최근 경기에서 무승부를 거두며 다소 주춤했으나, 강팀들을 상대로 승점을 따내는 끈끈한 경기력을 보여주고 있습니다."
+    },
+    {
+      "version": 2,
+      "section_result_id": "1bd1c82c-edf1-4337-93c5-6181fc84ae75",
+      "body_chars": 455,
+      "contains_internal_marker": false,
+      "quality": "ready",
+      "mode": "live",
+      "sources": [
+        {
+          "url": null,
+          "kind": "api",
+          "note": "수집 2026-11-10T13:14:24.051542+00:00 · API-Football 저장 자료",
+          "label": "API-Football 저장 자료"
+        }
+      ],
+      "diagnostics": [
+        "본문 조립 규칙만 다시 적용했습니다(외부 호출 0회). 저장된 조사·검증 결과를 그대로 입력으로 썼고 새 근거를 추가하지 않았습니다. 조립 구현 버전: mp05-compose-2."
+      ],
+      "body": "Manchester City와 Fulham의 맞대결입니다. Premier League 경기이며, 킥오프는 2026-11-21 12:30 UTC입니다.\n\n맨체스터 시티는 승점 21점으로 리그 3위이며, 풀럼은 승점 10점으로 리그 15위에 위치해 있습니다. AI 해석으로는, 맨체스터 시티는 선두권 경쟁을 이어가기 위해, 풀럼은 하위권 탈출을 위해 승점 확보가 매우 중요합니다.\n\nManchester City는 맨체스터 시티는 최근 5경기에서 LLLWW의 폼을 기록 중입니다. AI 해석으로는, 최근 공식전 연패를 끊고 연승을 거두며 분위기 반전에 성공했으나, 리그에서의 안정감을 되찾기 위해 승리가 필요합니다. Fulham는 풀럼은 최근 5경기에서 DDWWL의 폼을 기록 중입니다. AI 해석으로는, 최근 경기에서 무승부를 거두며 다소 주춤했으나, 강팀들을 상대로 승점을 따내는 끈끈한 경기력을 보여주고 있습니다."
+    }
+  ]
+}

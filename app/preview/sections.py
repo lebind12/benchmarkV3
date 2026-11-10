@@ -56,6 +56,10 @@ __all__ = [
 
 FORM_SECTION_ID = "section_form"
 
+# R1 본문 조립 구현 버전. 내부 근거 ID(`[api:…]`)를 독자용 문장에서 지우도록
+# 조립 규칙이 바뀌었으므로 버전을 올린다. 산출 문장이 달라지는 변경이다.
+FORM_COMPOSE_IMPLEMENTATION_VERSION = "mp05-compose-2"
+
 # 이 파일이 실제 노드를 제공하는 섹션. 등록부의 implemented와 별개로 여기서 정한다.
 _IMPLEMENTED_SECTIONS = (FORM_SECTION_ID, "section_availability", "section_outlook")
 
@@ -539,7 +543,7 @@ def build_implementations(
             research=(_research_node(transport=transport, now=now),),
             compose_body=NodeImplementation(
                 module_id=COMPOSE_MODULE_ID,
-                implementation_version="mp05-compose-1",
+                implementation_version=FORM_COMPOSE_IMPLEMENTATION_VERSION,
                 prompt_version=None,
                 mode=transport.mode,
                 run=_compose_node(now=now),
@@ -675,7 +679,8 @@ def recompose_section_body(
         result_ids=[uuid.UUID(x) for x in latest_section["result_ids"]],
         diagnostics=(
             "본문 조립 규칙만 다시 적용했습니다(외부 호출 0회). 저장된 조사·검증 결과를"
-            " 그대로 입력으로 썼고 새 근거를 추가하지 않았습니다.",
+            " 그대로 입력으로 썼고 새 근거를 추가하지 않았습니다."
+            f" 조립 구현 버전: {FORM_COMPOSE_IMPLEMENTATION_VERSION}.",
         ),
         actor_id=actor_id,
         now=moment,

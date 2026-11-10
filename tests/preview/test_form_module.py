@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from app.preview import modules, provider, runner, store
+from app.preview import modules, provider, runner, sections, store
 from app.preview.contracts import (
     ClaimKind,
     Environment,
@@ -335,7 +335,7 @@ def test_form_section_workflow_runs_with_live_style_implementations(session_fact
         ),
         compose_body=runner.NodeImplementation(
             module_id=runner.COMPOSE_MODULE_ID,
-            implementation_version="mp05-compose-1",
+            implementation_version=sections.FORM_COMPOSE_IMPLEMENTATION_VERSION,
             prompt_version=None,
             mode=RunMode.LIVE,
             run=lambda ctx, state: _compose_outcome(state),
@@ -567,6 +567,66 @@ def test_compose_turns_model_fact_and_interpretation_labels_into_prose():
     # 사실 진술은 남고, 해석에는 라벨이 남는다.
     assert "City는 리그 3위입니다." in composed.body
     assert "AI 해석" in composed.body
+
+
+def test_internal_source_ids_do_not_reach_reader_body():
+    """모델이 본문에 남긴 내부 근거 ID(`[api:…]`)는 독자용 문장에서 사라진다.
+
+    실제 후보 실행(7c0af3c0)에서 모델이 `fact: … [api:standings-13]`처럼 근거 ID를
+    대괄호로 본문에 남겼고, 그대로 독자용 본문에 노출됐다. 내부 식별자는 구조화된
+    근거(claims·sources·진단)에 남아야 하고, 읽는 사람에게는 보이지 않아야 한다.
+    """
+    payload = {
+        "fixture": {
+            "home_team": "Manchester City",
+            "away_team": "Fulham",
+            "league": "Premier League",
+            "kickoff_at": "2026-11-21T12:30:00+00:00",
+        },
+        "match_importance": (
+            "fact: 맨체스터 시티는 승점 21점으로 리그 3위입니다"
+            " [api:standings-13, api:standings-4] interpretation: 승점 확보가 중요합니다."
+        ),
+        "recent_form": [
+            {
+                "team": "Manchester City",
+                "summary": "fact: 최근 5경기에서 LLLWW입니다. [api:standings-13] interpretation: 반등이 필요합니다.",
+            }
+        ],
+        "watch_points": [],
+        "hot_players": [],
+        # 내부 근거는 구조화된 목록에 그대로 남아 있다.
+        "claims": [
+            {
+                "claim_id": "api:standings-13",
+                "kind": "fact",
+                "text": "맨체스터 시티는 리그 3위입니다.",
+                "decision": "adopted",
+                "snapshot_ids": ["52f3c43a-3fb2-4442-b7df-4fa0a11ec8f2"],
+            }
+        ],
+        "sources": [],
+        "api_sources": [
+            {
+                "label": "API-Football 저장 자료",
+                "snapshot_id": "52f3c43a-3fb2-4442-b7df-4fa0a11ec8f2",
+                "collected_at": "2026-11-10T13:14:24.051542+00:00",
+            }
+        ],
+    }
+
+    composed = compose.compose_form_body(payload)
+
+    # 독자용 문장에는 내부 식별자가 남지 않는다.
+    assert "[api:" not in composed.body
+    assert "api:standings" not in composed.body
+    # 문장 자체는 읽히게 남는다(문장을 통째로 지우지 않는다).
+    assert "맨체스터 시티는 승점 21점으로 리그 3위입니다" in composed.body
+    assert "최근 5경기에서 LLLWW입니다" in composed.body
+    # 구조화된 근거 식별자는 그대로 보존된다.
+    assert payload["claims"][0]["claim_id"] == "api:standings-13"
+    assert payload["claims"][0]["snapshot_ids"] == ["52f3c43a-3fb2-4442-b7df-4fa0a11ec8f2"]
+    assert composed.sources and composed.sources[0]["kind"] == "api"
 
 
 def test_sections_endpoint_reports_real_implementation_and_model_state(client, make_user):
