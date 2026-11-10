@@ -260,8 +260,72 @@ def get_run(
     session: Session = Depends(get_db),
     principal: AdminPrincipal = Depends(require_preview_admin),
 ) -> dict:
-    """실행 상세. 요청·응답·변환·다음 입력과 결과 버전을 함께 돌려준다."""
-    return _detail_or_404(session, run_id)
+    """실행 상세. 요청·응답·변환·다음 입력과 결과 버전을 함께 돌려준다.
+
+    섹션 본문은 **화면에 낼 때** 한국어 표기로 바꾼다(축구 용어 사전 + 확인된 팀·선수·
+    감독 이름). 저장된 행은 그대로 두고 응답 값만 바꾼다.
+    """
+    detail = store.get_run_detail(session, run_id) if _run_exists(session, run_id) else None
+    if detail is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        )
+    payload = build_run_inspection(
+        detail.to_dict(),
+        approval_status=approvals.describe_approvals(session),
+        section_workflows=describe_section_workflows(),
+    )
+    names = _display_names_for(session, detail)
+    try:
+        return _localized_inspection(payload, names=names)
+    finally:
+        close = getattr(names, "close", None)
+        if callable(close):
+            close()
+
+
+def _run_exists(session, run_id: UUID) -> bool:
+    return session.get(PreviewRun, run_id) is not None
+
+
+def _localized_inspection(payload: dict, *, names) -> dict:
+    """검사 응답의 **표시 문자열만** 한국어로 바꾼 사본을 돌려준다.
+
+    저장된 본문·원문·버전은 건드리지 않는다. 표시 이름 파사드가 없으면 그대로 낸다.
+    """
+    if names is None or not getattr(names, "active", False):
+        # 해석기가 없어도 용어·대회명 사전은 적용한다.
+        rows = []
+        for row in payload.get("section_results") or ():
+            body = row.get("body")
+            if isinstance(body, str) and body:
+                rows.append({**row, "body": _terms_only(body)})
+            else:
+                rows.append(row)
+        return {**payload, "section_results": rows}
+
+    rows = []
+    for row in payload.get("section_results") or ():
+        body = row.get("body")
+        if not isinstance(body, str) or not body:
+            rows.append(row)
+            continue
+        try:
+            rewritten = names.rewrite_body(body)
+        except Exception:  # noqa: BLE001 - 표시 실패로 조회를 깨지 않는다
+            rewritten = body
+        rows.append({**row, "body": rewritten})
+    return {**payload, "section_results": rows}
+
+
+def _terms_only(text: str) -> str:
+    """해석기 없이 용어·대회명만 바꾼다."""
+    from app.preview.football_terms import rewrite_football_terms
+
+    try:
+        return rewrite_football_terms(text)
+    except Exception:  # noqa: BLE001
+        return text
 
 
 @router.get("/runs/{run_id}/modules/{module_execution_id}")
@@ -659,9 +723,15 @@ def get_reader_preview(
             status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
         ) from None
 
-    view = build_reader_view(
-        session, detail, names=_display_names_for(session, detail)
-    )
+    names = _display_names_for(session, detail)
+    try:
+        view = build_reader_view(session, detail, names=names)
+    finally:
+        # 조회기는 본문에만 나온 상대 팀·감독을 DB에 묻는 동안 필요하다. 응답을 만든
+        # 뒤에는 닫아 연결을 남기지 않는다.
+        close = getattr(names, "close", None)
+        if callable(close):
+            close()
     if view is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -671,6 +741,26 @@ def get_reader_preview(
             ),
         )
     return view
+
+
+def _stored_model_labels(detail) -> list:
+    """저장된 R4 결과가 함께 남긴 `korean_labels`(모델 번역). 없으면 빈 목록.
+
+    저장 행에서 그대로 읽는다. 이 코드가 번역을 만들지 않는다.
+    """
+    labels: list = []
+    for row in getattr(detail, "results", ()) or ():
+        if str(row.get("module_id")) != "R4":
+            continue
+        payload = row.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        inner = payload.get("payload")
+        source = inner if isinstance(inner, dict) else payload
+        found = source.get("korean_labels")
+        if isinstance(found, list):
+            labels.extend(item for item in found if isinstance(item, dict))
+    return labels
 
 
 def _display_names_for(session, detail):
@@ -685,11 +775,14 @@ def _display_names_for(session, detail):
     )
     label = getattr(summary, "fixture_label", None) or ""
     try:
-        return open_display_names(
+        bridge = open_display_names(
             fixture=fixture_dict,
             dsn=get_settings().names_database_url,
             fallback_label=str(label),
         )
+        # 저장된 생성 응답이 준 번역 표기를 반영한다(DB 값이 있으면 DB가 이긴다).
+        bridge.register_model_labels(_stored_model_labels(detail))
+        return bridge
     except Exception:  # noqa: BLE001 - 표시 이름 때문에 조회를 실패시키지 않는다
         return None
 
