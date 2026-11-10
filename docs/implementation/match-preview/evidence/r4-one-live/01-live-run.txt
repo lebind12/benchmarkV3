@@ -1,0 +1,52 @@
+model: gemini-3.5-flash | location: global
+live_enabled: True
+fixtures_reader: set
+fixture: Manchester City vs Fulham | kickoff 2026-11-21T12:30:00+00:00
+send cap: attempts_per_call=1 model_requests=1
+Traceback (most recent call last):
+  File "/Users/woolee/benchmark/scripts/preview_section_live_run.py", line 269, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/Users/woolee/benchmark/scripts/preview_section_live_run.py", line 191, in main
+    result = runner.run_section_workflow(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woolee/benchmark/app/preview/runner.py", line 690, in run_section_workflow
+    final_state: Mapping[str, Any] = graph.invoke(
+                                     ^^^^^^^^^^^^^
+  File "/Users/woolee/benchmark/.venv/lib/python3.11/site-packages/langgraph/pregel/main.py", line 4000, in invoke
+    for chunk in self.stream(
+  File "/Users/woolee/benchmark/.venv/lib/python3.11/site-packages/langgraph/pregel/main.py", line 3060, in stream
+    for _ in runner.tick(
+  File "/Users/woolee/benchmark/.venv/lib/python3.11/site-packages/langgraph/pregel/_runner.py", line 204, in tick
+    run_with_retry(
+  File "/Users/woolee/benchmark/.venv/lib/python3.11/site-packages/langgraph/pregel/_retry.py", line 637, in run_with_retry
+    return task.proc.invoke(task.input, config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woolee/benchmark/.venv/lib/python3.11/site-packages/langgraph/_internal/_runnable.py", line 794, in invoke
+    input = context.run(step.invoke, input, config, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woolee/benchmark/.venv/lib/python3.11/site-packages/langgraph/_internal/_runnable.py", line 479, in invoke
+    ret = self.func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woolee/benchmark/app/preview/runner.py", line 467, in research
+    outcome, execution_id, result_id = _run_node(
+                                       ^^^^^^^^^^
+  File "/Users/woolee/benchmark/app/preview/runner.py", line 351, in _run_node
+    outcome = implementation.run(node_ctx, state)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woolee/benchmark/app/preview/modules/players.py", line 1284, in run
+    research = research_players(
+               ^^^^^^^^^^^^^^^^^
+  File "/Users/woolee/benchmark/app/preview/modules/players.py", line 1156, in research_players
+    players, unmapped = resolve_selection_names(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woolee/benchmark/app/preview/modules/players.py", line 510, in resolve_selection_names
+    team_display, team_reason = _resolve_team_display(
+                                ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woolee/benchmark/app/preview/modules/players.py", line 449, in _resolve_team_display
+    resolved = resolve_team(original, id_space=id_space)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/woolee/benchmark/app/preview/sections.py", line 1194, in resolve_team
+    raise KeyError("team name resolution needs an explicit team id")
+KeyError: 'team name resolution needs an explicit team id'
+During task with name 'research' and id '6192c2f2-2873-b62a-4f94-d9a0a6ca5e0c'

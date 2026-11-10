@@ -1,0 +1,85 @@
+{
+  "task": "ONE real R4 section_players generation for user inspection",
+  "observed_at_kst": "2026-11-11T05:22 KST",
+  "result": "NOT PRODUCED",
+  "reason": "The single authorized live send was consumed, but the run crashed after the model response was parsed and before the transaction committed, so no run/section result rows exist to inspect.",
+  "actual_paid_sends": 1,
+  "send_cap": {
+    "attempts_per_call": 1,
+    "model_requests": 1,
+    "sdk_retries": 1
+  },
+  "attempt_ledger": [
+    {
+      "attempt": 1,
+      "outcome": "no send",
+      "detail": "budget reservation refused before transmit: model_requests=1 with default normal_model_calls=5 made reserved > cap. My script defect. Zero sends."
+    },
+    {
+      "attempt": 2,
+      "outcome": "one real Vertex send, response parsed, then crash before commit",
+      "detail": "reached players.py:1156 resolve_selection_names, which is only reachable after request_model returned parsed model text. Transaction rolled back; the stored attempt/artifact rows were rolled back with it, so the response is not recoverable.",
+      "crash": "KeyError: 'team name resolution needs an explicit team id'",
+      "crash_site": "app/preview/sections.py:1194 _ResolverHandle.resolve_team"
+    }
+  ],
+  "root_cause": "My own MP10 adapter `_ResolverHandle.resolve_team` requires an explicit team_id, but R4 calls the resolver with a team NAME only (players.py:449). The real DisplayNames.resolve_team supports a name-only lookup and returns 맨체스터 시티 (verified offline, no send). The adapter is narrower than the duck-typed contract R4 uses.",
+  "database": {
+    "runs_created": 0,
+    "attempts": 0,
+    "artifacts": 0,
+    "approvals": 0,
+    "note": "verified by query after the crash; the rollback left no rows"
+  },
+  "external_api_calls": 0,
+  "product_model": {
+    "name": "gemini-3.5-flash",
+    "location": "global",
+    "fallback_used": false
+  },
+  "developer_model": {
+    "provider": "hive",
+    "model": "deepseek-ai/deepseek-v4.1-flash-1017",
+    "effort": "max"
+  },
+  "blocking_condition": "Producing the deliverable now needs a SECOND paid send, which exceeds the one-send authorization. The root-cause fix is in app/preview/sections.py, which this task forbids me to edit ('no other source edits allowed').",
+  "possible_next_steps": [
+    "A) authorize editing app/preview/sections.py so _ResolverHandle.resolve_team accepts a name-only lookup (fixes the defect for all callers), then one send.",
+    "B) keep sections.py untouched and change only the script to build R4 implementations directly with a proper DisplayNames resolver, then one send."
+  ],
+  "fix_applied": {
+    "approved_option": "A (root-cause fix in app/preview/sections.py)",
+    "file": "app/preview/sections.py",
+    "change": "_ResolverHandle.resolve_team now accepts the same arguments as the real DisplayNames.resolve_team (name-only, team_id, external_id, id_space) and delegates to it. Before any scope is loaded it returns None instead of raising KeyError; R4 then keeps the original team text.",
+    "delegates_to_real_resolver": true,
+    "reimplemented_matching": false,
+    "scope": "only the already-loaded fixture team scope; never widens the read range"
+  },
+  "verification_no_send": {
+    "adapter_vs_direct_agreement": {
+      "Manchester City": {
+        "direct": "맨체스터 시티",
+        "adapter": "맨체스터 시티",
+        "agree": true
+      },
+      "Fulham": {
+        "direct": "풀럼",
+        "adapter": "풀럼",
+        "agree": true
+      }
+    },
+    "exact_crash_path_offline": "players.resolve_selection_names with the real adapter and the stored offline R4 example: 3 rows, 0 unmapped, all team names db_korean, no KeyError",
+    "cold_path": "resolve_team before any scope returns None (no exception)",
+    "tests": "test_pipeline 16 passed; affected suites 52 passed",
+    "budget_cap": {
+      "first_send_allowed": true,
+      "second_send_allowed": false,
+      "second_send_reason": "논리 호출 section_players/research-r4의 시도 상한(1회)에 도달했습니다."
+    }
+  },
+  "recoverability": {
+    "original_response_recoverable": false,
+    "evidence": "the crash rolled back the transaction, so no preview_attempts or preview_artifacts row exists after 20:00Z; latest raw_response artifact predates this work (18:38Z). No search widened per instruction."
+  },
+  "status_now": "Defect fixed and verified free (no new paid send). Still no inspectable R4 result: producing one needs a second paid send, which the coordinator has not yet authorized."
+}

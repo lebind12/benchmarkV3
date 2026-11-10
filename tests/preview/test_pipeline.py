@@ -561,3 +561,40 @@ def test_saved_body_is_not_rewritten_by_display_names(session_factory, monkeypat
         ).scalar()
         assert after == before
     get_settings.cache_clear()
+
+
+# --------------------------------------------------------------------------
+# R4 연결 결함 대표 검사 (name-only 팀 조회)
+# --------------------------------------------------------------------------
+
+
+def test_resolver_handle_accepts_name_only_team_lookup():
+    """R4가 팀 '이름'만 넘겨도 어댑터가 죽지 않고 실제 해석기에 위임한다.
+
+    관측된 결함: `_ResolverHandle.resolve_team`이 `team_id`를 요구해 R4 실호출이
+    `KeyError`로 중단됐다(응답 파싱 뒤·저장 전). 범위를 읽기 전에는 예외 대신 `None`을
+    돌려 원래 표기를 유지하고, 범위를 읽은 뒤에는 실제 `DisplayNames`와 같은 값을 낸다.
+    """
+    from app.preview.sections import _ResolverHandle
+
+    class _FakeNames:
+        """실제 해석기 대역. 어댑터가 **위임**하는지만 본다(이름을 만들지 않는다)."""
+
+        def __init__(self) -> None:
+            self.calls: list[tuple] = []
+
+        def resolve_team(self, value=None, *, team_id=None, external_id=None, id_space="internal"):
+            self.calls.append((value, team_id, external_id, id_space))
+            return f"해석:{value}"
+
+    handle = _ResolverHandle("postgresql://unused/never-used")
+    # 1) 범위를 읽기 전에는 예외를 올리지 않는다(이전에는 KeyError로 중단).
+    assert handle.resolve_team("Manchester City", id_space="internal") is None
+
+    # 2) 범위를 읽은 상태를 흉내내고, 실제 해석기로 위임하는지 확인한다.
+    fake = _FakeNames()
+    handle._cache[(4, 13)] = fake
+    resolved = handle.resolve_team("Manchester City", id_space="internal")
+
+    assert resolved == "해석:Manchester City"
+    assert fake.calls == [("Manchester City", None, None, "internal")], fake.calls

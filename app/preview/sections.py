@@ -1156,6 +1156,11 @@ class _ResolverHandle:
 
     R4는 `resolve_player`/`resolve_team`/`rewrite_body`만 쓴다. 필요한 팀·선수 범위는
     호출 때 넘어오므로, 범위를 넘기지 않은 요청은 해석하지 않는다(전체 표 조회 금지).
+
+    **이름만 오는 팀 조회**(R4가 `resolve_team("Manchester City")`처럼 호출)는 이미 읽은
+    실행 범위(그 경기의 두 팀) 안에서만 찾는다. 실제 `DisplayNames.resolve_team`과 같은
+    방식으로 이름→한국어 값을 돌려주며, 범위가 아직 없으면 예외 대신 `None`을 돌려
+    호출자가 원래 표기를 유지하게 한다.
     """
 
     def __init__(self, dsn: str) -> None:
@@ -1181,18 +1186,45 @@ class _ResolverHandle:
             self._cache[key] = DisplayNames(index)
         return self._cache[key]
 
+    def _names_for_any_loaded_scope(self):
+        """이미 읽은 범위들로 만든 해석기. 없으면 `None`.
+
+        R4는 선수 이름을 먼저 확인하면서 그 경기의 두 팀 범위를 이미 읽어 둔다. 팀 이름
+        조회는 그 범위 안에서만 하고, 새 범위를 임의로 넓히지 않는다.
+        """
+        if not self._cache:
+            return None
+        merged: list[int] = []
+        for key in self._cache:
+            for team_id in key:
+                if team_id not in merged:
+                    merged.append(team_id)
+        return self._names_for(merged)
+
     def resolve_player(self, name, *, scope_team_ids=None, **kwargs):
         names = self._names_for(scope_team_ids or ())
         if names is None:
             raise KeyError("player name resolution needs an explicit team scope")
         return names.resolve_player(name, scope_team_ids=scope_team_ids, **kwargs)
 
-    def resolve_team(self, value=None, **kwargs):
-        team_id = kwargs.get("team_id")
-        names = self._names_for([team_id] if team_id is not None else ())
+    def resolve_team(self, value=None, *, team_id=None, external_id=None, id_space="internal"):
+        """팀 표시 이름. ID가 있으면 그 범위를 새로 읽고, 이름만 있으면 이미 읽은 범위를 쓴다.
+
+        실제 `DisplayNames.resolve_team`과 같은 인자를 받는다(덕 타이핑 계약 유지).
+        해석할 수 없으면 예외를 올리지 않고 `None`을 돌려준다. R4는 `None`을
+        "확인하지 못한 팀"으로 처리해 원래 표기를 그대로 둔다.
+        """
+        scope: Sequence[int] = ()
+        if team_id is not None:
+            scope = [team_id]
+        elif id_space == "internal" and self._cache:
+            scope = ()
+        names = self._names_for(scope) if scope else self._names_for_any_loaded_scope()
         if names is None:
-            raise KeyError("team name resolution needs an explicit team id")
-        return names.resolve_team(value, **kwargs)
+            return None
+        return names.resolve_team(
+            value, team_id=team_id, external_id=external_id, id_space=id_space
+        )
 
     def rewrite_body(self, text):
         # 본문 치환은 이미 확정된 표기만 쓰므로 범위 캐시 중 하나를 재사용한다.
