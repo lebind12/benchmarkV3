@@ -1,0 +1,109 @@
+# MP-08 화면 예시 지표 (합성 저장 자료, 실제 호출 아님)
+
+자료: tests/preview/fixtures/metrics_events.json (합성 저장 행). 외부 모델·API 호출 0회.
+실행: 로컬 전용 테스트 DB preview_mp01_test 에서만 스키마를 새로 만들고 집계했다.
+
+## 재현 스크립트 (같은 내용을 test_metrics.py 의 helper 로 재사용)
+```python
+"""MP-08 증거: 대표 합성 자료로 실제 집계 결과를 한 번 보여준다.
+
+주의: 이 자료는 tests/preview/fixtures/metrics_events.json의 합성 저장 행이다.
+실제 제공자 호출 결과가 아니며, 이 출력을 실제 호출 성공률로 인용하지 않는다.
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+REPO = Path('/Users/woolee/benchmark')
+sys.path.insert(0, str(REPO))
+
+from sqlalchemy import text
+
+from app.core.config import get_settings
+from app.db import SCHEMA, Base, get_engine, get_session_factory
+from app.preview.metrics import query_metrics
+from app.preview.contracts import Environment, MetricsQuery, RunMode
+from tests.preview._dbguard import assert_safe_test_database
+
+URL = "postgresql+psycopg://preview:preview_local_dev@127.0.0.1:55432/preview_mp01_test"
+assert_safe_test_database(URL)
+import os
+
+os.environ["PREVIEW_TEST_DATABASE_URL"] = URL
+os.environ["PREVIEW_DATABASE_URL"] = URL
+os.environ["PREVIEW_IDENTITY_DATABASE_URL"] = URL
+os.environ["PREVIEW_ENV"] = "test"
+os.environ["PREVIEW_COOKIE_SECURE"] = "false"
+
+engine = get_engine()
+with engine.begin() as conn:
+    conn.execute(text(f"DROP SCHEMA IF EXISTS {SCHEMA} CASCADE"))
+    conn.execute(text("CREATE SCHEMA IF NOT EXISTS public"))
+    conn.execute(text(f"CREATE SCHEMA {SCHEMA}"))
+from app.preview import models as _m  # noqa: F401
+from app.auth import models as _a  # noqa: F401
+
+Base.metadata.create_all(engine)
+
+REPO = Path('/Users/woolee/benchmark')
+sys.path.insert(0, str(REPO))
+from tests.preview.test_metrics import _fixture, _seed, _window  # noqa: E402
+
+factory = get_session_factory()
+with factory() as session:
+    _seed(session, _fixture())
+    report = query_metrics(
+        session,
+        MetricsQuery(from_at=_window().from_at, to_at=_window().to_at),
+    )
+    payload = report.to_dict()
+
+print("== 조회 조건 ==")
+print("기간:", payload["window"]["from_at"], "~", payload["window"]["to_at"], f"({payload['window']['source']})")
+print("환경:", payload["filters"]["environments"], "실행 방식:", payload["filters"]["modes"])
+print()
+print("== 지표 (합성 저장 자료) ==")
+print(f"{'지표':<28}{'분자/분모':>12}{'표본':>6}  범위")
+for row in payload["rows"]:
+    if not row["available"]:
+        frac = "표본 없음"
+    else:
+        frac = f"{row['numerator']}/{row['denominator']}"
+    print(f"{row['metric']:<28}{frac:>12}{row['sample_size']:>6}  {row['scope']}")
+print()
+print("== 사용량 ==")
+print({k: payload["usage"][k] for k in ("input_tokens", "output_tokens", "search_queries", "attempts_with_usage", "attempts_missing_usage", "cost")})
+print()
+print("== 제외 ==")
+print({k: payload["excluded"][k] for k in ("by_environment", "by_mode", "fixture_catalog_runs", "fixture_catalog_attempts")})
+```
+
+## 출력
+```
+== 조회 조건 ==
+기간: 2026-11-09T00:00:00+00:00 ~ 2026-11-10T00:00:00+00:00 (explicit)
+환경: ['prod'] 실행 방식: ['live']
+
+== 지표 (합성 저장 자료) ==
+지표                                 분자/분모    표본  범위
+preview_completion_rate              1/1     1  preview_runs
+preview_draft_rate                   0/1     1  preview_runs
+preview_failure_rate                 0/1     1  preview_runs
+preview_in_flight_count           1/None     1  preview_runs
+module_execution_success_rate         2/2     2  preview_module_executions
+evidence_coverage_rate               1/2     2  preview_module_executions
+api_supplementation_rate             1/1     1  preview_module_executions
+module_only_success_rate           표본 없음     0  module_runs
+attempt_429_rate                     1/3     3  preview_and_module_attempts
+retry_attempt_rate                   1/3     3  preview_and_module_attempts
+retried_logical_call_rate            1/2     2  preview_and_module_attempts
+usage_reported_rate                  1/3     3  preview_and_module_attempts
+
+== 사용량 ==
+{'input_tokens': 1000, 'output_tokens': 250, 'search_queries': None, 'attempts_with_usage': 1, 'attempts_missing_usage': 2, 'cost': None}
+
+== 제외 ==
+{'by_environment': 3, 'by_mode': 0, 'fixture_catalog_runs': 0, 'fixture_catalog_attempts': 0}
+```

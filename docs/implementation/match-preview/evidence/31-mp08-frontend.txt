@@ -1,0 +1,14 @@
+
+> match-preview-frontend@0.1.0 test:unit
+> vitest run src/features/match-preview/PreviewMetricsView.test.ts
+
+
+ RUN  v3.2.7 /Users/woolee/benchmark/frontend
+
+ ✓ src/features/match-preview/PreviewMetricsView.test.ts (10 tests) 112ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  20:21:23
+   Duration  824ms (transform 136ms, setup 0ms, collect 189ms, tests 112ms, environment 232ms, prepare 45ms)
+

@@ -1,0 +1,367 @@
+{
+  "description": "MP-08 지표 집계용 저장 이벤트. 실제 제공자 호출이 아니라 저장 구조에 남는 행의 모양을 고정하는 합성 자료다. 이 파일의 값으로 실제 호출 성공률을 주장하지 않는다.",
+  "window": {
+    "from_at": "2026-11-09T00:00:00+00:00",
+    "to_at": "2026-11-10T00:00:00+00:00"
+  },
+  "runs": [
+    {
+      "run_key": "live-preview",
+      "label": "대표 실호출 실행 (합성 저장 행)",
+      "operation_kind": "preview",
+      "environment": "prod",
+      "mode": "live",
+      "status": "succeeded",
+      "quality": "ready",
+      "requested_at": "2026-11-09T01:00:00+00:00",
+      "started_at": "2026-11-09T01:00:01+00:00",
+      "finished_at": "2026-11-09T01:04:00+00:00",
+      "config_version": "metrics-fixture-1",
+      "snapshots": [
+        {
+          "key": "api-snapshot",
+          "source_kind": "api",
+          "provider": "api-football",
+          "validation_status": "verified"
+        }
+      ],
+      "modules": [
+        {
+          "module_id": "R1",
+          "ordinal": 0,
+          "status": "succeeded",
+          "quality": "ready",
+          "started_at": "2026-11-09T01:00:05+00:00",
+          "finished_at": "2026-11-09T01:01:30+00:00",
+          "attempts": [
+            {
+              "logical_call_id": "live-r1-call",
+              "attempt_ordinal": 0,
+              "provider": "vertex",
+              "model": "gemini-3.8-flash",
+              "operation": "execute_module",
+              "outcome": "error",
+              "http_status": 429,
+              "error_class": "rate_limited",
+              "error_message": "RESOURCE_EXHAUSTED",
+              "usage": null,
+              "wait_ms": 2000,
+              "duration_ms": 320,
+              "started_at": "2026-11-09T01:00:06+00:00",
+              "finished_at": "2026-11-09T01:00:06.500000+00:00"
+            },
+            {
+              "logical_call_id": "live-r1-call",
+              "attempt_ordinal": 1,
+              "provider": "vertex",
+              "model": "gemini-3.8-flash",
+              "operation": "execute_module",
+              "outcome": "ok",
+              "http_status": 200,
+              "usage": {
+                "input_tokens": 1000,
+                "output_tokens": 250,
+                "search_queries": null
+              },
+              "wait_ms": 0,
+              "duration_ms": 2400,
+              "started_at": "2026-11-09T01:00:08+00:00",
+              "finished_at": "2026-11-09T01:00:10.500000+00:00"
+            }
+          ],
+          "result": {
+            "status": "succeeded",
+            "quality": "ready",
+            "claims": [
+              {
+                "claim_id": "live-r1-claim-1",
+                "kind": "fact",
+                "text": "최근 5경기 3승 1무 1패",
+                "decision": "adopted",
+                "snapshot_ids": ["api-snapshot"],
+                "decision_reason": "API 원문에 있는 값"
+              }
+            ],
+            "coverage": [
+              { "topic": "recent_form", "state": "available", "detail": "API 제공" },
+              {
+                "topic": "media_context",
+                "state": "search_not_found",
+                "detail": "검색 결과 없음. API 자료로 보완"
+              }
+            ]
+          }
+        },
+        {
+          "module_id": "R2",
+          "ordinal": 1,
+          "status": "succeeded",
+          "quality": "insufficient",
+          "started_at": "2026-11-09T01:01:35+00:00",
+          "finished_at": "2026-11-09T01:02:40+00:00",
+          "attempts": [
+            {
+              "logical_call_id": "live-r2-call",
+              "attempt_ordinal": 0,
+              "provider": "vertex",
+              "model": "gemini-3.8-flash",
+              "operation": "execute_module",
+              "outcome": "ok",
+              "http_status": 200,
+              "usage": null,
+              "wait_ms": 0,
+              "duration_ms": 1800,
+              "started_at": "2026-11-09T01:01:36+00:00",
+              "finished_at": "2026-11-09T01:01:38+00:00"
+            }
+          ],
+          "result": {
+            "status": "succeeded",
+            "quality": "insufficient",
+            "claims": [],
+            "coverage": [
+              {
+                "topic": "injuries",
+                "state": "api_not_provided",
+                "detail": "API가 부상 자료를 주지 않음"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run_key": "dev-mock-preview",
+      "label": "개발 모의 실행 (합성 저장 행)",
+      "operation_kind": "preview",
+      "environment": "dev",
+      "mode": "mock",
+      "status": "succeeded",
+      "quality": "pending",
+      "requested_at": "2026-11-09T02:00:00+00:00",
+      "started_at": "2026-11-09T02:00:01+00:00",
+      "finished_at": "2026-11-09T02:00:30+00:00",
+      "config_version": "metrics-fixture-1",
+      "snapshots": [
+        {
+          "key": "mock-api-snapshot",
+          "source_kind": "api",
+          "provider": "recorded-fixture",
+          "validation_status": "unverified"
+        }
+      ],
+      "modules": [
+        {
+          "module_id": "R1",
+          "ordinal": 0,
+          "status": "succeeded",
+          "quality": "pending",
+          "started_at": "2026-11-09T02:00:02+00:00",
+          "finished_at": "2026-11-09T02:00:20+00:00",
+          "attempts": [
+            {
+              "logical_call_id": "mock-r1-call",
+              "attempt_ordinal": 0,
+              "provider": "recorded-fixture",
+              "model": "mock-demo-model",
+              "operation": "execute_module",
+              "outcome": "ok",
+              "http_status": 200,
+              "usage": null,
+              "wait_ms": 0,
+              "duration_ms": 400,
+              "started_at": "2026-11-09T02:00:03+00:00",
+              "finished_at": "2026-11-09T02:00:03.500000+00:00"
+            }
+          ],
+          "result": {
+            "status": "succeeded",
+            "quality": "pending",
+            "claims": [
+              {
+                "claim_id": "mock-r1-claim-1",
+                "kind": "fact",
+                "text": "저장된 모의 문장",
+                "decision": "adopted",
+                "snapshot_ids": ["mock-api-snapshot"],
+                "decision_reason": "모의 자료"
+              }
+            ],
+            "coverage": [{ "topic": "recent_form", "state": "available" }]
+          }
+        }
+      ]
+    },
+    {
+      "run_key": "catalog-run",
+      "label": "경기 목록 수집 (합성 저장 행)",
+      "operation_kind": "fixture_catalog",
+      "environment": "dev",
+      "mode": "live",
+      "status": "succeeded",
+      "quality": "pending",
+      "requested_at": "2026-11-09T03:00:00+00:00",
+      "started_at": "2026-11-09T03:00:01+00:00",
+      "finished_at": "2026-11-09T03:00:05+00:00",
+      "config_version": "metrics-fixture-1",
+      "attempts": [
+        {
+          "logical_call_id": "catalog-call",
+          "attempt_ordinal": 0,
+          "provider": "api-football",
+          "model": null,
+          "operation": "fetch_fixture_catalog",
+          "outcome": "ok",
+          "http_status": 200,
+          "usage": null,
+          "wait_ms": 0,
+          "duration_ms": 900,
+          "started_at": "2026-11-09T03:00:02+00:00",
+          "finished_at": "2026-11-09T03:00:03+00:00"
+        }
+      ]
+    },
+    {
+      "run_key": "module-only",
+      "label": "모듈 단독 실행 (합성 저장 행)",
+      "operation_kind": "module",
+      "environment": "dev",
+      "mode": "live",
+      "status": "succeeded",
+      "quality": "pending",
+      "requested_at": "2026-11-09T04:00:00+00:00",
+      "started_at": "2026-11-09T04:00:01+00:00",
+      "finished_at": "2026-11-09T04:00:30+00:00",
+      "config_version": "metrics-fixture-1",
+      "snapshots": [
+        {
+          "key": "module-api-snapshot",
+          "source_kind": "api",
+          "provider": "api-football",
+          "validation_status": "verified"
+        }
+      ],
+      "modules": [
+        {
+          "module_id": "R3",
+          "ordinal": 0,
+          "status": "succeeded",
+          "quality": "ready",
+          "started_at": "2026-11-09T04:00:02+00:00",
+          "finished_at": "2026-11-09T04:00:20+00:00",
+          "attempts": [
+            {
+              "logical_call_id": "module-r3-call",
+              "attempt_ordinal": 0,
+              "provider": "vertex",
+              "model": "gemini-3.8-flash",
+              "operation": "execute_module",
+              "outcome": "ok",
+              "http_status": 200,
+              "usage": { "input_tokens": 500, "output_tokens": 120, "search_queries": 2 },
+              "wait_ms": 0,
+              "duration_ms": 1500,
+              "started_at": "2026-11-09T04:00:03+00:00",
+              "finished_at": "2026-11-09T04:00:05+00:00"
+            }
+          ],
+          "result": {
+            "status": "succeeded",
+            "quality": "ready",
+            "claims": [
+              {
+                "claim_id": "module-r3-claim-1",
+                "kind": "api_prediction",
+                "text": "API 예측 승률 48%",
+                "decision": "adopted",
+                "snapshot_ids": ["module-api-snapshot"],
+                "decision_reason": "API 예측 자료"
+              }
+            ],
+            "coverage": [{ "topic": "odds", "state": "available" }]
+          }
+        }
+      ]
+    },
+    {
+      "run_key": "outside-window",
+      "label": "조회 기간 밖 실행 (합성 저장 행)",
+      "operation_kind": "preview",
+      "environment": "dev",
+      "mode": "live",
+      "status": "failed",
+      "quality": "pending",
+      "requested_at": "2026-11-01T05:00:00+00:00",
+      "started_at": "2026-11-01T05:00:01+00:00",
+      "finished_at": "2026-11-01T05:03:00+00:00",
+      "config_version": "metrics-fixture-1",
+      "failure_code": "provider_error",
+      "modules": [
+        {
+          "module_id": "R1",
+          "ordinal": 0,
+          "status": "failed",
+          "quality": "pending",
+          "started_at": "2026-11-01T05:00:02+00:00",
+          "finished_at": "2026-11-01T05:02:00+00:00",
+          "failure_code": "provider_error",
+          "attempts": [
+            {
+              "logical_call_id": "old-r1-call",
+              "attempt_ordinal": 0,
+              "provider": "vertex",
+              "model": "gemini-3.8-flash",
+              "operation": "execute_module",
+              "outcome": "error",
+              "http_status": 503,
+              "error_class": "unavailable",
+              "usage": null,
+              "wait_ms": 1000,
+              "duration_ms": 200,
+              "started_at": "2026-11-01T05:00:03+00:00",
+              "finished_at": "2026-11-01T05:00:03.500000+00:00"
+            },
+            {
+              "logical_call_id": "old-r1-call",
+              "attempt_ordinal": 1,
+              "provider": "vertex",
+              "model": "gemini-3.8-flash",
+              "operation": "execute_module",
+              "outcome": "error",
+              "http_status": 503,
+              "error_class": "unavailable",
+              "usage": null,
+              "wait_ms": 2000,
+              "duration_ms": 250,
+              "started_at": "2026-11-01T05:00:06+00:00",
+              "finished_at": "2026-11-01T05:00:06.500000+00:00"
+            }
+          ],
+          "result": {
+            "status": "failed",
+            "quality": "pending",
+            "failure_code": "provider_error",
+            "claims": [],
+            "coverage": [
+              { "topic": "recent_form", "state": "call_error", "detail": "제공자 503" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run_key": "in-flight",
+      "label": "진행 중 실행 (합성 저장 행)",
+      "operation_kind": "preview",
+      "environment": "prod",
+      "mode": "live",
+      "status": "running",
+      "quality": "pending",
+      "requested_at": "2026-11-09T06:00:00+00:00",
+      "started_at": "2026-11-09T06:00:01+00:00",
+      "finished_at": null,
+      "config_version": "metrics-fixture-1",
+      "modules": []
+    }
+  ]
+}

@@ -1,0 +1,638 @@
+{
+  "_note": "API-Football v3 응답 모양을 기록한 검증 자료입니다. 실제 호출 결과가 아니며 live 근거로 쓰지 않습니다. 값은 필드 의미를 확인하기 위한 것이고, live 검증은 공통 실행기(MP-04) 연결 뒤에 따로 합니다.",
+  "_shape_source": "API-Football v3 문서의 /fixtures, /teams/statistics, /standings, /players, /injury, /odds, /predictions 응답 봉투 모양",
+  "fixture": {
+    "get": "fixtures",
+    "parameters": {
+      "id": "1200001"
+    },
+    "errors": [],
+    "results": 1,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": [
+      {
+        "fixture": {
+          "id": 1200001,
+          "referee": "Recorded Referee",
+          "timezone": "UTC",
+          "date": "2026-11-12T20:00:00+00:00",
+          "timestamp": 1794523200,
+          "venue": {
+            "id": 5001,
+            "name": "Recorded Stadium",
+            "city": "Recorded City"
+          },
+          "status": {
+            "long": "Not Started",
+            "short": "NS",
+            "elapsed": null
+          }
+        },
+        "league": {
+          "id": 39,
+          "name": "Recorded Premier League",
+          "country": "Recorded Country",
+          "season": 2026,
+          "round": "Regular Season - 12"
+        },
+        "teams": {
+          "home": {
+            "id": 50,
+            "name": "Recorded Home",
+            "winner": null
+          },
+          "away": {
+            "id": 49,
+            "name": "Recorded Away",
+            "winner": null
+          }
+        },
+        "goals": {
+          "home": null,
+          "away": null
+        }
+      }
+    ]
+  },
+  "form_home": {
+    "get": "teams/statistics",
+    "parameters": {
+      "league": "39",
+      "season": "2026",
+      "team": "50"
+    },
+    "errors": [],
+    "results": 1,
+    "response": {
+      "league": {
+        "id": 39,
+        "name": "Recorded Premier League",
+        "season": 2026
+      },
+      "team": {
+        "id": 50,
+        "name": "Recorded Home"
+      },
+      "form": "WWDLW",
+      "fixtures": {
+        "played": {
+          "home": 6,
+          "away": 5,
+          "total": 11
+        },
+        "wins": {
+          "home": 4,
+          "away": 2,
+          "total": 6
+        },
+        "draws": {
+          "home": 1,
+          "away": 2,
+          "total": 3
+        },
+        "loses": {
+          "home": 1,
+          "away": 1,
+          "total": 2
+        }
+      },
+      "goals": {
+        "for": {
+          "total": {
+            "home": 12,
+            "away": 7,
+            "total": 19
+          }
+        },
+        "against": {
+          "total": {
+            "home": 5,
+            "away": 6,
+            "total": 11
+          }
+        }
+      }
+    }
+  },
+  "form_away": {
+    "get": "teams/statistics",
+    "parameters": {
+      "league": "39",
+      "season": "2026",
+      "team": "49"
+    },
+    "errors": [],
+    "results": 1,
+    "response": {
+      "league": {
+        "id": 39,
+        "name": "Recorded Premier League",
+        "season": 2026
+      },
+      "team": {
+        "id": 49,
+        "name": "Recorded Away"
+      },
+      "form": "LWDWL",
+      "fixtures": {
+        "played": {
+          "home": 5,
+          "away": 6,
+          "total": 11
+        },
+        "wins": {
+          "home": 3,
+          "away": 1,
+          "total": 4
+        },
+        "draws": {
+          "home": 1,
+          "away": 2,
+          "total": 3
+        },
+        "loses": {
+          "home": 1,
+          "away": 3,
+          "total": 4
+        }
+      },
+      "goals": {
+        "for": {
+          "total": {
+            "home": 9,
+            "away": 5,
+            "total": 14
+          }
+        },
+        "against": {
+          "total": {
+            "home": 6,
+            "away": 9,
+            "total": 15
+          }
+        }
+      }
+    }
+  },
+  "standings": {
+    "get": "standings",
+    "parameters": {
+      "league": "39",
+      "season": "2026"
+    },
+    "errors": [],
+    "results": 1,
+    "response": [
+      {
+        "league": {
+          "id": 39,
+          "season": 2026,
+          "standings": [
+            [
+              {
+                "rank": 3,
+                "team": {
+                  "id": 50,
+                  "name": "Recorded Home"
+                },
+                "points": 21,
+                "all": {
+                  "played": 11,
+                  "win": 6,
+                  "draw": 3,
+                  "lose": 2
+                }
+              },
+              {
+                "rank": 9,
+                "team": {
+                  "id": 49,
+                  "name": "Recorded Away"
+                },
+                "points": 15,
+                "all": {
+                  "played": 11,
+                  "win": 4,
+                  "draw": 3,
+                  "lose": 4
+                }
+              }
+            ]
+          ]
+        }
+      }
+    ]
+  },
+  "players_home": {
+    "get": "players",
+    "parameters": {
+      "team": "50",
+      "season": "2026"
+    },
+    "errors": [],
+    "results": 1,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": [
+      {
+        "player": {
+          "id": 7001,
+          "name": "Recorded Player One"
+        },
+        "statistics": [
+          {
+            "team": {
+              "id": 50,
+              "name": "Recorded Home"
+            },
+            "games": {
+              "appearences": 11,
+              "minutes": 940,
+              "position": "Attacker",
+              "rating": "7.31"
+            },
+            "goals": {
+              "total": 8,
+              "assists": 3
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "players_away": {
+    "get": "players",
+    "parameters": {
+      "team": "49",
+      "season": "2026"
+    },
+    "errors": [],
+    "results": 0,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": []
+  },
+  "injuries_empty": {
+    "get": "injuries",
+    "parameters": {
+      "fixture": "1200001"
+    },
+    "errors": [],
+    "results": 0,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": []
+  },
+  "injuries_sample": {
+    "get": "injuries",
+    "parameters": {
+      "fixture": "1200001"
+    },
+    "errors": [],
+    "results": 3,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": [
+      {
+        "player": {
+          "id": 7101,
+          "name": "Recorded Doubtful",
+          "type": "Questionable",
+          "reason": "Knock - 75% chance of playing"
+        },
+        "team": {
+          "id": 50,
+          "name": "Recorded Home"
+        },
+        "fixture": {
+          "id": 1200001,
+          "date": "2026-11-12T20:00:00+00:00"
+        },
+        "league": {
+          "id": 39,
+          "season": 2026
+        }
+      },
+      {
+        "player": {
+          "id": 7102,
+          "name": "Recorded Out",
+          "type": "Missing Fixture",
+          "reason": "Hamstring injury"
+        },
+        "team": {
+          "id": 49,
+          "name": "Recorded Away"
+        },
+        "fixture": {
+          "id": 1200001,
+          "date": "2026-11-12T20:00:00+00:00"
+        },
+        "league": {
+          "id": 39,
+          "season": 2026
+        }
+      },
+      {
+        "player": {
+          "id": 7103,
+          "name": "Recorded Unlabelled",
+          "reason": null
+        },
+        "team": {
+          "id": 50,
+          "name": "Recorded Home"
+        },
+        "fixture": {
+          "id": 1200001,
+          "date": "2026-11-12T20:00:00+00:00"
+        },
+        "league": {
+          "id": 39,
+          "season": 2026
+        }
+      }
+    ]
+  },
+  "injuries_other_fixture": {
+    "get": "injuries",
+    "parameters": {
+      "fixture": "1200001"
+    },
+    "errors": [],
+    "results": 1,
+    "response": [
+      {
+        "player": {
+          "id": 7201,
+          "name": "Other Match Player",
+          "type": "Missing Fixture"
+        },
+        "team": {
+          "id": 50,
+          "name": "Recorded Home"
+        },
+        "fixture": {
+          "id": 1300002,
+          "date": "2026-11-13T20:00:00+00:00"
+        },
+        "league": {
+          "id": 39,
+          "season": 2026
+        }
+      }
+    ]
+  },
+  "odds_sample": {
+    "get": "odds",
+    "parameters": {
+      "fixture": "1200001"
+    },
+    "errors": [],
+    "results": 1,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": [
+      {
+        "league": {
+          "id": 39,
+          "season": 2026
+        },
+        "fixture": {
+          "id": 1200001,
+          "date": "2026-11-12T20:00:00+00:00"
+        },
+        "update": "2026-11-10T15:00:00+00:00",
+        "bookmakers": [
+          {
+            "id": 8,
+            "name": "Recorded Book A",
+            "update": "2026-11-10T15:00:00+00:00",
+            "bets": [
+              {
+                "id": 5,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.85"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.60"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "4.20"
+                  }
+                ]
+              },
+              {
+                "id": 1,
+                "name": "Match Winner (Live)",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "1.10"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "9.00"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "15.00"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "odds_without_update": {
+    "get": "odds",
+    "parameters": {
+      "fixture": "1200001"
+    },
+    "errors": [],
+    "results": 1,
+    "response": [
+      {
+        "league": {
+          "id": 39,
+          "season": 2026
+        },
+        "fixture": {
+          "id": 1200001,
+          "date": "2026-11-12T20:00:00+00:00"
+        },
+        "bookmakers": [
+          {
+            "id": 9,
+            "name": "Recorded Book B",
+            "bets": [
+              {
+                "id": 5,
+                "name": "Match Winner",
+                "values": [
+                  {
+                    "value": "Home",
+                    "odd": "2.00"
+                  },
+                  {
+                    "value": "Draw",
+                    "odd": "3.30"
+                  },
+                  {
+                    "value": "Away",
+                    "odd": "3.80"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "predictions_sample": {
+    "get": "predictions",
+    "parameters": {
+      "fixture": "1200001"
+    },
+    "errors": [],
+    "results": 1,
+    "response": [
+      {
+        "predictions": {
+          "winner": {
+            "id": 50,
+            "name": "Recorded Home",
+            "comment": "Win or draw"
+          },
+          "advice": "Recorded Home or draw",
+          "under_over": "-3.5",
+          "percent": {
+            "home": "55%",
+            "draw": "25%",
+            "away": "20%"
+          }
+        },
+        "league": {
+          "id": 39,
+          "season": 2026
+        },
+        "teams": {
+          "home": {
+            "id": 50,
+            "name": "Recorded Home"
+          },
+          "away": {
+            "id": 49,
+            "name": "Recorded Away"
+          }
+        }
+      }
+    ]
+  },
+  "error_quota_exceeded": {
+    "get": "odds",
+    "parameters": {
+      "fixture": "1200001"
+    },
+    "errors": {
+      "token": "Recorded error: invalid or expired API key"
+    },
+    "results": 0,
+    "response": []
+  },
+  "catalog": {
+    "get": "fixtures",
+    "parameters": {
+      "league": "39",
+      "season": "2026",
+      "date": "2026-11-12"
+    },
+    "errors": [],
+    "results": 2,
+    "paging": {
+      "current": 1,
+      "total": 1
+    },
+    "response": [
+      {
+        "fixture": {
+          "id": 1200001,
+          "date": "2026-11-12T20:00:00+00:00",
+          "venue": {
+            "id": 5001,
+            "name": "Recorded Stadium"
+          },
+          "status": {
+            "long": "Not Started",
+            "short": "NS"
+          }
+        },
+        "league": {
+          "id": 39,
+          "name": "Recorded Premier League",
+          "season": 2026
+        },
+        "teams": {
+          "home": {
+            "id": 50,
+            "name": "Recorded Home"
+          },
+          "away": {
+            "id": 49,
+            "name": "Recorded Away"
+          }
+        }
+      },
+      {
+        "fixture": {
+          "id": 1200002,
+          "date": "2026-11-12T22:30:00+00:00",
+          "venue": {
+            "id": 5002,
+            "name": "Second Recorded Stadium"
+          },
+          "status": {
+            "long": "Not Started",
+            "short": "NS"
+          }
+        },
+        "league": {
+          "id": 39,
+          "name": "Recorded Premier League",
+          "season": 2026
+        },
+        "teams": {
+          "home": {
+            "id": 51,
+            "name": "Recorded Third"
+          },
+          "away": {
+            "id": 52,
+            "name": "Recorded Fourth"
+          }
+        }
+      }
+    ]
+  }
+}
