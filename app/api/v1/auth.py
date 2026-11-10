@@ -13,13 +13,15 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth.identity import IdentityReader
 from app.auth.models import AdminSession
 from app.auth.service import (
     SESSION_COOKIE,
     AdminPrincipal,
-    _hash_token,
     authenticate_admin,
     clear_session_cookie,
+    get_identity,
+    hash_session_token,
     require_preview_admin,
     revoke_admin_session,
     set_session_cookie,
@@ -36,7 +38,7 @@ class LoginRequest(BaseModel):
 
 
 class SessionResponse(BaseModel):
-    user_id: UUID
+    user_id: int
     email: str
     role: str
     session_id: UUID
@@ -48,9 +50,10 @@ def login(
     payload: LoginRequest,
     response: Response,
     session: Session = Depends(get_db),
+    identity: IdentityReader = Depends(get_identity),
     settings: Settings = Depends(get_settings),
 ) -> SessionResponse:
-    user, issued = authenticate_admin(session, payload.email, payload.password)
+    user, issued = authenticate_admin(identity, session, payload.email, payload.password)
     session.commit()
     set_session_cookie(response, issued, settings)
     return SessionResponse(
@@ -71,7 +74,9 @@ def logout(
     raw_token = request.cookies.get(SESSION_COOKIE)
     if raw_token:
         row = session.scalar(
-            select(AdminSession).where(AdminSession.token_hash == _hash_token(raw_token))
+            select(AdminSession).where(
+                AdminSession.token_hash == hash_session_token(raw_token)
+            )
         )
         if row is not None:
             revoke_admin_session(session, row.id)

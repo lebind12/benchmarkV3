@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.v1 import auth, preview_admin
+from app.auth.identity import get_identity_reader
 from app.core.config import get_settings
 from app.core.validation import install_validation_error_scrubber
 from app.db import get_session_factory
@@ -40,14 +41,32 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/health")
     def health() -> dict[str, str]:
-        """DB까지 실제로 확인한다. 연결 실패를 ok로 꾸미지 않는다."""
+        """개발 세션 저장소와 기존 계정 읽기 경로를 따로 확인한다.
+
+        연결 실패를 ok로 꾸미지 않는다. 어느 쪽이 실패했는지 구분해 알린다.
+        """
+        dev_ok = True
+        identity_ok = True
         try:
             with get_session_factory()() as session:
                 session.execute(text("SELECT 1"))
         except (SQLAlchemyError, RuntimeError):
-            logger.exception("database health check failed")
-            return {"status": "degraded", "database": "unavailable"}
-        return {"status": "ok", "database": "ok"}
+            logger.exception("development session store health check failed")
+            dev_ok = False
+        try:
+            settings.assert_identity_database()
+            get_identity_reader(settings.resolved_identity_database_url).count_rows()
+        except (SQLAlchemyError, RuntimeError):
+            logger.exception("identity read-only connection health check failed")
+            identity_ok = False
+
+        if not dev_ok or not identity_ok:
+            return {
+                "status": "degraded",
+                "database": "ok" if dev_ok else "unavailable",
+                "identity": "ok" if identity_ok else "unavailable",
+            }
+        return {"status": "ok", "database": "ok", "identity": "ok"}
 
     app.include_router(auth.router)
     app.include_router(preview_admin.router)

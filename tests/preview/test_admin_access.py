@@ -11,7 +11,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import select
 
-from app.auth.models import AdminSession, Role, User
+from app.auth.identity import IdentityUser
+from app.auth.models import AdminSession
 
 LOGIN = "/api/v1/auth/login"
 LOGOUT = "/api/v1/auth/logout"
@@ -30,7 +31,7 @@ def _assert_anonymous(client) -> None:
     assert response.json()["detail"] == "authentication required"
 
 
-def _assert_non_admin(client, role: Role) -> None:
+def _assert_non_admin(client, role: str) -> None:
     response = client.get(PROTECTED)
     assert response.status_code == 403, response.text
     assert response.json()["detail"] == "admin role required"
@@ -41,7 +42,7 @@ def test_anonymous_is_rejected(client):
 
 
 def test_login_rejects_wrong_password(client, make_user):
-    user = make_user(role=Role.ADMIN)
+    user = make_user(role="ADMIN")
     response = _login(client, user["email"], "not-the-password")
     assert response.status_code == 401
     assert "password" not in response.text.lower()
@@ -54,11 +55,11 @@ def test_login_rejects_unknown_email(client):
 
 
 def test_admin_login_returns_principal_without_secrets(client, make_user):
-    user = make_user(role=Role.ADMIN)
+    user = make_user(role="ADMIN")
     response = _login(client, user["email"], user["password"])
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["role"] == "admin"
+    assert body["role"] == "ADMIN"
     assert body["email"] == user["email"]
     assert set(body) == {"user_id", "email", "role", "session_id", "expires_at"}
     # 이 검사는 응답 본문에 비밀번호 원문과 세션 토큰 원문이 없다는 것만 확인한다.
@@ -72,7 +73,7 @@ def test_admin_login_returns_principal_without_secrets(client, make_user):
 
 
 def test_valid_admin_reaches_protected_route(client, make_user):
-    user = make_user(role=Role.ADMIN)
+    user = make_user(role="ADMIN")
     assert _login(client, user["email"], user["password"]).status_code == 200
     response = client.get(PROTECTED)
     assert response.status_code == 200, response.text
@@ -80,18 +81,18 @@ def test_valid_admin_reaches_protected_route(client, make_user):
 
     session_body = client.get(SESSION)
     assert session_body.status_code == 200
-    assert session_body.json()["role"] == "admin"
-    assert session_body.json()["user_id"] == str(user["id"])
+    assert session_body.json()["role"] == "ADMIN"
+    assert session_body.json()["user_id"] == user["id"]
 
 
 def test_user_role_is_denied_with_403(client, make_user):
-    user = make_user(role=Role.USER)
+    user = make_user(role="USER")
     assert _login(client, user["email"], user["password"]).status_code == 403
     _assert_anonymous(client)
 
 
 def test_streamer_is_not_treated_as_admin(client, make_user):
-    user = make_user(role=Role.STREAMER)
+    user = make_user(role="STREAMER")
     response = _login(client, user["email"], user["password"])
     assert response.status_code == 403, response.text
     assert response.json()["detail"] == "admin role required"
@@ -102,15 +103,17 @@ def test_authenticated_non_admin_gets_403_not_401(client, make_user, session_fac
     """세션은 유효하지만 역할이 USER인 경우. 로그인 거부와 다른 경계다."""
     from app.auth.service import issue_session
 
-    user = make_user(role=Role.USER)
+    user = make_user(role="USER")
     with session_factory() as session:
-        db_user = session.get(User, user["id"])
-        issued = issue_session(session, db_user)
+        principal = IdentityUser(
+            id=user["id"], email=user["email"], role=user["role"], is_active=True
+        )
+        issued = issue_session(session, principal)
         raw_token = issued.token
         session.commit()
 
     client.cookies.set("preview_admin_session", raw_token)
-    _assert_non_admin(client, Role.USER)
+    _assert_non_admin(client, "USER")
     # 세션 조회도 같은 경계를 지킨다.
     assert client.get(SESSION).status_code == 403
 
@@ -123,15 +126,17 @@ def test_authenticated_streamer_with_valid_session_is_denied(client, make_user, 
     """
     from app.auth.service import issue_session
 
-    user = make_user(role=Role.STREAMER)
+    user = make_user(role="STREAMER")
     with session_factory() as session:
-        db_user = session.get(User, user["id"])
-        issued = issue_session(session, db_user)
+        principal = IdentityUser(
+            id=user["id"], email=user["email"], role=user["role"], is_active=True
+        )
+        issued = issue_session(session, principal)
         raw_token = issued.token
         session.commit()
 
     client.cookies.set("preview_admin_session", raw_token)
-    _assert_non_admin(client, Role.STREAMER)
+    _assert_non_admin(client, "STREAMER")
     assert client.get(SESSION).status_code == 403
 
     # 세션 자체는 살아 있으므로 401이 아니라 403이어야 한다.
@@ -142,10 +147,12 @@ def test_inactive_admin_is_denied(client, make_user, session_factory):
     """비활성 계정은 기존 세션이 있어도 인증되지 않는다."""
     from app.auth.service import issue_session
 
-    user = make_user(role=Role.ADMIN, is_active=False)
+    user = make_user(role="ADMIN", is_active=False)
     with session_factory() as session:
-        db_user = session.get(User, user["id"])
-        issued = issue_session(session, db_user)
+        principal = IdentityUser(
+            id=user["id"], email=user["email"], role=user["role"], is_active=False
+        )
+        issued = issue_session(session, principal)
         session.commit()
 
     client.cookies.set("preview_admin_session", issued.token)
@@ -158,10 +165,12 @@ def test_inactive_admin_is_denied(client, make_user, session_factory):
 def test_expired_session_is_denied(client, make_user, session_factory):
     from app.auth.service import issue_session
 
-    user = make_user(role=Role.ADMIN)
+    user = make_user(role="ADMIN")
     with session_factory() as session:
-        db_user = session.get(User, user["id"])
-        issued = issue_session(session, db_user)
+        principal = IdentityUser(
+            id=user["id"], email=user["email"], role=user["role"], is_active=True
+        )
+        issued = issue_session(session, principal)
         row = session.scalar(select(AdminSession).where(AdminSession.id == issued.session_id))
         row.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
         session.commit()
@@ -175,10 +184,12 @@ def test_session_expiry_is_enforced_from_the_clock_not_a_flag(client, make_user,
     """만료 판정이 시각 비교로 이뤄지는지 확인한다. 만료 직전은 통과, 직후는 거부."""
     from app.auth.service import issue_session
 
-    user = make_user(role=Role.ADMIN)
+    user = make_user(role="ADMIN")
     with session_factory() as session:
-        db_user = session.get(User, user["id"])
-        issued = issue_session(session, db_user)
+        principal = IdentityUser(
+            id=user["id"], email=user["email"], role=user["role"], is_active=True
+        )
+        issued = issue_session(session, principal)
         raw_token = issued.token
         session.commit()
 
@@ -194,7 +205,7 @@ def test_session_expiry_is_enforced_from_the_clock_not_a_flag(client, make_user,
 
 
 def test_logout_revokes_session(client, make_user, session_factory):
-    user = make_user(role=Role.ADMIN)
+    user = make_user(role="ADMIN")
     assert _login(client, user["email"], user["password"]).status_code == 200
     assert client.get(PROTECTED).status_code == 200
 
@@ -209,7 +220,7 @@ def test_logout_revokes_session(client, make_user, session_factory):
 
 def test_revoked_session_token_cannot_be_replayed(client, make_user, session_factory):
     """로그아웃 뒤 남아 있던 쿠키 값을 다시 보내도 통과하지 않는다."""
-    user = make_user(role=Role.ADMIN)
+    user = make_user(role="ADMIN")
     response = _login(client, user["email"], user["password"])
     assert response.status_code == 200
     stolen_token = client.cookies.get("preview_admin_session")
@@ -221,7 +232,7 @@ def test_revoked_session_token_cannot_be_replayed(client, make_user, session_fac
 
 
 def test_session_token_is_not_stored_in_plaintext(client, make_user, session_factory):
-    user = make_user(role=Role.ADMIN)
+    user = make_user(role="ADMIN")
     response = _login(client, user["email"], user["password"])
     assert response.status_code == 200
     raw_token = client.cookies.get("preview_admin_session")
@@ -239,7 +250,7 @@ def test_forged_session_cookie_is_rejected(client):
 
 
 def test_login_response_sets_httponly_cookie(client, make_user):
-    user = make_user(role=Role.ADMIN)
+    user = make_user(role="ADMIN")
     response = _login(client, user["email"], user["password"])
     assert response.status_code == 200
     cookie_header = response.headers.get("set-cookie", "")
@@ -272,6 +283,7 @@ def test_session_endpoint_without_cookie_is_401(client):
 
 
 def test_health_reports_database_reachable(client):
+    """개발 세션 저장소와 기존 계정 읽기 경로를 각각 확인한다."""
     response = client.get("/api/v1/health")
     assert response.status_code == 200, response.text
-    assert response.json() == {"status": "ok", "database": "ok"}
+    assert response.json() == {"status": "ok", "database": "ok", "identity": "ok"}
