@@ -598,3 +598,98 @@ def test_resolver_handle_accepts_name_only_team_lookup():
 
     assert resolved == "해석:Manchester City"
     assert fake.calls == [("Manchester City", None, None, "internal")], fake.calls
+
+
+# --------------------------------------------------------------------------
+# 시도 → 모듈 실행 연결 (관측 결함: 응답 탭에서 원문을 볼 수 없었다)
+# --------------------------------------------------------------------------
+
+
+def test_sent_attempt_is_linked_to_its_module_execution(session_factory):
+    """모델을 보낸 시도는 **자기 모듈 실행**에 붙고, 원문 artifact도 함께 남는다.
+
+    관측 결함: 노드가 실행 문맥에 `module_execution_id`를 넣지 않아 시도가
+    `module_execution_id=NULL`로 저장됐다. 그러면 검사 화면의 '응답' 탭이 그 모듈에서
+    원문을 찾지 못한다(저장 실행 22e1a19e·6176a8c6에서 실제로 R4 attempt_count=0).
+    """
+    from sqlalchemy import text
+
+    from app.preview import store
+
+    transport = _transport()
+    with session_factory() as session:
+        outcome = _start(session, transport)
+        session.commit()
+
+        rows = session.execute(
+            text(
+                "SELECT module_id, module_execution_id, response_artifact_id, outcome"
+                " FROM preview_dev.preview_attempts WHERE run_id = :run"
+                " ORDER BY started_at"
+            ),
+            {"run": str(outcome.run_id)},
+        ).all()
+        assert rows, "시도 기록이 없다"
+        # 모든 시도가 모듈 실행에 붙고 원문 artifact를 가진다.
+        for module_id, execution_id, artifact_id, attempt_outcome in rows:
+            assert execution_id is not None, f"{module_id} 시도에 실행 ID가 없다"
+            assert artifact_id is not None, f"{module_id} 시도에 응답 원문이 없다"
+            assert attempt_outcome == "ok"
+
+        # 실행 상세에서 R4 모듈이 자기 시도를 실제로 들고 있다.
+        detail = store.get_run_detail(session, outcome.run_id)
+        r4 = [m for m in detail.modules if m["module_id"] == "R4"]
+        assert r4, "R4 모듈 실행이 없다"
+        assert r4[0]["attempt_count"] >= 1
+        assert r4[0]["attempts"], "R4 모듈에 시도가 연결되지 않았다"
+        assert r4[0]["attempts"][0]["response_artifact_id"]
+
+
+def test_legacy_unlinked_attempt_is_attached_by_unique_module(session_factory):
+    """실행 ID가 비어 저장된 예전 시도도, 그 모듈 실행이 하나뿐이면 붙여 보여 준다.
+
+    저장 행을 고치지 않고 **읽기 시점**에만 붙인다. 같은 모듈 실행이 둘 이상이면
+    임의로 고르지 않고 미배정으로 남긴다.
+    """
+    import uuid
+
+    from sqlalchemy import text
+
+    from app.preview import store as store_module
+
+    with session_factory() as session:
+        outcome = _start(session, _transport())
+        session.commit()
+
+        # R4 시도 하나를 '예전 저장 행'처럼 실행 ID 없이 만든다.
+        session.execute(
+            text(
+                "UPDATE preview_dev.preview_attempts SET module_execution_id = NULL"
+                " WHERE run_id = :run AND module_id = 'R4'"
+            ),
+            {"run": str(outcome.run_id)},
+        )
+        session.commit()
+
+        detail = store_module.get_run_detail(session, uuid.UUID(str(outcome.run_id)))
+        # 실행이 하나뿐이므로 읽기 시점에 붙는다.
+        assert detail.unassigned_attempts == ()
+        r4 = [m for m in detail.modules if m["module_id"] == "R4"][0]
+        assert r4["attempt_count"] >= 1
+        assert r4["attempts"], "유일한 모듈 실행에 붙지 않았다"
+
+        # 모듈 실행을 하나 더 만들면 어느 쪽인지 확정할 수 없으므로 미배정으로 노출한다.
+        session.execute(
+            text(
+                "INSERT INTO preview_dev.preview_module_executions"
+                " (id, run_id, module_id, ordinal, status, quality, input_payload,"
+                "  input_hash, delivered_next_input, attempt_count, retry_count, created_at)"
+                " VALUES (:id, :run, 'R4', 2, 'succeeded', 'ready', '{}'::jsonb,"
+                "  'dup', '{}'::jsonb, 0, 0, now())"
+            ),
+            {"id": str(uuid.uuid4()), "run": str(outcome.run_id)},
+        )
+        session.commit()
+
+        detail2 = store_module.get_run_detail(session, uuid.UUID(str(outcome.run_id)))
+        assert detail2.unassigned_attempts, "모호한 시도는 미배정으로 노출돼야 한다"

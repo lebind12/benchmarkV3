@@ -241,9 +241,19 @@ function rawText(value: string | null | undefined): string {
         </div>
       </dl>
 
+      <!--
+        여기 보이는 것은 **모델이 생성한 JSON**이다(선수 선정 결과 본문). Google API가
+        함께 준 전체 응답(후보·grounding_metadata·usage)은 이 목록이 아니라 아래
+        '응답' 탭에 있다. 두 값을 같은 이름으로 부르면 사용자가 어디서 전체 응답을
+        보는지 알 수 없다.
+      -->
       <details class="players-panel__raw" data-testid="players-panel-raw">
-        <summary>원문 응답(데이터로만 표시)</summary>
+        <summary>모델이 생성한 JSON (선수 선정 결과)</summary>
         <pre class="players-panel__pre">{{ rawText(result.raw_model_text) }}</pre>
+        <p class="players-panel__note">
+          Google API 전체 응답(후보·검색 메타데이터 포함)은 이 패널이 아니라 같은 화면의
+          <strong>응답</strong> 탭에서 봅니다.
+        </p>
       </details>
 
       <p v-if="result.selection_rule_note" class="players-panel__note">

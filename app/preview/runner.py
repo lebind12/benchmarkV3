@@ -25,7 +25,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Sequence, TypedDict
 
@@ -334,9 +334,13 @@ def _run_node(
         actor_id=ctx.actor_id,
     )
 
+    # 실행 문맥에도 이번 모듈 실행 ID를 넣는다. 노드가 `context.module_execution_id`를
+    # 읽어 시도를 기록하는 경로(예: R4 → request_model)가 있는데, 여기서 넣지 않으면
+    # 그 시도가 `module_execution_id=NULL`로 저장되어 검사 화면의 응답 탭에서 원문을
+    # 찾을 수 없다. 노드 문맥과 실행 문맥을 같은 실행으로 맞춘다.
     node_ctx = SectionNodeContext(
         session=ctx.session,
-        context=ctx.context,
+        context=replace(ctx.context, module_execution_id=execution.id),
         budget=ctx.budget,
         workflow_id=ctx.workflow_id,
         workflow_version=ctx.workflow_version,

@@ -149,7 +149,13 @@ function usageText(usage: Record<string, number | null> | null): string {
           <dt>사용량</dt>
           <dd class="measured" data-testid="response-usage">{{ usageText(attempt.usage) }}</dd>
         </dl>
-        <h4 class="attempt__subhead">수신 원문 (비밀값 제거)</h4>
+        <h4 class="attempt__subhead">
+          Google API 전체 응답 (비밀값 제거 · 메타데이터 포함)
+        </h4>
+        <p class="module-card__note">
+          제공자가 보낸 응답 객체를 그대로 보여 줍니다(candidates, grounding_metadata,
+          usage 등). 모델이 만든 본문 JSON만 보려면 모듈별 패널의 해당 항목을 보세요.
+        </p>
         <p
           v-if="attempt.content?.status === 'expired'"
           class="notice notice--info"

@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
@@ -1312,10 +1312,19 @@ def players_research_node(
         else:
             prepared = material_from_state(source if isinstance(source, Mapping) else None)
         node_mode = mode or getattr(transport, "mode", RunMode.MOCK)
+        # 이번 모듈 실행 ID를 실행 문맥에 넣는다. 그러지 않으면 이 노드가 보낸 시도가
+        # `module_execution_id=NULL`로 저장되어 검사 화면의 '응답' 탭에서 원문을
+        # 찾지 못한다(실제 저장 실행 22e1a19e·6176a8c6에서 관측된 결함).
+        execution_id = ctx.module_execution_id or ctx.context.module_execution_id
+        context = (
+            replace(ctx.context, module_execution_id=execution_id)
+            if execution_id and ctx.context.module_execution_id != execution_id
+            else ctx.context
+        )
         research = research_players(
             ctx.session,
             module_input=_module_input_for(ctx, state),
-            context=ctx.context,
+            context=context,
             transport=transport,
             budget=ctx.budget,
             material=prepared,

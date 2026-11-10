@@ -777,7 +777,9 @@ def _module_view(
         "failure_code": row.failure_code,
         "input": row.input_payload,
         "delivered_next_input": row.delivered_next_input,
-        "attempt_count": row.attempt_count,
+        # 저장된 카운터가 0이어도 실제로 붙은 시도가 있으면 그 수를 보여 준다.
+        # 예전 행은 시도에 실행 ID가 없어 카운터가 갱신되지 않았다(읽기 보정).
+        "attempt_count": max(int(row.attempt_count or 0), len(attempts)),
         "retry_count": row.retry_count,
         "started_at": row.started_at.isoformat() if row.started_at else None,
         "finished_at": row.finished_at.isoformat() if row.finished_at else None,
@@ -848,6 +850,24 @@ def get_run_detail(
         if attempt.module_execution_id is not None:
             attempts_by_execution.setdefault(attempt.module_execution_id, []).append(attempt)
 
+    # 예전에 저장된 실행에는 시도의 `module_execution_id`가 비어 있다(노드가 실행 ID를
+    # 넘기지 않던 결함). 그 행을 읽기만 해서는 응답 원문을 찾을 수 없으므로, **같은 실행에
+    # 그 모듈의 실행이 정확히 하나뿐일 때만** 그 실행에 붙여 읽기 시점에 보여 준다.
+    # 저장 행은 고치지 않는다(마이그레이션·백필 없음). 모듈이 여럿이면 붙이지 않고
+    # 실행 단위 미배정 호출로 따로 노출한다(`unassigned_attempts`).
+    executions_by_module: dict[str, list[uuid.UUID]] = {}
+    for execution in executions:
+        executions_by_module.setdefault(execution.module_id, []).append(execution.id)
+    unassigned: list[PreviewAttempt] = []
+    for attempt in attempts:
+        if attempt.module_execution_id is not None:
+            continue
+        candidates = executions_by_module.get(attempt.module_id or "", [])
+        if len(candidates) == 1:
+            attempts_by_execution.setdefault(candidates[0], []).append(attempt)
+        else:
+            unassigned.append(attempt)
+
     modules = tuple(
         _module_view(
             execution,
@@ -900,6 +920,7 @@ def get_run_detail(
         contract_versions=row.contract_versions or contract_versions(),
         undo=_undo_view(session, row),
         section_results=tuple(_section_result_view(r) for r in section_results),
+        unassigned_attempts=tuple(_attempt_view(a) for a in unassigned),
     )
 
 

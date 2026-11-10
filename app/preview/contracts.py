@@ -956,6 +956,9 @@ class RunDetail:
     undo: Mapping[str, Any] | None = None
     # MP-04: 섹션 워크플로우 결과(본문·근거). 승인 근거는 이 목록의 한 행이다.
     section_results: tuple[Mapping[str, Any], ...] = ()
+    # 어느 모듈 실행에도 **확실히** 붙일 수 없는 시도(예전 저장 행). 지어내어 붙이지 않고
+    # 실행 단위로 따로 보여 준다. 비어 있으면 정상적으로 모두 붙은 것이다.
+    unassigned_attempts: tuple[Mapping[str, Any], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return _plain(self)
