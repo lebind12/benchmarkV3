@@ -261,7 +261,8 @@ def test_resume_reuses_successful_research_without_new_calls(session_factory):
         first = _start(session, first_transport)
         session.commit()
         first_calls = len(first_transport.calls)
-        assert first_calls == 4, [c.logical_call_id for c in first_transport.calls]
+        # 조사 4(R1·R2·R3·R4) + 종합 1 = 5.
+        assert first_calls == 5, [c.logical_call_id for c in first_transport.calls]
 
         # 프로세스가 멈춘 상태를 흉내낸다: 실행은 미완료, 결과는 저장된 채로 남는다.
         jobs.set_active(session, run_id=first.run_id, active=True)

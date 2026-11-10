@@ -80,6 +80,7 @@ _IMPLEMENTED_SECTIONS = (
     FORM_SECTION_ID,
     "section_availability",
     "section_outlook",
+    "section_players",
     "section_synthesis",
 )
 
@@ -571,6 +572,22 @@ def build_implementations(
                 mode=transport.mode,
                 run=_compose_node(now=now),
             ),
+        )
+
+    if workflow_id == "section_players":
+        from app.preview.modules import players as players_module
+
+        prepare = _prepare_implementation(transport=transport, reader=reader, now=now)
+        # R4는 이름 해석기를 **주입받아** 쓴다(자체 조회·번역 없음). 해석기가 없으면
+        # 저장된 원래 표기를 그대로 쓴다.
+        return players_module.build_players_implementations(
+            prepare_data=prepare,
+            transport=transport,
+            resolver=_name_resolver(reader=reader),
+            material=None,
+            roster=(),
+            id_space="internal",
+            now=now,
         )
 
     if workflow_id == "section_availability":
@@ -1114,3 +1131,71 @@ def _parse_iso(value) -> datetime | None:
         return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
     except ValueError:
         return None
+
+
+def _name_resolver(*, reader) -> Any | None:
+    """R4에 주입할 이름 해석기(덕 타이핑). 없으면 `None`이고 원문 표기를 쓴다.
+
+    해석기는 DB 한국어 값만 쓰며 번역하지 않는다. 설정이 없으면 만들어지지 않는다.
+    """
+    from app.preview.display_names import open_display_names
+
+    try:
+        from app.core.config import get_settings
+
+        dsn = get_settings().names_database_url
+    except Exception:  # noqa: BLE001 - 설정을 못 읽으면 이름 변환만 건너뛴다
+        return None
+    if not dsn:
+        return None
+    return _ResolverHandle(dsn)
+
+
+class _ResolverHandle:
+    """실행 단위 해석기 핸들. 연산마다 그 실행 범위 인덱스를 만든다.
+
+    R4는 `resolve_player`/`resolve_team`/`rewrite_body`만 쓴다. 필요한 팀·선수 범위는
+    호출 때 넘어오므로, 범위를 넘기지 않은 요청은 해석하지 않는다(전체 표 조회 금지).
+    """
+
+    def __init__(self, dsn: str) -> None:
+        self._dsn = dsn
+        self._cache: dict[tuple[int, ...], Any] = {}
+
+    def _names_for(self, scope_team_ids: Sequence[int]):
+        key = tuple(sorted({int(item) for item in scope_team_ids if item is not None}))
+        if not key:
+            return None
+        if key not in self._cache:
+            from app.preview.localized_names import (
+                DbNameLookup,
+                DisplayNames,
+                load_name_index,
+            )
+
+            lookup = DbNameLookup.from_url(self._dsn)
+            try:
+                index = load_name_index(lookup, team_ids=list(key), include_rosters=True)
+            finally:
+                lookup.close()
+            self._cache[key] = DisplayNames(index)
+        return self._cache[key]
+
+    def resolve_player(self, name, *, scope_team_ids=None, **kwargs):
+        names = self._names_for(scope_team_ids or ())
+        if names is None:
+            raise KeyError("player name resolution needs an explicit team scope")
+        return names.resolve_player(name, scope_team_ids=scope_team_ids, **kwargs)
+
+    def resolve_team(self, value=None, **kwargs):
+        team_id = kwargs.get("team_id")
+        names = self._names_for([team_id] if team_id is not None else ())
+        if names is None:
+            raise KeyError("team name resolution needs an explicit team id")
+        return names.resolve_team(value, **kwargs)
+
+    def rewrite_body(self, text):
+        # 본문 치환은 이미 확정된 표기만 쓰므로 범위 캐시 중 하나를 재사용한다.
+        for names in self._cache.values():
+            return names.rewrite_body(text)
+        return text

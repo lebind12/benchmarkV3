@@ -986,8 +986,15 @@ def validate_response(
     facts: FormFacts,
     grounding: Mapping[str, Any],
     now: datetime,
+    include_players: bool = True,
 ) -> _Validated:
-    """모델 JSON을 채택/제외로 나눈다. 제외 사유는 지우지 않고 남긴다."""
+    """모델 JSON을 채택/제외로 나눈다. 제외 사유는 지우지 않고 남긴다.
+
+    `include_players=False`면 이 호출의 결과에서 주목 선수 선정을 만들지 않는다.
+    경기력(R1)은 경기력 전용이고 선수 선정은 R4가 맡는다는 최신 분리에 따른 것이다.
+    기본값은 `True`이며, 공유 판단 API를 쓰는 R4는 기본값 그대로 호출한다(선수 선정을
+    그대로 받는다). 판정 규칙 자체는 바꾸지 않는다.
+    """
     allowed_ids = facts.allowed_evidence_ids()
     grounding_urls = _grounding_urls(grounding)
     url_map = {
@@ -1141,7 +1148,8 @@ def validate_response(
             }
         )
 
-    for index, item in enumerate(payload.get("hot_players") or ()):
+    player_items = payload.get("hot_players") or () if include_players else ()
+    for index, item in enumerate(player_items):
         if not isinstance(item, Mapping):
             continue
         if len(hot_players) >= MAX_HOT_PLAYERS:
@@ -1421,7 +1429,11 @@ def research_form(
             external_calls=provider.sent_attempt_count(result, transport.mode),
         )
 
-    validated = validate_response(payload, facts=facts, grounding=grounding, now=moment)
+    # 경기력(R1)은 경기력 전용이다. 주목 선수 선정은 R4(section_players)가 맡으므로
+    # 이 경로에서는 선수 선정을 만들지 않는다. 판정 규칙은 그대로 공유한다.
+    validated = validate_response(
+        payload, facts=facts, grounding=grounding, now=moment, include_players=False
+    )
     claims = tuple(api_claims) + tuple(validated.claims)
     importance = None
     ctx = payload.get("match_context")

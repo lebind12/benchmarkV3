@@ -1,0 +1,39 @@
+# R4 offline evidence — 2026-11-10T19:32:37Z (UTC)
+
+## 1. offline example (reused R1 selection, 0 model calls)
+wrote docs/implementation/match-preview/evidence/mp-r4-players/offline-example.json
+players=3 origin=reused_r1_selection model_calls=0
+- 선정 선수: 엘링 홀란드 (resolved, db_korean)
+  선정 이유: 풀럼의 수비진을 상대로 압도적인 피지컬과 결정력을 발휘해 팀의 승리를 이끌 가장 유력한 해결사입니다.
+- 선정 선수: 알렉산더 츄카 이워비 (resolved, db_korean)
+  선정 이유: 풀럼의 공격 전개와 기회 창출을 도맡아 하는 핵심 플레이메이커로서 맨체스터 시티의 수비진을 위협할 가장 날카로운 무기입니다.
+- 선정 선수: 로드리고 무니즈 (resolved, db_korean)
+  선정 이유: 기회가 왔을 때 과감하게 슈팅을 시도하는 성향을 바탕으로 맨체스터 시티의 골문을 직접적으로 겨냥할 공격수입니다.
+
+## 2. contract validation (schema keys, labels, separate display lines)
+contract validation: OK (separate display fields, no invented body)
+
+## 3. node integration (offline replay) — research/compose/build_players_implementations
+compose body lines: ['이번 경기의 주목 선수 1명입니다.', '선정 선수: 엘링 홀란드', '선정 이유: 결정적인 마무리를 맡는 해결사입니다.']
+node integration: OK
+
+## 4. resolver id_is_hint boundary (real read-only DB names)
+model hint id -> 엘링 홀란드 resolved player_id 533
+strict conflicting id -> Erling Haaland unresolved conflict
+id_is_hint boundary: OK (no cross-player name)
+
+## 5. frontend type check (whole project, includes new panel)
+vue-tsc exit=0 no diagnostics
+
+## 6. material_from_state against the real D0 node payload shape
+material state: available | fixture: Manchester City vs Fulham | team_ids: (13, 4)
+fact count: 2 | allowed ids: ['api:standings-13', 'api:standings-4']
+quality: ready | external_calls: 0
+players: [('로드리고 무니즈', 'resolved', ['api:standings-4'])]
+claim ids/kinds: [('api:standings-13', 'fact'), ('api:standings-4', 'fact'), ('r4-player-0', 'ai_interpretation')]
+D0 shape test: OK
+
+## 7. unverified stat is trimmed, never fabricated (shared judgment API)
+quality: insufficient | players: []
+diagnostics: ['주목 선수 Rodrigo Muniz: 확인 가능한 사실 조각에 근거가 없어 채택하지 않았습니다(덜어낸 문장: 1개).']
+trim test: OK (no invented stat survived into output)

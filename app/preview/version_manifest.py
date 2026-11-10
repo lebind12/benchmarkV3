@@ -80,6 +80,10 @@ def _compose_manifest(workflow_id: str) -> tuple[str, str]:
         return "", availability.COMPOSE_IMPLEMENTATION_VERSION
     if workflow_id == "section_outlook":
         return "", sections.OUTLOOK_COMPOSE_IMPLEMENTATION_VERSION
+    if workflow_id == "section_players":
+        from app.preview.modules import players
+
+        return "", players.COMPOSE_IMPLEMENTATION_VERSION
     if workflow_id == "section_synthesis":
         from app.preview.modules import synthesis
 

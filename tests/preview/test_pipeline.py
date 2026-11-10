@@ -160,6 +160,21 @@ def _model_text() -> dict[str, str]:
             {"media": [], "search_note": "매체 전망을 확인하지 못했습니다.", "uncertainties": []},
             ensure_ascii=False,
         ),
+        # R4(주목 선수) 기록 응답. 선정 선수와 이유를 분리해 낸다.
+        "R4": json.dumps(
+            {
+                "players": [
+                    {
+                        "player": "Erling Haaland",
+                        "team": "Manchester City",
+                        "reason": "박스 안 마무리 역할을 맡는 공격수입니다.",
+                        "evidence": ["api:standings-13"],
+                    }
+                ],
+                "uncertainties": [],
+            },
+            ensure_ascii=False,
+        ),
         # S1은 종합 전용 응답 모양을 쓴다(준비된 기록 fixture).
         "S1": SYNTH_FIXTURES["model_text_ok"],
     }
@@ -209,17 +224,19 @@ def _start(session, transport, *, admission=jobs.ADMISSION_MODE.ADMIN_PREVIEW, l
     )
 
 
-def test_normal_path_three_research_one_synthesis(session_factory):
-    """조사 3 + 종합 1 = 전송 4회, 같은 논리 호출은 한 번씩만 나간다."""
+def test_normal_path_four_research_one_synthesis(session_factory):
+    """조사 4(R1·R2·R3·R4) + 종합 1 = 전송 5회, 같은 논리 호출은 한 번씩만 나간다."""
     transport = _transport()
     with session_factory() as session:
         outcome = _start(session, transport)
         session.commit()
 
         logical = [call.logical_call_id for call in transport.calls]
-        assert len(logical) == 4, logical
-        assert len(set(logical)) == 4, f"같은 논리 호출이 두 번 나갔다: {logical}"
-        assert outcome.budget["model_used"] == 4
+        assert len(logical) == 5, logical
+        assert len(set(logical)) == 5, f"같은 논리 호출이 두 번 나갔다: {logical}"
+        assert outcome.budget["model_used"] == 5
+        # 정상 호출 5회는 총 상한 8 안에서 예약된 몫과 정확히 같다.
+        assert outcome.budget["model_requests"] == 8
         assert outcome.admission == jobs.ADMISSION_MODE.ADMIN_PREVIEW
 
         state = jobs.load_state(session, outcome.run_id)
@@ -359,8 +376,8 @@ def test_branches_share_one_budget_and_run_concurrently(session_factory):
         )
         session.commit()
 
-        research = [row for row in seen if row[0] in ("R1", "R2", "R3")]
-        assert len(research) == 3, research
+        research = [row for row in seen if row[0] in ("R1", "R2", "R3", "R4")]
+        assert len(research) == 4, research
         # 세 갈래의 전송 구간이 서로 겹친다: 첫 요청이 끝나기 전에 다음이 시작됐다.
         overlapped = any(
             other[1] < first[2] for first in research for other in research if other is not first
@@ -369,8 +386,8 @@ def test_branches_share_one_budget_and_run_concurrently(session_factory):
 
         # 예산은 하나다. 갈래 수만큼 예산이 새로 생기지 않는다.
         assert outcome.budget["model_requests"] == 8
-        assert outcome.budget["model_used"] == 4
-        assert outcome.budget["model_remaining"] == 4
+        assert outcome.budget["model_used"] == 5
+        assert outcome.budget["model_remaining"] == 3
 
 
 # --------------------------------------------------------------------------

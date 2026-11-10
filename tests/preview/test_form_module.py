@@ -188,8 +188,12 @@ def test_player_claim_without_evidence_rejected():
     """근거 없는 선수 단정 표현은 채택하지 않고 사유를 남긴다."""
     research = _research(text=FIXTURES["model_text_with_superlative"])
 
+    # R1은 선수 선정을 만들지 않는다(선정은 R4). 근거 없는 단정은 공유 판정 경로에서도
+    # 채택되지 않는다는 규칙 자체를 그 경로로 확인한다.
     assert research.hot_players == ()
-    assert any("단정 표현" in line for line in research.diagnostics)
+    judged = _judged_players(json.loads(FIXTURES["model_text_with_superlative"]))
+    assert judged.hot_players == []
+    assert any("단정 표현" in line for line in judged.diagnostics)
     composed = compose.compose_form_body(research.payload())
     assert "리그 최고의 스트라이커" not in composed.body
 
@@ -681,6 +685,17 @@ def _judgment_payload(*, watch_detail: str, player_reason: str, evidence: list[s
     }
 
 
+def _judged_players(payload: dict):
+    """공유 판정 경로로 주목 선수 선정을 확인한다.
+
+    경기력(R1)은 선수 선정을 만들지 않고, 선정은 R4가 같은 `validate_response`로
+    만든다. 검사 대상 규칙이 그대로인지 이 경로로 확인한다.
+    """
+    return form.validate_response(
+        payload, facts=_facts(), grounding={}, now=FIXED_NOW, include_players=True
+    )
+
+
 def test_api_fact_supported_opinion_accepted_without_search_url():
     """API 사실로 충분한 AI 선정·판단은 검색 URL 없이도 채택된다(설계 §5).
 
@@ -698,10 +713,11 @@ def test_api_fact_supported_opinion_accepted_without_search_url():
 
     # 판단 항목이 살아 있다: 선정 자체의 외부 인용 부재는 탈락 사유가 아니다.
     assert research.watch_points, research.diagnostics
-    assert research.hot_players, research.diagnostics
-    assert research.hot_players[0]["player"] == "Erling Haaland"
+    players = _judged_players(payload).hot_players
+    assert players, "선정 자체의 외부 인용 부재는 탈락 사유가 아니다"
+    assert players[0]["player"] == "Erling Haaland"
     # 근거는 인용한 API 사실에 연결된다(검색 URL 없음).
-    assert research.hot_players[0]["source_url"] is None
+    assert players[0]["source_url"] is None
     assert research.grounding["sources"] == []
 
 
@@ -722,12 +738,14 @@ def test_unverified_statistic_not_smuggled_through_as_opinion():
     )
     research = _research(text=json.dumps(payload, ensure_ascii=False))
 
-    assert research.hot_players, "분리 가능한 판단 문장은 남아야 한다"
-    reason = research.hot_players[0]["reason"]
+    judged = _judged_players(payload)
+    players = judged.hot_players
+    assert players, "분리 가능한 판단 문장은 남아야 한다"
+    reason = players[0]["reason"]
     assert "47" not in reason, f"미확인 수치가 남았다: {reason}"
     assert "가장 유력한 자원" in reason, "분리 가능한 AI 판단은 유지돼야 한다"
     # 덜어낸 사실은 관리자 진단에 남는다.
-    assert any("확인되지 않은 사실" in line for line in research.diagnostics)
+    assert any("확인되지 않은 사실" in line for line in judged.diagnostics)
 
     # 한 문장 안에서 수치와 판단이 분리되지 않는 경우: 문장을 통째로 쓰지 않는다.
     # (수치를 판단으로 위장해 남기지 않는다. 복구를 꾸며내지 않는다.)
@@ -736,9 +754,11 @@ def test_unverified_statistic_not_smuggled_through_as_opinion():
         player_reason="이번 시즌 리그 47골을 넣은 선수라 결정적입니다.",
         evidence=["api:form-mci"],
     )
-    dropped = _research(text=json.dumps(inseparable, ensure_ascii=False))
-    assert dropped.hot_players == ()
-    assert any("근거가 없어 채택하지 않았습니다" in line for line in dropped.diagnostics)
+    judged_inseparable = _judged_players(inseparable)
+    assert judged_inseparable.hot_players == []
+    assert any(
+        "근거가 없어 채택하지 않았습니다" in line for line in judged_inseparable.diagnostics
+    )
 
 
 def test_rejected_fact_premise_not_left_as_asserted_opinion():
@@ -811,7 +831,7 @@ def test_rejected_fact_premise_not_left_as_asserted_opinion():
     assert "고전할 수 있습니다" in second
 
     # 3. 덜어낸 사실이 있어도 전제가 주관적 전술 평가면 그대로 둔다.
-    reason = research.hot_players[0]["reason"]
+    reason = _judged_players(payload).hot_players[0]["reason"]
     assert "2.8" not in reason
     assert "성향을 바탕으로" in reason
     assert "골문을 겨냥할 공격수입니다" in reason
@@ -860,8 +880,13 @@ def test_injury_reason_usable_with_unknown_onset_and_kept_in_admin_diagnostic():
     )
     research = _research(text=json.dumps(payload, ensure_ascii=False))
     assert research.watch_points
-    assert research.hot_players
     assert research.unavailable is False
+    # 주목 선수 선정은 R4로 분리됐다. 같은 판정 경로(공유 validate_response)가 선수
+    # 선정을 계속 만들어 주는지는 그 경로로 확인한다(규칙 자체는 바뀌지 않았다).
+    judged = form.validate_response(
+        payload, facts=_facts(), grounding={}, now=FIXED_NOW, include_players=True
+    )
+    assert judged.hot_players
 
 
 def test_retrieval_time_is_not_injury_onset_date():

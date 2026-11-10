@@ -1,0 +1,390 @@
+{
+  "note": "이미 저장된 R1 선정·이유를 R4 계약으로 변환한 **오프라인 예시**입니다. 새 R4 live 생성이 아니며, 모델·API 호출 0회입니다.",
+  "origin": "reused_r1_selection",
+  "not_live_r4_generation": true,
+  "model_calls": 0,
+  "api_calls": 0,
+  "external_calls_reported": 0,
+  "r1_source": {
+    "run_id": "6e59041a-3767-4756-a412-991008873f50",
+    "source": "preview_dev.preview_results (read-only)",
+    "r1_result_version": 1,
+    "r1_implementation_version": "mp05-form-3",
+    "r1_prompt_version": "mp05-form-prompt-1",
+    "source_hot_player_count": 3
+  },
+  "name_resolver": "db_read_only_bounded",
+  "output_contract_version": "mp05p-r4-players-output-1",
+  "display_labels": {
+    "selected_player": "선정 선수",
+    "selection_reason": "선정 이유"
+  },
+  "players": [
+    {
+      "selected_player": "엘링 홀란드",
+      "selection_reason": "풀럼의 수비진을 상대로 압도적인 피지컬과 결정력을 발휘해 팀의 승리를 이끌 가장 유력한 해결사입니다.",
+      "team": "맨체스터 시티",
+      "player_ref": null,
+      "evidence": [],
+      "claim_id": "r4-player-0",
+      "source_url": null,
+      "model_selected_player": "Erling Haaland",
+      "player_id": 533,
+      "external_id": 1100,
+      "id_space": "internal",
+      "name_source": "db_korean",
+      "mapping_status": "resolved",
+      "mapping_reason": null,
+      "mapping_detail": null,
+      "model_team": "Manchester City",
+      "team_display_name": "맨체스터 시티",
+      "team_mapping": null
+    },
+    {
+      "selected_player": "알렉산더 츄카 이워비",
+      "selection_reason": "풀럼의 공격 전개와 기회 창출을 도맡아 하는 핵심 플레이메이커로서 맨체스터 시티의 수비진을 위협할 가장 날카로운 무기입니다.",
+      "team": "풀럼",
+      "player_ref": null,
+      "evidence": [],
+      "claim_id": "r4-player-1",
+      "source_url": null,
+      "model_selected_player": "Alex Iwobi",
+      "player_id": 124,
+      "external_id": 1455,
+      "id_space": "internal",
+      "name_source": "db_korean",
+      "mapping_status": "resolved",
+      "mapping_reason": null,
+      "mapping_detail": null,
+      "model_team": "Fulham",
+      "team_display_name": "풀럼",
+      "team_mapping": null
+    },
+    {
+      "selected_player": "로드리고 무니즈",
+      "selection_reason": "기회가 왔을 때 과감하게 슈팅을 시도하는 성향을 바탕으로 맨체스터 시티의 골문을 직접적으로 겨냥할 공격수입니다.",
+      "team": "풀럼",
+      "player_ref": null,
+      "evidence": [],
+      "claim_id": "r4-player-2",
+      "source_url": null,
+      "model_selected_player": "Rodrigo Muniz",
+      "player_id": 138,
+      "external_id": 195106,
+      "id_space": "internal",
+      "name_source": "db_korean",
+      "mapping_status": "resolved",
+      "mapping_reason": null,
+      "mapping_detail": null,
+      "model_team": "Fulham",
+      "team_display_name": "풀럼",
+      "team_mapping": null
+    }
+  ],
+  "unmapped": [],
+  "mapping": {
+    "resolved": 3,
+    "unresolved": 0,
+    "resolver_injected": true
+  },
+  "coverage": [
+    {
+      "topic": "매체·맥락 검색",
+      "state": "search_not_found",
+      "detail": "수신 원문이 없어 grounding metadata를 확인하지 못했습니다."
+    },
+    {
+      "topic": "주목 선수 선정",
+      "state": "available",
+      "detail": "3명 선정"
+    }
+  ],
+  "diagnostics": [],
+  "composed_body": "이번 경기의 주목 선수 3명입니다.\n\n선정 선수: 엘링 홀란드\n선정 이유: 풀럼의 수비진을 상대로 압도적인 피지컬과 결정력을 발휘해 팀의 승리를 이끌 가장 유력한 해결사입니다.\n\n선정 선수: 알렉산더 츄카 이워비\n선정 이유: 풀럼의 공격 전개와 기회 창출을 도맡아 하는 핵심 플레이메이커로서 맨체스터 시티의 수비진을 위협할 가장 날카로운 무기입니다.\n\n선정 선수: 로드리고 무니즈\n선정 이유: 기회가 왔을 때 과감하게 슈팅을 시도하는 성향을 바탕으로 맨체스터 시티의 골문을 직접적으로 겨냥할 공격수입니다.",
+  "composed_quality": "ready",
+  "contract_summary": {
+    "output_contract_version": "mp05p-r4-players-output-1",
+    "module_id": "R4",
+    "display_fields": [
+      "selected_player",
+      "selection_reason"
+    ],
+    "display_labels": {
+      "selected_player": "선정 선수",
+      "selection_reason": "선정 이유"
+    },
+    "internal_fields": [
+      "team",
+      "team_id",
+      "player_id",
+      "external_id",
+      "id_space",
+      "name_source",
+      "mapping_status",
+      "mapping_reason",
+      "mapping_detail",
+      "model_selected_player",
+      "evidence",
+      "superlative_basis",
+      "source_url",
+      "claim_id"
+    ],
+    "max_selected_players": 3,
+    "model_output_schema": {
+      "type": "object",
+      "required": [
+        "players"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "players": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "selected_player",
+              "team",
+              "selection_reason"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "selected_player": {
+                "type": "string",
+                "description": "입력 자료에 적힌 선수 표기를 그대로 옮긴 문자열"
+              },
+              "team": {
+                "type": "string"
+              },
+              "player_ref": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "입력 로스터의 player_id 문자열. 로스터가 없으면 null"
+              },
+              "selection_reason": {
+                "type": "string",
+                "description": "한국어 1~2문장. 수치·사건 전제는 evidence와 연결"
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "사실 전제에 쓴 API 사실 id 또는 검색 URL. 판단만이면 빈 배열"
+              },
+              "superlative_basis": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "'압도적'·'최고' 같은 단정 표현을 썼을 때 그 근거. 없으면 null"
+              }
+            }
+          }
+        },
+        "search_note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uncertainties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "module_payload_schema": {
+      "type": "object",
+      "required": [
+        "module_id",
+        "output_contract_version",
+        "players"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "module_id": {
+          "const": "R4"
+        },
+        "output_contract_version": {
+          "const": "mp05p-r4-players-output-1"
+        },
+        "implementation_version": {
+          "type": "string"
+        },
+        "prompt_version": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "display_labels": {
+          "type": "object"
+        },
+        "players": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "selected_player",
+              "selection_reason"
+            ],
+            "additionalProperties": true,
+            "properties": {
+              "selected_player": {
+                "type": "string",
+                "description": "선정 선수. DB 한국어 이름. DB 값이 없으면 원래 표기 + mapping_status"
+              },
+              "selection_reason": {
+                "type": "string",
+                "description": "선정 이유. 짧은 한국어 설명. 이름과 합치지 않는다."
+              },
+              "team": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "team_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "player_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "external_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "id_space": {
+                "type": "string",
+                "enum": [
+                  "internal",
+                  "external"
+                ]
+              },
+              "name_source": {
+                "type": "string",
+                "enum": [
+                  "db_korean",
+                  "db_short_korean",
+                  "original"
+                ]
+              },
+              "mapping_status": {
+                "type": "string",
+                "enum": [
+                  "resolved",
+                  "unresolved",
+                  "resolver_not_injected"
+                ]
+              },
+              "mapping_reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "mapping_detail": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "model_selected_player": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "superlative_basis": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "claim_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "unmapped": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "mapping": {
+          "type": "object"
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "coverage": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "search_note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uncertainties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "raw_grounding": {
+          "type": "object"
+        },
+        "raw_model_text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "selection_rule_note": {
+          "type": "string"
+        }
+      }
+    },
+    "selection_rule_note": "선정 자체는 AI 판단입니다. 같은 선수를 고른 외부 보도를 요구하지 않으며, 선정 이유에 들어간 수치·부상 같은 사실 전제만 제공된 API/검색 근거와 대조합니다."
+  }
+}

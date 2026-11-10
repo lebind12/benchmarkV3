@@ -1384,7 +1384,8 @@ def prepare_node(*, now: datetime | None = None):
             fixture=fixture,
             results=results,
             snapshots=snapshots,
-            module_ids=("R1", "R2", "R3"),
+            # R4(주목 선수)도 종합 입력이다. R1은 경기력 전용으로 분리됐다.
+            module_ids=("R1", "R2", "R3", "R4"),
             selected_result_ids=ctx.selected_result_ids,
             now=now,
         )

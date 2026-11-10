@@ -93,13 +93,18 @@ __all__ = [
 ]
 
 # 이 실행이 만드는 섹션. 순서는 표시 순서이고 승인 단위와 같다.
-SECTION_WORKFLOW_IDS = ("section_form", "section_availability", "section_outlook")
+SECTION_WORKFLOW_IDS = (
+    "section_form",
+    "section_availability",
+    "section_outlook",
+    "section_players",
+)
 
 # 병렬 조사 갈래. 하나의 예산을 함께 쓴다.
-RESEARCH_MODULE_IDS = ("R1", "R2", "R3")
+RESEARCH_MODULE_IDS = ("R1", "R2", "R3", "R4")
 
 # 저장되는 진행 단계. 승인 단위가 아니라 진단 단위다.
-PIPELINE_NODES = ("D0", "R1", "R2", "R3", "V0", "S1", "V1")
+PIPELINE_NODES = ("D0", "R1", "R2", "R3", "R4", "V0", "S1", "V1")
 
 PIPELINE_CONFIG_VERSION = "mp10-pipeline-1"
 
@@ -108,6 +113,7 @@ _MODULE_TO_SECTION = {
     "R1": "section_form",
     "R2": "section_availability",
     "R3": "section_outlook",
+    "R4": "section_players",
 }
 
 
@@ -556,6 +562,17 @@ def _implementation_for(module_id: str, *, plan: _Plan):
         )
     if module_id == "R3":
         return outlook.outlook_node_implementation(mode=plan.mode, transport=plan.transport)
+    if module_id == "R4":
+        from app.preview.modules import players as players_module
+
+        return players_module.players_research_node(
+            transport=plan.transport,
+            resolver=sections._name_resolver(reader=plan.reader),  # noqa: SLF001
+            roster=(),
+            id_space="internal",
+            now=plan.now,
+            mode=plan.mode,
+        )
     if module_id == "S1":
         return synthesis.build_synthesis_implementations(
             transport=plan.transport, reader=plan.reader, now=plan.now, mode=plan.mode
@@ -850,6 +867,16 @@ def _save_section_from_module(
         # "만들 수 없음"이므로 빈 본문을 성공으로 저장하지 않게 여기서 정한다.
         if not body.strip():
             unavailable = "근거가 확인된 부상·결장 항목이 없어 섹션 본문을 만들지 않았습니다."
+    elif workflow_id == "section_players" and not unavailable:
+        from app.preview.modules import players as players_module
+
+        composed = players_module.compose_players_body(body_payload)
+        body = composed.body
+        title = composed.title
+        sources = tuple(composed.sources)
+        quality = composed.quality
+        if not body.strip():
+            unavailable = "표시할 주목 선수 이름·이유가 없어 섹션 본문을 만들지 않았습니다."
     elif workflow_id == "section_outlook" and not unavailable:
         composed = outlook.compose_outlook_section(body_payload)
         body = composed.body

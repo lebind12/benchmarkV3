@@ -127,6 +127,7 @@ def test_mock_run_detail_shows_sections_without_claiming_approval(client, make_u
         "section_form",
         "section_availability",
         "section_outlook",
+        "section_players",
         "section_synthesis",
     }
     assert detail["section_workflows"]["unavailable"] == []

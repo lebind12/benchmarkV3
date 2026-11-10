@@ -136,15 +136,32 @@ _REGISTRATIONS: tuple[ModuleRegistration, ...] = (
         unrunnable_reason=None,
     ),
     ModuleRegistration(
+        module_id="R4",
+        display_name="주목 선수 선정",
+        description=(
+            "공유 자료와 경기력 흐름을 바탕으로 주목 선수를 선정합니다. 선정 선수 이름과"
+            " 선정 이유를 분리해 내고, 표시 이름은 DB의 한국어 값을 씁니다."
+        ),
+        operation="research_players",
+        depends_on=("D0",),
+        contract_version=MODULE_INPUT_VERSION,
+        prompt_version="mp05p-r4-prompt-1",
+        inspector_panel="players",
+        implemented=True,
+        mode_scope=(RunMode.LIVE, RunMode.REPLAY),
+        expected_model_calls=1,
+        unrunnable_reason=None,
+    ),
+    ModuleRegistration(
         module_id="S1",
         display_name="프리뷰 종합",
         description=(
-            "선택된 R1/R2/R3 결과 버전과 그 결과가 참조하는 D0 스냅샷만으로 관전"
+            "선택된 R1/R2/R3/R4 결과 버전과 그 결과가 참조하는 D0 스냅샷만으로 관전"
             " 포인트·주목 선수·AI 예상과 이유를 종합합니다. 새 검색·추가 조사 호출은"
             " 하지 않으며 정상 경로의 모델 요청은 1회입니다."
         ),
         operation="synthesize_preview",
-        depends_on=("R1", "R2", "R3"),
+        depends_on=("R1", "R2", "R3", "R4"),
         contract_version=MODULE_INPUT_VERSION,
         prompt_version="mp09-s1-prompt-1",
         inspector_panel="generic",
@@ -268,13 +285,25 @@ _SECTION_WORKFLOWS: tuple[SectionWorkflowRegistration, ...] = (
         unrunnable_reason=None,
     ),
     SectionWorkflowRegistration(
+        workflow_id="section_players",
+        display_name="주목 선수 섹션",
+        description=(
+            "공유 자료와 경기력 조사 결과를 입력으로 주목 선수를 선정하는 섹션입니다."
+            " 선정 선수와 선정 이유를 분리해 표시합니다."
+        ),
+        module_ids=("D0", "R4"),
+        output_contract_version="mp05p-r4-players-output-1",
+        implemented=True,
+        unrunnable_reason=None,
+    ),
+    SectionWorkflowRegistration(
         workflow_id="section_synthesis",
         display_name="AI 예상·종합 섹션",
         description=(
             "검증된 조사 결과를 조합해 AI 예상과 이유를 만드는 섹션입니다."
             " 다른 섹션들의 결과를 입력으로 받습니다."
         ),
-        module_ids=("R1", "R2", "R3", "S1"),
+        module_ids=("R1", "R2", "R3", "R4", "S1"),
         output_contract_version="mp09-synthesis-output-1",
         implemented=True,
         unrunnable_reason=None,
