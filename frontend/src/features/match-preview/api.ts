@@ -11,8 +11,11 @@ import type {
   AuditResponse,
   CancelRunResponse,
   CreateMockRunResponse,
+  ReplayResultResponse,
   RunDetail,
   RunListResponse,
+  SectionAvailabilityResponse,
+  SectionRunResponse,
   UndoReport,
   VersionComparison,
 } from './types'
@@ -74,6 +77,43 @@ export const previewRunsApi = {
       `${BASE}/sections/${workflowId}/approvals`,
       { method: 'POST', body: JSON.stringify(payload) },
     )
+  },
+
+  /** 섹션 워크플로우별 실행 가능성. 미구현을 숨기지 않고 그대로 온다. */
+  sections(): Promise<ApiResult<SectionAvailabilityResponse>> {
+    return previewRequest<SectionAvailabilityResponse>(`${BASE}/sections`)
+  },
+
+  /**
+   * 섹션 워크플로우 하나를 실행하고 실행 ID를 받는다.
+   *
+   * 관리자는 이 ID로 저장된 본문·근거·노드 진단을 다시 연다. 지금 열려 있는 실행
+   * 방식은 명시적 모의(mock)이며, 그 결과는 승인 근거가 아니다.
+   */
+  runSection(payload: {
+    workflow_id: string
+    mode?: string
+    fixture_label?: string
+    label?: string
+  }): Promise<ApiResult<SectionRunResponse>> {
+    return previewRequest<SectionRunResponse>(`${BASE}/section-runs`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+
+  /**
+   * 저장된 응답으로 변환만 다시 한다. 외부 모델 호출은 0회이며, 이는 LangGraph
+   * 체크포인트 재실행(유료)이나 DB undo와 다른 동작이다.
+   */
+  replayResult(
+    resultId: string,
+    note?: string,
+  ): Promise<ApiResult<ReplayResultResponse>> {
+    return previewRequest<ReplayResultResponse>(`${BASE}/results/${resultId}/replays`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    })
   },
 
   /** 녹화된 모의 실행을 만든다. 관리자가 명시적으로 눌러야 실행된다. 외부 호출 0회. */

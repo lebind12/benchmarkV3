@@ -11,7 +11,8 @@ import { computed, ref, watch } from 'vue'
 import { previewRunsApi } from './api'
 import ModuleResultPanel from './ModuleResultPanel.vue'
 import RunVersionCompare from './RunVersionCompare.vue'
-import type { RunDetail, UndoReport } from './types'
+import AttemptPanel from './panels/AttemptPanel.vue'
+import type { RunDetail, SectionResultView, UndoReport } from './types'
 
 const props = defineProps<{
   runId: string
@@ -28,6 +29,9 @@ const approvalPending = ref(false)
 const approvalError = ref<string | null>(null)
 const approvalNote = ref('')
 const selectedWorkflowId = ref<string | null>(null)
+const selectedSectionResultId = ref<string | null>(null)
+const replayPending = ref(false)
+const replayMessage = ref<string | null>(null)
 const undoError = ref<string | null>(null)
 const undoPending = ref(false)
 
@@ -57,6 +61,23 @@ const activeModule = computed(
 
 const summary = computed(() => detail.value?.summary ?? null)
 
+/** 이 실행의 섹션 본문 결과. 승인 근거는 노드 결과가 아니라 이 본문이다. */
+const sectionResults = computed<SectionResultView[]>(() => detail.value?.section_results ?? [])
+
+const activeSectionResult = computed<SectionResultView | null>(() => {
+  const rows = sectionResults.value
+  if (rows.length === 0) return null
+  const selected = rows.find((row) => row.section_result_id === selectedSectionResultId.value)
+  return selected ?? rows[0]
+})
+
+/** 승인 근거로 쓸 수 있는 섹션 결과. 모의 시연 결과뿐이면 null이다. */
+const approvableSectionResult = computed<SectionResultView | null>(() => {
+  const candidate = activeSectionResult.value
+  if (!candidate || !candidate.approvable) return null
+  return candidate
+})
+
 /**
  * 선택한 섹션 워크플로우를 승인한다.
  *
@@ -71,10 +92,13 @@ async function approveSection() {
     approvalError.value = '승인할 섹션을 선택하세요.'
     return
   }
-  const sectionResultId = detail.value?.section_result_id ?? null
+  // 승인 근거는 실제 섹션 본문 결과다. 모의 시연 결과는 근거가 아니므로 화면에서도
+  // 요청을 만들지 않는다(서버도 거부한다).
+  const sectionResultId = approvableSectionResult.value?.section_result_id ?? null
   if (!sectionResultId) {
-    approvalError.value =
-      '이 실행에는 승인 근거로 쓸 섹션 결과가 없습니다. 섹션 결과가 저장된 뒤에 승인할 수 있습니다.'
+    approvalError.value = sectionResults.value.length
+      ? '모의 시연 결과는 승인 근거가 아닙니다. 실제 생성 결과를 확인한 뒤 승인할 수 있습니다.'
+      : '이 실행에는 승인 근거로 쓸 섹션 결과가 없습니다. 섹션 결과가 저장된 뒤에 승인할 수 있습니다.'
     return
   }
 
@@ -91,6 +115,31 @@ async function approveSection() {
     return
   }
   approvalNote.value = ''
+  await load()
+}
+
+/**
+ * 저장된 원문으로 변환만 다시 한다. 외부 모델 호출은 0회다.
+ *
+ * 이 동작은 LangGraph 체크포인트 재실행(유료 time travel)이나 DB undo와 다르다.
+ * 원본 결과는 그대로 남고 새 결과 버전이 추가된다.
+ */
+async function replayStoredResult() {
+  const target = activeSectionResult.value
+  const resultId = target?.result_ids.at(-1)
+  if (!resultId) {
+    replayMessage.value = '재생할 저장 결과가 없습니다.'
+    return
+  }
+  replayPending.value = true
+  replayMessage.value = null
+  const result = await previewRunsApi.replayResult(resultId, 'inspector replay')
+  replayPending.value = false
+  if (!result.ok) {
+    replayMessage.value = result.message
+    return
+  }
+  replayMessage.value = `저장 응답 재생 완료 · 새 결과 버전 ${result.data.new_version} · 외부 호출 ${result.data.external_calls}회`
   await load()
 }
 
@@ -181,6 +230,67 @@ function formatTime(value: string | null): string {
 
       <p class="inspector__note" data-testid="availability-note">{{ detail.availability_note }}</p>
 
+      <section
+        v-if="sectionResults.length"
+        class="section-result"
+        aria-labelledby="section-result-title"
+        data-testid="section-result"
+      >
+        <header class="section-result__head">
+          <h3 id="section-result-title" class="section-result__title">
+            {{ activeSectionResult?.title }}
+          </h3>
+          <p class="section-result__meta measured" data-testid="section-result-meta">
+            {{ activeSectionResult?.workflow_id }} · v{{ activeSectionResult?.version }} ·
+            {{ activeSectionResult?.mode_label }}
+          </p>
+        </header>
+
+        <p
+          v-if="sectionResults.length > 1"
+          class="section-result__versions"
+          data-testid="section-result-versions"
+        >
+          <button
+            v-for="row in sectionResults"
+            :key="row.section_result_id"
+            class="section-result__version-button"
+            type="button"
+            :aria-current="row.section_result_id === activeSectionResult?.section_result_id"
+            :data-testid="`section-result-${row.version}`"
+            @click="selectedSectionResultId = row.section_result_id"
+          >
+            v{{ row.version }}
+          </button>
+        </p>
+
+        <p
+          v-if="activeSectionResult?.unavailable"
+          class="notice notice--info"
+          data-testid="section-result-unavailable"
+        >
+          이 섹션은 본문이 생성되지 않았습니다. 원인은 아래 진단에 남아 있습니다.
+        </p>
+        <div v-else class="section-result__body" data-testid="section-result-body">
+          <p v-for="(paragraph, index) in activeSectionResult?.body.split('\n\n')" :key="index">
+            {{ paragraph }}
+          </p>
+        </div>
+
+        <div v-if="activeSectionResult?.sources.length" data-testid="section-result-sources">
+          <h4 class="section-result__subtitle">근거</h4>
+          <ul class="section-result__sources">
+            <li v-for="(source, index) in activeSectionResult?.sources" :key="index">
+              <a v-if="source.url" :href="source.url" rel="noreferrer noopener" target="_blank">
+                {{ source.label ?? source.url }}
+              </a>
+              <span v-else>{{ source.label ?? '출처 표시 없음' }}</span>
+              <span v-if="source.note" class="section-result__source-note">{{ source.note }}</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
       <nav class="module-list" aria-label="모듈 실행 목록" data-testid="module-list">
         <button
           v-for="module in detail.inspector_modules"
@@ -199,11 +309,20 @@ function formatTime(value: string | null): string {
         </p>
       </nav>
 
-      <ModuleResultPanel
-        v-if="activeModule"
-        :key="activeModule.module_execution_id"
-        :module="activeModule"
-      />
+      <details v-if="activeModule" class="diagnostics" data-testid="node-diagnostics">
+        <summary class="diagnostics__summary">
+          노드·모듈 진단 정보 (요청·원문 응답·변환·다음 입력)
+        </summary>
+        <p class="inspector__note">
+          문제를 찾을 때 펼쳐 보는 진단 영역입니다. 승인은 이 노드 단위가 아니라 섹션 워크플로우
+          결과 단위로 이뤄집니다.
+        </p>
+        <ModuleResultPanel
+          :key="activeModule.module_execution_id"
+          :module="activeModule"
+        />
+        <AttemptPanel :attempts="activeModule.tabs.request.attempts" />
+      </details>
 
       <RunVersionCompare
         v-if="activeModule"
@@ -221,8 +340,8 @@ function formatTime(value: string | null): string {
           <thead>
             <tr>
               <th scope="col">섹션</th>
+              <th scope="col">구성</th>
               <th scope="col">상태</th>
-              <th scope="col">현재 버전</th>
               <th scope="col">승인 근거</th>
             </tr>
           </thead>
@@ -235,15 +354,17 @@ function formatTime(value: string | null): string {
                   :data-testid="`approve-section-${row.workflow_id}`"
                   @click="selectedWorkflowId = row.workflow_id"
                 >
-                  {{ row.workflow_id }}
+                  {{ row.display_name }}
                 </button>
+                <span class="approval__id measured">{{ row.workflow_id }}</span>
+                <span v-if="!row.implemented" class="approval__id">
+                  {{ row.unrunnable_reason }}
+                </span>
               </td>
+              <td class="measured">{{ row.module_ids.join(' + ') }}</td>
               <td data-testid="approval-state">{{ row.label }}</td>
               <td class="measured">
-                {{ row.current_version ? row.current_version.slice(0, 24) : '—' }}
-              </td>
-              <td class="measured">
-                {{ row.active_approval ? row.active_approval.evidence.run_id : '없음' }}
+                {{ row.active_approval ? row.active_approval.workflow_version : '없음' }}
               </td>
             </tr>
           </tbody>
@@ -253,13 +374,35 @@ function formatTime(value: string | null): string {
         </p>
 
         <p
-          v-if="detail.section_approvals.length && !detail.section_result_id"
+          v-if="detail.section_approvals.length && !approvableSectionResult"
           class="notice notice--info"
           data-testid="approval-no-evidence"
         >
-          이 실행에는 승인 근거로 쓸 섹션 결과가 아직 없습니다. 승인은 섹션 본문 결과를 확인한
-          뒤에만 만들 수 있고, 그 경로는 섹션 실행이 생긴 뒤에 열립니다.
+          {{
+            sectionResults.length
+              ? '모의 시연 결과는 승인 근거가 아닙니다. 실제 생성 결과를 확인한 뒤 승인할 수 있습니다.'
+              : '이 실행에는 승인 근거로 쓸 섹션 결과가 아직 없습니다. 승인은 섹션 본문 결과를 확인한 뒤에만 만들 수 있습니다.'
+          }}
         </p>
+
+        <div class="approval__form" data-testid="replay-controls">
+          <p class="inspector__note">
+            저장 응답 재생은 저장된 원문으로 변환만 다시 하는 동작입니다. 외부 모델을 다시
+            호출하지 않으며, LangGraph 체크포인트 재실행이나 DB undo와 다릅니다.
+          </p>
+          <button
+            class="button button--quiet"
+            type="button"
+            :disabled="replayPending || !activeSectionResult?.result_ids.length"
+            data-testid="replay-result"
+            @click="replayStoredResult"
+          >
+            {{ replayPending ? '재생하는 중…' : '저장 응답으로 변환 다시 하기' }}
+          </button>
+          <p v-if="replayMessage" class="notice notice--info" data-testid="replay-message">
+            {{ replayMessage }}
+          </p>
+        </div>
 
         <div v-if="selectedWorkflowId" class="approval__form">
           <label class="label" for="approval-note">검토 메모 (선택)</label>
@@ -464,6 +607,91 @@ function formatTime(value: string | null): string {
 
 .approval__state {
   color: var(--color-ink);
+}
+
+.section-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-top: var(--rule-hair) solid var(--color-rule);
+  padding-top: var(--space-4);
+}
+
+.section-result__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.section-result__title {
+  font-size: var(--text-title);
+}
+
+.section-result__meta,
+.section-result__source-note {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.section-result__versions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.section-result__version-button {
+  background: transparent;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-control);
+  color: var(--color-ink-2);
+  cursor: pointer;
+  font-family: var(--font-measured);
+  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.section-result__version-button[aria-current='true'] {
+  border-color: var(--color-accent);
+  color: var(--color-ink);
+}
+
+.section-result__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 60ch;
+  color: var(--color-ink);
+}
+
+.section-result__subtitle {
+  font-size: var(--text-base);
+}
+
+.section-result__sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
+
+.diagnostics {
+  border-top: var(--rule-hair) solid var(--color-rule);
+  padding-top: var(--space-3);
+}
+
+.diagnostics__summary {
+  cursor: pointer;
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2);
+}
+
+.approval__id {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
 }
 
 .approval__select {

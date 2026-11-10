@@ -17,6 +17,13 @@ const router = createRouter({
       component: () => import('@/features/match-preview/PreviewRunsView.vue'),
     },
     {
+      // MP-08 운영 지표. 표에서 실행을 고르면 실행 검사 화면으로 이동한다.
+      // 연결은 MP-04의 얇은 wrapper가 맡는다(MP-08 파일은 그대로 둔다).
+      path: '/admin/metrics',
+      name: 'preview-metrics',
+      component: () => import('@/features/match-preview/AdminMetricsRoute.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFoundView.vue'),

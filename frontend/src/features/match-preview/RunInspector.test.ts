@@ -239,16 +239,24 @@ function detailPayload(overrides: Record<string, unknown> = {}) {
       scope_note: '승인 단위는 섹션 워크플로우입니다.',
     },
     section_result_id: null,
+    section_results: [],
     section_approvals: [
       {
         workflow_id: 'section_form',
+        // 승인 표의 첫 열은 사람이 읽는 이름이다. 내부 ID는 뒤에 작게 붙는다.
+        display_name: '경기력·주목 선수 섹션',
+        description: '공유 자료 준비(D0)와 경기력 조사(R1)를 묶은 섹션입니다.',
+        // 섹션과 모듈은 1:1이 아니다. D0도 구성 모듈로만 등장한다.
+        module_ids: ['D0', 'R1'],
+        implemented: false,
+        unrunnable_reason: '아직 구현되지 않았습니다.',
         state: 'none',
         label: '승인 전',
         detail: '아직 승인된 버전이 없습니다.',
         current_version: 'section_form@abc123',
         active_approval: null,
         pinned_approval: null,
-        can_approve: true,
+        can_approve: false,
       },
     ],
     section_workflows: {
@@ -475,9 +483,36 @@ describe('RunInspector', () => {
   it('shows the server rejection when a section approval is refused', async () => {
     routeFetch()
     const detail = detailPayload()
-    // 섹션 결과가 저장된 상황을 가정해 서버 거부 경로를 확인한다.
+    // 승인 근거로 쓸 수 있는 섹션 결과가 저장된 상황을 가정해 서버 거부 경로를 확인한다.
+    // 화면은 section_results의 approvable 값을 보고 요청을 만든다(모의 결과는 제외).
     ;(detail as Record<string, unknown>).section_result_id =
       '33333333-3333-4333-8333-333333333333'
+    ;(detail as Record<string, unknown>).section_results = [
+      {
+        section_result_id: '33333333-3333-4333-8333-333333333333',
+        run_id: RUN_ID,
+        workflow_id: 'section_form',
+        workflow_version: 'section_form@abc123',
+        version: 1,
+        title: '경기력·주목 선수 섹션',
+        body: '확인한 본문입니다.',
+        sources: [],
+        mode: 'live',
+        mode_label: '실제 생성',
+        environment: 'dev',
+        quality: 'pending',
+        module_execution_ids: [MODULE_ID],
+        result_ids: ['res-2'],
+        diagnostics: [],
+        unavailable_reason: null,
+        unavailable: false,
+        output_contract_version: 'section_form-output-1',
+        contract_version: 'mp04-section-result-1',
+        created_at: null,
+        supersedes_section_result_id: null,
+        approvable: true,
+      },
+    ]
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (url.includes('/approvals') && (init?.method ?? 'GET') === 'POST') {

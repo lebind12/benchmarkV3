@@ -7,13 +7,14 @@
  * 눌러야만 일어나고, MP-02에서는 녹화된 모의 실행만 만들 수 있다.
  */
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { authApi, type SessionPayload } from '@/lib/api/http'
 import { previewRunsApi } from '@/features/match-preview/api'
 import RunInspector from '@/features/match-preview/RunInspector.vue'
 import type { RunSummary } from '@/features/match-preview/types'
 
 const router = useRouter()
+const route = useRoute()
 
 const session = ref<SessionPayload | null>(null)
 const runs = ref<RunSummary[] | null>(null)
@@ -42,6 +43,15 @@ async function signOut() {
   await router.push({ name: 'admin-login' })
 }
 
+/**
+ * 지표 화면에서 넘어온 실행 ID. 표본에서 원문까지 같은 조건으로 이동하기 위해
+ * 필터를 유지한 채 실행만 연다. 새 실행이나 외부 호출을 만들지 않는다(GET만).
+ */
+function requestedRunId(): string | null {
+  const raw = route.query.run
+  return typeof raw === 'string' && raw.length > 0 ? raw : null
+}
+
 async function load() {
   loading.value = true
   errorMessage.value = null
@@ -65,6 +75,11 @@ async function load() {
     return
   }
   runs.value = runsResult.data.runs
+
+  const requested = requestedRunId()
+  if (requested && runs.value.some((run) => run.run_id === requested)) {
+    selectedRunId.value = requested
+  }
 }
 
 async function createMockRun() {
@@ -104,6 +119,12 @@ function formatTime(value: string | null): string {
   <div class="shell">
     <header class="shell__bar">
       <p class="shell__brand">경기 프리뷰 관리자</p>
+      <nav class="shell__nav" aria-label="관리자 화면">
+        <!-- 경로 문자열을 쓴다. 이름 기반 이동은 라우터에 그 경로가 없을 때 해석
+             오류를 내므로, 화면이 라우터 등록 여부에 묶이지 않게 한다. -->
+        <RouterLink class="shell__nav-link" to="/admin/runs">실행 목록</RouterLink>
+        <RouterLink class="shell__nav-link" to="/admin/metrics">운영 지표</RouterLink>
+      </nav>
       <div class="shell__account">
         <span v-if="session" class="shell__email">{{ session.email }}</span>
         <p v-if="logoutError" class="shell__logout-error" role="alert" data-testid="logout-error">
@@ -234,6 +255,22 @@ function formatTime(value: string | null): string {
 </template>
 
 <style scoped>
+.shell__nav {
+  display: flex;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.shell__nav-link {
+  color: var(--color-ink-2);
+  text-decoration: none;
+}
+
+.shell__nav-link.router-link-active {
+  color: var(--color-ink);
+  text-decoration: underline;
+}
+
 .shell__account .button {
   white-space: nowrap;
 }

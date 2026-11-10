@@ -26,7 +26,7 @@ export type QualityStatus = 'pending' | 'ready' | 'insufficient'
 
 export type ModuleStatus = 'queued' | 'running' | 'retry_wait' | 'succeeded' | 'failed'
 
-export type OperationKind = 'preview' | 'module' | 'fixture_catalog' | 'mock_demo'
+export type OperationKind = 'preview' | 'module' | 'fixture_catalog' | 'mock_demo' | 'section'
 
 export type InspectorTabId = 'request' | 'response' | 'transform' | 'next_input'
 
@@ -40,6 +40,9 @@ export type ContractVersions = {
   module_input: string
   preview_document: string
   inspector: string
+  /** MP-04가 더한 축. 섹션 결과 형식과 재시도 정책 버전. */
+  section_result?: string
+  retry_policy?: string
 }
 
 export type ModeDetail = {
@@ -211,6 +214,13 @@ export type ApprovalsSummary = {
 
 export type SectionApprovalRow = {
   workflow_id: string
+  /** 사람이 읽는 섹션 이름. 표의 첫 열은 이것을 쓴다. */
+  display_name: string
+  description: string
+  /** 이 섹션을 구성하는 모듈들(D0 포함). 섹션과 모듈은 1:1이 아니다. */
+  module_ids: string[]
+  implemented: boolean
+  unrunnable_reason: string | null
   state: ApprovalState
   label: string
   detail: string | null
@@ -345,6 +355,94 @@ export type UndoState = {
   blocked_reason: string | null
 }
 
+/**
+ * 섹션 워크플로우 결과 (MP-04).
+ *
+ * 승인 근거는 개별 노드 결과가 아니라 이 본문 결과다. `mode`가 `mock`이면 모의
+ * 시연이며 승인 근거가 아니다. `approvable`은 그 판단을 서버가 내린 값이다.
+ */
+export type SectionResultView = {
+  section_result_id: string
+  run_id: string
+  workflow_id: string
+  workflow_version: string
+  version: number
+  title: string
+  /** 독자용 본문. 노드 상태·JSON이 아니라 사람이 읽는 문장이다. */
+  body: string
+  sources: SectionResultSource[]
+  mode: RunMode
+  mode_label: string
+  environment: Environment
+  quality: QualityStatus
+  module_execution_ids: string[]
+  result_ids: string[]
+  /** 관리자 전용 진단. 독자용 본문에는 포함되지 않는다. */
+  diagnostics: string[]
+  unavailable_reason: string | null
+  unavailable: boolean
+  output_contract_version: string
+  contract_version: string
+  created_at: string | null
+  supersedes_section_result_id: string | null
+  /** 이 결과를 승인 근거로 쓸 수 있는지(모의·본문 없음은 false). */
+  approvable: boolean
+}
+
+export type SectionResultSource = {
+  label?: string
+  url?: string | null
+  kind?: string
+  note?: string | null
+}
+
+export type SectionAvailability = {
+  workflow_id: string
+  display_name: string
+  module_ids: string[]
+  output_contract_version: string
+  /** 모든 단계 구현이 등록됐는지. 모의 시연만 있어도 true가 될 수 있다. */
+  implemented: boolean
+  missing_implementations: string[]
+  modes: string[]
+  /** 등록된 구현이 모의 시연뿐인지. 실제 생성과 구분하기 위한 값이다. */
+  demo_only: boolean
+  /** 실제 조사·생성 구현이 하나라도 등록됐는지. */
+  real_generation_available: boolean
+  note: string | null
+}
+
+export type SectionAvailabilityResponse = {
+  workflows: SectionWorkflowRegistration[]
+  availability: Record<string, SectionAvailability>
+  mock_demo_note: string
+}
+
+export type SectionRunResponse = {
+  run_id: string
+  workflow_id: string
+  workflow_version: string
+  mode: RunMode
+  status: RunStatus
+  quality: QualityStatus
+  section_result_id: string | null
+  section_result_version: number | null
+  external_calls: number
+  budget: Record<string, number | string | string[] | null>
+  unavailable_reason: string | null
+  note: string
+}
+
+export type ReplayResultResponse = {
+  run_id: string
+  source_result_id: string
+  new_result_id: string
+  new_version: number
+  raw_artifact_id: string | null
+  external_calls: number
+  note: string
+}
+
 export type RunDetail = {
   summary: RunSummary
   actor_id: string
@@ -373,8 +471,15 @@ export type RunDetail = {
   inspector_modules: ModuleInspection[]
   registry: ModuleRegistry
   approvals: ApprovalsSummary | null
-  /** 이 실행에 저장된 섹션 결과. MP-02에는 섹션 실행이 없으므로 항상 null이다. */
+  /**
+   * 이 실행의 섹션 결과 중 승인 근거로 쓸 수 있는 결과 ID.
+   *
+   * 모의 시연 결과만 있으면 null이다. 화면은 이 값이 없을 때 승인 요청을 만들지
+   * 않는다(서버도 거부한다).
+   */
   section_result_id: string | null
+  /** 이 실행이 저장한 섹션 본문 결과들. 본문·근거를 먼저 보여준다. */
+  section_results: SectionResultView[]
   section_approvals: SectionApprovalRow[]
   section_workflows: {
     workflows: SectionWorkflowRegistration[]
