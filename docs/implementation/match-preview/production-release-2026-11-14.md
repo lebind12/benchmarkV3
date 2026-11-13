@@ -22,4 +22,19 @@
 
 ## 실행 결과
 
-커밋·push·실배포는 REL-BUILD 완료 후 진행한다. 최종 코드 SHA, 배포 ID, 운영 API/홈 확인 결과는 실행 후 이 절에 기록한다. 이 문서는 배포 성공 증거가 아니다.
+기능 커밋 **b2ac969ac3c9310c0544dd6b898e63c0209a39f3**을 생성했다(284파일, 과거 삭제0). origin/main push 성공(`5f354e3..b2ac969`)과 git ls-remote의 같은 SHA를 확인했다. 직접 검사26/26·로컬 build exit0은 구현자의 같은 파일 리비전 근거다. 별도 DeepSeek `task_6e9ef6efe50a / ctx_c4bbae665bf9`가 네 파일의 SHA·행 계약·matcher와 RouterLink 대역·API 호출7경로·Vercel 설정을 읽기 전용으로 확인해 차단0/수용을 보고했고 root가 수용했다. 검사 재실행0이며 잉여 캐스트·fixture available 미단언은 참고로만 남겼다.
+
+해당 commit tree에서 backend35MB·frontend40MB를 따로 추출했다(임시 `/tmp/benchmark-release.Xs7Vdf`, 인계 기준은 임시 파일이 아니라 commit SHA다). Vercel `dpl_4vcuPMirkBvJ4g6jk5EyqcxFUrUn` (`https://benchmark-v3-7ca5yqe95-woolees-projects.vercel.app`)는 production 환경/skip-domain으로 먼저 배포해 원격 build가 통과하고 READY가 됐다. VITE_BACKEND_URL=/을 해당 빌드 입력에 명시했다. 이후 backend 확인을 마치고 `vercel promote`로 운영 주소에 승격했으며 운영 alias inspect가 정확한 deployment ID/READY를 반환했다.
+
+Koyeb 신규 deployment **13237d92-1e6f-453f-b4a8-841a2d413255** / archive **5b0e4503-48b9-4347-95e2-93679dae8564**는 build와 시작을 마치고 service의 active/latest가 동일한 HEALTHY 상태가 됐다. APP_REVISION은 b2ac969 전체 SHA다. 기존 DATABASE_URL·모델 자격 secret 참조를 보존했고, 기존 tyo/small/1인스턴스·8000/http·/health·uvicorn 명령을 유지했다. PREVIEW_ENV=prod·COOKIE_SECURE=true·ALLOW_NONLOCAL_DB=true, 기존 프로젝트/global/gemini-3.5-flash 모델 연결과 LIVE_ENABLED=true·HOME_PREVIEW_ENABLED=true를 설정했다. 로컬 인증 플래그는 켜지 않았다. 배포 확인을 위해 수집·생성·승인 POST나 migration을 실행하지 않았다.
+
+## 운영 확인 (2026-11-14 04:05~07 KST)
+
+- Koyeb 공개 추천 GET: items의 fixture_id=1557474.
+- Koyeb 공개 문서 GET와 Vercel 운영 도메인 경유 같은 GET: status=available, complete=true, 5섹션(players/availability/outlook/odds/ai_forecast), fixture1557474, run_id=`493ef4a9-0e14-4436-8a97-d6de7ce034a7`. 새 생성 없이 기존 승인 저장본이 연결됐다.
+- 운영 홈 실제 브라우저 DOM: 오늘 추천 없음을 설명한 뒤 11월21일 맨시티–풀럼 추천·21:30 KST, “경기 시작 전 6시간 이내의 마지막 정기 수집에서 한 번 생성됩니다.”, 저장시각11월12일21:40 KST, AI 전망/예상점수2:1·주목 선수4·부상2·외부 매체·배당을 확인했다.
+- 같은 페이지의 이미지 loaded 판정: main img12개 모두 complete 및 naturalWidth>0. 선수/부상 사진6개와 엠블럼이 정상 로드됐다.
+- 스크린샷 캡처는 브라우저가 frame을 그리지 않는다는 도구 timeout으로2회 실패해 PNG를 확보하지 못했다. 새 배포의 픽셀/모션 재수용으로 인용하지 않는다. 위 DOM·API·이미지로드 확인과 기존 사용자의 디자인/스크롤 효과 수용은 별개 근거다. 같은 렌더/CSS 소스를 배포했고 수정하지 않았다.
+- 보완 구현·검토 워커는 모두 편집종료/빈 입력창 확인 후 닫았고 ptyKilled=true를 확인했다. benchmark 터미널 목록에는 기존 backend와 frontend 서버 두 개만 남았다.
+
+배포 요청의 필수 작업은 완료했다. 후속 본문 구조화는 아직 시작하지 않았다.

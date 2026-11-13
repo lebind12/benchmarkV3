@@ -1,15 +1,15 @@
 # benchmark 작업 상태
 
-## 현재 요청 — 완료 기능 커밋·푸시·배포 (2026-11-14 03:36 KST 확인)
+## 현재 요청 — 완료 기능 커밋·푸시·배포 완료 (2026-11-14 04:07 KST 확인)
 
-사용자가 완료한 기능의 커밋·push·배포를 명시 요청했고, 뒤이어 운영 프론트에도 추천 경기·기존 프리뷰 문구 및 자료가 있는 맨시티–풀럼 저장본문이 보여야 함을 확인했다. root가 로컬 실제 홈에서 세 항목과 5섹션·예상점수2:1·사진/배당을 다시 확인했다. Vercel CLI 대상은 woolees-projects/benchmark-v3(prj_gBIpdmsxqiWXHgGk4vRZFTVwhQGk), Koyeb은 benchmark-v3/api(5178062c…/활성6b6fbe4f…)다. Vercel 앱 연결은 재인증 요구로 기존 CLI 인증을 사용하며 대상 inspect는 성공했다. 원격 fetch 완료; main의 미push56커밋은 기존 프리뷰 개발 이력이다. 미커밋710항목 중 이전 정리의421삭제와 로컬 생성물은 일괄 커밋하지 않는다.
+사용자가 요청한 커밋·push·배포와 운영 프론트 표시 확인을 완료했다. 기능 커밋 **b2ac969ac3c9310c0544dd6b898e63c0209a39f3**을 origin/main에 push했고 원격 SHA 일치를 확인했다. Vercel `dpl_4vcuPMirkBvJ4g6jk5EyqcxFUrUn` READY를 운영 alias로 승격했고, Koyeb `13237d92-1e6f-453f-b4a8-841a2d413255`가 active/HEALTHY다. 운영 홈의 추천 경기·기존 안내 문구·맨시티–풀럼 저장본문5섹션/점수2:1·사진로드와 운영 도메인 /document의 complete=true/run493ef4a9… 일치를 확인했다. [배포 근거](docs/implementation/match-preview/production-release-2026-11-14.md). 과거421삭제·무관한 기획 정리·로컬 생성물은 커밋에서 제외해 작업트리에 보존했다.
 
 | 배포 작업 | 담당 | 상태 | 수용 기준·다음 행동 |
 |---|---|---|---|
-| REL-BUILD | 구현 DeepSeek flash-1017/max task_40c66363b150·ctx_a26c70951ea2; 독립 확인 task_6e9ef6efe50a·ctx_c4bbae665bf9 / term_9aa0c6aa… | 검증 대기 | [보완 명세](docs/implementation/match-preview/release-build-brief.md)·[독립 확인 범위](docs/implementation/match-preview/release-build-review-brief.md). 4파일 보완/지정26검사·build exit0 보고, root SHA/편집종료 TUI 확인. available8곳 계약 정렬·matcher/RouterLink 대역·미사용 import·HEAD Vercel 복구. 별도 DeepSeek 모델/max/빈 입력창 확인 후 배정, 기존 기능 전체 검토 재개 없음 |
-| REL-PUBLISH | GPT 조정자 / REL-BUILD | 진행 중 | 기능 파일 선별 및 로컬 커밋/동일 tree 배포 archive 준비. 독립 확인 수용 후 origin/main push·기존 Vercel/Koyeb 대상 배포, 운영 추천 및 맨시티 /document 5섹션·홈 표시 확인. DB 초기화/새 모델 생성/내용 변경 없음 |
+| REL-BUILD | 구현 DeepSeek flash-1017/max task_40c66363b150·ctx_a26c70951ea2; 독립 확인 task_6e9ef6efe50a·ctx_c4bbae665bf9 / term_9aa0c6aa… | 완료 | [보완 명세](docs/implementation/match-preview/release-build-brief.md)·[독립 확인 범위](docs/implementation/match-preview/release-build-review-brief.md). 지정26검사·local build exit0 및 Vercel 원격 build 통과. 독립 검토4조건/SHA 일치·차단0을 root 수용, 편집 종료·백그라운드0. 잉여 캐스트/fixture available 미단언은 참고로만 보존 |
+| REL-PUBLISH | GPT 조정자 / REL-BUILD | 완료 | b2ac969 push/원격SHA 일치, 동일commit source를 Vercel/Koyeb 기존 프로젝트로 배포. 운영 추천1557474·문구·본문5섹션/complete=true/저장run일치, 사진6개 포함main이미지12개 로드 확인. 기존DB/모델secret·tyo/small/1인스턴스 보존, 승인 자동생성 설정 연결. 배포 검증용 수집/모델/승인POST·migration0 |
 
-의존성: REL-BUILD → REL-PUBLISH. 배포 검증 완료 **0 / 2 작업**. 기존 기능·실수집 수용은 유지한다. 운영 새 PREVIEW_* 환경 설정과 source archive 경로는 기존 배포 계약과 대조 중이다. 새 기능 구조화는 시작하지 않는다.
+의존성: REL-BUILD(완료) → REL-PUBLISH(완료). 배포 검증 완료 **2 / 2 작업**. 남은 필수 작업·구현/검토 워커0, 로컬 서버2개 보존. 이번 보완용 DeepSeek 두 터미널도 보고/빈입력창 확인 후 종료해 ptyKilled=true를 확인했다. 기존 기능·실수집 수용은 유지한다. 다음 후보는 본문 구조화이며 신규 구현을 시작하지 않는다. 운영 스크린샷은 도구의 frame timeout2회로 확보하지 못했고 DOM·API·이미지로드 근거와 기존 사용자 화면 수용을 구분해 기록했다.
 
 사용자의 “워커 정리 먼저” 지시에 따라 완료·빈 입력창을 직접 확인한 DeepSeek 워커 터미널 7개를 종료했다. `worker-release`는 기존/보관 터미널이라 retained·processAction=none을 반환했으므로 그 결과를 종료로 간주하지 않았다. 사용자 명시 정리 요청으로 확인된 7개 handle만 개별 `terminal close`했고 모두 `ptyKilled=true`를 확인했다. 마지막 터미널 목록은 워커 0개·서버 2개이며, 내부 조사 보조 에이전트도 남아 있지 않다(root만 존재). 백엔드 term_c31916c2…/PID85956/8000 및 프론트 term_560b0b24…/PID67430/5173을 포트 목록으로 재확인해 보존했다. 과거 Task·Dispatch 기록·보고서·제품 파일은 삭제하지 않았고 새 작업은 시작하지 않았다. 아래 실제 수집·프리뷰·검사 완료 판정은 유지한다.
 
