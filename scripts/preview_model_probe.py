@@ -122,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
 
     _load_environment(args.model_credentials, args.dev_credentials)
 
-    from app.core.config import get_settings
+    from app.preview.config import get_settings
 
     get_settings.cache_clear()
     settings = get_settings()
@@ -150,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         print("probe: dry-run (호출하지 않았습니다)")
         return 0
 
-    from app.db import get_session_factory
+    from app.preview.db import get_session_factory
     from app.preview import store
     from app.preview.contracts import (
         Environment,

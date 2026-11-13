@@ -356,6 +356,90 @@ export type UndoState = {
 }
 
 /**
+ * 서버가 섹션 결과 행에 덧붙이는 **구조 값**의 계약 (PS-04).
+ *
+ * `GET /runs/{id}/section-results?include_structured=true`의 각 행에는 저장 payload에서
+ * 옮긴 `structured`가 있고(`app/preview/section_structured.py`의
+ * `structured_row_from_section_result`), 화면 파서(`sectionStructured.ts`의
+ * `structuredFromSectionResult`)가 이 이름들로 읽는다. 없는 값은 빈 배열/`null`이며
+ * 화면은 값을 만들지 않는다.
+ *
+ * 키 이름은 **서버가 내는 이름**과 **화면 파서가 읽는 이름**의 합집합이다. 서버는
+ * 저장 payload를 정규화해 내보내므로(예: 선수는 항상 `player`) 파서는 예전 저장본 표기
+ * (`selected_player` 등)도 함께 읽는다. 그래서 한 필드에 두 표기가 함께 적혀 있고,
+ * 둘 다 서버 출력이거나 파서 입력이다(그 밖의 이름은 받지 않는다).
+ */
+export type SectionStructuredPlayerRow = {
+  player?: string | null
+  reason?: string | null
+  team?: string | null
+  /** 내부 선수 ID. 사진 주소를 만드는 데 쓰지 않는다(외부 ID와 다른 값). */
+  player_id?: number | null
+  external_player_id?: number | null
+  team_external_id?: number | null
+  photo_url?: string | null
+  /** 파서가 함께 읽는 저장 payload 표기(R4). 서버 응답은 `player`/`reason`으로 정규화된다. */
+  selected_player?: string | null
+  selection_reason?: string | null
+}
+
+export type SectionStructuredInjuryRow = {
+  player?: string | null
+  team?: string | null
+  /** 원문 상태 표기 그대로. 확정 부상으로 승격하지 않는다. */
+  status?: string | null
+  summary?: string | null
+  player_id?: number | null
+  team_id?: number | null
+  external_player_id?: number | null
+  team_external_id?: number | null
+  photo_url?: string | null
+  /** 저장 payload(`bundle_sections`)의 표기. */
+  player_name?: string | null
+  expected_status?: string | null
+}
+
+export type SectionStructuredMediaRow = {
+  publisher?: string | null
+  statement?: string | null
+  /** 점수 미제시 기사는 `null`이다(0-0을 만들지 않는다). */
+  predictedScore?: string | null
+  publishedAt?: string | null
+  url?: string | null
+  predicted_score?: string | null
+  published_at?: string | null
+}
+
+/** 정규시간 1X2 배당 한 줄. 값이 없는 칸은 `null`이다. */
+export type SectionStructuredOddsRow = {
+  bookmaker?: string | null
+  observedAt?: string | null
+  observed_at?: string | null
+  home?: string | null
+  draw?: string | null
+  away?: string | null
+  market?: string | null
+}
+
+export type SectionStructuredForecastRow = {
+  lean?: 'home' | 'draw' | 'away' | null
+  score?: string | null
+  reasoning?: string[]
+  note?: string | null
+}
+
+/** 섹션 결과 행의 `structured` 전체. 값이 없는 항목은 빈 배열/`null`이다. */
+export type SectionStructuredProjection = {
+  structured_version?: string
+  workflow_id?: string | null
+  players?: SectionStructuredPlayerRow[]
+  injuries?: SectionStructuredInjuryRow[]
+  media?: SectionStructuredMediaRow[]
+  odds?: SectionStructuredOddsRow[]
+  forecast?: SectionStructuredForecastRow | null
+}
+
+/**
  * 섹션 워크플로우 결과 (MP-04).
  *
  * 승인 근거는 개별 노드 결과가 아니라 이 본문 결과다. `mode`가 `mock`이면 모의
@@ -387,6 +471,16 @@ export type SectionResultView = {
   supersedes_section_result_id: string | null
   /** 이 결과를 승인 근거로 쓸 수 있는지(모의·본문 없음은 false). */
   approvable: boolean
+  /**
+   * 서버가 이 행에 덧붙인 구조 값. `include_structured=true`(기본)일 때만 있고,
+   * 저장 payload가 없으면 비어 있다. 값은 저장된 것만 옮기며 화면이 만들지 않는다.
+   */
+  structured?: SectionStructuredProjection
+  /**
+   * 구조 값에 표시할 내용이 하나라도 있는지(서버 계산). `structured`와 같은 응답에만 있다.
+   * `unavailable`(본문을 만들지 못했는지)과 다른 값이므로 섞어 쓰지 않는다.
+   */
+  available?: boolean
 }
 
 export type SectionResultSource = {
@@ -433,6 +527,26 @@ export type SectionRunResponse = {
   budget: Record<string, number | string | string[] | null>
   unavailable_reason: string | null
   note: string
+  /**
+   * 재생성 응답 확장 필드 (manifest §5, 계획).
+   *
+   * 서버가 아직 이 필드들을 내려주지 않을 수 있으므로 모두 선택으로 둔다. 화면은 값이
+   * 있을 때만 표시하고, 없으면 추측해 채우지 않는다.
+   */
+  source_mode?: SourceMode
+  bundle_id?: string | null
+  /** 저장된 묶음을 실제로 재사용했는지. */
+  bundle_reused?: boolean
+  /** 이 실행에서 예상한 모델 호출 수. */
+  expected_model_calls?: number
+  parent_run_id?: string | null
+  base_result_id?: string | null
+  /** 이 실행이 만든 결과의 버전. */
+  new_version?: number | null
+  /** 모델 호출이 없었는지(`true`면 재처리·배당처럼 무전송). */
+  no_model_call?: boolean
+  /** 이 실행이 실제로 쓴 구성본 ID. 쓰지 않았으면 null. */
+  composition_id?: string | null
 }
 
 export type ReplayResultResponse = {
@@ -578,6 +692,67 @@ export type AuditResponse = {
 export type ApproveSectionResponse = SectionApprovalRecord
 
 /**
+ * 저장된 응답 재처리와 실제 재생성을 구분하는 축 (PS-04).
+ *
+ * - `reprocess`: 저장된 응답만 다시 변환한다. 모델 전송 0회(무료·무호출).
+ *   경로는 기존 `POST /runs/{run_id}/results/.../replay`이며 재생성 요청이 아니다.
+ * - `refresh`: 새 수집·새 모델 호출을 한다. 예상 전송 수를 먼저 보여줘야 한다.
+ *
+ * 이 값은 화면 표시 문구를 정하는 값이며, 서버의 실제 전송 여부를 대신하지 않는다.
+ * 서버가 응답에 준 실제 전송 수(`external_calls`)와 `no_model_call`을 항상 함께 표시한다.
+ */
+export type SectionReprocessMode = 'reprocess' | 'refresh'
+
+/** 재생성·재처리가 재사용하는 기준 자료. `reuse`는 저장된 묶음을, `refresh`는 새 수집. */
+export type SourceMode = 'reuse' | 'refresh'
+
+/**
+ * 섹션 재생성 요청 (PS-04 → A manifest §5 상호 ACK 대상).
+ *
+ * 필드 이름은 `docs/implementation/match-preview/section-interface-manifest.md` §5가
+ * 고정한 값을 그대로 쓴다. 재생성은 기존 `POST /section-runs` 본문에 다음 필드를 더한다.
+ *
+ * | 필드 | 뜻 |
+ * |---|---|
+ * | `source_mode` | `reuse`(저장 묶음 재사용, 새 수집 없음) / `refresh`(새 수집 포함) |
+ * | `bundle_id` | `reuse`일 때 필수인 저장 묶음 ID |
+ * | `base_run_id` | 비교 기준 실행(선택) |
+ * | `base_result_id` | 비교 기준 결과 버전(선택) |
+ * | `selected_result_ids` | `section_ai_forecast`가 읽는 앞 섹션 결과 |
+ *
+ * 저장 응답만 재처리하는 동작은 이 요청이 아니라 기존
+ * `POST /runs/{run_id}/results/{module_execution_id}/replay` 경로다(무전송).
+ */
+export type SectionRegenerationRequest = {
+  workflow_id: string
+  mode?: string
+  fixture_id: number
+  league_id?: number
+  season?: number
+  home_team_id?: number
+  away_team_id?: number
+  kickoff_at?: string
+  fixture_label?: string
+  source_mode: SourceMode
+  /** `source_mode: 'reuse'`일 때 필수. */
+  bundle_id?: string
+  base_run_id?: string
+  base_result_id?: string
+  selected_result_ids?: string[]
+  /**
+   * 관리자가 저장한 구성본 ID. 주면 그 구성본의 선택 결과가 최종 AI 입력이 된다.
+   * 저장된 값과 다르면 서버가 422로 거부한다(값을 덮어쓰지 않는다).
+   */
+  composition_id?: string
+}
+
+/** 이 실행이 저장한 섹션 본문 결과 목록 (기존 `/section-results` 경로). */
+export type SectionResultsResponse = {
+  run_id: string
+  section_results: SectionResultView[]
+}
+
+/**
  * MP-09 독자용 프리뷰 (GET /runs/{run_id}/preview).
  *
  * 서버는 저장된 S1 종합 결과를 **허용 목록으로 다시 투영**해 내려준다. 그래서 이 타입은
@@ -618,8 +793,22 @@ export type ReaderPreviewPrediction = {
   note?: string
 }
 
-export type ReaderPreviewAttribution = {
-  ai_forecast_label: string
+/**
+ * 독자용 배당 한 줄 (선택 섹션).
+ *
+ * 정규시간 1X2 소수점만 담는다. 서버가 `odds`를 내려주지 않으면 키 자체가 없고, 화면은
+ * 배당 카드를 만들지 않는다. 값이 없는 칸은 비워 두며 추정해 채우지 않는다.
+ */
+export type ReaderPreviewOdds = {
+  bookmaker: string
+  market?: string
+  observed_at?: string
+  home?: string
+  draw?: string
+  away?: string
+}
+
+export type ReaderPreviewAttribution = {  ai_forecast_label: string
   ai_forecast_note: string
   model?: string | null
   provider?: string | null
@@ -629,6 +818,7 @@ export type ReaderPreviewAttribution = {
 export type ReaderPreview = {
   fixture: {
     fixture_id: number
+    /** 내부 팀 ID. 사진·로고 주소를 만드는 데 쓰지 않는다(외부 ID와 다른 값). */
     home_team_id: number
     away_team_id: number
     league_id: number
@@ -636,6 +826,14 @@ export type ReaderPreview = {
     kickoff_at: string
     label: string
     league?: string | null
+    /**
+     * 외부(API-Football) 팀 ID와 로고 주소. 서버가 줄 때만 있으며, 없으면 `null`이다.
+     * 예전 저장본에는 이 키가 아예 없으므로 모두 선택으로 둔다.
+     */
+    home_team_external_id?: number | null
+    away_team_external_id?: number | null
+    home_team_logo_url?: string | null
+    away_team_logo_url?: string | null
   }
   headline: string
   generated_at: string
@@ -648,7 +846,66 @@ export type ReaderPreview = {
   absences_impact?: string
   external_outlook?: ReaderPreviewOutlook[]
   ai_prediction?: ReaderPreviewPrediction
+  /** 선택 섹션. 서버가 내려줄 때만 있고, 없으면 화면은 카드를 만들지 않는다. */
+  odds?: ReaderPreviewOdds[]
   sources?: ReaderPreviewSource[]
+  /**
+   * 새 정보 원문 묶음 경로의 구성본 투영. 저장된 섹션 본문을 표시 순서로 담는다.
+   * 옛 S1 경로 응답에는 이 키가 없다(그때는 기존 필드만 쓴다).
+   */
+  sections?: ReaderPreviewSection[]
+  /** 필수 섹션 본문이 모두 준비됐는지. false면 부분 결과이며 정상 완료가 아니다. */
+  complete?: boolean
+  /**
+   * 부분 결과 사유. **관리자 진단용**이며 독자 본문에 넣지 않는다.
+   * 화면도 이 값을 본문 영역에 표시하지 않는다.
+   */
+  unavailable_reason?: string | null
+}
+
+/**
+ * 구성본에서 온 독자 섹션 하나. `body`는 완성 본문이고, 진단·실패 사유는 들어 있지 않다.
+ */
+export type ReaderPreviewSection = {
+  section_id: string
+  title: string
+  body: string
+  sources: ReaderPreviewSource[]
+  quality: string | null
+  /** 부분 결과(필수 항목 누락 등). true여도 본문이 있으면 그대로 보여준다. */
+  partial: boolean
+  version?: number | null
+  workflow_version?: string | null
+}
+
+/**
+ * 관리자가 고른 섹션 결과 버전 묶음(구성본) 항목.
+ * `run_id`가 항목마다 다를 수 있다(서로 다른 실행에서 고를 수 있다).
+ */
+export type CompositionItem = {
+  section_id: string
+  result_id: string
+  run_id: string
+  fixture_id: number | null
+  version: number
+  workflow_version: string
+  quality: string
+  unavailable: boolean
+  unavailable_reason: string | null
+  body_chars: number
+  mode: string
+  created_at: string | null
+}
+
+/** 구성본 저장/조회 응답. 서버가 고르지 않은 결과를 채우지 않는다. */
+export type CompositionView = {
+  composition_id: string
+  fixture_id: number | null
+  items: CompositionItem[]
+  /** 넣지 않은 선택과 그 사유(다른 경기·없는 결과·중복 섹션). */
+  refused: { result_id: string; section_id?: string; reason: string }[]
+  diagnostics: string[]
+  section_result_ids: string[]
 }
 
 /** 같은 실행의 관리자 진단. 독자용 응답과 분리된 경로다. */
@@ -678,6 +935,11 @@ export type ReaderPreviewDiagnostics = {
     adopted_claim_count: number
     excluded_claim_count: number
   }[]
+  /**
+   * 새 묶음 경로에서 **저장 구성본에 실제로 들어간** 결과 버전들. 구성본이 없으면 빈 배열이다.
+   * 화면은 이 목록으로 "무엇을 골라 마지막 AI에 넣었는지"를 확인한다.
+   */
+  composition_inputs: CompositionItem[]
   contract_versions: Record<string, string>
   synthesis_versions: {
     implementation: string
@@ -685,4 +947,22 @@ export type ReaderPreviewDiagnostics = {
     output_contract: string
   }
   attempts_present: boolean
+}
+
+export type BundlePreviewRunResponse = {
+  run_id: string
+  mode: string
+  status: string
+  quality: string
+  bundle_id: string | null
+  bundle_hash: string | null
+  bundle_artifact_id: string | null
+  section_result_ids: Record<string, string>
+  section_quality: Record<string, string>
+  section_unavailable: Record<string, string>
+  discovery_status: Record<string, string>
+  external_calls: number
+  budget: Record<string, unknown>
+  unavailable_reason: string | null
+  note: string
 }

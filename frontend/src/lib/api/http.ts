@@ -1,9 +1,11 @@
 /**
  * 관리자 API 공통 전송 계층.
  *
- * 인증은 HttpOnly 세션 쿠키로만 오간다. 토큰을 JS나 URL에 담지 않는다.
+ * 프리뷰는 원래 benchmark의 인증 전송 경로를 공유한다.
  * 모든 오류는 화면이 바로 쓸 수 있는 데이터로 정규화한다.
  */
+
+import { authenticatedFetch } from './session'
 
 export type ApiFailureKind = 'unauthenticated' | 'forbidden' | 'server' | 'network' | 'unknown'
 
@@ -28,6 +30,7 @@ function failureMessage(status: number, detail: string | undefined): string {
   if (detail && DETAIL_MESSAGES[detail]) return DETAIL_MESSAGES[detail]
   if (status === 401) return '로그인이 필요합니다.'
   if (status === 403) return '관리자 권한이 없는 계정입니다.'
+  if (detail) return detail
   if (status >= 500) return '서버 오류가 발생했습니다. 잠시 후 다시 시도하세요.'
   return '요청을 처리하지 못했습니다.'
 }
@@ -45,7 +48,8 @@ export async function previewRequest<T>(
 ): Promise<ApiResult<T>> {
   let response: Response
   try {
-    response = await fetch(path, {
+    const send = path.startsWith('/api/v1/admin/preview') ? authenticatedFetch : fetch
+    response = await send(path, {
       ...init,
       credentials: 'same-origin',
       headers: {

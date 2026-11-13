@@ -363,10 +363,6 @@ def _run_synthesis(session_factory):
 
 def test_preview_endpoint_requires_admin(client, make_user):
     """독자용 프리뷰 조회도 서버의 ADMIN 검사를 통과해야 한다."""
-    from app.auth.identity import IdentityUser
-    from app.auth.service import issue_session
-    from app.db import get_session_factory
-
     anonymous = uuid.uuid4()
     assert client.get(f"{PREVIEW_API}/runs/{anonymous}/preview").status_code == 401
     assert (
@@ -376,18 +372,17 @@ def test_preview_endpoint_requires_admin(client, make_user):
 
     # 세션은 유효하지만 역할이 ADMIN이 아닌 경우: 401이 아니라 403이어야 한다.
     user = make_user(role="STREAMER")
-    factory = get_session_factory()
-    with factory() as session:
-        principal = IdentityUser(
-            id=user["id"], email=user["email"], role=user["role"], is_active=True
-        )
-        issued = issue_session(session, principal)
-        token = issued.token
-        session.commit()
-    client.cookies.set("preview_admin_session", token)
-    assert client.get(f"{PREVIEW_API}/runs/{anonymous}/preview").status_code == 403
+    login = client.post(LOGIN, json={"email": user["email"], "password": user["password"]})
+    assert login.status_code == 200, login.text
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
     assert (
-        client.get(f"{PREVIEW_API}/runs/{anonymous}/preview/diagnostics").status_code
+        client.get(f"{PREVIEW_API}/runs/{anonymous}/preview", headers=headers).status_code
+        == 403
+    )
+    assert (
+        client.get(
+            f"{PREVIEW_API}/runs/{anonymous}/preview/diagnostics", headers=headers
+        ).status_code
         == 403
     )
 

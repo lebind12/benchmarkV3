@@ -110,7 +110,7 @@ def _environment() -> Iterator[None]:
 @pytest.fixture()
 def engine(_environment: None):
     from app.auth import models as _auth_models  # noqa: F401  (모델 등록)
-    from app.db import SCHEMA, Base
+    from app.preview.db import SCHEMA, Base
     from app.preview import models as _preview_models  # noqa: F401  (모델 등록)
     from app.preview import store as _store  # noqa: F401
 

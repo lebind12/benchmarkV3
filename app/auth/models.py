@@ -14,7 +14,7 @@ from enum import Enum
 from sqlalchemy import BigInteger, DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db import SCHEMA, Base
+from app.preview.db import SCHEMA, Base
 
 
 class Role(str, Enum):

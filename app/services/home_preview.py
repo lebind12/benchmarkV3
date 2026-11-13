@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 
 from sqlalchemy import and_, or_, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models import Fixture, League, LeagueSyncTarget, LeagueTranslation, Team, TeamTranslation
@@ -36,6 +37,59 @@ REASONS = [
 
 def missing(reason="not_collected"):
     return {"status": "missing", "reason": reason, "as_of": None, "source_ids": [], "data": None}
+
+
+# 미리보기 결과 저장소 두 표. 이 표들은 선택 기능의 저장소이며, 실제 경기·추천
+# 목록의 원천이 아니다. 운영 DB에 아직 없을 수 있고, 없다고 해서 홈 추천 목록이
+# 실패하면 방문자는 아무 경기도 볼 수 없다. 반대로 **이 두 표 외의** SQL 오류
+# (경기·리그 조회, 권한, 연결)는 그대로 올려 보낸다.
+PREVIEW_STORAGE_TABLES = frozenset({"home_preview_publication", "home_preview_version"})
+STORAGE_ABSENT = "home_preview_storage_absent"
+
+
+def missing_preview_storage(exc):
+    """`UndefinedTable`(42P01)로 실패한 대상이 위 두 표 중 하나인지 판정한다.
+
+    SQLSTATE만 보거나 다른 표의 부재까지 같이 넘기면, 경기·리그 조회 실패를
+    "프리뷰 없음"으로 감춰 빈 성공 응답을 만들게 된다. 그래서 실패한 문장이
+    그 두 표를 가리킬 때만 참이다.
+    """
+    orig = getattr(exc, "orig", exc)
+    if getattr(orig, "sqlstate", None) != "42P01":
+        return False
+    table = getattr(getattr(orig, "diag", None), "table_name", None)
+    if table:
+        return table in PREVIEW_STORAGE_TABLES
+    statement = str(getattr(exc, "statement", "") or "")
+    return any(f"FROM {name}" in statement for name in PREVIEW_STORAGE_TABLES)
+
+
+def preview_storage_absent(session):
+    """이 세션에서 프리뷰 저장소 표 부재를 이미 확인했는지."""
+    return bool(getattr(session, "info", {}).get(STORAGE_ABSENT))
+
+
+def preview_row(session, model, identifier):
+    """저장소 행 하나를 읽는다. 그 저장소 표만 없으면 `None`(미제공)으로 본다.
+
+    조회를 SAVEPOINT 안에서 수행한다. PostgreSQL은 문장 실패 뒤 같은 트랜잭션이
+    중단 상태가 되므로, 저장점으로 되돌려야 같은 세션의 후속 경기 조회가 계속
+    정상 동작한다. 한 요청에서 표 부재를 한 번 확인하면 세션에 기억해 두고 다시
+    시도하지 않는다.
+    """
+    if preview_storage_absent(session):
+        return None
+    try:
+        with session.begin_nested():
+            return session.get(model, identifier)
+    except SQLAlchemyError as exc:
+        if not missing_preview_storage(exc):
+            raise
+        try:
+            session.info[STORAGE_ABSENT] = True
+        except AttributeError:  # 세션 유사 객체(검사용)는 기억을 생략한다.
+            pass
+        return None
 
 
 def fixture_by_external(session, external_id):
@@ -142,10 +196,10 @@ def localize_injury_names(session: Session, preview):
 def read_preview(session: Session, external_id: int, *, now=None):
     now = now or utcnow()
     fixture = fixture_by_external(session, external_id)
-    publication = session.get(HomePreviewPublication, fixture.id)
+    publication = preview_row(session, HomePreviewPublication, fixture.id)
     preview = None
     if publication and publication.version_id and publication.identity == identity(fixture):
-        version = session.get(HomePreviewVersion, publication.version_id)
+        version = preview_row(session, HomePreviewVersion, publication.version_id)
         if version and version.fixture_id == fixture.id:
             try:
                 candidate = PreviewPayload.model_validate(version.payload).root

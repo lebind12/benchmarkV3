@@ -1,6 +1,24 @@
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import { router } from './router'
 import App from './App.vue'
-import router from './router'
-import './styles/app.css'
+import './styles/leagues.css'
+import './styles/global.css'
+import './styles/themes.css'
 
-createApp(App).use(router).mount('#app')
+async function bootstrap() {
+  if (import.meta.env.VITE_USE_MOCK === 'true') {
+    const { worker } = await import('./mocks/browser')
+    await worker.start({
+      onUnhandledRequest: 'bypass',
+      serviceWorker: { url: '/mockServiceWorker.js' },
+    })
+  }
+
+  const app = createApp(App)
+  app.use(createPinia())
+  app.use(router)
+  app.mount('#app')
+}
+
+bootstrap()

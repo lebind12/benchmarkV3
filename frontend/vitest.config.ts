@@ -1,6 +1,6 @@
-import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [vue()],
@@ -12,6 +12,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    include: ['src/**/*.test.ts'],
+    include: ['tests/unit/**/*.spec.ts', 'src/**/*.test.ts'],
   },
 })

@@ -15,6 +15,9 @@ const sectionsMock = vi.fn()
 const detailMock = vi.fn()
 const runSectionMock = vi.fn()
 const approveMock = vi.fn()
+const bundleMock = vi.fn()
+const regenerateMock = vi.fn()
+const replayMock = vi.fn()
 
 vi.mock('@/features/match-preview/api', () => ({
   previewRunsApi: {
@@ -22,6 +25,9 @@ vi.mock('@/features/match-preview/api', () => ({
     detail: (...args: unknown[]) => detailMock(...args),
     runSection: (...args: unknown[]) => runSectionMock(...args),
     approveSection: (...args: unknown[]) => approveMock(...args),
+    informationBundle: (...args: unknown[]) => bundleMock(...args),
+    regenerateSection: (...args: unknown[]) => regenerateMock(...args),
+    replayResult: (...args: unknown[]) => replayMock(...args),
   },
 }))
 
@@ -173,6 +179,11 @@ describe('SectionRunView', () => {
     detailMock.mockReset()
     runSectionMock.mockReset()
     approveMock.mockReset()
+    bundleMock.mockReset()
+    regenerateMock.mockReset()
+    replayMock.mockReset()
+    // 정보 원문 조회는 기본값을 둔다(테스트마다 명시하지 않아도 되는 진단 조회).
+    bundleMock.mockResolvedValue({ ok: false, kind: 'unknown', status: 404, message: '없음' })
   })
 
   it('경기를 고르면 섹션 실행이 본문과 근거를 보여준다', async () => {
@@ -303,6 +314,145 @@ describe('SectionRunView', () => {
     expect(payload.run_id).toBe('44444444-4444-4444-8444-444444444444')
     expect(payload.section_result_id).toBe('33333333-3333-4333-8333-333333333333')
     expect(wrapper.get('[data-testid="workspace-approval-done"]').text()).toContain('승인이 기록')
+
+    await wrapper.unmount()
+  })
+
+  it('shows the stored bundle after body and sources, and never starts a write by itself', async () => {
+    sectionsMock.mockResolvedValue(sectionsResponse())
+    runSectionMock.mockResolvedValue({
+      ok: true,
+      data: {
+        run_id: '44444444-4444-4444-8444-444444444444',
+        workflow_id: 'section_form',
+        workflow_version: 'section_form@abc',
+        mode: 'live',
+        status: 'succeeded',
+        quality: 'ready',
+        section_result_id: '33333333-3333-4333-8333-333333333333',
+        section_result_version: 1,
+        external_calls: 1,
+        budget: {},
+        unavailable_reason: null,
+        note: '실행 결과를 저장했습니다.',
+      },
+    })
+    detailMock.mockResolvedValue(detailResponse('live', true))
+    bundleMock.mockResolvedValue({
+      ok: true,
+      data: {
+        run_id: '44444444-4444-4444-8444-444444444444',
+        availability: { available: true, reason: null, artifact_id: 'artifact-1' },
+        summary: {},
+        bundle: {
+          bundle_id: 'bundle-live-1',
+          bundle_version: 'mp11-information-bundle-1',
+          collected_at: '2026-11-11T00:16:39+00:00',
+          mode: 'live',
+          sources: [
+            {
+              source_id: 'src:example',
+              requested_url: 'https://example.com/preview',
+              final_url: 'https://example.com/preview',
+              title: '예시 프리뷰 기사',
+              nature: 'preview',
+              method: 'fresh_http',
+              http_status: 200,
+              passages: [],
+              failure: null,
+              usable: false,
+            },
+          ],
+          available_passages: [],
+          section_deliveries: [],
+          db_snapshot: null,
+          odds: null,
+          discovery_groups: [],
+          diagnostics: [],
+          network_usage: { http_used: 1 },
+          browser_used: false,
+          cross_checked_with_db: false,
+          requires_grounding_chunks: false,
+        },
+      },
+    })
+
+    const SectionRunView = (await import('@/features/match-preview/SectionRunView.vue')).default
+    const wrapper = mount(SectionRunView)
+    await flushPromises()
+
+    await wrapper.get('[data-test="fixture-stub"]').trigger('click')
+    await wrapper.get('[data-testid="workspace-run"]').trigger('click')
+    await flushPromises()
+
+    // 본문 → 근거 → 정보 원문 순서가 DOM 순서로 지켜진다.
+    const html = wrapper.html()
+    const bodyIndex = html.indexOf('data-testid="workspace-result-body"')
+    const sourcesIndex = html.indexOf('data-testid="workspace-result-sources"')
+    const bundleIndex = html.indexOf('data-testid="information-bundle"')
+    expect(bodyIndex).toBeGreaterThan(-1)
+    expect(sourcesIndex).toBeGreaterThan(bodyIndex)
+    expect(bundleIndex).toBeGreaterThan(sourcesIndex)
+
+    expect(wrapper.get('[data-testid="bundle-id"]').text()).toBe('bundle-live-1')
+    // 번들은 조회만 한다: 재생성·승인이 스스로 나가지 않는다.
+    expect(regenerateMock).not.toHaveBeenCalled()
+    expect(approveMock).not.toHaveBeenCalled()
+
+    await wrapper.unmount()
+  })
+
+  it('enables reuse only when the loaded bundle provides an id', async () => {
+    sectionsMock.mockResolvedValue(sectionsResponse())
+    runSectionMock.mockResolvedValue({
+      ok: true,
+      data: {
+        run_id: '44444444-4444-4444-8444-444444444444',
+        workflow_id: 'section_form',
+        workflow_version: 'section_form@abc',
+        mode: 'live',
+        status: 'succeeded',
+        quality: 'ready',
+        section_result_id: '33333333-3333-4333-8333-333333333333',
+        section_result_version: 1,
+        external_calls: 1,
+        budget: {},
+        unavailable_reason: null,
+        note: '실행 결과를 저장했습니다.',
+      },
+    })
+    detailMock.mockResolvedValue(detailResponse('live', true))
+    bundleMock.mockResolvedValue({
+      ok: true,
+      data: {
+        run_id: '44444444-4444-4444-8444-444444444444',
+        availability: { available: true, reason: null, artifact_id: null },
+        summary: {},
+        bundle: {
+          bundle_id: 'bundle-x',
+          sources: [],
+          available_passages: [],
+          section_deliveries: [],
+          db_snapshot: null,
+          odds: null,
+          discovery_groups: [],
+          diagnostics: [],
+          network_usage: {},
+        },
+      },
+    })
+
+    const SectionRunView = (await import('@/features/match-preview/SectionRunView.vue')).default
+    const wrapper = mount(SectionRunView)
+    await flushPromises()
+
+    await wrapper.get('[data-test="fixture-stub"]').trigger('click')
+    await wrapper.get('[data-testid="workspace-run"]').trigger('click')
+    await flushPromises()
+
+    // 묶음 ID가 있으므로 재사용 모드가 열린다(차단 문구 없음).
+    expect(wrapper.find('[data-testid="regen-reuse-blocked"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="section-regeneration"]').exists()).toBe(true)
 
     await wrapper.unmount()
   })

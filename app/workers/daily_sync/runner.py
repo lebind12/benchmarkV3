@@ -305,6 +305,7 @@ def measure_league_sync_plan(
     progress: ProgressReporter | None = None,
     mode: str = 'refresh',
     enforce_latest: bool = False,
+    test_scope=None,
 ) -> LeagueSyncPlan:
     league_entries = client.response("/leagues", id=league_external_id)
     if not league_entries:
@@ -359,6 +360,14 @@ def measure_league_sync_plan(
             season_plan.fixtures.response,
             now=sync_window_now,
         ))
+        if test_scope is not None:
+            # 시험 요청은 지정 기간 안의 경기만 **저장·상세 대상**으로 삼는다(표시 필터가
+            # 아니라 실제 저장 게이트). 기간 밖 경기의 저장/상세 수집을 만들지 않는다.
+            fixture_entries = [
+                entry
+                for entry in fixture_entries
+                if test_scope.in_window(_fixture_kickoff_at(entry))
+            ]
         if fixture_limit is not None:
             fixture_entries = fixture_entries[:fixture_limit]
         season_plan.fixture_external_ids = [

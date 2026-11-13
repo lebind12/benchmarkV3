@@ -150,6 +150,39 @@ describe('MatchPreview', () => {
     }
   })
 
+  it('shows the odds table only when the server provides regular-time 1X2 values', async () => {
+    readerPreviewMock.mockResolvedValue({
+      ok: true,
+      data: {
+        ...PREVIEW,
+        odds: [
+          {
+            bookmaker: 'example-book',
+            market: '1x2_regulation',
+            observed_at: '2026-11-11T00:00:00+00:00',
+            home: '1.72',
+            draw: '3.90',
+            away: '4.60',
+          },
+          // 값이 전혀 없는 줄은 표에 넣지 않는다(추정 금지).
+          { bookmaker: 'undecided-book' },
+        ],
+      },
+    })
+    const wrapper = await mountWith()
+
+    const odds = wrapper.get('[data-testid="preview-odds"]')
+    expect(odds.text()).toContain('example-book')
+    expect(odds.text()).toContain('1.72')
+    expect(odds.text()).not.toContain('undecided-book')
+  })
+
+  it('omits the odds card entirely when the server sends no odds', async () => {
+    readerPreviewMock.mockResolvedValue({ ok: true, data: PREVIEW })
+    const wrapper = await mountWith()
+    expect(wrapper.find('[data-testid="preview-odds"]').exists()).toBe(false)
+  })
+
   it('keeps diagnostics out of the initial DOM and loads them on demand', async () => {
     readerPreviewMock.mockResolvedValue({ ok: true, data: PREVIEW })
     diagnosticsMock.mockResolvedValue({

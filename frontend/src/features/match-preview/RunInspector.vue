@@ -9,13 +9,17 @@
  */
 import { computed, ref, watch } from 'vue'
 import { previewRunsApi } from './api'
+import InformationBundlePanel from './InformationBundlePanel.vue'
 import ModuleResultPanel from './ModuleResultPanel.vue'
 import RunVersionCompare from './RunVersionCompare.vue'
+import SectionStructuredView from './SectionStructuredView.vue'
+import InlineEmphasis from './InlineEmphasis.vue'
 import AttemptPanel from './panels/AttemptPanel.vue'
 import AvailabilityPanel from './panels/AvailabilityPanel.vue'
 import FormPanel from './panels/FormPanel.vue'
 import OutlookPanel from './panels/OutlookPanel.vue'
 import PlayersPanel from './panels/PlayersPanel.vue'
+import { structuredFromSectionResult } from './sectionStructured'
 import type { RunDetail, SectionResultView, UndoReport } from './types'
 
 const props = defineProps<{
@@ -105,6 +109,11 @@ const approvableSectionResult = computed<SectionResultView | null>(() => {
   if (!candidate || !candidate.approvable) return null
   return candidate
 })
+
+/** 선택한 섹션 결과에 구조화 값이 있으면 표·목록을 더한다(없으면 본문만). */
+const activeStructured = computed(() =>
+  activeSectionResult.value ? structuredFromSectionResult(activeSectionResult.value) : null,
+)
 
 /**
  * 선택한 섹션 워크플로우를 승인한다.
@@ -301,7 +310,7 @@ function formatTime(value: string | null): string {
         </p>
         <div v-else class="section-result__body" data-testid="section-result-body">
           <p v-for="(paragraph, index) in activeSectionResult?.body.split('\n\n')" :key="index">
-            {{ paragraph }}
+            <InlineEmphasis :text="paragraph" />
           </p>
         </div>
 
@@ -317,6 +326,18 @@ function formatTime(value: string | null): string {
             </li>
           </ul>
         </div>
+
+        <!--
+          구조화 표시. 서버가 구조화 값을 준 결과에서만 선수·부상·매체·배당·예측을
+          표·목록으로 보여준다. 본문·근거는 위에 이미 있다.
+        -->
+        <SectionStructuredView v-if="activeStructured" :structured="activeStructured" />
+
+        <!--
+          정보 원문. 저장된 출처를 먼저 보여주고, 전달 구간·DB 스냅샷·전체 모델 응답은
+          펼치는 진단으로 둔다. 조회 전용이며 어떤 실행도 시작하지 않는다.
+        -->
+        <InformationBundlePanel :run-id="runId" />
       </section>
 
       <nav class="module-list" aria-label="모듈 실행 목록" data-testid="module-list">

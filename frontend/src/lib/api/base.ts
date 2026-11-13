@@ -1,8 +1,6 @@
 const CONFIGURED_API_BASE = (import.meta.env.VITE_BACKEND_URL ?? '').replace(/\/+$/, '')
 // Local browsers use the Vite proxy so localhost/127.0.0.1 cookies stay same-origin.
-const API_BASE_URL = import.meta.env.DEV && /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(CONFIGURED_API_BASE)
-  ? ''
-  : CONFIGURED_API_BASE
+const API_BASE_URL = import.meta.env.DEV ? '' : CONFIGURED_API_BASE
 
 export function apiUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path

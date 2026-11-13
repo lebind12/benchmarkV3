@@ -17,9 +17,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { previewRunsApi } from '@/features/match-preview/api'
 import GroundingSources from '@/features/match-preview/GroundingSources.vue'
+import InlineEmphasis from './InlineEmphasis.vue'
 import type {
   ReaderPreview,
   ReaderPreviewDiagnostics,
+  ReaderPreviewOdds,
   ReaderPreviewOutlook,
 } from '@/features/match-preview/types'
 
@@ -43,11 +45,34 @@ const paragraphs = computed<string[]>(() => {
     .filter((part) => part.length > 0)
 })
 
+/**
+ * 구성본에서 온 섹션 본문(표시 순서). 있으면 본문 영역을 이 목록으로 그린다.
+ * 옛 S1 응답에는 이 값이 없으므로 그때는 기존 단일 본문 표시를 그대로 쓴다.
+ */
+const sections = computed(() => preview.value?.sections ?? [])
+
+/** 섹션 본문을 문단으로 나눈다(저장된 본문을 그대로 나눈다). */
+function bodyParagraphs(body: string): string[] {
+  return body
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+}
+
 const watchPoints = computed(() => preview.value?.watch_points ?? [])
 const players = computed(() => preview.value?.players_to_watch ?? [])
 const outlookRows = computed<ReaderPreviewOutlook[]>(() => preview.value?.external_outlook ?? [])
 const prediction = computed(() => preview.value?.ai_prediction ?? null)
 const sources = computed(() => preview.value?.sources ?? [])
+/**
+ * 배당은 **선택 섹션**이다. 서버가 값을 내려줄 때만 표시하고, 없으면 카드 자체를
+ * 만들지 않는다. 값이 빈 칸은 비워 두며 추정해 채우지 않는다.
+ */
+const oddsRows = computed<ReaderPreviewOdds[]>(() =>
+  (preview.value?.odds ?? []).filter(
+    (row) => Boolean(row.bookmaker) && Boolean(row.home || row.draw || row.away),
+  ),
+)
 
 const leanLabel = computed<string | null>(() => {
   const lean = prediction.value?.lean
@@ -120,18 +145,46 @@ watch(() => props.runId, (value) => load(value))
         </p>
       </header>
 
-      <div class="preview__body" data-testid="preview-body">
-        <p v-for="(paragraph, index) in paragraphs" :key="index">{{ paragraph }}</p>
+      <!--
+        새 정보 원문 묶음 경로의 **완성 본문**을 먼저 보여준다. 저장된 섹션 본문을 표시
+        순서대로 그대로 낸다. 진단·수집 실패 사유는 여기 넣지 않는다(관리자 화면 몫).
+      -->
+      <div v-if="sections.length" class="preview__sections" data-testid="preview-sections">
+        <section
+          v-for="section in sections"
+          :key="section.section_id"
+          class="preview__section"
+          data-testid="preview-section"
+        >
+          <h2 class="preview__title">{{ section.title }}</h2>
+          <div class="preview__body">
+            <p v-for="(paragraph, index) in bodyParagraphs(section.body)" :key="index">
+              <InlineEmphasis :text="paragraph" />
+            </p>
+          </div>
+          <ul v-if="section.sources?.length" class="preview__sources">
+            <li v-for="(source, index) in section.sources" :key="index">
+              <a v-if="source.url" :href="source.url" rel="noreferrer noopener" target="_blank">
+                {{ source.label || source.url }}
+              </a>
+              <span v-else>{{ source.label }}</span>
+            </li>
+          </ul>
+        </section>
       </div>
 
-      <section v-if="watchPoints.length" class="preview__section" data-testid="preview-watch-points">
+      <div v-else class="preview__body" data-testid="preview-body">
+        <p v-for="(paragraph, index) in paragraphs" :key="index"><InlineEmphasis :text="paragraph" /></p>
+      </div>
+
+      <section v-if="!sections.length && watchPoints.length" class="preview__section" data-testid="preview-watch-points">
         <h2 class="preview__title">관전 포인트</h2>
         <ul class="preview__list">
           <li v-for="(point, index) in watchPoints" :key="index">{{ point }}</li>
         </ul>
       </section>
 
-      <section v-if="players.length" class="preview__section" data-testid="preview-players">
+      <section v-if="!sections.length && players.length" class="preview__section" data-testid="preview-players">
         <h2 class="preview__title">주목할 선수</h2>
         <dl class="preview__players">
           <div v-for="(player, index) in players" :key="index" class="preview__player">
@@ -145,7 +198,7 @@ watch(() => props.runId, (value) => load(value))
       </section>
 
       <section
-        v-if="preview.absences_impact"
+        v-if="!sections.length && preview.absences_impact"
         class="preview__section"
         data-testid="preview-absences"
       >
@@ -153,7 +206,7 @@ watch(() => props.runId, (value) => load(value))
         <p>{{ preview.absences_impact }}</p>
       </section>
 
-      <section v-if="outlookRows.length" class="preview__section" data-testid="preview-outlook">
+      <section v-if="!sections.length && outlookRows.length" class="preview__section" data-testid="preview-outlook">
         <h2 class="preview__title">외부 전망</h2>
         <ul class="preview__outlook">
           <li v-for="(row, index) in outlookRows" :key="index" class="preview__outlook-row">
@@ -167,7 +220,32 @@ watch(() => props.runId, (value) => load(value))
         </ul>
       </section>
 
-      <section v-if="prediction" class="preview__section preview__forecast" data-testid="preview-forecast">
+      <section v-if="!sections.length && oddsRows.length" class="preview__section" data-testid="preview-odds">
+        <h2 class="preview__title">배당 (정규시간 1X2)</h2>
+        <table class="preview__odds">
+          <caption class="visually-hidden">사이트별 정규시간 홈승·무승부·원정승 배당</caption>
+          <thead>
+            <tr>
+              <th scope="col">사이트</th>
+              <th scope="col">홈</th>
+              <th scope="col">무</th>
+              <th scope="col">원정</th>
+              <th scope="col">수집</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, index) in oddsRows" :key="`${row.bookmaker}-${index}`" data-testid="preview-odds-row">
+              <th scope="row">{{ row.bookmaker }}</th>
+              <td class="measured">{{ row.home ?? '—' }}</td>
+              <td class="measured">{{ row.draw ?? '—' }}</td>
+              <td class="measured">{{ row.away ?? '—' }}</td>
+              <td class="measured preview__stamp">{{ row.observed_at ?? '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section v-if="!sections.length && prediction" class="preview__section preview__forecast" data-testid="preview-forecast">
         <h2 class="preview__title">{{ preview.attribution.ai_forecast_label }}</h2>
         <p class="preview__forecast-lead">
           <span v-if="leanLabel">{{ leanLabel }}</span>
@@ -177,7 +255,7 @@ watch(() => props.runId, (value) => load(value))
         </p>
         <p class="preview__note">{{ preview.attribution.ai_forecast_note }}</p>
         <ul v-if="prediction.reasoning?.length" class="preview__list" data-testid="preview-reasoning">
-          <li v-for="(reason, index) in prediction.reasoning" :key="index">{{ reason }}</li>
+          <li v-for="(reason, index) in prediction.reasoning" :key="index"><InlineEmphasis :text="reason" /></li>
         </ul>
         <p v-if="prediction.note" class="preview__note">{{ prediction.note }}</p>
       </section>
@@ -363,6 +441,24 @@ watch(() => props.runId, (value) => load(value))
   gap: var(--space-2);
   color: var(--color-ink);
   font-weight: 500;
+}
+
+.preview__odds {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.preview__odds th,
+.preview__odds td {
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  font-weight: 400;
+}
+
+.preview__odds thead th {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
 }
 
 .preview__kind {

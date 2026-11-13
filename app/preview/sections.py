@@ -1133,22 +1133,26 @@ def _parse_iso(value) -> datetime | None:
         return None
 
 
-def _name_resolver(*, reader) -> Any | None:
+def _name_resolver(*, reader, default_scope_team_ids: Sequence[int] = ()) -> Any | None:
     """R4에 주입할 이름 해석기(덕 타이핑). 없으면 `None`이고 원문 표기를 쓴다.
 
     해석기는 DB 한국어 값만 쓰며 번역하지 않는다. 설정이 없으면 만들어지지 않는다.
+
+    `default_scope_team_ids`는 **이 경기의 두 팀**이다. 작성기가 scope 없이
+    `resolve_player`를 불러도 그 범위로 해석하도록 핸들에 기본값으로 넣는다(검토 F2).
+    넘기지 않으면 기존 동작(범위 없는 호출은 거부) 그대로다.
     """
     from app.preview.display_names import open_display_names
 
     try:
-        from app.core.config import get_settings
+        from app.preview.config import get_settings
 
         dsn = get_settings().names_database_url
     except Exception:  # noqa: BLE001 - 설정을 못 읽으면 이름 변환만 건너뛴다
         return None
     if not dsn:
         return None
-    return _ResolverHandle(dsn)
+    return _ResolverHandle(dsn, default_scope_team_ids=default_scope_team_ids)
 
 
 class _ResolverHandle:
@@ -1163,9 +1167,14 @@ class _ResolverHandle:
     호출자가 원래 표기를 유지하게 한다.
     """
 
-    def __init__(self, dsn: str) -> None:
+    def __init__(self, dsn: str, *, default_scope_team_ids: Sequence[int] = ()) -> None:
         self._dsn = dsn
         self._cache: dict[tuple[int, ...], Any] = {}
+        # 이 경기의 두 팀. 호출자가 scope를 생략하면 이 범위를 쓴다(검토 F2).
+        # 범위를 넘기지 않으면 기존처럼 `_names_for(())` → None(거부)이다.
+        self._default_scope: tuple[int, ...] = tuple(
+            int(item) for item in default_scope_team_ids if item is not None
+        )
 
     def _names_for(self, scope_team_ids: Sequence[int]):
         key = tuple(sorted({int(item) for item in scope_team_ids if item is not None}))
@@ -1181,6 +1190,11 @@ class _ResolverHandle:
             lookup = DbNameLookup.from_url(self._dsn)
             try:
                 index = load_name_index(lookup, team_ids=list(key), include_rosters=True)
+            except Exception:  # noqa: BLE001 - 이름 조회 실패로 실행을 깨지 않는다
+                # 같은 원래 연결을 쓰더라도 이름 표가 없거나 권한이 없을 수 있다.
+                # 그때는 이 범위의 DB 이름을 포기하고 원래 표기를 유지한다(추측 금지).
+                self._cache[key] = None
+                return None
             finally:
                 lookup.close()
             self._cache[key] = DisplayNames(index)
@@ -1202,10 +1216,33 @@ class _ResolverHandle:
         return self._names_for(merged)
 
     def resolve_player(self, name, *, scope_team_ids=None, **kwargs):
-        names = self._names_for(scope_team_ids or ())
-        if names is None:
+        # 호출자가 범위를 주면 그 범위를 그대로 쓴다(넓히지 않는다). 생략하면 이 경기의
+        # 기본 범위를 쓴다. 그래야 작성기의 scope 없는 호출도 DB 한국어 이름을 확인한다.
+        scope = list(scope_team_ids) if scope_team_ids else list(self._default_scope)
+        if not scope:
             raise KeyError("player name resolution needs an explicit team scope")
-        return names.resolve_player(name, scope_team_ids=scope_team_ids, **kwargs)
+        names = self._names_for(scope)
+        if names is None:
+            # 범위는 있으나 이 연결로 이름 표를 읽지 못했다(표 부재·권한·연결 실패).
+            # 실행을 중단하지 않고 "확인하지 못한 이름"으로 돌려 원래 표기를 유지한다.
+            # 한국어 이름을 지어내지 않는다.
+            from app.preview.localized_names import NameReason, PlayerResolution, UnmappedName
+
+            return PlayerResolution(
+                original=name,
+                team_hint=kwargs.get("team_hint"),
+                player=None,
+                unmapped=UnmappedName(
+                    kind="player",
+                    original=name,
+                    reason=NameReason.NOT_FOUND,
+                    detail=(
+                        "이 연결로 저장된 이름 자료를 읽지 못해 DB 한국어 이름을 확인하지 "
+                        "못했습니다. 원래 표기를 그대로 씁니다."
+                    ),
+                ),
+            )
+        return names.resolve_player(name, scope_team_ids=scope, **kwargs)
 
     def resolve_team(self, value=None, *, team_id=None, external_id=None, id_space="internal"):
         """팀 표시 이름. ID가 있으면 그 범위를 새로 읽고, 이름만 있으면 이미 읽은 범위를 쓴다.
@@ -1229,5 +1266,6 @@ class _ResolverHandle:
     def rewrite_body(self, text):
         # 본문 치환은 이미 확정된 표기만 쓰므로 범위 캐시 중 하나를 재사용한다.
         for names in self._cache.values():
-            return names.rewrite_body(text)
+            if names is not None:
+                return names.rewrite_body(text)
         return text

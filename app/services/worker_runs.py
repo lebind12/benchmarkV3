@@ -229,6 +229,9 @@ def start_daily_sync_run(
             run.status = "running"
             run.started_at = _now()
         tracker.log(f"daily-sync: run started origin={run.origin}")
+        # 훅이 이미 돌았는지. try 밖에서 초기화해 **상위 예외 경로에서도 항상 정의**되게
+        # 한다(안쪽에서 초기화하면 조기 예외 시 UnboundLocalError로 원래 오류를 가린다).
+        preview_started = False
         try:
             with _DailySyncAdvisoryLock() as distributed_lock:
                 if not distributed_lock.acquired:
@@ -257,11 +260,16 @@ def start_daily_sync_run(
                     progress=tracker,
                 )
             payload = result.to_log_payload()
-            if not result.has_errors and getattr(get_settings(), "home_preview_enabled", False):
+            # 최신화가 부분 실패·실패해도 DB의 대상 경기로 생성한다(사용자 확정 Q6).
+            # 성공한 리그만으로 후보를 제한하지 않는다.
+            if getattr(get_settings(), "home_preview_enabled", False):
                 try:
-                    from app import db
-                    from app.workers.home_preview import run_cycle
-                    payload["home_preview"] = run_cycle(db.SessionLocal, execute=True)
+                    from app.services.management_runs import run_home_preview_after_sync
+
+                    payload["home_preview"] = run_home_preview_after_sync(
+                        collection_status="partial_failed" if result.has_errors else "succeeded"
+                    )
+                    preview_started = True
                     tracker.log("home-preview: post-sync cycle finished")
                 except Exception:
                     payload["home_preview"] = {"state": "failed", "reason": "generation_failed"}
@@ -280,6 +288,21 @@ def start_daily_sync_run(
                 run.error = str(exc)
                 run.finished_at = _now()
             tracker.log(f"daily-sync: run failed: {exc}")
+            # 상위 예외로 끝난 경우에도 DB의 대상 경기로 생성을 시도한다(Q6).
+            # 정상 경로에서 이미 돌았으면 중복 호출하지 않고, 수집 오류를 덮지 않는다.
+            if not preview_started and getattr(get_settings(), "home_preview_enabled", False):
+                try:
+                    from app.services.management_runs import run_home_preview_after_sync
+
+                    payload = run.result if isinstance(run.result, dict) else {}
+                    payload["home_preview"] = run_home_preview_after_sync(
+                        collection_status="failed"
+                    )
+                    with _lock:
+                        run.result = payload
+                    tracker.log("home-preview: post-sync cycle finished after failure")
+                except Exception:  # noqa: BLE001 - 프리뷰 실패가 수집 오류를 덮지 않는다
+                    tracker.log("home-preview: post-sync cycle failed; previous publications preserved")
             _try_persist_finished_run(run, tracker)
 
     thread = threading.Thread(target=target, name=f"daily-sync-{run.id}", daemon=True)

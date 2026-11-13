@@ -1,17 +1,15 @@
 <script setup lang="ts">
 import BroadcastPickerButton from '@/components/common/BroadcastPickerButton.vue'
 import { slugFromId } from '@/lib/league-colors'
-import HomePlayerWatchpoints from '@/components/home-preview/HomePlayerWatchpoints.vue'
-import HomeExternalPredictions from '@/components/home-preview/HomeExternalPredictions.vue'
-import HomeInjurySummary from '@/components/home-preview/HomeInjurySummary.vue'
 import { RouterLink } from 'vue-router'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ArrowRight, ChevronLeft, ChevronRight, Clock3, Info, RotateCw, ShieldAlert } from 'lucide-vue-next'
 import PreviewTeam from '@/components/home-preview/PreviewTeam.vue'
-import { getHomeRecommendations, getHomePreview } from '@/lib/api/homePreview'
+import MatchPreviewBody from '@/components/home-preview/MatchPreviewBody.vue'
+import { getHomeRecommendations, getHomePreviewDocument } from '@/lib/api/homePreview'
 import type { HomeRecommendations } from '@/lib/api/homeRecommendationsSchema'
-import type { HomePreviewResponse } from '@/lib/api/homePreviewResponse'
-import { recentMatchResult } from '@/lib/api/homePreviewSchema'
+import { toStoredPreviewView, type HomePreviewDocument } from '@/lib/api/homePreviewDocument'
+import type { MatchPreviewView } from '@/lib/api/previewView'
 import '@/styles/home-preview.css'
 
 const isDevelopment = import.meta.env.DEV
@@ -21,15 +19,23 @@ const replayDate = /^\d{4}-\d{2}-\d{2}$/.test(replayDateValue) ? replayDateValue
 const replayFixtureId = Number(replayParams?.get('fixtureId'))
 const scrollPage = ref<HTMLElement | null>(null)
 const recommendationResponse = ref<HomeRecommendations | null>(null)
-const response = ref<HomePreviewResponse | null>(null)
 const recommendationsLoading = ref(true)
 const recommendationsError = ref(false)
-const previewLoading = ref(false)
-const previewError = ref(false)
+/**
+ * 저장 문서(`preview_dev`) 상태. 조회 중과 오류를 **문서 없음과 구분**한다.
+ *
+ * - `loading`: 아직 응답이 없다.
+ * - `ready`: 표시할 저장 문서가 있다.
+ * - `none`: 이 경기에 저장 문서가 없다. 안내 문구 하나만 보여준다.
+ * - `failed`: 조회 오류. 문서 없음으로 바꾸지 않고 다시 확인을 제공한다.
+ */
+const documentState = ref<'loading' | 'ready' | 'none' | 'failed'>('loading')
+const storedDocument = ref<HomePreviewDocument | null>(null)
+const storedView = ref<MatchPreviewView | null>(null)
 const index = ref(0)
 let recommendationRequest: AbortController | undefined
-let previewRequest: AbortController | undefined
-let requestId = 0
+let documentRequest: AbortController | undefined
+let documentId = 0
 const matchRows = computed(() => recommendationResponse.value?.items ?? [])
 const selectedRow = computed(() => matchRows.value[index.value])
 const viewTeam = (team: { external_id: number; name: string }) => ({ id: team.external_id, name: team.name, english: '', color: '#64748b' })
@@ -46,40 +52,57 @@ async function loadRecommendations() {
   catch { if (!current.signal.aborted && current === recommendationRequest) recommendationsError.value = true }
   finally { if (current === recommendationRequest) recommendationsLoading.value = false }
 }
-async function loadPreview() {
-  previewRequest?.abort(); const id = ++requestId
-  response.value = null; previewError.value = false
+/**
+ * 이 경기의 최신 공개 저장 문서를 읽는다.
+ *
+ * 경기를 바꾸면 앞 경기의 본문을 **먼저 비우고** 새 응답만 받는다. 늦게 도착한 앞
+ * 경기 응답은 순번이 달라 무시하므로 새 경기 본문을 덮지 않는다. 첫 진입에서도
+ * 기본 선택 경기의 문서를 바로 읽으므로 별도 선택 클릭이 필요 없다.
+ */
+async function loadDocument() {
+  documentRequest?.abort()
+  const id = ++documentId
+  storedDocument.value = null
+  storedView.value = null
+  documentState.value = 'loading'
   const fixtureId = selectedRow.value?.fixture_id
-  if (!fixtureId) { previewLoading.value = false; return }
-  previewRequest = new AbortController(); const current = previewRequest
-  previewLoading.value = true
-  try { const value = await getHomePreview(fixtureId, current.signal); if (id === requestId && selectedRow.value?.fixture_id === value.fixture_id && !current.signal.aborted) response.value = value }
-  catch { if (id === requestId && !current.signal.aborted) previewError.value = true }
-  finally { if (id === requestId) previewLoading.value = false }
+  if (!fixtureId) { documentState.value = 'none'; return }
+  documentRequest = new AbortController()
+  const current = documentRequest
+  try {
+    const value = await getHomePreviewDocument(fixtureId, current.signal)
+    if (id !== documentId || selectedRow.value?.fixture_id !== value.fixture_id || current.signal.aborted) return
+    storedDocument.value = value
+    if (value.status === 'available') {
+      storedView.value = toStoredPreviewView(value)
+      documentState.value = 'ready'
+    } else {
+      documentState.value = 'none'
+    }
+  } catch {
+    if (id === documentId && !current.signal.aborted) documentState.value = 'failed'
+  }
 }
-watch(() => selectedRow.value?.fixture_id, loadPreview)
-const preview = computed(() => response.value?.preview ?? null)
-const previewState = computed(() => previewError.value ? 'failed' : response.value?.publication.state ?? 'pending')
-const readable = computed(() => preview.value !== null)
-const dataItems = [
-  { key: 'summary', label: '한줄 전망', target: 'preview-summary' }, { key: 'keyPoints', label: '관전 포인트', target: 'preview-points' },
-  { key: 'injuries', label: '부상·출전 정보', target: 'preview-injuries' }, { key: 'homeForm', label: '홈 최근 5경기', target: 'preview-form' }, { key: 'awayForm', label: '원정 최근 5경기', target: 'preview-form' },
-  { key: 'ai', label: 'AI 경기 예측', target: 'preview-ai' }, { key: 'external', label: '외부 사이트 전망', target: 'preview-external' }, { key: 'odds', label: '경기 전 배당', target: 'preview-odds' },
-] as const
-const blocks = computed(() => preview.value ? { summary: preview.value.analysis.summary, keyPoints: preview.value.analysis.key_points, injuries: preview.value.facts.injuries, homeForm: preview.value.facts.home_form, awayForm: preview.value.facts.away_form, ai: preview.value.analysis.ai_prediction, external: preview.value.external.predictions, odds: preview.value.external.odds } : null)
-const dataStatus = computed(() => Object.fromEntries(dataItems.map(item => [item.key, blocks.value?.[item.key].status ?? 'missing'])) as Record<string, string>)
-const missingData = computed(() => dataItems.filter(item => ['missing', 'unverified', 'error'].includes(dataStatus.value[item.key]!)))
-const partialData = computed(() => dataItems.filter(item => dataStatus.value[item.key] === 'partial'))
-const dataGaps = computed(() => [...missingData.value, ...partialData.value])
-const customNotice = ''
-const formData = (side: number) => side ? preview.value?.facts.away_form.data : preview.value?.facts.home_form.data
-const defaultNotice = computed(() => dataGaps.value.map(item => ['homeForm', 'awayForm'].includes(item.key) && dataStatus.value[item.key] === 'partial' ? `${item.label}는 5경기 중 ${formData(item.key === 'awayForm' ? 1 : 0)?.matches.length ?? 0}경기만 확인됐습니다.` : `${item.label}: ${dataStatus.value[item.key] === 'error' ? '조회 실패' : dataStatus.value[item.key] === 'unverified' ? '미확인' : '자료 없음'}`).join(' · '))
-const visibleSources = computed(() => { if (!preview.value || !blocks.value) return []; const ids = new Set(Object.values(blocks.value).filter(block => block.data !== null).flatMap(block => block.source_ids)); for (const row of preview.value.facts.injuries.data ?? []) for (const id of row.cause?.source_ids ?? []) ids.add(id); return preview.value.sources.filter(source => ids.has(source.id)) })
-const availableSources = computed(() => visibleSources.value.map(source => source.title).join(' · '))
-const prediction = computed(() => preview.value?.analysis.ai_prediction.data)
+watch(() => selectedRow.value?.fixture_id, () => { loadDocument() })
+/**
+ * 문서가 없을 때의 **단일 안내**. 시각 분기는 서버가 정한 `absence` 하나만 읽는다.
+ *
+ * - `upcoming_overdue`(킥오프까지 6시간 이하): 아직 생성되지 않았다는 문제 안내.
+ *   실제 실패 기록이 없으므로 생성 실패로 단정하지 않는다.
+ * - `upcoming`(6시간 초과 미래): 기본 생성 시점 안내.
+ * - `past`(킥오프 시각 이후): 앞으로 생성될 예정이라고 표현하지 않는다.
+ */
+const absenceNotice = computed(() => {
+  const state = storedDocument.value?.absence?.state ?? 'upcoming'
+  if (state === 'upcoming_overdue') {
+    return { title: '경기 시작이 6시간 이내로 다가왔지만 프리뷰가 아직 생성되지 않았습니다.', body: null }
+  }
+  if (state === 'past') {
+    return { title: '이 경기의 저장된 프리뷰가 없습니다.', body: null }
+  }
+  return { title: '이 경기의 저장된 프리뷰가 없습니다.', body: '킥오프 6시간 이내의 마지막 정기 수집에서 프리뷰를 생성합니다.' }
+})
 function formatTime(value: string | null | undefined) { return value ? new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value)) : '확인 시각 없음' }
-function formRows(side: number) { return (formData(side)?.matches ?? []).map(row => ({ date: new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit' }).format(new Date(row.kickoff_at)).replace('/', '.'), opponent: row.opponent, competition: row.competition, score: `${row.goals_for}–${row.goals_against}${row.status === 'AET' ? ' (연장)' : row.status === 'PEN' ? row.penalties ? ` (승부차기 ${row.penalties.for}–${row.penalties.against})` : ' (승부차기 미확인)' : ''}`, result: recentMatchResult(row) })) }
-function openData(target: string) { const section = scrollPage.value?.querySelector<HTMLElement>(`#${target}`); section?.scrollIntoView({ block: 'start', behavior: motionPreference?.matches ? 'instant' : 'smooth' }); section?.focus({ preventScroll: true }) }
 function choose(next: number) { if (matchRows.value.length) index.value = (next + matchRows.value.length) % matchRows.value.length }
 const statusLabel = (m: { state: string }) => m.state === 'ongoing' ? '진행 중 · 저장 기준' : '경기 예정'
 const touchStart = ref<number | null>(null)
@@ -87,12 +110,19 @@ function swipe(event: TouchEvent) { const end = event.changedTouches[0]?.clientX
 let revealFrame = 0
 let motionPreference: MediaQueryList | undefined
 const revealed = new WeakMap<HTMLElement, number>()
+/**
+ * 스크롤 진입에 따라 각 섹션을 점차 선명하게 한다.
+ *
+ * 저장 본문은 공통 `MatchPreviewBody`를 그대로 쓰므로 그 안의 `.mpv-section`을 홈 컨테이너
+ * 범위에서 같은 규칙으로 대상에 넣는다(공통 본문 파일은 고치지 않는다). 한 번 선명해진
+ * 값은 최대값으로 유지되어 위로 되돌아가도 다시 흐려지지 않는다.
+ */
 function updateReveals() {
   revealFrame = 0
   const root = scrollPage.value
   if (!root) return
   const bounds = { top: 0, height: window.innerHeight }
-  root.querySelectorAll<HTMLElement>('.hp-reveal').forEach(element => {
+  root.querySelectorAll<HTMLElement>('.hp-reveal, .hp-stored-document .mpv-section').forEach(element => {
     const distance = element.getBoundingClientRect().top - bounds.top
     const progress = motionPreference?.matches ? 1 : Math.min(1, Math.max(0, (bounds.height * .96 - distance) / (bounds.height * .32)))
     // Keep revealed text readable when it leaves the viewport or the user scrolls back.
@@ -113,13 +143,13 @@ onMounted(() => {
   updateReveals()
 })
 onBeforeUnmount(() => {
-  recommendationRequest?.abort(); previewRequest?.abort(); requestId++
+  recommendationRequest?.abort(); documentRequest?.abort(); documentId++
   document.removeEventListener('scroll', scheduleReveal, true)
   cancelAnimationFrame(revealFrame)
   motionPreference?.removeEventListener('change', scheduleReveal)
   window.removeEventListener('resize', scheduleReveal)
 })
-watch([() => selectedRow.value?.fixture_id, response], async () => { await nextTick(); scheduleReveal() })
+watch([() => selectedRow.value?.fixture_id, storedView], async () => { await nextTick(); scheduleReveal() })
 </script>
 
 <template>
@@ -163,44 +193,36 @@ watch([() => selectedRow.value?.fixture_id, response], async () => { await nextT
           <div class="hp-preview-backdrop" aria-hidden="true"></div>
         <section class="hp-preview" :key="`preview-${match.id}`" aria-labelledby="preview-heading" data-testid="selected-preview" :data-fixture-id="match.id">
           <header class="hp-section-head hp-reveal"><h2 id="preview-heading">경기 전 프리뷰</h2><RouterLink :to="{ name: 'fixture-detail', params: { externalId: match.id } }" class="hp-action hp-detail-link" data-testid="preview-detail-link">경기 상세 보기<ArrowRight :size="15" /></RouterLink></header>
-          <p class="hp-freshness">경기 시작 전 6시간 이내의 마지막 정기 수집에서 한 번 생성됩니다.</p>
-          <p class="hp-generation-time" data-testid="preview-generation-time"><Clock3 :size="14" />{{ preview?.generated_at ? `프리뷰 생성 ${formatTime(preview.generated_at)} KST` : response?.generation_due_at ? `프리뷰 생성 예정 ${formatTime(response.generation_due_at)} KST · 정기 수집 완료 후` : '킥오프 6시간 이내 마지막 정기 수집에서 프리뷰를 생성합니다.' }}</p>
-          <details v-if="response?.publication.served === 'previous'" class="hp-state-note" data-testid="previous-publication"><summary>프리뷰 갱신 현황</summary><Info :size="18" />{{ response.refresh.state === 'failed' ? '갱신에 실패하여 이전 유효본을 표시합니다.' : '갱신 중이므로 이전 유효본을 표시합니다.' }} 생성 {{ formatTime(response.publication.generated_at) }} · 자료 {{ formatTime(response.publication.as_of) }} KST</details>
-          <div v-if="!readable" class="hp-preview-empty" role="status">
-            <ShieldAlert v-if="previewState === 'failed'" :size="32" /><Clock3 v-else :size="32" />
-            <h3>{{ previewLoading ? '저장된 프리뷰를 불러오는 중입니다' : previewState === 'failed' ? '프리뷰를 불러오지 못했습니다' : response?.publication.reason === 'outside_generation_window' ? '킥오프 6시간 이내의 정기 수집에서 프리뷰를 생성합니다' : previewState === 'unavailable' ? '경기 전 저장된 프리뷰가 없습니다' : '이 경기의 프리뷰를 준비하고 있습니다' }}</h3>
-            <p>{{ previewState === 'failed' ? '잠시 후 저장된 프리뷰를 다시 확인해주세요.' : '자료가 준비되면 관전 포인트와 경기 전망을 확인할 수 있습니다.' }}</p>
-            <button v-if="previewState !== 'unavailable' && !previewLoading" class="hp-action" @click="loadPreview()"><RotateCw :size="15" />다시 확인</button>
-          </div>
-          <template v-else>
-            <p id="preview-summary" tabindex="-1" class="hp-lead hp-reveal">{{ preview?.analysis.summary.data?.text || '한줄 전망 자료가 없습니다.' }}</p>
-            <div class="hp-analysis-grid hp-reveal">
-              <article id="preview-points" tabindex="-1" class="hp-points"><h3>관전 포인트</h3><ol v-if="preview?.analysis.key_points.data"><li v-for="(point, i) in preview.analysis.key_points.data" :key="i"><b>{{ point.title }}</b><p>{{ point.description }}</p></li></ol><p v-else class="hp-unavailable">관전 포인트 자료가 없습니다.</p></article>
-              <aside id="preview-ai" tabindex="-1" class="hp-prediction"><span>AI 경기 예측</span><p v-if="!prediction" class="hp-unavailable">AI 경기 예측 자료가 없습니다.</p><template v-else><div class="hp-prediction__score"><b>{{ prediction.home_goals }}</b><span>:</span><b>{{ prediction.away_goals }}</b></div><small data-testid="prediction-confidence">예측 신뢰도 {{ ({ low: '낮음', medium: '보통', high: '높음' })[prediction.confidence] }}</small><strong>{{ prediction.home_goals === prediction.away_goals ? '무승부 예상' : `${prediction.home_goals > prediction.away_goals ? match.home.name : match.away.name} 우세 예상` }}</strong><p>{{ prediction.reason }}</p></template></aside>
-            </div>
 
-            <HomePlayerWatchpoints :preview="preview" />
-            <HomeInjurySummary :preview="preview" />
-
-            <section id="preview-form" tabindex="-1" class="hp-form-section hp-reveal"><header class="hp-subhead"><h3>최근 5경기</h3><span>킥오프 이전 완료 경기 · 모든 대회</span></header><div class="hp-form-grid"><article v-for="(team, side) in [match.home, match.away]" :key="team.id" class="hp-form"><header><b>{{ team.name }}</b><div><span v-for="(row, r) in formRows(side)" :key="r" :class="['hp-form-badge', `hp-form-badge--${row.result}`]">{{ row.result }}</span></div></header><p v-if="formRows(side).length === 0" class="hp-unavailable">최근 경기 자료가 없습니다.</p><template v-else><p v-if="formRows(side).length < 5" class="hp-inline-note">확인 가능한 완료 경기 {{ formRows(side).length }}개만 표시합니다.</p><table><caption class="hp-sr-only">{{ team.name }} 최근 5경기</caption><thead><tr><th>날짜</th><th>대회</th><th>상대</th><th>결과</th></tr></thead><tbody><tr v-for="row in formRows(side)" :key="row.date"><td>{{ row.date }}</td><td>{{ row.competition }}</td><td>{{ row.opponent }}</td><td><b>{{ row.score }}</b></td></tr></tbody></table></template></article></div></section>
-
-            <div class="hp-evidence-grid hp-reveal"><HomeExternalPredictions :preview="preview" /><section id="preview-odds" tabindex="-1"><header class="hp-subhead"><h3>경기 전 배당</h3><span>90분 승무패 · Decimal</span></header><p v-if="!preview?.external.odds.data" class="hp-unavailable">이 경기의 경기 전 배당이 없습니다.</p><template v-else><article v-for="(item, i) in preview.external.odds.data" :key="i"><p class="hp-inline-note">{{ item.bookmaker }}</p><div class="hp-odds"><div><span>{{ preview?.fixture.home.name }} 승</span><b>{{ item.home.toFixed(2) }}</b></div><div><span>무승부</span><b>{{ item.draw.toFixed(2) }}</b></div><div><span>{{ preview?.fixture.away.name }} 승</span><b>{{ item.away.toFixed(2) }}</b></div></div><details class="hp-inline-note"><summary>배당 자료 시점</summary><p>제공자 자료 {{ formatTime(preview.external.odds.as_of) }} KST · 수집 {{ formatTime(item.collected_at) }} KST</p></details></article></template></section></div>
-            <iframe v-if="preview?.search_suggestions" title="Google 검색 제안" :srcdoc="preview.search_suggestions.rendered_content" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:150px;border:0" loading="lazy" />
-            <iframe v-for="(suggestion, i) in preview?.search_suggestions_extra ?? []" :key="i" :title="`Google 검색 제안 ${i + 2}`" :srcdoc="suggestion.rendered_content" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:150px;border:0" loading="lazy" />
-            <details class="hp-sources hp-reveal" data-testid="preview-sources"><summary>출처와 자료 시점</summary>          <section v-if="readable && dataGaps.length" class="hp-data-summary" aria-labelledby="data-gap-heading" data-testid="data-gap-summary">
-            <header><Info :size="18" /><h3 id="data-gap-heading">자료 확인 현황</h3><span>미제공 {{ missingData.length }} · 일부 제공 {{ partialData.length }}</span></header>
-            <ul><li v-for="item in dataGaps" :key="item.key"><button @click="openData(item.target)"><b>{{ item.label }}</b><span>{{ dataStatus[item.key] === 'missing' ? '미제공' : dataStatus[item.key] === 'unverified' ? '미확인' : dataStatus[item.key] === 'error' ? '조회 실패' : ['homeForm', 'awayForm'].includes(item.key) ? `${formData(item.key === 'awayForm' ? 1 : 0)?.matches.length ?? 0} / 5경기` : '일부 제공' }}</span><ArrowRight :size="13" /></button></li></ul>
-            <p aria-live="polite">{{ customNotice.trim() || defaultNotice }}</p>
-          </section>
-<p>{{ availableSources || '표시할 출처가 없습니다.' }}</p><ul v-if="visibleSources.some(source => source.url)" class="hp-source-links"><template v-for="source in visibleSources" :key="source.id"><li v-if="source.url"><a :href="source.url" target="_blank" rel="noopener noreferrer">{{ source.title }}</a><span> · 확인 {{ formatTime(source.retrieved_at) }} KST</span></li></template></ul><p>자료 기준 {{ formatTime(preview?.as_of) }} KST / {{ preview?.generated_at ? `생성 ${formatTime(preview.generated_at)} KST` : 'AI 분석 미생성' }}</p></details>
+          <!-- 저장 문서가 있을 때만 저장 시각과 생성 설명을 보여준다. 문서가 없을 때는 아래
+               단일 안내만 남겨 생성 예정 문구와 자료 시점 설명이 겹치지 않게 한다. -->
+          <template v-if="documentState === 'ready'">
+            <p class="hp-freshness">경기 시작 전 6시간 이내의 마지막 정기 수집에서 한 번 생성됩니다.</p>
+            <p v-if="storedDocument?.saved_at" class="hp-generation-time" data-testid="preview-generation-time"><Clock3 :size="14" />저장 프리뷰 {{ formatTime(storedDocument.saved_at) }} KST 저장</p>
           </template>
+
+          <div v-if="documentState === 'loading'" class="hp-preview-empty" role="status" data-testid="stored-document-loading">
+            <Clock3 :size="32" />
+            <h3>저장된 프리뷰를 불러오는 중입니다</h3>
+          </div>
+          <div v-else-if="documentState === 'failed'" class="hp-preview-empty" role="status" data-testid="stored-document-error">
+            <ShieldAlert :size="32" />
+            <h3>저장된 프리뷰를 불러오지 못했습니다</h3>
+            <p>잠시 후 저장된 프리뷰를 다시 확인해주세요.</p>
+            <button class="hp-action" @click="loadDocument()"><RotateCw :size="15" />다시 확인</button>
+          </div>
+          <div v-else-if="documentState === 'none'" class="hp-preview-empty" role="status" data-testid="stored-document-absent">
+            <Clock3 :size="32" />
+            <h3>{{ absenceNotice.title }}</h3>
+            <p v-if="absenceNotice.body">{{ absenceNotice.body }}</p>
+          </div>
+          <div v-else-if="storedView" class="hp-stored-document" data-testid="stored-preview-document">
+            <MatchPreviewBody :key="`stored-${storedDocument?.run_id}`" :preview="storedView" />
+          </div>
         </section>
         </div>
       </template>
       <section v-else class="hp-empty"><Clock3 :size="36" /><h2>{{ recommendationsLoading ? '추천 경기를 불러오는 중입니다' : recommendationsError ? '추천 경기를 불러오지 못했습니다' : '아직 추천할 경기가 없습니다' }}</h2><p>{{ recommendationsError ? '저장된 경기 목록을 다시 확인해주세요.' : '예정 경기가 준비되면 이곳에서 확인할 수 있습니다.' }}</p><button v-if="recommendationsError" class="hp-action" @click="loadRecommendations">다시 확인</button><RouterLink to="/fixtures" class="hp-text-link">전체 일정 확인 <ArrowRight :size="16" /></RouterLink></section>
-
-
-
     </div>
   </section>
 </template>
@@ -208,7 +230,6 @@ watch([() => selectedRow.value?.fixture_id, response], async () => { await nextT
 .hp-heading { flex-wrap: wrap; }
 .hp-heading-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .hp-generation-time { display: flex; align-items: center; gap: 8px; margin: 16px 0; color: var(--color-muted); font-size: 12px; }
-.hp-sources summary { cursor: pointer; font-weight: 700; }
 .hp-live-section { height: auto; overflow: visible; }
 .hp-live-section .hp-container { padding: 18px 0 28px; }
 </style>

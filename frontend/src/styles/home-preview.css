@@ -218,3 +218,15 @@
 
 .hp-detail-link { white-space: nowrap; margin-left: auto; align-self: center; }
 @media (max-width: 600px) { .hp-section-head { flex-wrap: wrap; } }
+
+/*
+ * 저장 본문의 홈 전용 스크롤 진입 효과.
+ *
+ * 공통 본문(`MatchPreviewBody.vue`·`body.css`)은 관리자 화면과 공유하므로 고치지 않는다.
+ * 홈 컨테이너 안에서만 각 섹션에 같은 흐림→선명 규칙을 적용한다. `--reveal` 값은
+ * `HomeRecommendedSection.updateReveals`가 섹션별로 갱신하며, 한 번 선명해진 값은
+ * 유지되므로 위로 되돌아가도 다시 흐려지지 않는다.
+ */
+.hp-stored-document .mpv-section { opacity: calc(.16 + var(--reveal, 1) * .84); filter: blur(calc((1 - var(--reveal, 1)) * 5px)); transform: translateY(calc((1 - var(--reveal, 1)) * 20px)); transition: opacity 160ms linear, filter 160ms linear, transform 160ms linear; }
+.hp-stored-document .mpv-section:focus-within { opacity: 1; filter: none; transform: none; }
+@media (prefers-reduced-motion: reduce) { .hp-stored-document .mpv-section { opacity: 1; filter: none; transform: none; transition: none; } }

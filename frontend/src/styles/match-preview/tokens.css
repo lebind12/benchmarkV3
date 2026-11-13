@@ -1,0 +1,141 @@
+/* 확정 목업(out/home-preview-mock/original-frontend/src/styles/match-mock/tokens.css)의
+ * 종이·잉크·크기 값을 **프리뷰 표면 안으로만** 옮긴 파일.
+ *
+ * 목업은 `:root`에 값을 두었지만, 원래 관리 화면은 자기 팔레트(global.css)를 이미 쓴다.
+ * 그래서 여기 값은 `.mpv`(저장 본문)와 `.mpv-admin`(같은 탭의 진단 영역) 안으로 한정한다.
+ * 전역 `:root`를 덮지 않으므로 나머지 화면 색·간격이 바뀌지 않는다.
+ *
+ * 이름 규칙:
+ * - `--mpv-*`: 목업 본문이 쓰던 값. 목업의 `--mm-*`와 `--space-*`를 그대로 가져오되
+ *   기존 관리 화면의 `--space-*`(app.css 계열)와 섞이지 않게 접두사를 붙였다.
+ * - `--color-*`/`--space-*`/`--text-*`/`--radius-*`/`--rule-hair`/`--measure`/`--font-*`:
+ *   이미 작성된 `features/match-preview` 검사 컴포넌트가 읽는 이름. 복원된 원래 앱은
+ *   그 토큰을 넣던 app.css를 불러오지 않으므로, 같은 탭 안에서만 값을 채워 준다.
+ *   새 색을 만들지 않고 목업 팔레트 값을 그대로 쓴다.
+ */
+
+.mpv,
+.mpv-admin {
+  /* 목업 본문 팔레트 */
+  --mpv-paper: #ffffff;
+  --mpv-paper-2: #f7f8fa;
+  --mpv-paper-3: #eef1f5;
+  --mpv-ink: #111827;
+  --mpv-ink-2: #414d5f;
+  --mpv-ink-3: #6b7280;
+  --mpv-line: #e5e7eb;
+  --mpv-line-2: #d3d9e2;
+  --mpv-signal: #8b1a4a;
+  --mpv-warn: #8a5a10;
+  --mpv-warn-soft: #fdf4e3;
+  --mpv-out: #a3262b;
+  --mpv-out-soft: #fbeceb;
+  --mpv-focus: #1e4fd8;
+  --mpv-team-home-tint: #eef6fc;
+  --mpv-team-home-edge: #cfe3f2;
+  --mpv-team-home-grad-from: #e2f0fa;
+  --mpv-team-home-grad-to: #f8fcff;
+  --mpv-team-away-tint: #f6f5f2;
+  --mpv-team-away-edge: #e4e1da;
+  --mpv-team-away-grad-from: #efede7;
+  --mpv-team-away-grad-to: #fbfaf8;
+  --mpv-panel-bg: #ffffff;
+  --mpv-panel-line: #e5e7eb;
+  --mpv-font-body: 'Pretendard', system-ui, -apple-system, sans-serif;
+  --mpv-gutter: 40px;
+  --mpv-gutter-s: 20px;
+
+  /* 목업 간격·반경·글자 크기 */
+  --mpv-space-1: 4px;
+  --mpv-space-2: 8px;
+  --mpv-space-3: 12px;
+  --mpv-space-4: 16px;
+  --mpv-space-5: 20px;
+  --mpv-space-6: 24px;
+  --mpv-space-7: 32px;
+  --mpv-space-8: 40px;
+  --mpv-space-9: 56px;
+  --mpv-radius-s: 6px;
+  --mpv-radius-m: 12px;
+  --mpv-radius-l: 18px;
+  --mpv-text-display: clamp(34px, 4vw, 58px);
+  /* 사용자 지정(PD-SCORE): 예상 점수를 더 크게. 72px 이하이던 상한을 112px까지 올리고
+   * 좁은 폭에서는 vw 로 줄어 넘치지 않는다. */
+  --mpv-text-score: clamp(64px, 9vw, 112px);
+  --mpv-text-score-sep: clamp(32px, 5vw, 56px);
+  --mpv-text-title: 18px;
+  --mpv-text-person: clamp(18px, 1.5vw, 21px);
+  --mpv-text-lead: 17px;
+  --mpv-text-md: 15px;
+  --mpv-text-sm: 13px;
+  --mpv-text-xs: 12px;
+
+  /* 이미 작성된 검사 컴포넌트가 읽는 이름(같은 값의 별칭) */
+  --color-paper: var(--mpv-paper);
+  --color-paper-2: var(--mpv-paper-2);
+  --color-paper-3: var(--mpv-paper-3);
+  --color-ink: var(--mpv-ink);
+  --color-ink-2: var(--mpv-ink-2);
+  --color-muted: var(--mpv-ink-3);
+  --color-rule: var(--mpv-line);
+  --color-rule-2: var(--mpv-line-2);
+  --color-accent: var(--mpv-signal);
+  --color-accent-soft: #fbeef3;
+  --color-accent-ink: #ffffff;
+  --color-focus: var(--mpv-focus);
+  --color-cool: #1f5f8b;
+  --color-ok: #1f6b45;
+  --color-bad: var(--mpv-out);
+  --color-bad-soft: var(--mpv-out-soft);
+  --font-body: var(--mpv-font-body);
+  --font-measured: 'Atkinson Hyperlegible Mono', ui-monospace, monospace;
+  --radius-panel: var(--mpv-radius-m);
+  --radius-control: var(--mpv-radius-s);
+  --rule-hair: 1px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --text-sm: var(--mpv-text-sm);
+  --text-base: var(--mpv-text-md);
+  --text-lg: var(--mpv-text-lead);
+  --text-title: var(--mpv-text-title);
+  --text-display: 27px;
+  --measure: 46rem;
+  --line: var(--mpv-line);
+}
+
+html.dark .mpv,
+html.dark .mpv-admin {
+  --mpv-paper: #111827;
+  --mpv-paper-2: #0b0f17;
+  --mpv-paper-3: #171f2c;
+  --mpv-ink: #e8ecf2;
+  --mpv-ink-2: #c2cad6;
+  --mpv-ink-3: #93a0b1;
+  --mpv-line: #253043;
+  --mpv-line-2: #334155;
+  --mpv-signal: #f0a6c2;
+  --mpv-warn: #ffd59a;
+  --mpv-warn-soft: #33280f;
+  --mpv-out: #ffb9b9;
+  --mpv-out-soft: #33191b;
+  --mpv-focus: #9bb8ff;
+  --mpv-team-home-tint: #11202c;
+  --mpv-team-home-edge: #1d3446;
+  --mpv-team-home-grad-from: #17293a;
+  --mpv-team-home-grad-to: #0e1a24;
+  --mpv-team-away-tint: #171a1f;
+  --mpv-team-away-edge: #2a2e36;
+  --mpv-team-away-grad-from: #1d2127;
+  --mpv-team-away-grad-to: #12151a;
+  --mpv-panel-bg: #141b26;
+  --mpv-panel-line: #26303f;
+  --color-accent-soft: #2b1620;
+  --color-accent-ink: #111827;
+  --color-cool: #8fb6ff;
+  --color-ok: #86d9a8;
+}

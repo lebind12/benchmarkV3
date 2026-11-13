@@ -6,21 +6,32 @@ import { managementApiKey, type ManagementApi, type CatalogLeague, type Collecti
 const props = defineProps<{ api: ManagementApi }>()
 const api = props.api
 provide(managementApiKey, api)
+import { useAuthStore } from '@/stores/auth'
 import TargetsPanel from '@/components/management/TargetsPanel.vue'
 import ExecutionPanel from '@/components/management/ExecutionPanel.vue'
 import HistoryPanel from '@/components/management/HistoryPanel.vue'
 import TranslationsPanel from '@/components/management/TranslationsPanel.vue'
+import PreviewPanel from '@/components/management/PreviewPanel.vue'
 import { retryIds } from '@/components/management/display'
-const tabs = [
+const auth = useAuthStore()
+// 프리뷰 탭은 ADMIN만 쓴다. STREAMER는 기존 네 탭만 보던 대로 본다(서버도 같은 판정을 한다).
+const TABS = [
   { id: 'targets', label: '수집 대상', description: '수집할 리그와 시즌을 관리합니다.' },
   { id: 'execution', label: '수집 실행', description: '선택한 대상의 수집을 실행하고 추적합니다.' },
   { id: 'history', label: '실행 이력', description: '지난 작업의 결과와 로그를 확인합니다.' },
   { id: 'translations', label: '번역 검수', description: '서비스에 사용할 한국어 표기를 검수합니다.' },
+  { id: 'preview', label: '프리뷰', description: '경기 번호로 프리뷰를 생성하고 저장된 본문을 확인합니다.', adminOnly: true },
 ] as const
-type Tab = typeof tabs[number]['id']
+const tabs = computed(() => TABS.filter((item) => !('adminOnly' in item && item.adminOnly) || auth.isAdmin))
+type Tab = typeof TABS[number]['id']
 const route = useRoute()
 const router = useRouter()
-const tab = computed<Tab>(() => tabs.find((item) => item.id === route.query.tab)?.id ?? 'targets')
+/**
+ * 프리뷰 탭은 자기 API만 읽는다. 아래 `refresh()`가 부르는 수집 대상·카탈로그·번역 조회가
+ * 실패해도 이 탭은 열려야 하므로, 로딩/오류 차단과 폴링에서 프리뷰를 뺀다.
+ */
+const isPreviewTab = computed(() => route.query.tab === 'preview' && auth.isAdmin)
+const tab = computed<Tab>(() => tabs.value.find((item) => item.id === route.query.tab)?.id ?? 'targets')
 const catalog = ref<CatalogLeague[]>([])
 const targets = ref<CollectionTarget[]>([])
 const active = ref<CollectionRun | null>(null)
@@ -63,6 +74,8 @@ function syncPolling() {
   }, 2000)
 }
 async function refresh() {
+  // 프리뷰 탭은 수집·번역 API를 읽지 않는다. 그 조회 실패가 프리뷰를 막지 않게 여기서 멈춘다.
+  if (isPreviewTab.value) { loading.value = false; return }
   error.value = ''
   try {
     const [targetData, catalogData, translationData] = await Promise.all([api.targets(), api.catalog(), api.translations()])
@@ -89,11 +102,18 @@ async function retry(run: CollectionRun) {
 }
 async function retryLoad() { loading.value=true; await refresh() }
 watch([tab, () => active.value?.id], syncPolling)
-watch(() => route.query.tab, async () => { if (ready.value && !loading.value) { try { await refresh() } catch { /* refresh exposes a recoverable error */ } } })
+watch(() => route.query.tab, async () => {
+  // 프리뷰로 **들어오는** 이동은 자기 데이터만 연다. 프리뷰에서 나가는 이동에서만 다시 읽는다.
+  if (isPreviewTab.value) { loading.value = false; return }
+  if (ready.value) { try { await refresh() } catch { /* refresh exposes a recoverable error */ } }
+})
 onMounted(async () => {
   try {
-    if (!tabs.some((item) => item.id === route.query.tab)) await router.replace({ query: { ...route.query, tab: 'targets' } })
-    ready.value = true; await refresh()
+    if (!tabs.value.some((item) => item.id === route.query.tab)) await router.replace({ query: { ...route.query, tab: 'targets' } })
+    ready.value = true
+    // 프리뷰 탭은 자기 데이터만 연다. 관리 데이터 로딩 화면·오류가 이 탭을 가리지 않는다.
+    if (isPreviewTab.value) { loading.value = false; return }
+    await refresh()
   } catch { loading.value = false; error.value = '관리 화면을 불러오지 못했습니다. 페이지를 새로고침하세요.' }
 })
 onBeforeUnmount(() => { disposed = true; if (poll) clearInterval(poll); if (toastTimer) clearTimeout(toastTimer) })
@@ -105,13 +125,19 @@ onBeforeUnmount(() => { disposed = true; if (poll) clearInterval(poll); if (toas
       <div class="mm-shared-banner"><ShieldCheck :size="18" /><span>수집 설정과 번역 수정은 <strong>전체 서비스에 공통 적용</strong>됩니다.</span><button v-if="active" type="button" class="mm-button mm-button--quiet" @click="setTab('execution')"><span class="mm-live-dot" />수집 진행 중<ArrowRight :size="14" /></button></div>
       <div class="mm-summary-line"><span>활성 대상 <strong>{{ targets.filter((row) => row.is_active).length }}</strong><small>/ {{ targets.length }}</small></span><span>최근 실행 <strong>{{ runs.length }}</strong><small>최근 7일</small></span><span>미번역 <strong>{{ missingCount }}</strong><small>개 이름</small></span></div>
       <nav class="mm-main-tabs" aria-label="관리 하위 탭"><button v-for="item in tabs" :key="item.id" type="button" :class="{ active: tab === item.id }" :aria-current="tab === item.id ? 'page' : undefined" :data-testid="`management-tab-${item.id}`" @click="setTab(item.id)">{{ item.label }}<span v-if="item.id === 'execution' && active" class="mm-live-dot" /></button></nav>
-      <div v-if="loading" class="mm-panel mm-loading" role="status"><RefreshCw :size="24" class="mm-spin" />관리 데이터를 불러오고 있습니다.</div>
+      <!--
+        프리뷰 탭은 이 화면의 다른 조회(수집 대상·실행·번역)와 분리한다. 그 조회의 로딩·오류가
+        프리뷰 진입을 막지 않도록 전역 게이트보다 **앞**에서 자기 패널만 그린다.
+      -->
+      <PreviewPanel v-if="isPreviewTab && auth.isAdmin" :can-generate="auth.isAdmin" />
+      <div v-else-if="loading" class="mm-panel mm-loading" role="status"><RefreshCw :size="24" class="mm-spin" />관리 데이터를 불러오고 있습니다.</div>
       <section v-else-if="error" class="mm-panel mm-empty" role="alert"><Info :size="30" /><h2>관리 데이터를 확인하지 못했습니다</h2><p>{{ error }}</p><button class="mm-button mm-button--primary" type="button" @click="retryLoad">다시 불러오기</button></section>
       <template v-else>
         <TargetsPanel v-if="tab === 'targets'" :targets="targets" :catalog="catalog" :selected="selected" @selection="selected = $event" @refresh="refresh" @notify="notify" @execute="executeSelection" />
         <ExecutionPanel v-else-if="tab === 'execution'" :key="parent ?? 'normal'" :targets="targets" :selected="selected" :active="active" :result="focusedRun" :parent="parent" :preferred-mode="preferredMode" @selection="selected = $event" @started="started" @refresh="refresh" @notify="notify" @history="setTab('history')" @retry="retry" />
         <HistoryPanel v-else-if="tab === 'history'" :runs="runs" :active="active" @retry="retry" @execution="setTab('execution')" />
-        <TranslationsPanel v-else :translations="translations" @refresh="refresh" @notify="notify" />
+        <TranslationsPanel v-else-if="tab === 'translations'" :translations="translations" @refresh="refresh" @notify="notify" />
+        <p v-else class="mm-empty">표시할 탭이 없습니다. 위 탭에서 다시 선택하세요.</p>
       </template>
       <div v-if="notice" class="mm-toast" role="status"><CheckCircle2 :size="18" /><span>{{ notice }}</span><button type="button" aria-label="알림 닫기" @click="notice = ''">×</button></div>
     </div>

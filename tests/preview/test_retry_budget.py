@@ -42,11 +42,14 @@ from app.preview.retry import (
 
 
 def test_policy_matches_the_plan_section_five_values():
-    """계획 §5 값과 코드가 어긋나면 여기서 먼저 드러난다."""
+    """계획 값과 코드가 어긋나면 여기서 먼저 드러난다.
+
+    2026-11-11 확정 설계가 정상 경로를 **조사 2 + 작성 3 + 최종 전망 1 = 6회**로
+    명시 변경했다. 전체 실제 전송 상한 8회는 그대로이며, 재시도 여유만 2회다.
+    """
     limits = BudgetLimits()
     assert limits.model_requests == 8 == MODEL_REQUEST_BUDGET
-    # 조사 4(R1·R2·R3·R4) + 종합 1 = 5. 총 상한 8은 그대로다.
-    assert limits.normal_model_calls == 5 == NORMAL_MODEL_CALLS
+    assert limits.normal_model_calls == 6 == NORMAL_MODEL_CALLS
     assert limits.api_requests == 24 == API_REQUEST_BUDGET
     assert limits.attempts_per_call == 3 == MAX_ATTEMPTS_PER_CALL
     assert limits.model_concurrency == 2
@@ -252,3 +255,142 @@ def test_budget_snapshot_reports_unknown_reserve_honestly():
     assert snapshot["model_used"] == 0
     assert snapshot["model_reserved_for_unstarted_steps"] == NORMAL_MODEL_CALLS
     assert snapshot["stopped_reason"] is None
+
+
+# --------------------------------------------------------------------------
+# 사용자 확정 2026-11-12: 한 생성 실행의 **각 논리 모듈 최초 포함 3회**
+# --------------------------------------------------------------------------
+#
+# 이것이 확인하는 것:
+#
+# - 여섯 모듈이 각각 3회를 다 써도 다른 모듈이나 전체 8회가 막지 않는다.
+# - 어느 모듈이든 4번째 전송은 나가지 않는다.
+# - 경기 B는 경기 A의 계수에 막히지 않는다(실행이 다르면 새 3회).
+# - 같은 실행 복구는 장부에 남은 사용분을 **유지**한다(0으로 초기화하지 않는다).
+# - 집계 설명(6×3=18)은 공용 여유 예산이 아니다.
+
+FIXED_NOW = datetime(2026, 11, 12, 9, 0, tzinfo=timezone.utc)
+
+SIX_MODULES = (
+    "discovery_people",
+    "discovery_outlook",
+    "section_players",
+    "section_availability",
+    "section_outlook",
+    "section_ai_forecast",
+)
+
+
+def _generation_budget(prior=None):
+    from app.preview.retry import RunBudget
+
+    return RunBudget.for_generation(SIX_MODULES, prior_module_usage=prior, now=FIXED_NOW)
+
+
+def test_each_of_the_six_modules_can_use_three_sends_without_starving_others():
+    """여섯 모듈이 각각 3회를 다 써도 서로를 막지 않는다(전체 8회 병목 없음)."""
+    budget = _generation_budget()
+
+    for module in SIX_MODULES:
+        for _ in range(3):
+            allowed, reason = budget.can_attempt(module)
+            assert allowed, (module, reason)
+            budget.charge(module)
+
+    assert budget.model_used == 18
+    # 파생 상한은 모듈 수 × 3이며, 옛 8회 상한이 병목이 되지 않는다.
+    assert budget.effective_model_requests() == 18
+
+
+def test_no_module_sends_a_fourth_time_even_when_others_are_exhausted():
+    """어느 모듈이든 4번째 전송은 거부된다. 다른 모듈이 남아 있어도 마찬가지다."""
+    budget = _generation_budget()
+    for _ in range(3):
+        budget.charge("section_players")
+
+    # 다른 모듈은 아직 여유가 있다.
+    assert budget.can_attempt("section_outlook")[0] is True
+
+    allowed, reason = budget.can_attempt("section_players")
+    assert allowed is False
+    assert reason and "상한" in reason
+    with pytest.raises(BudgetExceeded):
+        budget.charge("section_players")
+    # 4번째 시도는 세지 않았다.
+    assert budget.module_total("section_players") == 3
+
+
+def test_another_fixture_has_its_own_three_sends():
+    """경기 B는 경기 A의 계수에 막히지 않는다. 실행이 다르면 새 3회다."""
+    fixture_a = _generation_budget()
+    for module in SIX_MODULES:
+        for _ in range(3):
+            fixture_a.charge(module)
+    assert fixture_a.can_attempt("section_players")[0] is False
+
+    # 별도 생성 실행(다른 경기)은 자기 3회를 새로 갖는다.
+    fixture_b = _generation_budget()
+    allowed, reason = fixture_b.can_attempt("section_players")
+    assert allowed, reason
+    fixture_b.charge("section_players")
+    assert fixture_b.module_total("section_players") == 1
+
+
+def test_previous_trial_usage_is_reported_but_does_not_block():
+    """이전 시험 집합의 사용량은 표시용이며 상한에서 차감하지 않는다."""
+    budget = _generation_budget(prior={module: 3 for module in SIX_MODULES})
+
+    for module in SIX_MODULES:
+        allowed, reason = budget.can_attempt(module)
+        assert allowed, (module, reason)
+        budget.charge(module)
+
+    # 과거 값은 남아 있지만 이번 실행 계수와 합산되지 않는다.
+    assert budget.module_prior_total("section_players") == 3
+    assert budget.module_total("section_players") == 1
+    snapshot = budget.snapshot()
+    assert snapshot["prior_module_usage"]["section_players"] == 3
+    assert snapshot["sent_by_module"]["section_players"] == 1
+
+
+def test_recovery_keeps_the_usage_already_charged():
+    """같은 실행 복구는 장부의 사용분을 유지한다(새 run으로 0이 되지 않는다)."""
+    from app.preview.retry import RunBudget
+
+    started = _generation_budget()
+    for _ in range(2):
+        started.charge("section_players")
+
+    resumed = RunBudget.restore(started.persistable(), now=FIXED_NOW)
+    assert resumed.module_total("section_players") == 2
+    # 남은 한 번만 보낼 수 있다.
+    allowed, _reason = resumed.can_attempt("section_players")
+    assert allowed is True
+    resumed.charge("section_players")
+    assert resumed.can_attempt("section_players")[0] is False
+    assert resumed.module_total("section_players") == 3
+
+
+def test_eighteen_is_an_arithmetic_description_not_a_shared_budget():
+    """18은 가능한 전송 수의 설명이며, 한 모듈이 남의 여유를 가져다 쓰는 정책이 아니다."""
+    budget = _generation_budget()
+    for _ in range(3):
+        budget.charge("section_players")
+
+    # 남은 모듈 몫(15)은 다른 모듈 것으로 남아 있고, 이미 3회를 쓴 모듈은 쓸 수 없다.
+    assert budget.remaining() == 15
+    assert budget.can_attempt("section_players")[0] is False
+
+
+def test_generation_policy_does_not_enforce_the_global_deadline():
+    """전역 1800초는 새 생성 경로의 독립 중단 기준이 아니다(요청별 300초는 유지)."""
+    budget = _generation_budget()
+    assert budget.deadline_enforced is False
+    # 남은 기한은 '무제한'으로 보고되어, 요청별 타임아웃을 깎지 않는다.
+    assert budget.seconds_left(FIXED_NOW) == float("inf")
+    assert budget.snapshot()["seconds_left"] is None
+
+    # 한참 뒤에도 모듈 재시도는 계속 허용된다.
+    late = FIXED_NOW + timedelta(seconds=10_000)
+    allowed, reason = budget.can_attempt("section_players", now=late)
+    assert allowed, reason

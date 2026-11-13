@@ -53,10 +53,9 @@ def metrics_client(engine, schema):
     자기 라우터를 붙여 경계를 확인하고, 등록이 있으면 그대로 쓴다. 어느 쪽이든 실제
     앱에서 `/api/v1/admin/preview/metrics`가 404면 이 검사가 401 기대에서 실패한다.
     """
-    from fastapi.testclient import TestClient
-
     from app.api.v1 import preview_metrics
     from app.main import create_app
+    from tests.preview.conftest import BearerTestClient
 
     app = create_app()
     registered = any(
@@ -65,7 +64,7 @@ def metrics_client(engine, schema):
     )
     if not registered:
         app.include_router(preview_metrics.router)
-    with TestClient(app) as test_client:
+    with BearerTestClient(app) as test_client:
         yield test_client
 
 
@@ -543,23 +542,15 @@ def _login_admin(metrics_client, make_user) -> dict:
 
 
 def test_metrics_endpoint_is_admin_only(metrics_client, make_user):
-    from app.auth.identity import IdentityUser
-    from app.auth.service import issue_session
-    from app.db import get_session_factory
-
     assert metrics_client.get(METRICS).status_code == 401
 
     user = make_user(role="STREAMER")
-    factory = get_session_factory()
-    with factory() as session:
-        issued = issue_session(
-            session,
-            IdentityUser(id=user["id"], email=user["email"], role=user["role"], is_active=True),
-        )
-        token = issued.token
-        session.commit()
-    metrics_client.cookies.set("preview_admin_session", token)
-    assert metrics_client.get(METRICS).status_code == 403
+    login = metrics_client.post(
+        LOGIN, json={"email": user["email"], "password": user["password"]}
+    )
+    assert login.status_code == 200, login.text
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    assert metrics_client.get(METRICS, headers=headers).status_code == 403
 
 
 def test_metrics_endpoint_reads_only_and_has_no_provider_calls(
@@ -567,7 +558,7 @@ def test_metrics_endpoint_reads_only_and_has_no_provider_calls(
 ):
     _login_admin(metrics_client, make_user)
     payload = _fixture()
-    from app.db import get_session_factory
+    from app.preview.db import get_session_factory
 
     with get_session_factory()() as session:
         _seed(session, payload)
@@ -616,7 +607,7 @@ def test_metrics_endpoint_rejects_unknown_environment(metrics_client, make_user)
 def test_metrics_endpoint_filters_by_metric_and_module(metrics_client, make_user):
     _login_admin(metrics_client, make_user)
     payload = _fixture()
-    from app.db import get_session_factory
+    from app.preview.db import get_session_factory
 
     with get_session_factory()() as session:
         _seed(session, payload)
@@ -657,7 +648,7 @@ def test_metrics_endpoint_filters_by_metric_and_module(metrics_client, make_user
 def test_metrics_endpoint_defaults_to_prod_live(metrics_client, make_user):
     _login_admin(metrics_client, make_user)
     payload = _fixture()
-    from app.db import get_session_factory
+    from app.preview.db import get_session_factory
 
     with get_session_factory()() as session:
         _seed(session, payload)

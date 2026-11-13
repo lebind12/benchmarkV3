@@ -29,8 +29,8 @@ import os
 import sys
 from pathlib import Path
 
-from app.core.config import get_settings
-from app.db import get_session_factory
+from app.preview.config import get_settings
+from app.preview.db import get_session_factory
 from app.preview import runner, store
 from app.preview.registry import get_section_workflow, section_workflow_ids
 
@@ -48,10 +48,6 @@ def _load_credentials(path: Path) -> None:
         if line.startswith("PREVIEW_") and "=" in line:
             key, value = line.split("=", 1)
             os.environ.setdefault(key, value)
-    if os.environ.get("PREVIEW_DEV_DATABASE_URL"):
-        os.environ.setdefault(
-            "PREVIEW_DATABASE_URL", os.environ["PREVIEW_DEV_DATABASE_URL"]
-        )
     get_settings.cache_clear()
 
 

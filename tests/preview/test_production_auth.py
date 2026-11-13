@@ -15,6 +15,8 @@ from sqlalchemy import text
 from app.auth.passwords import hash_pbkdf2_sha256, verify_pbkdf2_sha256
 
 LOGIN = "/api/v1/auth/login"
+LOGOUT = "/api/v1/auth/logout"
+REFRESH = "/api/v1/auth/refresh"
 PROTECTED = "/api/v1/admin/preview/runs"
 
 
@@ -27,6 +29,7 @@ def test_pbkdf2_roundtrip_matches_the_stored_format():
     assert salt and digest
     assert verify_pbkdf2_sha256("synthetic-password-1", stored) is True
     assert verify_pbkdf2_sha256("wrong-password", stored) is False
+
 
 
 def test_unsupported_hash_formats_are_refused_rather_than_accepted():
@@ -44,22 +47,27 @@ def test_stored_iteration_count_is_honoured():
     assert verify_pbkdf2_sha256("synthetic-password-2", stored) is True
 
 
+def _login(client, user):
+    return client.post(LOGIN, json={"email": user["email"], "password": user["password"]})
+
+
 def test_admin_login_succeeds_with_a_production_shaped_account(client, make_user):
     """기존 계정 형태(대문자 ADMIN, pbkdf2)로 로그인해 보호 경로까지 간다."""
     user = make_user(role="ADMIN")
-    response = client.post(
-        LOGIN, json={"email": user["email"], "password": user["password"]}
-    )
+    response = _login(client, user)
     assert response.status_code == 200, response.text
-    assert response.json()["role"] == "ADMIN"
-    assert client.get(PROTECTED).status_code == 200
+    assert response.json()["user"]["role"] == "ADMIN"
+    token = response.json()["access_token"]
+    assert (
+        client.get(PROTECTED, headers={"Authorization": f"Bearer {token}"}).status_code == 200
+    )
 
 
 def test_login_does_not_touch_the_existing_account_row(client, make_user, session_factory):
     """로그인·조회가 기존 계정 행을 갱신하지 않는지 확인한다.
 
-    과거 구현은 로그인 성공 시 `last_login_at`을 갱신했다. 지금 기준은 기존 행
-    무변경이므로, 로그인 전후 행 스냅샷이 같아야 한다.
+    과거 원본 `login_user`는 성공 시 `last_login_at`을 갱신했다. 로컬 프로필에서는
+    그 갱신을 하지 않으므로, 로그인 전후 행 스냅샷이 같아야 한다.
     """
     user = make_user(role="ADMIN")
     with session_factory() as session:
@@ -71,10 +79,12 @@ def test_login_does_not_touch_the_existing_account_row(client, make_user, sessio
             {"id": user["id"]},
         ).one()
 
-    assert client.post(
-        LOGIN, json={"email": user["email"], "password": user["password"]}
-    ).status_code == 200
-    assert client.get(PROTECTED).status_code == 200
+    assert _login(client, user).status_code == 200
+    token = _login(client, user).json()["access_token"]
+    assert (
+        client.get(PROTECTED, headers={"Authorization": f"Bearer {token}"}).status_code == 200
+    )
+    assert client.post(REFRESH).status_code == 200
 
     with session_factory() as session:
         after = session.execute(
@@ -93,9 +103,7 @@ def test_session_rows_are_written_only_to_the_development_schema(
 ):
     """로그인 쓰기가 `preview_dev`로만 가고 공용 스키마에는 남지 않는지 확인한다."""
     user = make_user(role="ADMIN")
-    assert client.post(
-        LOGIN, json={"email": user["email"], "password": user["password"]}
-    ).status_code == 200
+    assert _login(client, user).status_code == 200
 
     with session_factory() as session:
         dev_rows = session.execute(
@@ -111,12 +119,30 @@ def test_session_rows_are_written_only_to_the_development_schema(
     assert public_sessions == 0
 
 
-def test_non_admin_production_account_is_refused(client, make_user):
-    """기존 계정이라도 ADMIN이 아니면 403이다. STREAMER도 대체 권한이 아니다."""
+def test_non_admin_production_account_is_denied_the_preview_path(client, make_user):
+    """기존 계정이라도 ADMIN이 아니면 프리뷰 생성 경로에서 403이다."""
     for role in ("USER", "STREAMER"):
         user = make_user(role=role)
-        response = client.post(
-            LOGIN, json={"email": user["email"], "password": user["password"]}
+        response = _login(client, user)
+        assert response.status_code == 200, response.text
+        token = response.json()["access_token"]
+        denied = client.post(
+            "/api/v1/admin/preview/bundle-runs",
+            json={"fixture_id": 1557474, "mode": "live"},
+            headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 403, response.text
-        assert response.json()["detail"] == "admin role required"
+        assert denied.status_code == 403, (role, denied.text)
+        assert denied.json()["detail"] == "admin role required"
+
+
+def test_remote_session_store_is_never_called(client, make_user, monkeypatch):
+    """로컬 프로필은 원격 refresh 저장소를 호출하지 않는다."""
+
+    def _explode(*_args, **_kwargs):
+        raise AssertionError("remote session store must not be called")
+
+    monkeypatch.setattr("app.core.sessions.redis_command", _explode)
+    user = make_user(role="ADMIN")
+    assert _login(client, user).status_code == 200
+    assert client.post(REFRESH).status_code == 200
+    assert client.post(LOGOUT).status_code == 200

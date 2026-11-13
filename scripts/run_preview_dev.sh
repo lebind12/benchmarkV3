@@ -1,6 +1,11 @@
 #!/bin/sh
 # 로컬 개발 서버 기동 (운영 계정 읽기 + preview_dev 세션 쓰기).
 #
+# ⚠ 이 스크립트는 통합 이전의 **별도 프리뷰 앱** 실행 경로를 유지하기 위한 것이다.
+#    BI-01 이후 정식 로컬 경로는 `scripts/run_benchmark_dev.sh`다(같은
+#    `app.main:app`이 원래 관리·홈·인증과 프리뷰를 함께 든다). 이 스크립트를
+#    통합의 증거로 쓰지 않는다. 비교·회귀 확인 목적으로만 남겨 둔다.
+#
 # 자격 증명은 저장소 밖 0600 파일에서 읽는다. 이 스크립트에는 비밀값이 없다.
 # 기본 경로: ~/.config/match-preview/preview-dev.env
 #   PREVIEW_IDENTITY_DATABASE_URL=...  (기존 계정 public.app_user 읽기 전용)
@@ -58,11 +63,20 @@ PREVIEW_ALLOW_NONLOCAL_IDENTITY_DB="${PREVIEW_ALLOW_NONLOCAL_IDENTITY_DB:?PREVIE
 # 저장 경기·부상·순위 자료 읽기 전용 연결(별도 좁은 역할). 없으면 조회기가 붙지 않고
 # 화면에 stored_access.readable=false가 남는다. 여기서 값을 새로 만들지 않는다.
 PREVIEW_FIXTURES_DATABASE_URL="${PREVIEW_FIXTURES_DATABASE_URL:-}"
+PREVIEW_NAMES_DATABASE_URL="${PREVIEW_NAMES_DATABASE_URL:-}"
+PREVIEW_STATS_DATABASE_URL="${PREVIEW_STATS_DATABASE_URL:-}"
 PREVIEW_ENV="${PREVIEW_ENV:-dev}"
 PREVIEW_COOKIE_SECURE="${PREVIEW_COOKIE_SECURE:-false}"
+
+# `app.main:app`은 이제 원래 benchmark 앱이다. 이 경로로 띄워도 원래 앱의 필수 설정이
+# 없으면 기동이 실패한다. 통합 실행은 `scripts/run_benchmark_dev.sh`를 쓴다.
+LOCAL_DEV_AUTH_ENABLED="${LOCAL_DEV_AUTH_ENABLED:-true}"
+WORKER_SCHEDULER_ENABLED="${WORKER_SCHEDULER_ENABLED:-false}"
+HOME_PREVIEW_ENABLED="${HOME_PREVIEW_ENABLED:-false}"
 export PREVIEW_DATABASE_URL PREVIEW_IDENTITY_DATABASE_URL
-export PREVIEW_FIXTURES_DATABASE_URL
+export PREVIEW_FIXTURES_DATABASE_URL PREVIEW_NAMES_DATABASE_URL PREVIEW_STATS_DATABASE_URL
 export PREVIEW_ALLOW_NONLOCAL_DB PREVIEW_ALLOW_NONLOCAL_IDENTITY_DB
 export PREVIEW_ENV PREVIEW_COOKIE_SECURE
+export LOCAL_DEV_AUTH_ENABLED WORKER_SCHEDULER_ENABLED HOME_PREVIEW_ENABLED
 
 exec .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port "${PREVIEW_PORT:-8000}"

@@ -16,15 +16,16 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.auth.service import AdminPrincipal, require_preview_admin
-from app.db import get_db
-from app.preview import approvals, demo_pipeline, provider, runner, store
+from app.preview.access import PreviewPrincipal, require_preview_admin
+from app.preview.db import get_db
+from app.preview import approvals, demo_pipeline, provider, runner, store, version_manifest
 from app.preview.contracts import (
     ApprovalRequestError,
     AttemptOutcome,
@@ -89,7 +90,7 @@ class ApproveSectionRequest(BaseModel):
 
 def _fixture_reader():
     """저장 경기 자료 조회기. 설정이 없으면 `None`이며 그 사실이 응답에 드러난다."""
-    from app.core.config import get_settings
+    from app.preview.config import get_settings
     from app.preview.sources.fixtures import StoredFixtureReader
 
     settings = get_settings()
@@ -105,7 +106,7 @@ def _model_transport(mode: RunMode):
     모델 이름·프로젝트·리전은 설정에서만 읽는다. 여기서 대체 모델을 고르지 않는다.
     `PREVIEW_MODEL_LIVE_ENABLED`가 꺼져 있으면 live 실행을 열지 않는다.
     """
-    from app.core.config import get_settings
+    from app.preview.config import get_settings
     from app.preview.contracts import RunMode as _RunMode
 
     settings = get_settings()
@@ -158,6 +159,20 @@ class SectionRunRequest(BaseModel):
     # 고른 결과 버전 ID**를 그대로 넘긴다. 서버가 임의로 "최신"을 골라 채우지 않는다.
     selected_result_ids: list[UUID] = Field(default_factory=list)
 
+    # --- 섹션 재생성(계획 §5) ---------------------------------------------
+    # `reuse`: 저장된 정보 원문 묶음을 재사용한다(새 수집·새 검색 호출 없음).
+    # `refresh`: 새 수집을 포함한다. 예상 전송 범위를 응답에 표시한다.
+    # 기본값은 기존 동작(새 수집 포함)과 같은 `refresh`다. 재사용은 관리자가 명시할 때만
+    # 일어나며, 그때는 base_run_id가 필수다. 기본값으로 조용히 재사용하지 않는다.
+    source_mode: str = Field(default="refresh", pattern="^(reuse|refresh)$")
+    # reuse일 때 어느 묶음을 쓰는지 관리자가 고른다. 서버가 임의로 최신을 고르지 않는다.
+    bundle_id: str | None = Field(default=None, max_length=120)
+    base_run_id: UUID | None = None
+    base_result_id: UUID | None = None
+    # 관리자가 저장한 **구성본**을 지정한다. 주면 그 구성본의 선택 결과가 최종 AI 입력이
+    # 된다(selected_result_ids를 비워도 된다). 저장된 값과 다르면 422로 거부한다.
+    composition_id: str | None = Field(default=None, max_length=120)
+
 
 class SectionRunResponse(BaseModel):
     run_id: UUID
@@ -172,6 +187,21 @@ class SectionRunResponse(BaseModel):
     budget: dict
     unavailable_reason: str | None
     note: str
+
+    # --- 재생성 경계 (계획 §5) --------------------------------------------
+    source_mode: str = "refresh"
+    bundle_id: str | None = None
+    bundle_reused: bool = False
+    expected_model_calls: int | None = None
+    parent_run_id: UUID | None = None
+    base_result_id: UUID | None = None
+    new_version: int | None = None
+    # 이 실행이 실제로 쓴 구성본 ID. 쓰지 않았으면 null이다(지어내지 않는다).
+    composition_id: str | None = None
+    # 저장 응답 재처리처럼 **모델 전송이 없는** 동작인지. 이 값이 true면 새 호출은 없다.
+    no_model_call: bool = False
+    # 다른 성공 섹션을 자동으로 다시 부르지 않았다는 사실을 값으로 남긴다.
+    other_sections_reused: bool = True
 
 
 class ReplayResultRequest(BaseModel):
@@ -214,7 +244,7 @@ def _detail_or_404(session: Session, run_id: UUID) -> dict:
 @router.get("/runs", response_model=RunListResponse)
 def list_runs(
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
     limit: int = Query(default=50, ge=1, le=200),
     include_cancelled: bool = Query(default=True),
 ) -> RunListResponse:
@@ -233,7 +263,7 @@ def list_runs(
 @router.post("/runs/mock-demo", response_model=CreateMockRunResponse)
 def create_mock_demo_run(
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> CreateMockRunResponse:
     """녹화된 모의 실행을 만든다. 외부 모델·API 호출은 0회다.
 
@@ -258,7 +288,7 @@ def create_mock_demo_run(
 def get_run(
     run_id: UUID,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """실행 상세. 요청·응답·변환·다음 입력과 결과 버전을 함께 돌려준다.
 
@@ -275,6 +305,8 @@ def get_run(
         approval_status=approvals.describe_approvals(session),
         section_workflows=describe_section_workflows(),
     )
+    # 전송 장부 요약을 상세에 덧붙인다. 저장된 감사 행만 읽으며 외부 호출이 없다.
+    payload["send_ledger"] = store.run_send_ledger_summary(session, run_id)
     names = _display_names_for(session, detail)
     try:
         return _localized_inspection(payload, names=names)
@@ -333,7 +365,7 @@ def get_module_execution(
     run_id: UUID,
     module_execution_id: UUID,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """모듈 실행 하나의 공통 검사 뷰. 등록된 모듈이면 같은 구조로 보인다."""
     detail = _detail_or_404(session, run_id)
@@ -350,7 +382,7 @@ def compare_result_versions(
     run_id: UUID,
     module_execution_id: UUID,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
     base_version: int | None = Query(default=None),
     target_version: int | None = Query(default=None),
 ) -> CompareResponse:
@@ -375,7 +407,7 @@ def compare_result_versions(
 @router.get("/approvals")
 def get_approvals(
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """섹션 워크플로우 승인 현황. 승인 기록이 없으면 없다고 알린다.
 
@@ -396,7 +428,7 @@ def approve_section(
     workflow_id: str,
     payload: ApproveSectionRequest,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """관리자가 확인한 섹션 워크플로우 버전을 승인한다.
 
@@ -430,7 +462,7 @@ def approve_section(
 @router.get("/fixtures")
 def list_stored_fixtures(
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
     league_id: int | None = Query(default=None),
     date: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
@@ -459,11 +491,71 @@ def list_stored_fixtures(
     return result.to_dict() if hasattr(result, "to_dict") else dict(result)
 
 
+@router.get("/fixtures/{fixture_id}")
+def get_stored_fixture(
+    fixture_id: int,
+    principal: PreviewPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """경기 번호(API-Football 외부 ID) 하나로 저장된 경기를 확인한다.
+
+    관리자가 번호만 입력해 대진·시각을 확인하고 같은 번호로 생성을 요청하는 흐름의
+    읽기 경로다. 모델·외부 API를 부르지 않고 저장된 행만 읽으며, 반환은 목록 경로의
+    `fixtures[]` 항목과 **같은 FixtureCandidate 모양**이다.
+
+    없는 번호는 404, 저장 자료를 읽을 권한/연결이 없으면 이유가 담긴 503이다. 어느
+    경우에도 빈 성공 응답으로 감추지 않는다.
+    """
+    from app.preview import data as data_module
+    from app.preview.sources import fixtures as fixtures_module
+
+    reader = _fixture_reader()
+    if reader is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "저장된 경기 자료 조회기가 설정되지 않았습니다(fixtures_database_url 비어 있음)."
+                " 경기 번호를 확인할 수 없어 모델을 보내지 않습니다."
+            ),
+        )
+    try:
+        access = reader.access()
+        if not access.readable:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "저장된 경기 자료를 읽을 수 없습니다: "
+                    + (access.detail or "읽기 권한을 확인하지 못했습니다.")
+                ),
+            )
+        record = reader.get_fixture(fixture_id=int(fixture_id))
+    except fixtures_module.FixtureReadDenied as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from None
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - 연결 실패를 빈 목록으로 감추지 않는다
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"저장된 경기 자료를 읽지 못했습니다: {type(exc).__name__}: {exc}",
+        ) from None
+    finally:
+        close = getattr(reader, "close", None)
+        if callable(close):
+            close()
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"저장된 경기 번호 {fixture_id}를 찾지 못했습니다.",
+        )
+    return data_module._candidate_from_stored(record).to_dict()
+
+
 @router.post("/fixtures/import")
 def import_fixtures(
     payload: FixtureImportRequest,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """관리자가 명시한 조건으로 경기 후보를 수집한다(모의 실행기, 외부 호출 0회).
 
@@ -595,7 +687,7 @@ def _section_run_availability(workflow_id: str) -> dict:
 
 @router.get("/sections")
 def list_sections(
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """섹션 워크플로우 실행 가능성 목록. 저장된 행만 읽고 외부 호출이 없다.
 
@@ -617,11 +709,70 @@ def list_sections(
     }
 
 
+# 섹션 하나를 다시 만들 때 필요한 모델 요청 수(설계 §실행 예산). 배당은 모델 0회다.
+_SECTION_MODEL_CALLS: dict[str, int] = {
+    "section_players": 1,
+    "section_availability": 1,
+    "section_outlook": 1,
+    "section_odds": 0,
+    "section_ai_forecast": 1,
+    # 옛 경로(기존 섹션)도 1회다. 값을 모르는 섹션은 None으로 두고 꾸미지 않는다.
+    "section_form": 1,
+    "section_synthesis": 1,
+}
+
+
+def _expected_section_model_calls(workflow_id: str) -> int | None:
+    return _SECTION_MODEL_CALLS.get(workflow_id)
+
+
+def _annotate_section_reuse(
+    session: Session,
+    *,
+    section_result_id: UUID,
+    base_run_id: UUID | None,
+    bundle_id: str | None,
+    base_result_id: UUID | None,
+    actor_id: int,
+) -> None:
+    """재생성 결과에 부모 실행·재사용 묶음 연결을 진단으로 남긴다.
+
+    본문·근거 행은 그대로 두고 진단 목록에만 덧붙인다. 승인 근거(본문)를 바꾸지 않는다.
+    """
+    from app.preview.models import PreviewSectionResult
+
+    row = session.get(PreviewSectionResult, section_result_id)
+    if row is None:
+        return
+    note = (
+        f"재생성: source_mode=reuse, base_run_id={base_run_id},"
+        f" bundle_id={bundle_id}, base_result_id={base_result_id}"
+    )
+    diagnostics = list(row.diagnostics or [])
+    if note not in diagnostics:
+        diagnostics.append(note)
+    row.diagnostics = diagnostics
+    session.flush()
+    store._audit(  # noqa: SLF001 - 같은 감사 경로를 재사용한다
+        session,
+        run_id=row.run_id,
+        actor_id=actor_id,
+        action="section_regenerated_reusing_bundle",
+        target_table="preview_section_results",
+        target_id=str(row.id),
+        detail={
+            "base_run_id": str(base_run_id) if base_run_id else None,
+            "bundle_id": bundle_id,
+            "base_result_id": str(base_result_id) if base_result_id else None,
+        },
+    )
+
+
 @router.post("/section-runs", response_model=SectionRunResponse)
 def create_section_run(
     payload: SectionRunRequest,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> SectionRunResponse:
     """섹션 워크플로우 하나를 실행하고 실행 ID를 돌려준다.
 
@@ -645,7 +796,6 @@ def create_section_run(
             ),
         )
 
-    implementations = _section_implementations(payload.workflow_id, mode=mode)
     fixture = None
     if payload.fixture_id is not None and payload.kickoff_at is not None:
         fixture = {
@@ -656,12 +806,151 @@ def create_section_run(
             "away_team_id": payload.away_team_id or 0,
             "kickoff_at": payload.kickoff_at.isoformat(),
         }
+
+    # --- 재생성 경계 (계획 §5, 검토 F5) -----------------------------------
+    # **옛 구현 게이트보다 먼저** 분기한다. `_section_implementations`는 옛 노드 목록만
+    # 보므로, 뒤에 두면 `section_odds`/`section_ai_forecast`가 422로 막혀 새 경로의 두
+    # 섹션을 화면에서 다시 만들 수 없었다(검토 F5).
+    from app.preview import bundle_pipeline as bundle_pipeline_module
+
+    if (
+        payload.workflow_id in bundle_pipeline_module.REGENERABLE_SECTIONS
+        and mode is RunMode.LIVE
+    ):
+        # 요청 모양 오류를 먼저 알린다(모드 문제보다 정확한 사유).
+        if payload.source_mode == "reuse" and payload.base_run_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "source_mode=reuse에는 재사용할 정보 원문 묶음의 실행(base_run_id)이"
+                    " 필요합니다. 서버가 임의로 최신 묶음을 고르지 않습니다."
+                ),
+            )
+        transport = _model_transport(mode)
+        if transport is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "모델 설정이 없거나 PREVIEW_MODEL_LIVE_ENABLED가 꺼져 있어 live 실행을"
+                    " 열지 않았습니다. 모의로 대체하지 않습니다."
+                ),
+            )
+        reader = _fixture_reader()
+        try:
+            outcome = bundle_pipeline_module.run_section_regeneration(
+                session,
+                section_id=payload.workflow_id,
+                actor_id=principal.user_id,
+                transport=transport,
+                base_run_id=payload.base_run_id or uuid.uuid4(),
+                source_mode=payload.source_mode,
+                base_result_id=payload.base_result_id,
+                reader=reader,
+                limits=None,
+                # 재생성도 **관리자가 고른** 앞 섹션 결과 버전을 그대로 쓴다. 이 값을
+                # 넘기지 않던 것이 "선택은 받지만 최종 AI에 전달되지 않는" 결함이었다.
+                upstream_result_ids=tuple(payload.selected_result_ids),
+                composition_id=payload.composition_id,
+            )
+        except bundle_pipeline_module.SectionRegenerationRefused as exc:
+            session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            ) from None
+        except store.RunNotFound:
+            session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="base run not found"
+            ) from None
+        finally:
+            close = getattr(reader, "close", None)
+            if callable(close):
+                close()
+        session.commit()
+        return SectionRunResponse(
+            run_id=outcome.run_id,
+            workflow_id=outcome.section_id,
+            workflow_version=version_manifest.workflow_version_of(outcome.section_id),
+            mode=outcome.mode.value,
+            status="succeeded" if outcome.unavailable_reason is None else "failed",
+            quality=outcome.quality.value,
+            section_result_id=outcome.section_result_id,
+            section_result_version=outcome.section_result_version,
+            external_calls=outcome.external_calls,
+            budget={},
+            unavailable_reason=outcome.unavailable_reason,
+            note=(
+                "저장된 정보 원문 묶음만 재사용해 이 섹션을 다시 만들었습니다."
+                " 새 수집·검색 호출은 없고 다른 섹션은 다시 부르지 않았습니다."
+                if outcome.bundle_reused
+                else (
+                    "이 섹션에 필요한 자료만 새로 수집해 다시 만들었습니다."
+                    " 다른 섹션 결과는 그대로 두었습니다."
+                )
+            ),
+            source_mode=outcome.source_mode,
+            bundle_id=outcome.bundle_id,
+            bundle_reused=outcome.bundle_reused,
+            expected_model_calls=outcome.expected_model_calls,
+            parent_run_id=outcome.base_run_id,
+            base_result_id=outcome.base_result_id,
+            new_version=outcome.section_result_version,
+            composition_id=outcome.composition_id,
+            no_model_call=outcome.expected_model_calls == 0,
+            other_sections_reused=True,
+        )
+
+    # --- 옛 경로 섹션 재생성 (기존 노드) ----------------------------------
+    implementations = _section_implementations(payload.workflow_id, mode=mode)
     if mode is not RunMode.MOCK and fixture is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
                 "실제 실행에는 경기 식별자(fixture_id·리그·시즌·팀·킥오프)가"
                 " 필요합니다. 경기 선택 화면에서 경기를 골라 실행하세요."
+            ),
+        )
+    reuse_bundle: dict | None = None
+    if payload.source_mode == "reuse":
+        source_run_id = payload.base_run_id
+        if source_run_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "source_mode=reuse에는 재사용할 정보 원문 묶음의 실행(base_run_id)이"
+                    " 필요합니다. 서버가 임의로 최신 묶음을 고르지 않습니다."
+                ),
+            )
+        try:
+            record = store.load_information_bundle(session, source_run_id)
+        except store.RunNotFound:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="base run not found",
+            ) from None
+        if not record.get("available"):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "재사용할 정보 원문 묶음이 없습니다: "
+                    f"{record.get('reason') or '사유 없음'}"
+                ),
+            )
+        if payload.bundle_id and record["bundle"].get("bundle_id") != payload.bundle_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "요청한 bundle_id가 그 실행의 저장 묶음과 다릅니다."
+                    f" 저장된 값: {record['bundle'].get('bundle_id')}"
+                ),
+            )
+        reuse_bundle = record
+        # 옛 경로는 묶음을 쓰지 않는다. 재사용으로 표시하지 않는다.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"{payload.workflow_id}는 정보 원문 묶음 경로로 재생성할 수 없습니다."
+                " 옛 조사 경로를 묶음 재사용으로 표시하지 않습니다."
             ),
         )
 
@@ -677,6 +966,8 @@ def create_section_run(
         selected_result_ids=tuple(payload.selected_result_ids),
     )
     session.commit()
+
+    expected_calls = _expected_section_model_calls(payload.workflow_id)
     return SectionRunResponse(
         run_id=result.run_id,
         workflow_id=result.workflow_id,
@@ -693,8 +984,17 @@ def create_section_run(
             "모의 시연 실행입니다. 외부 모델·API를 호출하지 않았고, 이 결과는 승인"
             " 근거가 아닙니다."
             if result.mode is RunMode.MOCK
-            else "실행 결과를 저장했습니다."
+            else "새 수집을 포함해 실행한 결과입니다."
         ),
+        source_mode=payload.source_mode,
+        bundle_id=None,
+        bundle_reused=False,
+        expected_model_calls=expected_calls,
+        parent_run_id=payload.base_run_id,
+        base_result_id=payload.base_result_id,
+        new_version=result.section_result_version,
+        no_model_call=result.mode is RunMode.MOCK or expected_calls == 0,
+        other_sections_reused=True,
     )
 
 
@@ -702,7 +1002,7 @@ def create_section_run(
 def get_reader_preview(
     run_id: UUID,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """MP-09 독자용 프리뷰. **ADMIN 전용**이며 저장된 행만 읽는다.
 
@@ -725,7 +1025,14 @@ def get_reader_preview(
 
     names = _display_names_for(session, detail)
     try:
-        view = build_reader_view(session, detail, names=names)
+        # 새 정보 원문 묶음 경로로 만든 섹션 결과가 있으면 **그 구성본**을 먼저 투영한다.
+        # 기존 S1 reader 경로는 옛 종합 결과만 읽어, 묶음으로 만든 본문이 독자 화면에
+        # 나타나지 않았다. S1 결과도 없고 묶음 결과도 없을 때만 404다.
+        from app.preview.section_preview import build_bundle_reader_view
+
+        view = build_bundle_reader_view(session, detail, names=names)
+        if view is None:
+            view = build_reader_view(session, detail, names=names)
     finally:
         # 조회기는 본문에만 나온 상대 팀·감독을 DB에 묻는 동안 필요하다. 응답을 만든
         # 뒤에는 닫아 연결을 남기지 않는다.
@@ -765,7 +1072,7 @@ def _stored_model_labels(detail) -> list:
 
 def _display_names_for(session, detail):
     """이 실행의 표시 이름 파사드. 설정이 없거나 실패하면 `None`(원문 유지)."""
-    from app.core.config import get_settings
+    from app.preview.config import get_settings
     from app.preview.display_names import open_display_names
 
     summary = getattr(detail, "summary", None)
@@ -791,7 +1098,7 @@ def _display_names_for(session, detail):
 def get_preview_diagnostics(
     run_id: UUID,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """MP-09 독자용 프리뷰의 **관리자 진단**. 독자용 응답과 분리된 경로다."""
     from app.preview.section_preview import build_diagnostics_view
@@ -809,19 +1116,169 @@ def get_preview_diagnostics(
 def get_section_results(
     run_id: UUID,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
+    include_structured: bool = Query(default=True),
 ) -> dict:
-    """이 실행이 저장한 섹션 본문 결과들. 저장된 행만 읽는다."""
+    """이 실행이 저장한 섹션 본문 결과들. 저장된 행만 읽는다.
+
+    `include_structured=true`(기본)면 각 섹션 결과에 **저장 payload에서 뽑은 구조 값**을
+    `structured`로 덧붙인다(선수명/선정이유 분리, 부상 상태 원문, 매체 점수 미제시 유지,
+    정규시간 1X2 배당 표, AI 예상). 값은 저장된 것만 옮기며 새로 만들지 않는다.
+    payload가 없으면 `structured`는 비어 있고 `available=false`다.
+    """
+    from app.preview.section_structured import (
+        STRUCTURED_VERSION,
+        StructuredIdContext,
+        structured_row_from_section_result,
+    )
+
     try:
-        store.get_run_detail(session, run_id)
+        detail = store.get_run_detail(session, run_id)
     except store.RunNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
         ) from None
+
+    rows = store.list_section_results(session, run_id)
+    if include_structured:
+        payload_by_result: dict[str, dict] = {}
+        for result in detail.results:
+            result_id = str(result.get("result_id"))
+            payload = result.get("payload")
+            if isinstance(payload, dict):
+                payload_by_result[result_id] = payload
+        # 내부 ID → 외부 ID 확인 경계. 표시 이름 파사드가 이미 여는 읽기 전용 조회기를
+        # **재사용**한다(새 연결·새 grant 없음). 없으면 외부 ID/사진은 `None`이다.
+        names = _display_names_for(session, detail)
+        id_context: StructuredIdContext | None = None
+        resolver = getattr(names, "names", None) if names is not None else None
+        fixture_block = getattr(detail, "fixture", None)
+        fixture_ids = (
+            fixture_block.to_dict() if getattr(fixture_block, "to_dict", None) else {}
+        )
+        if resolver is not None:
+            try:
+                # 이름만 있는 저장 행(부상 등)은 **이 경기 두 팀 범위**에서만 확인한다.
+                id_context = StructuredIdContext(
+                    resolver,
+                    scope_team_ids=tuple(
+                        int(value)
+                        for value in (
+                            fixture_ids.get("home_team_id"),
+                            fixture_ids.get("away_team_id"),
+                        )
+                        if isinstance(value, int)
+                    ),
+                )
+            except Exception:  # noqa: BLE001 - 확인 경계 실패로 표를 없애지 않는다
+                id_context = None
+        decorated: list[dict] = []
+        try:
+            for row in rows:
+                payload = None
+                for result_id in row.get("result_ids") or ():
+                    candidate = payload_by_result.get(str(result_id))
+                    if candidate is not None:
+                        payload = candidate
+                        break
+                decorated.append(
+                    {
+                        **row,
+                        **structured_row_from_section_result(
+                            row, payload=payload, id_context=id_context
+                        ),
+                    }
+                )
+        finally:
+            # 파사드가 연 읽기 전용 연결을 요청 단위로 닫는다.
+            close = getattr(names, "close", None)
+            if callable(close):
+                close()
+        rows = decorated
+
     return {
         "run_id": str(run_id),
-        "section_results": store.list_section_results(session, run_id),
+        "structured_version": STRUCTURED_VERSION if include_structured else None,
+        "section_results": rows,
     }
+
+
+@router.get("/runs/{run_id}/information-bundle")
+def get_information_bundle(
+    run_id: UUID,
+    session: Session = Depends(get_db),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
+    include_passages: bool = Query(default=True),
+) -> dict:
+    """이 실행의 정보 원문 묶음. 관리자 검사용이며 저장된 행만 읽는다.
+
+    - 본문·전달 구간·DB 입력·출처 성격·실패 목록을 함께 보여준다. 노드별 원문 응답은
+      실행 상세(`/runs/{run_id}`)에서 펼친다.
+    - 묶음이 없으면 빈 묶음을 만들지 않고 `available=false`와 실제 사유를 낸다.
+    - 이 응답은 저장된 아티팩트를 읽기만 한다. 외부 모델·API 호출이 없다.
+    """
+    try:
+        record = store.load_information_bundle(session, run_id)
+    except store.RunNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        ) from None
+
+    from app.preview import information_bundle as bundle_contract
+
+    if not include_passages and record.get("bundle"):
+        bundle = dict(record["bundle"])
+        bundle["available_passages"] = []
+        bundle["sources"] = [
+            {**dict(source), "passages": []}
+            for source in bundle.get("sources") or ()
+            if isinstance(source, dict)
+        ]
+        record["bundle"] = bundle
+        record["summary"] = bundle_contract.bundle_summary(bundle)
+
+    # 응답 계약: `availability`는 **중첩 객체**다(manifest §4·프론트 파서와 동일).
+    # 평면 키로 내보내면 화면이 사유를 잃는다(검토 F6). 값은 그대로 옮기고 새로 만들지 않는다.
+    payload = {
+        "run_id": str(run_id),
+        "availability": {
+            "available": bool(record.get("available")),
+            "reason": record.get("reason"),
+            "artifact_id": record.get("artifact_id"),
+            "sequence": record.get("sequence"),
+        },
+        "bundle": record.get("bundle"),
+        "summary": record.get("summary"),
+    }
+    if not include_passages:
+        # 구간 생략 여부는 응답 최상위에 남긴다(화면이 "생략됨"을 알 수 있어야 한다).
+        payload["passages_omitted"] = True
+        payload["passage_note"] = (
+            "구간 본문을 요청에 따라 생략했습니다. 관리자 검사에서 전체를 보려면"
+            " include_passages=true로 다시 여세요."
+        )
+    return payload
+
+
+@router.get("/runs/{run_id}/information-bundle/sources/{source_id}")
+def get_information_bundle_source(
+    run_id: UUID,
+    source_id: str,
+    session: Session = Depends(get_db),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """묶음 출처 하나의 **전문**. 이 실행이 소유한 아티팩트만 연다.
+
+    묶음 인라인 응답에는 구간만 있고 전문은 아티팩트에 있다. 재사용·부모 실행에서
+    가져온 묶음이면 전문이 이 실행 소유가 아니므로 읽을 수 없다고 그대로 알린다.
+    """
+    try:
+        record = store.load_source_body(session, run_id, source_id)
+    except store.RunNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        ) from None
+    return {"run_id": str(run_id), **record}
 
 
 @router.post(
@@ -831,7 +1288,7 @@ def replay_stored_result(
     result_id: UUID,
     payload: ReplayResultRequest,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> ReplayResultResponse:
     """저장된 응답으로 변환만 다시 한다. 외부 모델 호출은 0회다.
 
@@ -882,9 +1339,106 @@ def replay_stored_result(
     )
 
 
+class CompositionRequest(BaseModel):
+    """여러 실행의 섹션 결과 버전을 골라 구성본을 만든다."""
+
+    fixture_id: int | None = None
+    selected_result_ids: list[UUID] = Field(default_factory=list)
+    label: str | None = Field(default=None, max_length=200)
+
+
+class CompositionResponse(BaseModel):
+    composition_id: str
+    fixture_id: int | None
+    items: list[dict] = Field(default_factory=list)
+    refused: list[dict] = Field(default_factory=list)
+    diagnostics: list[str] = Field(default_factory=list)
+    section_result_ids: list[str] = Field(default_factory=list)
+    external_calls: int = 0
+    note: str
+
+
+@router.post("/runs/{run_id}/composition", response_model=CompositionResponse)
+def create_run_composition(
+    run_id: UUID,
+    payload: CompositionRequest,
+    session: Session = Depends(get_db),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
+) -> CompositionResponse:
+    """선택한 섹션 결과 버전들을 **이 실행의 구성본**으로 저장한다.
+
+    선택 ID는 각자 **자기 실행**에서 확인하므로 서로 다른 실행의 같은 경기 결과를 함께
+    고를 수 있다. 다른 경기·없는 결과·중복 섹션은 조용히 대체하지 않고 `refused`에
+    사유와 함께 돌려준다. 이 호출은 모델·HTTP를 쓰지 않는다(외부 호출 0회).
+    """
+    from app.preview import bundle_pipeline as bundle_pipeline_module
+
+    try:
+        detail = store.get_run_detail(session, run_id, include_artifact_bodies=False)
+    except store.RunNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        ) from None
+    expected_fixture = payload.fixture_id
+    if expected_fixture is None and detail.fixture is not None:
+        expected_fixture = detail.fixture.fixture_id
+    if not payload.selected_result_ids:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "구성본에는 관리자가 고른 섹션 결과 ID가 필요합니다. 서버가 최신 결과를"
+                " 임의로 고르지 않습니다."
+            ),
+        )
+    try:
+        outcome = bundle_pipeline_module.save_composition(
+            session,
+            run_id=run_id,
+            fixture_id=expected_fixture,
+            selected_result_ids=tuple(payload.selected_result_ids),
+            actor_id=principal.user_id,
+        )
+    except bundle_pipeline_module.CompositionRefused as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from None
+    session.commit()
+    composition = dict(outcome["composition"])
+    return CompositionResponse(
+        composition_id=str(composition.get("composition_id")),
+        fixture_id=composition.get("fixture_id"),
+        items=[dict(item) for item in outcome["items"]],
+        refused=[dict(item) for item in outcome["refused"]],
+        diagnostics=[str(item) for item in outcome["diagnostics"]],
+        section_result_ids=[str(item) for item in composition.get("section_result_ids") or ()],
+        external_calls=0,
+        note=(
+            "선택한 결과 버전으로 구성본을 저장했습니다. 모델·외부 호출은 없습니다."
+            " 선택되지 않은 결과는 넣지 않았습니다."
+        ),
+    )
+
+
+@router.get("/runs/{run_id}/composition")
+def get_run_composition(
+    run_id: UUID,
+    session: Session = Depends(get_db),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
+) -> dict:
+    """이 실행의 구성본. 없으면 빈 구성본을 만들지 않고 사유를 낸다."""
+    try:
+        record = store.load_composition(session, run_id)
+    except store.RunNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        ) from None
+    return {"run_id": str(run_id), **record}
+
+
 @router.get("/registry")
 def get_registry(
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """등록된 모듈과 구현 여부. 미구현 모듈을 실행 가능으로 보이지 않게 한다.
 
@@ -911,7 +1465,7 @@ def get_registry(
 @router.get("/retention")
 def get_retention(
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """보관 정책과 현재 상태. 자동 삭제 스케줄러는 없다."""
     return {
@@ -923,7 +1477,7 @@ def get_retention(
 @router.post("/retention/expire", response_model=dict)
 def run_expiry(
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """만료 처리를 한 번 실행한다. 운영에서 자동으로 돌리지 않는다.
 
@@ -942,7 +1496,7 @@ def run_expiry(
 def preview_undo(
     run_id: UUID,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """취소하면 무엇이 지워지는지 먼저 보여준다."""
     try:
@@ -956,7 +1510,7 @@ def cancel_run(
     run_id: UUID,
     payload: CancelRunRequest,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> CancelRunResponse:
     """이 실행이 만든 preview_dev 기록만 취소한다. 실행 행과 감사 표시는 남긴다.
 
@@ -984,7 +1538,7 @@ def cancel_run(
 def get_audit(
     run_id: UUID,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """이 실행이 남긴 개발 영역 쓰기 내역. 값이 아니라 동작만 남는다."""
     run = session.get(PreviewRun, run_id)
@@ -1122,11 +1676,219 @@ def _admission_response(outcome) -> PreviewRunResponse:
     )
 
 
+class BundlePreviewRunRequest(BaseModel):
+    """새 기본 경로(정보 원문 묶음) 전체 프리뷰 실행 요청.
+
+    정상 입력은 **경기 번호 하나**(`fixture_id`)와 `mode='live'`다. 서버가 저장된
+    경기에서 리그·시즌·팀·킥오프를 해석하므로 화면이 내부 ID를 만들 필요가 없다.
+
+    과거의 전체 식별자 입력(리그·시즌·팀·킥오프)은 **호환을 위해 계속 받는다.**
+    값이 저장된 경기와 다르면 다른 경기를 만들지 않고 422로 거부한다. 값이 없으면
+    저장된 값을 쓴다. `mode`는 live만 허용하며, 설정이 없으면 422다(모의 대체 없음).
+    """
+
+    fixture_id: int
+    # 경기 식별자의 나머지 필드는 선택이다(경기 번호만으로 실행). 주어지면 저장된
+    # 경기와 **같은지 확인**하고, 다르면 422다.
+    league_id: int | None = None
+    season: int | None = None
+    home_team_id: int | None = None
+    away_team_id: int | None = None
+    kickoff_at: datetime | None = None
+    mode: str = RunMode.MOCK.value
+    label: str | None = Field(default=None, max_length=200)
+
+
+class BundlePreviewRunResponse(BaseModel):
+    run_id: UUID
+    mode: str
+    status: str
+    quality: str
+    bundle_id: str | None
+    bundle_hash: str | None
+    bundle_artifact_id: str | None
+    section_result_ids: dict[str, str] = Field(default_factory=dict)
+    section_quality: dict[str, str] = Field(default_factory=dict)
+    section_unavailable: dict[str, str] = Field(default_factory=dict)
+    discovery_status: dict[str, str] = Field(default_factory=dict)
+    external_calls: int
+    budget: dict = Field(default_factory=dict)
+    unavailable_reason: str | None = None
+    note: str
+
+
+@router.post("/bundle-runs", response_model=BundlePreviewRunResponse)
+def create_bundle_preview_run(
+    payload: BundlePreviewRunRequest,
+    session: Session = Depends(get_db),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
+) -> BundlePreviewRunResponse:
+    """경기 번호 하나로 전체 프리뷰를 **한 번** 생성하고 저장한다.
+
+    계약:
+
+    - 입력은 `fixture_id`(API-Football 외부 번호)와 `mode='live'`다. 서버가 저장된
+      경기에서 리그·시즌·팀·킥오프를 해석한다.
+    - 서로 다른 경기를 만들지 않는다. 저장된 경기와 **다른 값**이 함께 오면 422다.
+      번호가 저장 자료에 없으면 404, 저장 자료를 읽을 수 없으면 503이며, 두 경우
+      모두 모델 전송은 0회다.
+    - 재시도 의미는 **각 논리 AI 모듈의 최초 포함 최대 3회**다(전체 8회 제한 없음).
+    - 응답은 기존 `BundlePreviewRunResponse`이며 `run_id`로 저장 결과를 다시 읽는다.
+      본문·근거는 `/runs/{run_id}/section-results`, 묶음은
+      `/runs/{run_id}/information-bundle`에서 **DB만** 조회한다.
+    """
+    from app.services import match_preview as service
+
+    try:
+        mode = RunMode(payload.mode)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unknown run mode"
+        ) from None
+    if mode is RunMode.REPLAY:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "저장 응답 재생은 결과 단위 재변환 경로를 씁니다. 전체 실행의 재생 모드는"
+                " 열지 않았습니다."
+            ),
+        )
+    if mode is not RunMode.LIVE:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "새 정보 원문 경로는 실제 모델 호출이 필요합니다. 모의 실행은"
+                " 섹션 단위 시험(/section-runs)으로 화면을 확인하고, 이 경로는"
+                " live로 실행하세요. 모의 응답을 만들어 본문을 채우지 않습니다."
+            ),
+        )
+    transport = _model_transport(mode)
+    if transport is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "모델 설정이 없거나 PREVIEW_MODEL_LIVE_ENABLED가 꺼져 있어 live 실행을"
+                " 열지 않았습니다. 모의로 대체하지 않습니다."
+            ),
+        )
+
+    reader = _fixture_reader()
+    # 완전 식별자 입력은 **저장된 경기와 대조**한다. 다르면 다른 경기를 만들지 않는다.
+    _refuse_conflicting_fixture_identifiers(payload, reader=reader)
+
+    try:
+        outcome = service.generate_match_preview(
+            fixture_id=int(payload.fixture_id),
+            actor_id=principal.user_id,
+            trigger="admin",
+            session=session,
+            transport=transport,
+            reader=reader,
+            label=payload.label,
+            mode=mode,
+        )
+    except service.FixtureResolutionError as exc:
+        raise HTTPException(
+            status_code=exc.status_hint or status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from None
+    finally:
+        close = getattr(reader, "close", None)
+        if callable(close):
+            close()
+    session.commit()
+    return BundlePreviewRunResponse(
+        run_id=outcome.run_id,
+        mode=outcome.mode.value,
+        status=outcome.status.value,
+        quality=outcome.quality.value,
+        bundle_id=outcome.bundle_id,
+        bundle_hash=outcome.bundle_hash,
+        bundle_artifact_id=outcome.bundle_artifact_id,
+        section_result_ids=dict(outcome.section_result_ids),
+        section_quality=dict(outcome.section_quality),
+        section_unavailable=dict(outcome.section_unavailable),
+        discovery_status=dict(outcome.discovery_status),
+        external_calls=outcome.external_calls,
+        budget=dict(outcome.budget),
+        unavailable_reason=outcome.unavailable_reason,
+        note=(
+            # `quality`/`status`는 **기술 실행·저장 사실**이다. 본문 표시·재전송의
+            # 품질 문턱으로 쓰지 않는다. 글의 성공 판단은 사용자가 한다.
+            "실행·저장 결과입니다. 섹션 본문과 근거는"
+            f" /runs/{outcome.run_id}/section-results, 묶음은"
+            f" /runs/{outcome.run_id}/information-bundle에서 확인하세요."
+            " 부분 본문도 저장되며, 내용의 성공 여부는 자동 판정하지 않습니다."
+        ),
+    )
+
+
+def _refuse_conflicting_fixture_identifiers(
+    payload: "BundlePreviewRunRequest", *, reader: Any = None
+) -> None:
+    """이전 전체 식별자 입력이 **저장된 경기와 충돌**하면 422로 거부한다.
+
+    관리자 화면은 번호만 보낸다. 과거 입력(리그·시즌·팀·킥오프)을 계속 받되, 저장된
+    경기와 다른 값을 보내면 다른 경기를 만들지 않고 멈춘다. 저장 자료가 없으면
+    해석 단계에서 503/404로 처리하므로 여기서는 비교만 한다.
+    """
+    supplied = {
+        "league_id": payload.league_id,
+        "season": payload.season,
+        "home_team_id": payload.home_team_id,
+        "away_team_id": payload.away_team_id,
+        "kickoff_at": payload.kickoff_at,
+    }
+    if all(value is None for value in supplied.values()):
+        return
+    opener = reader if reader is not None else _fixture_reader()
+    if opener is None:
+        return
+    borrowed = reader is None
+    try:
+        access = opener.access()
+        if not getattr(access, "readable", False):
+            return
+        record = opener.get_fixture(fixture_id=int(payload.fixture_id))
+    except Exception:  # noqa: BLE001 - 해석 실패는 service가 정확한 상태로 보고한다
+        return
+    finally:
+        if borrowed:
+            close = getattr(opener, "close", None)
+            if callable(close):
+                close()
+    if record is None:
+        return
+    conflicts: list[str] = []
+    for key, value in supplied.items():
+        if value is None:
+            continue
+        if key == "kickoff_at":
+            assert payload.kickoff_at is not None
+            incoming = payload.kickoff_at
+            stored_dt = record.kickoff_at
+            if incoming.tzinfo is None:
+                incoming = incoming.replace(tzinfo=stored_dt.tzinfo)
+            if incoming.astimezone(stored_dt.tzinfo) != stored_dt:
+                conflicts.append(f"{key}={payload.kickoff_at.isoformat()}")
+            continue
+        if int(value) != int(getattr(record, key)):
+            conflicts.append(f"{key}={value}")
+    if conflicts:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"요청한 경기 식별자({', '.join(conflicts)})가 저장된 경기"
+                f" {record.fixture_id}의 값과 다릅니다. 다른 경기를 만들지 않습니다."
+            ),
+        )
+
+
 @router.post("/runs", response_model=PreviewRunResponse)
 def create_preview_run(
     payload: PreviewRunRequest,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> PreviewRunResponse:
     """전체 프리뷰를 시작한다. 승인이 없으면 실행하지 않고 대기 상태를 돌려준다."""
     from app.preview import jobs as jobs_module
@@ -1178,7 +1940,7 @@ def create_preview_run(
 def resume_preview_run(
     run_id: UUID,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> PreviewRunResponse:
     """멈춘 전체 프리뷰를 남은 예산으로 이어서 돈다. 성공한 조사는 다시 부르지 않는다."""
     from app.preview import pipeline as pipeline_module
@@ -1215,7 +1977,7 @@ def rerun_preview_module(
     run_id: UUID,
     payload: ModuleRerunRequest,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> PreviewRunResponse:
     """조사 모듈 하나를 새 결과 버전으로 다시 돈다. 다른 결과는 지우지 않는다."""
     from app.preview import pipeline as pipeline_module
@@ -1257,7 +2019,7 @@ def rerun_preview_synthesis(
     run_id: UUID,
     payload: SynthesisRunRequest,
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> PreviewRunResponse:
     """관리자가 고른 결과 버전으로 종합만 다시 한다. 선택 없이는 실행하지 않는다."""
     from app.preview import pipeline as pipeline_module
@@ -1296,7 +2058,7 @@ def rerun_preview_synthesis(
 @router.get("/admission")
 def get_admission_state(
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
 ) -> dict:
     """지금 코드로 기본 전체 프리뷰를 돌릴 수 있는지. 저장된 승인 행만 읽는다."""
     from app.preview import pipeline as pipeline_module

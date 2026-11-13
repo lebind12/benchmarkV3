@@ -1,4 +1,10 @@
-"""Signed access tokens and atomic refresh rotation in namespaced Upstash keys."""
+"""Signed access tokens and atomic refresh rotation in namespaced Upstash keys.
+
+계정 조회(`current_user` → `/me`·ADMIN 판정)는 `db.get_auth_db_session()`을 쓴다.
+운영 프로필에서는 기존 `get_db_session()`과 같은 세션이고, 로컬 프로필에서는
+기존 계정의 좁은 읽기 전용 연결(`PREVIEW_IDENTITY_DATABASE_URL`)이다. 세션
+저장(원격 Upstash)과 서명키 동작은 바꾸지 않는다.
+"""
 
 from __future__ import annotations
 
@@ -144,7 +150,7 @@ _bearer = HTTPBearer(auto_error=False)
 
 def current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-    session: Session = Depends(db.get_db_session),
+    session: Session = Depends(db.get_auth_db_session),
 ) -> AppUser:
     if not credentials:
         raise HTTPException(401, "로그인이 필요합니다.", headers={"WWW-Authenticate": "Bearer"})

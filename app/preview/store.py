@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping, Sequence
@@ -55,13 +56,22 @@ from app.preview.models import (
 )
 
 __all__ = [
+    "BUNDLE_RECORD_TYPE",
+    "COMPOSITION_RECORD_TYPE",
     "append_attempt",
     "cancel_run",
     "compare_result_versions",
     "get_module_execution",
     "get_run_detail",
     "get_section_result",
+    "get_section_result_any_run",
     "list_runs",
+    "load_information_bundle",
+    "load_source_body",
+    "save_composition",
+    "load_composition",
+    "save_information_bundle",
+    "save_information_bundle_with_bodies",
     "list_section_results",
     "record_source_snapshot",
     "save_module_result",
@@ -615,6 +625,18 @@ def save_section_result(
     return row
 
 
+def get_section_result_any_run(
+    session: Session, section_result_id: uuid.UUID
+) -> PreviewSectionResult | None:
+    """결과 ID로 섹션 결과를 찾는다(실행 범위 제한 없음).
+
+    구성본은 **서로 다른 실행**의 결과를 함께 고를 수 있어야 한다. 이 함수는 관리자
+    선택을 해석하는 호출자(구성본 검증)만 쓰고, 실행 범위 조회는 기존
+    `get_section_result()`를 그대로 쓴다.
+    """
+    return session.get(PreviewSectionResult, section_result_id)
+
+
 def get_section_result(
     session: Session, run_id: uuid.UUID, section_result_id: uuid.UUID
 ) -> PreviewSectionResult | None:
@@ -922,6 +944,17 @@ def get_run_detail(
         section_results=tuple(_section_result_view(r) for r in section_results),
         unassigned_attempts=tuple(_attempt_view(a) for a in unassigned),
     )
+
+
+def run_send_ledger_summary(session: Session, run_id: uuid.UUID) -> dict[str, Any]:
+    """실행 하나의 전송 장부 요약. 조회 경로가 화면에 그대로 낼 수 있는 값이다."""
+    from app.preview import send_ledger as ledger_module
+
+    return {
+        "charged_requests": ledger_module.charged_requests(session, run_id=run_id),
+        "unresolved_sends": list(ledger_module.unresolved_sends(session, run_id=run_id)),
+        "ledger_action": ledger_module.CHARGE_ACTION,
+    }
 
 
 def get_module_execution(
@@ -1336,3 +1369,402 @@ def iter_audit(session: Session, run_id: uuid.UUID) -> Iterable[dict[str, Any]]:
             "actor_id": str(row.actor_id),
             "created_at": row.created_at.isoformat() if row.created_at else None,
         }
+
+
+# --------------------------------------------------------------------------
+# 정보 원문 묶음 저장·조회 (PS-01)
+# --------------------------------------------------------------------------
+
+# 묶음 아티팩트를 다른 정규화 변환과 구별하는 표식. 새 테이블을 만들지 않고 기존
+# `preview_artifacts`(JSONB 그릇)만 쓴다. 그래서 개발 마이그레이션이 필요 없다.
+BUNDLE_RECORD_TYPE = "information_bundle"
+# 섹션 결과 버전을 **관리자가 골라 묶은 구성본**. 새 테이블을 만들지 않고 기존
+# `preview_artifacts`(normalized_transform)에 기록 유형으로 남긴다.
+COMPOSITION_RECORD_TYPE = "section_composition"
+
+
+def save_information_bundle(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    bundle: Mapping[str, Any],
+    actor_id: int = 0,
+    secret_values: Sequence[str] = (),
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """정보 원문 묶음을 저장한다. 계약 위반은 저장 전에 거부한다.
+
+    반환값은 조회와 같은 모양(`available/artifact_id/bundle/summary`)이라 호출자가
+    저장 직후 화면에 그대로 쓸 수 있다.
+    """
+    from app.preview import information_bundle as bundle_contract
+
+    row = _load_run(session, run_id)
+    bundle_contract.ensure_valid_bundle(bundle)
+    payload = bundle_contract.bundle_to_dict(bundle)
+    # 같은 실행에서 묶음을 여러 번 저장할 수 있다(섹션 전달 기록 추가 등). 생성 시각이
+    # 같아도 "가장 최근 저장"을 확정할 수 있도록 실행별 순번을 남긴다.
+    previous = [
+        row
+        for row in session.scalars(
+            select(PreviewArtifact).where(
+                PreviewArtifact.run_id == row.id,
+                PreviewArtifact.kind
+                == artifact_store.ArtifactKind.NORMALIZED_TRANSFORM.value,
+            )
+        )
+    ]
+    record = {
+        "record_type": BUNDLE_RECORD_TYPE,
+        "sequence": len(previous) + 1,
+        "bundle_version": payload.get("bundle_version"),
+        "bundle": payload,
+    }
+    artifact = artifact_store.save_artifact(
+        session,
+        run_id=row.id,
+        kind=artifact_store.ArtifactKind.NORMALIZED_TRANSFORM,
+        content=record,
+        secret_values=secret_values,
+        actor_id=actor_id,
+        now=now,
+    )
+    _audit(
+        session,
+        run_id=row.id,
+        actor_id=actor_id,
+        action="information_bundle_saved",
+        target_table="preview_artifacts",
+        target_id=str(artifact.id),
+        detail={
+            "bundle_id": payload.get("bundle_id"),
+            "bundle_hash": payload.get("bundle_hash"),
+            "source_count": len(payload.get("sources") or ()),
+            "usable_source_count": payload.get("usable_source_count"),
+        },
+    )
+    return {
+        "available": True,
+        "reason": None,
+        "artifact_id": str(artifact.id),
+        "bundle": payload,
+        "summary": bundle_contract.bundle_summary(payload),
+    }
+
+
+def load_information_bundle(
+    session: Session, run_id: uuid.UUID
+) -> dict[str, Any]:
+    """이 실행의 최신 정보 원문 묶음. 없으면 `available=false`와 실제 사유를 낸다.
+
+    빈 묶음을 만들어 내지 않는다. 만료된 아티팩트는 `available=false`이며 사유가
+    "보관 기간이 지났다"임을 밝힌다(읽기 실패와 다른 상태).
+    """
+    _load_run(session, run_id)  # 실행이 없으면 RunNotFound
+    candidates = list(
+        session.scalars(
+            select(PreviewArtifact)
+            .where(
+                PreviewArtifact.run_id == run_id,
+                PreviewArtifact.kind == artifact_store.ArtifactKind.NORMALIZED_TRANSFORM.value,
+            )
+            .order_by(PreviewArtifact.created_at.desc())
+        )
+    )
+    matches: list[tuple[int, datetime, PreviewArtifact, Mapping[str, Any]]] = []
+    for row in candidates:
+        if row.body is None:
+            continue
+        try:
+            record = json.loads(row.body)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(record, Mapping) or record.get("record_type") != BUNDLE_RECORD_TYPE:
+            continue
+        bundle = record.get("bundle")
+        if not isinstance(bundle, Mapping):
+            continue
+        matches.append(
+            (int(record.get("sequence") or 0), row.created_at, row, dict(bundle))
+        )
+    if matches:
+        # 가장 최근 저장본. 순번이 같으면(옛 기록) 생성 시각으로 비교한다.
+        matches.sort(key=lambda item: (item[0], item[1]))
+        _sequence, _created, row, bundle = matches[-1]
+        from app.preview import information_bundle as bundle_contract
+
+        return {
+            "available": True,
+            "reason": None,
+            "artifact_id": str(row.id),
+            "sequence": _sequence,
+            "bundle": bundle,
+            "summary": bundle_contract.bundle_summary(bundle),
+        }
+    expired = [row for row in candidates if row.body is None]
+    if expired:
+        return {
+            "available": False,
+            "reason": (
+                "정보 원문 묶음의 보관 기간이 지나 본문을 열 수 없습니다."
+                " 요약과 해시는 남아 있습니다."
+            ),
+            "artifact_id": str(expired[0].id),
+            "bundle": None,
+            "summary": expired[0].summary,
+        }
+    return {
+        "available": False,
+        "reason": (
+            "이 실행에는 정보 원문 묶음이 저장되어 있지 않습니다. 묶음을 만들지 않은"
+            " 실행이거나, 수집 단계 이전에 끝난 실행입니다."
+        ),
+        "artifact_id": None,
+        "bundle": None,
+        "summary": None,
+    }
+
+def save_information_bundle_with_bodies(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    collection: Any,
+    actor_id: int = 0,
+    secret_values: Sequence[str] = (),
+    now: datetime | None = None,
+    db_snapshot: Any | None = None,
+) -> dict[str, Any]:
+    """B의 수집 결과(`CollectionOutput`)를 **전문 아티팩트와 함께** 저장한다.
+
+    묶음에는 전문을 넣지 않는다(계약). 대신 출처마다 `body_artifact_id`를 채워
+    "전문이 어디 있는지"를 가리킨다. 그래서 관리자 화면은 묶음만으로 출처·구간을
+    보여주고, 전문은 그 아티팩트 ID로 연다.
+
+    `collection`에 전문이 없으면(옛 모양) 아티팩트를 만들지 않고 묶음만 저장한다.
+    없는 전문을 빈 문자열로 만들어 채우지 않는다.
+    """
+    from app.preview import information_bundle as bundle_contract
+
+    row = _load_run(session, run_id)
+    bundle = bundle_contract.bundle_from_collection(
+        collection=collection,
+        db_snapshot=(
+            bundle_contract.DbSnapshot.from_dict(db_snapshot)
+            if isinstance(db_snapshot, Mapping)
+            else db_snapshot
+        ),
+    )
+    bodies = bundle_contract.collection_bodies(collection)
+
+    artifact_by_source: dict[str, uuid.UUID] = {}
+    moment = now or _now()
+    for body in bodies:
+        source_id = str(getattr(body, "source_id", "") or "")
+        text = str(getattr(body, "text", "") or "")
+        if not source_id or not text:
+            continue
+        artifact = artifact_store.save_artifact(
+            session,
+            run_id=row.id,
+            kind=artifact_store.ArtifactKind.RAW_RESPONSE,
+            content={
+                "record_type": "source_body",
+                "source_id": source_id,
+                "requested_url": getattr(body, "requested_url", None),
+                "final_url": getattr(body, "final_url", None),
+                "captured_at": getattr(body, "captured_at", None),
+                "extractor": getattr(body, "extractor", None),
+                "extraction": getattr(body, "extraction", None),
+                "html_sha256": getattr(body, "html_sha256", None),
+                "body_sha256": getattr(body, "body_sha256", None),
+                "body_chars": len(text),
+                "text": text,
+            },
+            media_type="application/json",
+            secret_values=secret_values,
+            actor_id=actor_id,
+            now=moment,
+        )
+        artifact_by_source[source_id] = artifact.id
+
+    if artifact_by_source:
+        from dataclasses import replace as _replace
+
+        patched = tuple(
+            _replace(
+                source,
+                body_artifact_id=artifact_by_source.get(source.source_id)
+                or source.body_artifact_id,
+            )
+            for source in bundle.sources
+        )
+        bundle = _replace(bundle, sources=patched)
+
+    return save_information_bundle(
+        session,
+        run_id=row.id,
+        bundle=bundle,
+        actor_id=actor_id,
+        secret_values=secret_values,
+        now=now,
+    )
+
+
+def save_composition(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    composition: Mapping[str, Any],
+    actor_id: int = 0,
+    secret_values: Sequence[str] = (),
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """관리자가 고른 섹션 결과 버전 묶음(구성본)을 저장한다.
+
+    새 테이블을 만들지 않고 `preview_artifacts`(normalized_transform)에 기록 유형
+    `section_composition`으로 남긴다. 구성본은 **선택 ID 집합**과 각 항목의 출처 실행을
+    함께 보관해야 하므로, 호출자가 만든 그대로를 저장하고 여기서 값을 만들지 않는다.
+    """
+    row = _load_run(session, run_id)
+    record = {
+        "record_type": COMPOSITION_RECORD_TYPE,
+        "composition": dict(composition),
+    }
+    artifact = artifact_store.save_artifact(
+        session,
+        run_id=row.id,
+        kind=artifact_store.ArtifactKind.NORMALIZED_TRANSFORM,
+        content=record,
+        secret_values=secret_values,
+        actor_id=actor_id,
+        now=now,
+    )
+    _audit(
+        session,
+        run_id=row.id,
+        actor_id=actor_id,
+        action="section_composition_saved",
+        target_table="preview_artifacts",
+        target_id=str(artifact.id),
+        detail={
+            "composition_id": (composition or {}).get("composition_id"),
+            "item_count": len((composition or {}).get("items") or ()),
+        },
+    )
+    return {
+        "available": True,
+        "artifact_id": str(artifact.id),
+        "composition": dict(composition),
+    }
+
+
+def load_composition(session: Session, run_id: uuid.UUID) -> dict[str, Any]:
+    """이 실행의 최신 구성본. 없으면 `available=false`와 실제 사유를 낸다."""
+    _load_run(session, run_id)
+    rows = list(
+        session.scalars(
+            select(PreviewArtifact)
+            .where(
+                PreviewArtifact.run_id == run_id,
+                PreviewArtifact.kind == artifact_store.ArtifactKind.NORMALIZED_TRANSFORM.value,
+            )
+            .order_by(PreviewArtifact.created_at.desc())
+        )
+    )
+    for row in rows:
+        if row.body is None:
+            continue
+        try:
+            record = json.loads(row.body)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(record, Mapping):
+            continue
+        if record.get("record_type") != COMPOSITION_RECORD_TYPE:
+            continue
+        composition = record.get("composition")
+        if not isinstance(composition, Mapping):
+            continue
+        return {
+            "available": True,
+            "reason": None,
+            "artifact_id": str(row.id),
+            "composition": dict(composition),
+        }
+    return {
+        "available": False,
+        "reason": "이 실행에는 저장된 구성본이 없습니다.",
+        "artifact_id": None,
+        "composition": None,
+    }
+
+
+def load_source_body(
+    session: Session, run_id: uuid.UUID, source_id: str
+) -> dict[str, Any]:
+    """정보 원문 묶음 출처의 전문. 없으면 `available=false`와 사유를 낸다.
+
+    묶음이 가리키는 아티팩트가 이 실행 소유가 아니면(재사용·부모 실행) 읽을 수 없다고
+    정직하게 알린다. 다른 실행의 원문을 권한 없이 열지 않는다.
+    """
+    record = load_information_bundle(session, run_id)
+    if not record.get("available"):
+        return {
+            "available": False,
+            "source_id": source_id,
+            "reason": record.get("reason"),
+            "body": None,
+        }
+    sources = [
+        source
+        for source in (record.get("bundle") or {}).get("sources") or ()
+        if str(source.get("source_id")) == source_id
+    ]
+    if not sources:
+        return {
+            "available": False,
+            "source_id": source_id,
+            "reason": "이 정보 원문 묶음에 해당 출처가 없습니다.",
+            "body": None,
+        }
+    source = sources[0]
+    artifact_id = source.get("body_artifact_id")
+    if not artifact_id:
+        return {
+            "available": False,
+            "source_id": source_id,
+            "reason": (
+                "이 출처의 전문 아티팩트가 없습니다. 후보로만 남았거나 본문을 확보하지"
+                " 못한 출처입니다."
+            ),
+            "body": None,
+        }
+    artifact = session.get(PreviewArtifact, uuid.UUID(str(artifact_id)))
+    if artifact is None or artifact.run_id != run_id:
+        return {
+            "available": False,
+            "source_id": source_id,
+            "reason": (
+                "전문 아티팩트가 이 실행 소유가 아니어서 열 수 없습니다(재사용·부모"
+                " 실행 원문)."
+            ),
+            "body": None,
+        }
+    if artifact.body is None:
+        return {
+            "available": False,
+            "source_id": source_id,
+            "reason": "전문 아티팩트의 보관 기간이 지나 본문을 열 수 없습니다.",
+            "body": None,
+        }
+    try:
+        payload = json.loads(artifact.body)
+    except (TypeError, ValueError):
+        payload = {"text": artifact.body}
+    return {
+        "available": True,
+        "source_id": source_id,
+        "reason": None,
+        "artifact_id": str(artifact.id),
+        "body": payload if isinstance(payload, Mapping) else {"text": str(payload)},
+    }

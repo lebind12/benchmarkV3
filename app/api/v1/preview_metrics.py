@@ -27,9 +27,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.auth.service import AdminPrincipal, require_preview_admin
-from app.db import get_db
+from app.preview.access import PreviewPrincipal, require_preview_admin
 from app.preview.contracts import Environment, MetricsQuery, RunMode
+from app.preview.db import get_db
 from app.preview.metrics import METRIC_VERSION, MetricsQueryError, query_metrics
 
 router = APIRouter(prefix="/api/v1/admin/preview", tags=["preview-metrics"])
@@ -66,7 +66,7 @@ def _parse_modes(values: list[str]) -> tuple[RunMode, ...]:
 @router.get("/metrics")
 def metrics(
     session: Session = Depends(get_db),
-    principal: AdminPrincipal = Depends(require_preview_admin),
+    principal: PreviewPrincipal = Depends(require_preview_admin),
     from_at: datetime | None = Query(default=None, description="집계 시작 시각(포함, ISO8601)"),
     to_at: datetime | None = Query(default=None, description="집계 종료 시각(미포함, ISO8601)"),
     environment: list[str] = Query(default_factory=list),

@@ -19,11 +19,13 @@ from typing import Mapping
 
 from app.preview.contracts import (
     CONTRACT_VERSION,
+    SECTION_RESULT_CONTRACT_VERSION,
     ConstituentVersion,
 )
 from app.preview.registry import get_section_workflow
 
 __all__ = [
+    "BUNDLE_WORKFLOW_IDS",
     "COMPOSE_MODULE_ID",
     "DATA_MODULE_ID",
     "constituents_for_workflow",
@@ -32,6 +34,34 @@ __all__ = [
 
 DATA_MODULE_ID = "D0"
 COMPOSE_MODULE_ID = "compose_body"
+
+# 새 기본 경로(정보 원문 묶음 기반) 섹션 워크플로우. 이 목록의 워크플로우만 C 작성
+# 어댑터(bundle_sections)의 버전 축을 쓴다. 옛 섹션(section_form 등)은 그대로 둔다.
+BUNDLE_WORKFLOW_IDS: frozenset[str] = frozenset(
+    {
+        "section_players",
+        "section_availability",
+        "section_outlook",
+        "section_odds",
+        "section_ai_forecast",
+    }
+)
+
+
+def _bundle_manifest(module_id: str) -> tuple[str, str] | None:
+    """새 기본 경로(bundle 섹션)의 (프롬프트 버전, 구현 버전). 없으면 None.
+
+    C 작성 어댑터가 자기 버전 표를 소유한다. 여기서 문자열을 복사하지 않는다.
+    """
+    from app.preview.modules import bundle_sections
+
+    try:
+        implementation_version, prompt_version = bundle_sections.bundle_module_versions(
+            module_id
+        )
+    except KeyError:
+        return None
+    return prompt_version, implementation_version
 
 
 def _module_manifest(module_id: str) -> tuple[str, str] | None:
@@ -88,6 +118,13 @@ def _compose_manifest(workflow_id: str) -> tuple[str, str]:
         from app.preview.modules import synthesis
 
         return "", synthesis.COMPOSE_IMPLEMENTATION_VERSION
+    if workflow_id == "section_odds":
+        # 배당은 모델 프롬프트가 없지만(0회) **공급 경로**가 결과 의미를 바꾼다.
+        # 공개 표 우선 + 제공자 `/odds` 보충(최대 3개 고유 업체·실행당 1회)이 승인 축에
+        # 들어가야, 그 경로가 바뀐 뒤에도 이전 승인 버전과 구분된다.
+        from app.preview.sources import provider_odds
+
+        return "", provider_odds.PROVIDER_ODDS_IMPLEMENTATION_VERSION
     return "", ""
 
 
@@ -113,16 +150,31 @@ def constituents_for_workflow(workflow_id: str) -> tuple[ConstituentVersion, ...
     for module_id in workflow.module_ids:
         if module_id == DATA_MODULE_ID:
             continue
-        manifest = _module_manifest(module_id)
+        # 새 기본 경로(정보 원문 묶음) 섹션은 C 작성 어댑터의 버전을 쓴다. 옛 경로는
+        # 기존 모듈 버전을 그대로 쓴다(옛 실행·승인 기록을 흔들지 않는다).
+        manifest = (
+            _bundle_manifest(module_id)
+            if workflow.workflow_id in BUNDLE_WORKFLOW_IDS
+            else None
+        ) or _module_manifest(module_id)
         if manifest is None:
             continue
         prompt_version, implementation_version = manifest
+        # 계약 축은 **그 결과가 실제로 저장될 때 쓰는 축**과 같아야 한다. bundle 경로는
+        # `SECTION_RESULT_CONTRACT_VERSION`으로 모듈 결과를 기록하므로(bundle_pipeline의
+        # ModuleInput), 여기서 전역 `CONTRACT_VERSION`을 쓰면 같은 실행을 서로 다른 계약으로
+        # 계산해 승인이 늘 stale로 보인다. 옛 워크플로우는 기존 축을 그대로 유지한다.
+        module_contract_version = (
+            SECTION_RESULT_CONTRACT_VERSION
+            if workflow.workflow_id in BUNDLE_WORKFLOW_IDS
+            else CONTRACT_VERSION
+        )
         entries.append(
             ConstituentVersion(
                 module_id=module_id,
                 prompt_version=prompt_version,
                 implementation_version=implementation_version,
-                contract_version=CONTRACT_VERSION,
+                contract_version=module_contract_version,
             )
         )
 

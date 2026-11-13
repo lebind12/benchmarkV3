@@ -19,6 +19,14 @@ import { useRouter } from 'vue-router'
 import { authApi } from '@/lib/api/http'
 import { previewRunsApi } from '@/features/match-preview/api'
 import FixtureSelector from '@/features/match-preview/FixtureSelector.vue'
+import BundleGenerationPanel from '@/features/match-preview/BundleGenerationPanel.vue'
+import InlineEmphasis from '@/features/match-preview/InlineEmphasis.vue'
+import InformationBundlePanel from '@/features/match-preview/InformationBundlePanel.vue'
+import SectionRegenerationPanel from '@/features/match-preview/SectionRegenerationPanel.vue'
+import CompositionPanel from '@/features/match-preview/CompositionPanel.vue'
+import SectionStructuredView from '@/features/match-preview/SectionStructuredView.vue'
+import type { InformationBundleView } from '@/features/match-preview/informationBundle'
+import { structuredFromSectionResult } from '@/features/match-preview/sectionStructured'
 import type { FixtureCandidate } from '@/features/match-preview/fixtures'
 import type {
   SectionAvailability,
@@ -41,10 +49,14 @@ const running = ref(false)
 const runError = ref<string | null>(null)
 const runResult = ref<SectionRunResponse | null>(null)
 const sectionResults = ref<SectionResultView[]>([])
+const bundle = ref<InformationBundleView | null>(null)
 const approvalNote = ref('')
 const approving = ref(false)
 const approvalError = ref<string | null>(null)
 const approvalDone = ref<string | null>(null)
+const replayMessage = ref<string | null>(null)
+/** 구성본 실행 결과 안내(기준 실행 목록은 그대로 둔다). */
+const compositionRunMessage = ref<string | null>(null)
 
 const workflows = computed<SectionAvailability[]>(() =>
   (availability.value?.workflows ?? []).map((workflow) => ({
@@ -180,6 +192,67 @@ async function loadSectionResults(runId: string) {
   sectionResults.value = detail.data.section_results ?? []
 }
 
+/**
+ * 정보 원문 패널이 조회한 묶음을 받는다.
+ *
+ * 조회는 그 패널 한 곳에서만 한다(같은 실행을 두 번 읽지 않는다). 이 값의 묶음 ID가
+ * 재생성 패널의 "저장된 정보 원문 재사용"을 여는 열쇠다. 받기만 하고 실행은 하지 않는다.
+ */
+function onBundleLoaded(payload: InformationBundleView | null) {
+  bundle.value = payload
+}
+
+/** 재생성 후 새 실행 결과를 다시 읽는다. 다른 성공 섹션은 다시 만들지 않는다. */
+async function onRegenerated(payload: SectionRunResponse) {
+  runResult.value = payload
+  await loadSectionResults(payload.run_id)
+}
+
+/**
+ * 구성본으로 **마지막 AI만** 다시 만든 결과.
+ *
+ * 기준 실행(구성본 원본)과 그 결과 목록은 그대로 둔다. 새 실행으로 목록을 바꾸면 방금
+ * 고른 구성본의 섹션들이 화면에서 사라지기 때문이다. 새 결과는 실행 ID로만 알린다.
+ */
+function onCompositionRan(payload: SectionRunResponse) {
+  compositionRunMessage.value =
+    `마지막 AI 결과 버전 ${payload.section_result_version ?? '-'} · 실행 ${payload.run_id.slice(0, 8)} · ` +
+    `전송 ${payload.external_calls}회 · 품질 ${payload.quality}`
+}
+
+/** 저장된 응답 재처리(0회) — 결과 단위 경로를 쓰고 새 결과 버전을 다시 읽는다. */
+async function onReprocess(payload: { resultId: string; note: string | null }) {
+  replayMessage.value = null
+  const response = await previewRunsApi.replayResult(payload.resultId, payload.note ?? undefined)
+  if (!response.ok) {
+    approvalError.value = response.message
+    return
+  }
+  replayMessage.value =
+    `저장된 응답으로 다시 변환해 새 결과 버전 v${response.data.new_version}을 저장했습니다. ` +
+    `외부 호출 ${response.data.external_calls}회(모델 호출 없음).`
+  if (runResult.value) await loadSectionResults(runResult.value.run_id)
+}
+
+/** 재생성 패널의 승인 요청. 사용자가 버튼을 눌렀을 때만 도달한다. */
+async function onRegeneratedApprove(payload: { sectionResultId: string; note: string | null }) {
+  const workflowId = selectedWorkflowId.value
+  if (!workflowId || !runResult.value) return
+  approving.value = true
+  approvalError.value = null
+  const response = await previewRunsApi.approveSection(workflowId, {
+    run_id: runResult.value.run_id,
+    section_result_id: payload.sectionResultId,
+    note: payload.note ?? undefined,
+  })
+  approving.value = false
+  if (!response.ok) {
+    approvalError.value = response.message
+    return
+  }
+  approvalDone.value = '이 섹션 워크플로우 버전의 승인이 기록됐습니다.'
+}
+
 async function approve() {
   const workflowId = selectedWorkflowId.value
   const result = activeResult.value
@@ -223,13 +296,21 @@ const readerPreviewAvailable = computed<boolean>(
   () => runResult.value?.workflow_id === 'section_synthesis',
 )
 
+/** 이 섹션 결과에 구조화 값이 있으면 표·목록을 더 보여준다(없으면 본문만). */
+const activeStructured = computed(() =>
+  activeResult.value ? structuredFromSectionResult(activeResult.value) : null,
+)
+
+/** 재사용할 저장 묶음 ID. 없으면 재사용 모드를 열지 않는다. */
+const reuseBundleId = computed<string | null>(() => bundle.value?.bundleId ?? null)
+
 onMounted(load)
 </script>
 
 <template>
   <main class="workspace">
     <header class="workspace__head">
-      <h1>섹션 실행</h1>
+      <h1>프리뷰 생성·섹션 실행</h1>
       <p class="hint">
         경기를 고르고 섹션을 실행하면 저장된 <strong>본문과 근거</strong>를 먼저 보여줍니다.
         노드 요청·원문 같은 진단은 실행 검사 화면에서 펼쳐 봅니다.
@@ -242,6 +323,7 @@ onMounted(load)
     </p>
 
     <template v-else>
+      <BundleGenerationPanel :fixture="selectedFixture" @select="chooseFixture" />
       <section class="panel" data-testid="workspace-fixtures">
         <h2>1. 경기 선택</h2>
         <FixtureSelector @select="chooseFixture" />
@@ -329,7 +411,7 @@ onMounted(load)
           </p>
           <div v-else class="body" data-testid="workspace-result-body">
             <p v-for="(paragraph, index) in activeResult.body.split('\n\n')" :key="index">
-              {{ paragraph }}
+              <InlineEmphasis :text="paragraph" />
             </p>
           </div>
 
@@ -346,11 +428,75 @@ onMounted(load)
             </ul>
           </div>
 
+          <!--
+            구조화 표시. 서버가 구조화 값을 준 경우에만 표·목록을 더한다. 선수 이름과
+            선정 이유를 분리해 보여주며, 값이 없으면 이 블록 자체가 없다.
+          -->
+          <SectionStructuredView
+            v-if="activeStructured"
+            :structured="activeStructured"
+            class="structured-host"
+          />
+
+          <!--
+            정보 원문. 본문·근거 다음에 저장된 출처를 보여주고, 전달 구간·DB 스냅샷·
+            전체 모델 응답은 펼치는 진단으로 둔다. 조회 전용이다.
+          -->
+          <InformationBundlePanel
+            v-if="runResult"
+            :run-id="runResult.run_id"
+            @loaded="onBundleLoaded"
+            class="bundle-host"
+          />
+
+          <p v-if="compositionRunMessage" class="state ok" data-testid="workspace-composition-done">
+            {{ compositionRunMessage }}
+          </p>
+
+          <p v-if="replayMessage" class="state ok" data-testid="workspace-replay-done">
+            {{ replayMessage }}
+          </p>
+
+          <!--
+            조정·재생성. 사용자가 동작을 고르고 눌러야만 요청이 나간다. 승인 블록은 위에
+            이미 있으므로 여기서는 그리지 않는다(승인 경로 이중화 금지).
+          -->
+          <!--
+            섹션 결과 버전 선택 → 구성본 저장 → 마지막 AI 실행. 섹션 결과가 있어야 열린다.
+            저장·실행 모두 사용자가 버튼을 눌러야만 요청이 나간다.
+          -->
+          <CompositionPanel
+            v-if="sectionResults.length && runResult"
+            :key="`composition-${runResult.run_id}`"
+            :run-id="runResult.run_id"
+            :results="sectionResults"
+            :fixture-id="selectedFixture?.fixture_id ?? null"
+            class="composition-host"
+            @ran="onCompositionRan"
+          />
+
+          <SectionRegenerationPanel
+            v-if="selectedWorkflowId"
+            :workflow-id="selectedWorkflowId"
+            :fixture-id="selectedFixture?.fixture_id ?? null"
+            :results="sectionResults"
+            :bundle-id="reuseBundleId"
+            :show-approval="false"
+            class="regen-host"
+            @regenerated="onRegenerated"
+            @approved="onRegeneratedApprove"
+            @reprocess="onReprocess"
+          />
+
+          <!--
+            승인은 **마지막**이다. 사용자가 본문·근거·정보 원문을 확인하고, 필요하면
+            재생성·비교를 거친 뒤 직접 누른다. 이 화면은 승인 행을 자동으로 만들지 않는다.
+          -->
           <div class="approval">
             <h3 class="result-title">섹션 워크플로우 버전 승인</h3>
             <p class="note">
-              승인은 위 본문과 근거를 직접 확인한 뒤 <strong>사용자가</strong> 누르는 동작입니다.
-              개발 완료 보고나 테스트 통과는 승인이 아닙니다.
+              승인은 위 본문·근거와 정보 원문을 직접 확인한 뒤 <strong>사용자가</strong> 누르는
+              동작입니다. 개발 완료 보고나 테스트 통과는 승인이 아닙니다.
             </p>
             <p
               v-if="!activeResult.approvable"

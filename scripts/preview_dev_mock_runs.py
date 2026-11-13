@@ -60,8 +60,8 @@ def _load_env(path: Path) -> None:
 
 
 def _session():
-    from app.core.config import get_settings
-    from app.db import get_session_factory, reset_engine
+    from app.preview.config import get_settings
+    from app.preview.db import get_session_factory, reset_engine
 
     reset_engine()
     get_settings.cache_clear()

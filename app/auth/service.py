@@ -8,8 +8,10 @@
 - `revoke_admin_session`: 로그아웃 시 해당 개발 세션을 폐기한다.
 
 경계:
-- 기존 계정 테이블은 읽기만 한다. `last_login_at`·비밀번호·역할·활성 상태를
-  갱신하지 않는다. 과거 구현의 로그인 시각 갱신은 재현하지 않는다.
+- 계정 조회는 원래 `DATABASE_URL`과 그 계정의 기존 권한을 그대로 쓴다. 계정 전용
+  축소 역할·별도 읽기 DSN을 만들지 않는다(과거 제안은 폐기됐다).
+- 계정 테이블은 읽기만 한다. `last_login_at`·비밀번호·역할·활성 상태를 갱신하지
+  않는다. 과거 구현의 로그인 시각 갱신은 재현하지 않는다.
 - 쓰기는 `preview_dev` 스키마의 세션 행 하나뿐이다.
 - 비인증은 401, 인증됐지만 ADMIN이 아닌 경우는 403이다. STREAMER는 ADMIN의
   대체 권한이 아니다.
@@ -35,8 +37,8 @@ from app.auth.identity import (
 from app.auth.models import AdminSession, Role
 from app.auth.passwords import DUMMY_PASSWORD_HASH, verify_pbkdf2_sha256
 from app.auth.tokens import hash_session_token
-from app.core.config import Settings, get_settings
-from app.db import get_db
+from app.preview.config import PreviewSettings as Settings, get_settings
+from app.preview.db import get_db
 
 SESSION_COOKIE = "preview_admin_session"
 
@@ -78,7 +80,7 @@ def _now() -> datetime:
 
 
 def get_identity(settings: Settings = Depends(get_settings)) -> IdentityReader:
-    """기존 계정 읽기 전용 조회기. 대상은 별도 플래그로만 비루프백을 허용한다."""
+    """기존 계정 읽기 조회기. 원래 `DATABASE_URL`과 같은 자격 증명을 쓴다."""
     settings.assert_identity_database()
     return get_identity_reader(settings.resolved_identity_database_url)
 

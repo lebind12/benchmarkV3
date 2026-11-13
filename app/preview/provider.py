@@ -31,9 +31,10 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.preview import artifacts as artifact_store
+from app.preview import send_ledger
 from app.preview import store
 from app.preview.models import PreviewArtifact, PreviewAttempt, PreviewModuleExecution, PreviewResult
 from app.preview.contracts import (
@@ -71,11 +72,15 @@ __all__ = [
     "TransportResult",
     "execute_request",
     "extract_text",
+    "extract_finish_reason",
     "extract_usage",
     "model_configuration_status",
     "replay_result",
+    "JournalRequiredForNetworkSend",
     "request_model",
     "sent_attempt_count",
+    "transported_live",
+    "transported_over_network",
 ]
 
 # 원문에 비밀값이 섞여 들어왔을 때 지울 이름. 값은 여기 적지 않는다.
@@ -160,9 +165,12 @@ def _api_error_class(status: int) -> str:
 class HttpApiTransport:
     """축구 API 같은 일반 HTTP JSON 호출. 숨은 재시도를 하지 않는다.
 
+    실제 네트워크로 나가는 어댑터다(`uses_network=True`). 장부 없이는 전송하지 않는다.
     `send_func`를 주입할 수 있어 테스트가 실제 네트워크 없이 429→성공을 재현한다.
     """
 
+    is_recorded_transport = False
+    uses_network = True
     request_class = RequestClass.API
 
     def __init__(
@@ -239,6 +247,9 @@ class GoogleGenAIHttpTransport:
 
     request_class = RequestClass.MODEL
     provider = "vertex"
+    # 실제 Vertex 호출이다. 기록·모의와 구분해 장부 요구 대상으로 표시한다.
+    is_recorded_transport = False
+    uses_network = True
 
     def __init__(
         self,
@@ -426,9 +437,15 @@ def _usage_from_genai(response: Any) -> dict[str, Any] | None:
 class RecordedTransport:
     """모의 transport. 네트워크를 열지 않고 준비된 응답을 순서대로 돌려준다.
 
-    429 뒤 성공 같은 재시도 흐름을 실제 네트워크 없이 재현하되, 기록에는
-    `mode='mock'`으로 남는다. 이 기록을 실제 제공자 성공률로 인용하지 않는다.
+    429 뒤 성공 같은 재시도 흐름을 실제 네트워크 없이 재현하되, 기록에는 `mode`가
+    그대로 남는다. 이 기록을 실제 제공자 성공률로 인용하지 않는다.
+
+    `mode=live`로 만들 수 있지만 **네트워크로 나가지 않는다**. 그래서 장부 요구 대상이
+    아니다(`is_recorded_transport=True`). 기록 실행에 장부를 요구하면 검사가 막힌다.
     """
+
+    is_recorded_transport = True
+    uses_network = False
 
     def __init__(
         self,
@@ -459,6 +476,9 @@ class RecordedTransport:
 
 class ReplayTransport:
     """저장된 응답 재생 transport. 이 객체는 외부 연결을 만들지 않는다."""
+
+    is_recorded_transport = True
+    uses_network = False
 
     def __init__(
         self,
@@ -514,6 +534,27 @@ def extract_text(raw_response: Any) -> str | None:
             ]
             if texts:
                 return "\n".join(texts).strip()
+    return None
+
+
+def extract_finish_reason(raw_response: Any) -> str | None:
+    """후보의 종료 사유(`finish_reason`). 없으면 `None`(추정하지 않는다).
+
+    잘린 응답(MAX_TOKENS)을 성공 본문으로 다루지 않으려면 이 값이 필요하다. 후보가
+    여러 개면 첫 후보 값을 쓴다(제공자 응답 순서를 그대로 따른다).
+    """
+    if not isinstance(raw_response, Mapping):
+        return None
+    candidates = raw_response.get("candidates")
+    if not isinstance(candidates, Sequence) or isinstance(candidates, (str, bytes)):
+        return None
+    for candidate in candidates:
+        if not isinstance(candidate, Mapping):
+            continue
+        for key in ("finish_reason", "finishReason"):
+            value = candidate.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
     return None
 
 
@@ -578,6 +619,10 @@ class ExecuteRequestResult:
     text: str | None = None
     stopped_reason: str | None = None
     missing_configuration: str | None = None
+    # 수신 원문(비밀값 제거 전 값이 아니라 transport가 돌려준 그대로). 호출자가 검색
+    # 메타데이터 같은 **실제 반환 필드**를 읽어야 할 때 쓴다. 저장된 아티팩트와 같은
+    # 내용이며, 여기 담는 것은 사본일 뿐 영속 기록은 아티팩트가 소유한다.
+    raw_response: Any = None
 
     @property
     def ok(self) -> bool:
@@ -586,6 +631,58 @@ class ExecuteRequestResult:
     @property
     def attempt_count(self) -> int:
         return len(self.attempts)
+
+
+@dataclass(frozen=True)
+class ContentCheck:
+    """응답 **내용**이 이 호출의 목적에 맞는지 보는 계약.
+
+    기술 성공(HTTP 200·본문 있음)과 내용 수용을 구분한다. 잘린 JSON(MAX_TOKENS)이나
+    JSON 파싱 실패는 기술 오류가 아니지만 그 본문으로는 결과를 만들 수 없으므로,
+    **같은 논리 모듈의 남은 횟수 안에서** 다시 보낸다.
+
+    여기 담는 것은 "다시 보낼 가치가 있는가"뿐이다. 글의 품질·길이·내용 판단은
+    넣지 않는다(사용자가 성공을 판단한다). 검사는 **파싱 가능성**까지만 본다.
+    """
+
+    # 수용 판정 함수. `(text, raw_response) -> 거부 사유 or None`. None이면 수용.
+    accepts: Callable[[str | None, Any], str | None]
+    # 기록에 남길 라벨(어느 모듈의 내용 검사인지).
+    label: str = "content"
+
+
+# 응답이 잘렸다고 판정하는 종료 사유. 이 값이면 본문을 성공으로 다루지 않는다.
+TRUNCATING_FINISH_REASONS: tuple[str, ...] = ("MAX_TOKENS", "MAX_OUTPUT_TOKENS")
+
+# 응답 내용이 수용 기준을 통과하지 못했을 때 시도 행에 남기는 오류 분류. 재시도
+# 대상이지만 `classify_attempt`의 HTTP 분류와 섞지 않는다(기술 오류가 아니다).
+CONTENT_REJECTION_ERROR_CLASS = "content_not_accepted"
+
+
+def rejection_of_truncated_or_unparseable(
+    *,
+    label: str,
+    finish_reason: str | None,
+    text: str | None,
+) -> str | None:
+    """잘림·JSON 미완성 사유. 아니면 `None`.
+
+    종료 사유가 `MAX_TOKENS`/`MAX_OUTPUT_TOKENS`면 잘린 것으로 본다. 종료 사유가
+    없어도 JSON이 닫히지 않았으면 같은 사유로 남긴다(추정으로 성공 처리하지 않는다).
+    """
+    reason = (finish_reason or "").strip().upper()
+    if reason in TRUNCATING_FINISH_REASONS:
+        return (
+            f"{label} 응답이 출력 상한에서 잘렸습니다(finish_reason={finish_reason})."
+            " 잘린 JSON을 본문으로 쓰지 않습니다."
+        )
+    body = (text or "").strip()
+    if body and not (body.endswith("}") or body.endswith("```")):
+        return (
+            f"{label} 응답 JSON이 닫히지 않았습니다(잘린 응답으로 판단)."
+            " 잘린 JSON을 본문으로 쓰지 않습니다."
+        )
+    return None
 
 
 def _now() -> datetime:
@@ -608,6 +705,127 @@ def _attempt_timeout(
     return max(1, int(min(timeout, max(1.0, budget.seconds_left(moment)))))
 
 
+def transported_live(transport: ProviderTransport) -> bool:
+    """이 transport가 **실제 네트워크로** 나가는지. 기록의 mode를 추론하지 않는다."""
+    mode = getattr(transport, "mode", RunMode.MOCK)
+    value = mode.value if isinstance(mode, RunMode) else str(mode)
+    return value == RunMode.LIVE.value
+
+
+# 실제 네트워크로 나가는 transport 클래스. `mode=live`인 **기록** transport(테스트·모의
+# 재현)는 여기 없다. 두 경우를 같은 값으로 취급하면 기록 실행에 장부 요구가 걸리거나
+# (검사가 깨진다) 반대로 실제 전송이 장부 없이 나가 상한을 잃는다.
+_NETWORK_TRANSPORTS: tuple[str, ...] = (
+    "GoogleGenAIHttpTransport",
+    "HttpApiTransport",
+    "HttpClientTransport",
+)
+
+
+def transported_over_network(transport: ProviderTransport) -> bool:
+    """**실제 네트워크**로 나가는 transport인지. 클래스 이름과 플래그로 판정한다.
+
+    기록 transport는 이름이 다르고 `is_recorded_transport=True`를 갖는다. 실제 호출
+    어댑터도 그 플래그를 명시적으로 `False`로 둔다. 그래서 이름만 바꿔 우회하지 못한다.
+    """
+    if getattr(transport, "is_recorded_transport", False):
+        return False
+    declared = getattr(transport, "uses_network", None)
+    if declared is not None:
+        return bool(declared)
+    return type(transport).__name__ in _NETWORK_TRANSPORTS
+
+
+class JournalRequiredForNetworkSend(RuntimeError):
+    """실제 네트워크 전송인데 사용량 장부를 쓸 수 없다. **전송하지 않는다.**
+
+    이 예외는 요청을 보내기 전에 발생한다. 예산·장부가 없는데 실제 호출을 허용하면
+    전체 상한(8회)이 다시 새는 구조가 되므로, 조용히 진행하지 않고 멈춘다.
+    """
+
+
+def _known_configuration_problem(transport: ProviderTransport) -> str | None:
+    """전송 전에 알 수 있는 설정 문제. 있으면 전송을 시작하지 않는다.
+
+    `send`가 같은 검사를 먼저 하므로 결과가 갈리지 않는다. 이 함수가 없으면 설정
+    문제를 모르는 transport로 보고 전송 전 장부에 예약을 남긴다.
+    """
+    checker = getattr(transport, "configuration_problem", None)
+    if not callable(checker):
+        return None
+    try:
+        return checker()
+    except Exception:  # noqa: BLE001 - 검사 실패를 '설정 없음'으로 단정하지 않는다
+        return None
+
+
+def _journal(
+    *,
+    spec: RequestSpec,
+    context: ExecutionContext,
+    transport: ProviderTransport,
+    ordinal: int,
+    actor_id: int | None,
+    request_body: Any,
+    response_body: Any = None,
+    http_status: int | None = None,
+    outcome: str = "pending",
+    error_class: str | None = None,
+    error_message: str | None = None,
+    usage: Mapping[str, Any] | None = None,
+    not_sent: bool = False,
+    counts_toward_cap: bool = True,
+    note: str | None = None,
+    secret_values: Sequence[str] = (),
+    moment: datetime | None = None,
+    enabled: bool = True,
+    run_session: Session | None = None,
+) -> send_ledger.JournalOutcome | None:
+    """전송 사용량을 **독립 트랜잭션**으로 남긴다.
+
+    - mock/replay는 네트워크로 나가지 않으므로 장부를 쓰지 않는다(0회).
+    - `enabled=False`는 **저장 대상 실행이 없는** 호출(단위 검사처럼 세션을 넘기지 않는
+      경우)이다. 기록할 run이 없으므로 장부도 쓰지 않는다. 이때는 상한이 걸리지 않는
+      검사 경로이므로 전송을 막지 않는다.
+    - live + 실행 기록이 있는 호출은 장부를 쓰지 못하면 전송하지 않는다
+      (`SendJournalUnavailable`). 사용량이 새는 전송을 허용하지 않기 위해서다.
+    """
+    if not enabled or not transported_live(transport):
+        return None
+    return send_ledger.journal_send(
+        run_id=context.run_id,
+        actor_id=actor_id or 0,
+        logical_call_id=spec.logical_call_id,
+        attempt_ordinal=ordinal,
+        request_class=transport.request_class,
+        provider=transport.provider,
+        model=spec.model,
+        mode=(
+            transport.mode.value
+            if isinstance(transport.mode, RunMode)
+            else str(transport.mode)
+        ),
+        request_body=request_body,
+        response_body=response_body,
+        http_status=http_status,
+        outcome=outcome,
+        error_class=error_class,
+        error_message=error_message,
+        usage=usage,
+        not_sent=not_sent,
+        counts_toward_cap=counts_toward_cap,
+        note=note,
+        secret_values=secret_values,
+        now=moment,
+        # 실행 세션과 같은 DB로 장부를 쓴다(전역 팩토리에 의존하지 않는다).
+        session_factory=(
+            sessionmaker(bind=run_session.get_bind(), autoflush=False, expire_on_commit=False)
+            if run_session is not None
+            else None
+        ),
+    )
+
+
 def execute_request(
     spec: RequestSpec,
     context: ExecutionContext,
@@ -622,6 +840,7 @@ def execute_request(
     now: Callable[[], datetime] = _now,
     secret_values: Sequence[str] = (),
     module_execution_id: uuid.UUID | None = None,
+    content_check: ContentCheck | None = None,
 ) -> ExecuteRequestResult:
     """요청 하나를 예산·기한·시도 규칙 안에서 보낸다.
 
@@ -629,15 +848,41 @@ def execute_request(
     - `attempt_ordinal`은 0부터 시작한다. 0이 아닌 시도가 재시도다.
     - 기한을 넘기는 대기는 하지 않는다.
     - 설정 부족은 요청을 보내지 않았지만 시도 행으로 남겨, 왜 실패했는지 보이게 한다.
+    - `content_check`가 거부한 응답(잘린 JSON·JSON 파싱 실패)은 **같은 논리 모듈의
+      남은 횟수 안에서** 다시 보낸다. 재시도 루프를 하나 더 만들지 않고 여기서 처리한다.
     """
     request_class = transport.request_class
+    # 장부는 "실행 기록이 있는 live 호출"에만 쓴다. 세션이 없으면 기록할 run도 없다.
+    journal_enabled = session is not None and transported_live(transport)
+
+    # 실제 네트워크 전송은 **장부가 없으면 시작하지 않는다**. 기록 transport(mode=live
+    # 포함)는 네트워크를 열지 않으므로 이 요구에서 제외한다. 테스트 환경 플래그로
+    # 우회할 수 있는 경로를 두지 않는다.
+    if transported_over_network(transport) and not journal_enabled:
+        raise JournalRequiredForNetworkSend(
+            "실제 네트워크 전송에는 실행 기록 세션과 사용량 장부가 필요합니다."
+            " 장부 없이 보내면 전체 전송 상한(8회)이 사라지므로 요청을 보내지 않습니다."
+        )
     attempt_limit = max_attempts or budget.limits.attempts_per_call
     picks = rng or (lambda: 0.5)
     budget.register_call(spec.logical_call_id)
 
+    # 재시작·재개로 인메모리 예산이 장부보다 적게 세고 있으면 장부 값을 채택한다.
+    # 8회 상한은 새로 주지 않고, 이미 보낸 전송을 다시 셀 수 있게 맞춘다.
+    if journal_enabled:
+        try:
+            send_ledger.reconcile_budget_from_journal(
+                budget, session, run_id=context.run_id
+            )
+        except Exception:  # noqa: BLE001 - 장부 조회 실패로 전송을 막지는 않는다
+            pass
+
     attempts: list[AttemptRecord] = []
     final_response: ProviderResponse | None = None
     final_text: str | None = None
+    # 검색 메타데이터처럼 **실제로 돌려받은 필드**를 호출자가 읽을 수 있게 보존한다.
+    # 영속 기록은 아티팩트가 소유하며, 이 값은 그 사본이다.
+    final_raw_response: Any = None
     stopped_reason: str | None = None
     missing_configuration: str | None = None
     ordinal = 0
@@ -663,13 +908,63 @@ def execute_request(
             spec, request_class=request_class, budget=budget, moment=moment
         )
 
+        # 전송 **전**에 사용량·redacted 요청을 독립 트랜잭션으로 남긴다. 이 장부가
+        # 없으면 전송하지 않는다(장부를 못 쓰는 전송은 상한을 다시 새게 만든다).
+        # 설정 부족은 실제 전송이 아니므로 예약을 남기지 않고 아래 경로에서 기록한다.
+        configuration_problem = _known_configuration_problem(transport)
+        if configuration_problem is None:
+            _journal(
+                spec=spec,
+                context=context,
+                transport=transport,
+                ordinal=ordinal,
+                actor_id=actor_id,
+                request_body={
+                    "endpoint": spec.endpoint,
+                    "provider": transport.provider,
+                    "model": spec.model,
+                    "parameters": dict(spec.parameters),
+                    "timeout_seconds": timeout_seconds,
+                },
+                outcome="pending",
+                note="전송 전 예약. 후처리·롤백과 무관하게 남는다.",
+                secret_values=secret_values,
+                moment=moment,
+                enabled=journal_enabled,
+                run_session=session,
+            )
+
         try:
             outcome = transport.send(
                 spec, timeout_seconds=timeout_seconds, context=context
             )
         except ConfigurationUnavailable as exc:
             # 요청을 실제로 보내지 않았다. 그러나 시도로 남겨 원인을 보이게 한다.
+            # 장부에도 `not_sent`로 남겨 사용량(8회 상한)에 세지 않는다.
             missing_configuration = str(exc)
+            _journal(
+                spec=spec,
+                context=context,
+                transport=transport,
+                ordinal=ordinal,
+                actor_id=actor_id,
+                request_body={
+                    "endpoint": spec.endpoint,
+                    "provider": transport.provider,
+                    "model": spec.model,
+                    "not_sent": True,
+                    "reason": str(exc),
+                },
+                outcome="error",
+                error_class="configuration_error",
+                error_message=str(exc),
+                not_sent=True,
+                counts_toward_cap=False,
+                note="설정 부족으로 전송하지 않았다. 사용량으로 세지 않는다.",
+                enabled=journal_enabled,
+                secret_values=secret_values,
+                moment=moment,
+            )
             attempt = _record_attempt(
                 session,
                 spec=spec,
@@ -711,8 +1006,79 @@ def execute_request(
             stopped_reason = str(exc)
             break
 
+        except Exception as exc:  # noqa: BLE001 - 예상 밖 전송 예외도 장부에 남긴다
+            # 전송이 나갔는지 확신할 수 없다. 예약 행은 이미 사용량으로 세었으므로
+            # 상한은 잃지 않고, 결과는 unknown으로 남겨 원인을 보이게 한다.
+            _journal(
+                spec=spec,
+                context=context,
+                transport=transport,
+                ordinal=ordinal,
+                actor_id=actor_id,
+                request_body={
+                    "endpoint": spec.endpoint,
+                    "provider": transport.provider,
+                    "model": spec.model,
+                    "exception": type(exc).__name__,
+                },
+                outcome="unknown",
+                error_class=type(exc).__name__,
+                error_message=str(exc)[:500],
+                not_sent=False,
+                counts_toward_cap=False,
+                note=(
+                    "전송 호출이 예외로 끝났습니다. 실제 전송 여부를 확정할 수 없어"
+                    " unknown으로 남깁니다. 예약 시점에 이미 사용량으로 세었습니다."
+                ),
+                secret_values=secret_values,
+                moment=now(),
+                enabled=journal_enabled,
+                run_session=session,
+            )
+            raise
+
         finished = now()
         outcome_value = _outcome_of(outcome)
+        received_text = extract_text(outcome.raw_response)
+        # 내용 수용 검사(잘린 JSON·JSON 파싱 실패). 기술 성공이어도 그 본문으로 결과를
+        # 만들 수 없으면 **같은 모듈의 남은 횟수 안에서** 다시 보낸다. 판정은 이 함수
+        # 하나에서만 하며, SDK·그래프·모듈에 별도 재시도 루프를 두지 않는다.
+        rejection = (
+            content_check.accepts(received_text, outcome.raw_response)
+            if (content_check is not None and outcome_value is AttemptOutcome.OK)
+            else None
+        )
+        attempt_outcome = AttemptOutcome.ERROR if rejection else outcome_value
+        attempt_error_class = CONTENT_REJECTION_ERROR_CLASS if rejection else outcome.error_class
+        attempt_error_message = rejection if rejection else outcome.error_message
+
+        # 응답을 받은 **직후** 결과를 독립 트랜잭션으로 남긴다. 이후 후처리·정규화·
+        # 커밋에서 예외가 나도 redacted 원문과 사용량은 남는다.
+        _journal(
+            spec=spec,
+            context=context,
+            transport=transport,
+            ordinal=ordinal,
+            actor_id=actor_id,
+            request_body=outcome.raw_request,
+            response_body=outcome.raw_response,
+            http_status=outcome.http_status,
+            outcome=attempt_outcome.value,
+            error_class=attempt_error_class,
+            error_message=attempt_error_message,
+            usage=outcome.usage,
+            not_sent=False,
+            counts_toward_cap=False,
+            note=(
+                "응답은 보존했지만 내용이 수용 기준을 통과하지 못했습니다"
+                f"({content_check.label}, 원문은 response_body에 남김)."
+                if rejection
+                else "응답 수신 직후 보존. 실행 트랜잭션 롤백과 무관하다."
+            ),
+            enabled=journal_enabled,
+            secret_values=secret_values,
+            moment=finished,
+        )
         attempt = _record_attempt(
             session,
             spec=spec,
@@ -720,10 +1086,10 @@ def execute_request(
             ordinal=ordinal,
             provider=transport.provider,
             mode=transport.mode,
-            outcome=outcome_value,
+            outcome=attempt_outcome,
             http_status=outcome.http_status,
-            error_class=outcome.error_class,
-            error_message=outcome.error_message,
+            error_class=attempt_error_class,
+            error_message=attempt_error_message,
             wait_ms=int(wait_seconds * 1000) if wait_seconds else None,
             request_body=outcome.raw_request,
             response_body=outcome.raw_response,
@@ -739,20 +1105,41 @@ def execute_request(
 
         final_response = ProviderResponse(
             attempt_id=attempt.attempt_id,
-            outcome=outcome_value,
+            outcome=attempt_outcome,
             http_status=outcome.http_status,
             provider_request_id=outcome.provider_request_id,
             raw_artifact_id=attempt.response_artifact_id,
-            error_class=outcome.error_class,
-            error_message=outcome.error_message,
+            error_class=attempt_error_class,
+            error_message=attempt_error_message,
             usage=extract_usage(outcome.usage),
             duration_ms=outcome.duration_ms
             if outcome.duration_ms is not None
             else max(0, int((finished - moment).total_seconds() * 1000)),
             received_at=finished,
         )
-        if outcome_value is AttemptOutcome.OK:
-            final_text = extract_text(outcome.raw_response)
+        if rejection:
+            # 본문은 보존됐지만 그 내용으로는 결과를 만들 수 없다. 같은 모듈의 남은
+            # 횟수가 있으면 다시 보내고, 없으면 사유를 남기고 멈춘다.
+            if ordinal + 1 >= attempt_limit:
+                stopped_reason = (
+                    f"{content_check.label} 응답이 수용 기준을 통과하지 못했고"
+                    f" 시도 상한({attempt_limit}회)에 도달했습니다: {rejection}"
+                )
+                break
+            wait_seconds = bounded_wait_seconds(ordinal, rng=picks)
+            if wait_seconds >= budget.seconds_left(now()):
+                stopped_reason = (
+                    f"{content_check.label} 응답 재시도 대기({wait_seconds:.1f}초)가"
+                    f" 남은 실행 기한보다 길어 재시도하지 않았습니다: {rejection}"
+                )
+                break
+            sleeper(wait_seconds)
+            ordinal += 1
+            continue
+
+        if attempt_outcome is AttemptOutcome.OK:
+            final_text = received_text
+            final_raw_response = outcome.raw_response
             break
 
         decision = classify_attempt(
@@ -784,8 +1171,20 @@ def execute_request(
         sleeper(wait_seconds)
         ordinal += 1
 
-    if final_response is None:  # pragma: no cover - 첫 시도는 항상 기록된다
-        raise RuntimeError("execute_request recorded no attempt")
+    if final_response is None:
+        # 첫 시도가 예산·기한에서 거부됐다. 실제 전송은 없었다. 예외로 터뜨리지 않고
+        # "전송하지 못한 이유"를 결과로 돌려줘 호출자가 그대로 보고하게 한다.
+        final_response = ProviderResponse(
+            attempt_id=None,
+            outcome=AttemptOutcome.ERROR,
+            http_status=None,
+            error_class="budget_exhausted"
+            if not (stopped_reason and "기한" in stopped_reason)
+            else "deadline_exceeded",
+            error_message=stopped_reason
+            or "요청을 시작하지 못했습니다(첫 시도 거부).",
+            received_at=now(),
+        )
 
     return ExecuteRequestResult(
         spec=spec,
@@ -795,6 +1194,7 @@ def execute_request(
         text=final_text,
         stopped_reason=stopped_reason,
         missing_configuration=missing_configuration,
+        raw_response=final_raw_response,
     )
 
 
@@ -932,8 +1332,13 @@ def request_model(
     sleeper: Callable[[float], None] = sleep_seconds,
     rng: Callable[[], float] | None = None,
     now: Callable[[], datetime] = _now,
+    content_check: ContentCheck | None = None,
 ) -> ExecuteRequestResult:
-    """모델 요청 하나. `execute_request`를 통해서만 나가므로 예산·기록이 같다."""
+    """모델 요청 하나. `execute_request`를 통해서만 나가므로 예산·기록이 같다.
+
+    `content_check`를 넘기면 잘린 JSON·JSON 파싱 실패가 **같은 논리 모듈의 남은
+    횟수 안에서** 자동 재시도된다. 재시도 루프는 `execute_request` 하나뿐이다.
+    """
     spec = RequestSpec(
         logical_call_id=logical_call_id,
         provider=getattr(transport, "provider", "vertex"),
@@ -962,6 +1367,7 @@ def request_model(
         now=now,
         secret_values=secret_values,
         module_execution_id=module_execution_id,
+        content_check=content_check,
     )
 
 

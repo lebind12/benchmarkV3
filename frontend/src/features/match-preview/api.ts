@@ -5,11 +5,14 @@
  * 오가고 토큰을 JS나 URL에 담지 않는다. 조회 함수는 GET만 보낸다.
  */
 import { previewRequest, type ApiResult } from '@/lib/api/http'
+import type { FixtureCandidate } from './fixtures'
 import type {
   ApproveSectionResponse,
   ApprovalsSummary,
   AuditResponse,
+  BundlePreviewRunResponse,
   CancelRunResponse,
+  CompositionView,
   CreateMockRunResponse,
   ReplayResultResponse,
   RunDetail,
@@ -17,6 +20,8 @@ import type {
   ReaderPreviewDiagnostics,
   RunListResponse,
   SectionAvailabilityResponse,
+  SectionRegenerationRequest,
+  SectionResultsResponse,
   SectionRunResponse,
   UndoReport,
   VersionComparison,
@@ -24,7 +29,37 @@ import type {
 
 const BASE = '/api/v1/admin/preview'
 
+/**
+ * 정보 원문 묶음 조회 경로.
+ *
+ * PS-01(A)의 `section-interface-manifest.md`가 경로·필드 이름을 확정한다. 확정 전에는
+ * 계획서의 표기(`GET /runs/{run_id}/information-bundle`)를 쓴다. 이름이 바뀌면 이
+ * 상수와 `informationBundle()`만 고치면 된다.
+ */
+const INFORMATION_BUNDLE_PATH = (runId: string): string =>
+  `${BASE}/runs/${runId}/information-bundle`
+
+/**
+ * 섹션 재생성 요청 경로.
+ *
+ * 계획서는 "기존 `/section-runs`를 유지·확장"으로 적었다. 재생성은 같은 경로에
+ * `source_mode`·기준 실행/묶음/결과 ID를 더해 보낸다. A manifest가 별도 경로를
+ * 확정하면 이 상수만 바꾼다.
+ */
+const SECTION_REGENERATION_PATH = `${BASE}/section-runs`
+
 export const previewRunsApi = {
+  fixture(fixtureId: number): Promise<ApiResult<FixtureCandidate>> {
+    return previewRequest<FixtureCandidate>(`${BASE}/fixtures/${fixtureId}`)
+  },
+
+  runBundle(fixtureId: number): Promise<ApiResult<BundlePreviewRunResponse>> {
+    return previewRequest<BundlePreviewRunResponse>(`${BASE}/bundle-runs`, {
+      method: 'POST',
+      body: JSON.stringify({ fixture_id: fixtureId, mode: 'live' }),
+    })
+  },
+
   /** 저장된 실행 목록. 서버는 DB 행만 읽는다. */
   list(): Promise<ApiResult<RunListResponse>> {
     return previewRequest<RunListResponse>(`${BASE}/runs`)
@@ -84,6 +119,37 @@ export const previewRunsApi = {
   /** 섹션 워크플로우별 실행 가능성. 미구현을 숨기지 않고 그대로 온다. */
   sections(): Promise<ApiResult<SectionAvailabilityResponse>> {
     return previewRequest<SectionAvailabilityResponse>(`${BASE}/sections`)
+  },
+
+  /**
+   * 이 실행이 쓴 **정보 원문 묶음**. 저장된 행만 읽는 조회이며 외부 호출이 없다.
+   *
+   * 응답은 `unknown`으로 온다. 서버 계약 이름이 아직 확정 전이므로 화면은
+   * `parseInformationBundle`로 한 번만 해석한다(새 값을 만들지 않음).
+   */
+  informationBundle(runId: string): Promise<ApiResult<unknown>> {
+    return previewRequest<unknown>(INFORMATION_BUNDLE_PATH(runId))
+  },
+
+  /** 이 실행이 저장한 섹션 본문 결과들. 저장된 행만 읽는다. */
+  sectionResults(runId: string): Promise<ApiResult<SectionResultsResponse>> {
+    return previewRequest<SectionResultsResponse>(`${BASE}/runs/${runId}/section-results`)
+  },
+
+  /**
+   * 선택 섹션 하나를 **사용자가 명시적으로 요청할 때만** 다시 만든다.
+   *
+   * `source_mode: 'reuse'`는 저장된 정보 원문을 다시 쓰고, `'refresh'`는 새 수집을
+   * 한다. `reprocess_mode: 'reprocess'`는 저장 응답만 다시 변환하는 요청이다(모델 0회).
+   * 이 함수는 어느 화면에서도 자동 호출하지 않는다 — 사용자가 버튼을 눌러야 한다.
+   */
+  regenerateSection(
+    payload: SectionRegenerationRequest,
+  ): Promise<ApiResult<SectionRunResponse>> {
+    return previewRequest<SectionRunResponse>(SECTION_REGENERATION_PATH, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
   },
 
   /**
@@ -147,6 +213,29 @@ export const previewRunsApi = {
   readerPreviewDiagnostics(runId: string): Promise<ApiResult<ReaderPreviewDiagnostics>> {
     return previewRequest<ReaderPreviewDiagnostics>(
       `${BASE}/runs/${runId}/preview/diagnostics`,
+    )
+  },
+
+  /**
+   * 관리자가 고른 섹션 결과 버전들을 **구성본**으로 저장한다.
+   *
+   * 선택 ID는 서버가 각자 자기 실행에서 확인하며, 다른 경기의 결과나 없는 결과는
+   * 조용히 대체하지 않고 `refused`로 돌려받는다. 이 호출은 모델·HTTP를 쓰지 않는다.
+   */
+  saveComposition(
+    runId: string,
+    payload: { fixture_id?: number; selected_result_ids: string[] },
+  ): Promise<ApiResult<CompositionView & { note?: string; external_calls?: number }>> {
+    return previewRequest<CompositionView & { note?: string; external_calls?: number }>(
+      `${BASE}/runs/${runId}/composition`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    )
+  },
+
+  /** 이 실행의 저장된 구성본. 없으면 서버가 `available=false`와 사유를 준다. */
+  composition(runId: string): Promise<ApiResult<{ run_id: string; available: boolean; reason: string | null; composition: CompositionView | null }>> {
+    return previewRequest<{ run_id: string; available: boolean; reason: string | null; composition: CompositionView | null }>(
+      `${BASE}/runs/${runId}/composition`,
     )
   },
 

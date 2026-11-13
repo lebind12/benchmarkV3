@@ -43,24 +43,57 @@ CREATE TABLE IF NOT EXISTS public.app_user (
 """
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _environment() -> Iterator[None]:
-    # 연결을 열기 전에 대상부터 검사한다.
-    assert_safe_test_database(TEST_DATABASE_URL)
+def _configure_environment() -> None:
+    """테스트 DB를 가리키는 환경을 **수집 시점에** 세운다.
+
+    통합 앱은 모듈 import 시점에 `app.db`의 엔진을 만든다. 그 엔진이 기본
+    placeholder URL을 붙잡으면 검사 중 원격 접속을 시도하게 된다. 그래서 환경은
+    픽스처가 아니라 conftest import에서 세운다. **연결은 열지 않는다**(값만 설정).
+
+    원격 세션 저장소·수집 scheduler·자동 홈 프리뷰는 테스트에서 켜지 않는다.
+    """
     os.environ["PREVIEW_DATABASE_URL"] = TEST_DATABASE_URL
     os.environ["PREVIEW_IDENTITY_DATABASE_URL"] = TEST_DATABASE_URL
     os.environ["PREVIEW_ENV"] = "test"
     os.environ["PREVIEW_COOKIE_SECURE"] = "false"
+    # 원래 benchmark 설정도 같은 테스트 DB를 본다.
+    os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+    os.environ["LOCAL_DEV_AUTH_ENABLED"] = "true"
+    os.environ.setdefault(
+        "JWT_SECRET_KEY", "tests-only-signing-key-do-not-use-outside-tests"
+    )
+    os.environ["AUTH_COOKIE_SECURE"] = "false"
+    os.environ["WORKER_SCHEDULER_ENABLED"] = "false"
+    os.environ["HOME_PREVIEW_ENABLED"] = "false"
+    os.environ["CORS_ALLOW_ORIGINS"] = "http://localhost:5173,http://127.0.0.1:5173"
+    os.environ.pop("UPSTASH_REDIS_REST_URL", None)
+    os.environ.pop("UPSTASH_REDIS_REST_TOKEN", None)
+
+
+_configure_environment()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _environment() -> Iterator[None]:
+    # 연결을 열기 전에 대상부터 검사한다.
+    assert_safe_test_database(TEST_DATABASE_URL)
     yield
 
 
 @pytest.fixture()
 def engine(_environment: None):
+    """테스트마다 프리뷰 엔진을 새로 만든다.
+
+    통합 앱의 원래 앱 엔진(public 모델용)도 함께 버려 이전 테스트의 연결이 남지 않게
+    한다. 두 엔진 모두 테스트 DB를 가리킨다.
+    """
+    from app import db as benchmark_db
     from app.auth import identity as identity_module
-    from app.core.config import get_settings
-    from app.db import get_engine, reset_engine
+    from app.preview.config import get_settings
+    from app.preview.db import get_engine, reset_engine
 
     reset_engine()
+    benchmark_db.reset_engine()
     identity_module.reset_identity_reader()
     get_settings.cache_clear()
     eng = get_engine()
@@ -73,10 +106,13 @@ def schema(engine) -> Iterator[None]:
     from sqlalchemy import text
 
     from app.auth import models as _models  # noqa: F401  (모델 등록)
-    from app.db import SCHEMA, Base
     from app.preview import models as _preview_models  # noqa: F401  (모델 등록)
+    from app.preview.db import SCHEMA, Base
 
     with engine.begin() as conn:
+        # 잠금 대기로 검사가 무한정 멈추지 않게 한다. 다른 pytest 묶음이 같은 테스트
+        # DB를 쓰고 있으면 DDL이 기다리지 않고 실패해야 원인이 보인다.
+        conn.execute(text("SET lock_timeout = '10s'"))
         conn.execute(text(f"DROP SCHEMA IF EXISTS {SCHEMA} CASCADE"))
         conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
         conn.execute(text("CREATE SCHEMA public"))
@@ -85,6 +121,7 @@ def schema(engine) -> Iterator[None]:
     Base.metadata.create_all(engine)
     yield
     with engine.begin() as conn:
+        conn.execute(text("SET lock_timeout = '10s'"))
         conn.execute(text(f"DROP SCHEMA IF EXISTS {SCHEMA} CASCADE"))
         conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
         conn.execute(text("CREATE SCHEMA public"))
@@ -92,7 +129,7 @@ def schema(engine) -> Iterator[None]:
 
 @pytest.fixture()
 def session_factory(engine, schema):
-    from app.db import get_session_factory
+    from app.preview.db import get_session_factory
 
     return get_session_factory()
 
@@ -106,11 +143,40 @@ def identity(engine, schema):
     eng.dispose()
 
 
+class BearerTestClient(TestClient):
+    """원래 프론트와 같은 방식으로 토큰을 쓰는 테스트 클라이언트.
+
+    통합 앱의 보호 경로는 `Authorization: Bearer <access_token>`을 요구한다(원래
+    프론트의 `stores/auth`가 access 토큰을 들고 API를 호출한다). 세션 쿠키는 refresh
+    전용이다. 그래서 로그인 응답을 받으면 access 토큰을 기억해 두고 이후 요청에
+    기본 헤더로 붙인다. 브라우저가 하는 일과 같으며, 서버 계약을 우회하지 않는다.
+
+    로그아웃하면 기억한 토큰을 지운다(프론트도 같은 시점에 지운다).
+    """
+
+    access_token: str | None = None
+
+    def request(self, method, url, *args, **kwargs):  # type: ignore[override]
+        response = super().request(method, url, *args, **kwargs)
+        path = str(url)
+        if method.upper() == "POST":
+            if path.endswith("/api/v1/auth/login") or path.endswith("/api/v1/auth/refresh"):
+                if response.status_code == 200:
+                    token = response.json().get("access_token")
+                    if token:
+                        self.access_token = token
+                        self.headers["Authorization"] = f"Bearer {token}"
+            elif path.endswith("/api/v1/auth/logout"):
+                self.access_token = None
+                self.headers.pop("Authorization", None)
+        return response
+
+
 @pytest.fixture()
-def client(engine, schema) -> Iterator[TestClient]:
+def client(engine, schema) -> Iterator[BearerTestClient]:
     from app.main import create_app
 
-    with TestClient(create_app()) as test_client:
+    with BearerTestClient(create_app()) as test_client:
         yield test_client
 
 

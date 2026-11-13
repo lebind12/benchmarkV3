@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Mapping, Sequence
 
 from sqlalchemy import select

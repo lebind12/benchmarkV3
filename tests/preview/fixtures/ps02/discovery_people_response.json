@@ -1,0 +1,34 @@
+{
+  "candidates": [
+    {
+      "url": "https://www.manchestercitynews.co.uk/squad?utm_source=chat#top",
+      "title": "Manchester City squad 2026-27",
+      "kind": "list",
+      "note": "선수 명단과 시즌 득점"
+    },
+    {
+      "url": "https://plstats.uk/players/erling-haaland/",
+      "title": "Erling Haaland season stats",
+      "kind": "stats",
+      "note": "개인 기록"
+    },
+    {
+      "url": "https://www.manchestercitynews.co.uk/squad?utm_source=chat",
+      "title": "duplicate of the squad page",
+      "kind": "list",
+      "note": "중복 후보"
+    },
+    {
+      "url": "ftp://example.com/not-http",
+      "title": "wrong scheme",
+      "kind": "article"
+    },
+    {
+      "url": "https://www.theguardian.com/football/2026/nov/04/rb-leipzig-manchester-city-champions-league-match-report",
+      "title": "Leipzig vs City match report",
+      "kind": "article",
+      "note": "지난 경기"
+    }
+  ],
+  "search_note": "스쿼드와 개인 기록 페이지를 찾았다."
+}

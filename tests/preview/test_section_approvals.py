@@ -123,13 +123,18 @@ def test_mock_run_detail_shows_sections_without_claiming_approval(client, make_u
     assert "섹션" in detail["approval_note"]
     # MP-09까지 네 섹션 모두 구현이 등록됐다. 그래도 승인 상태는 비어 있어야 한다:
     # 구현 존재가 승인을 만들지 않는다.
-    assert set(detail["section_workflows"]["implemented"]) == {
-        "section_form",
+    # 2026-11-11 확정 설계의 승인 단위 5개(선수·부상·매체·배당·AI 전망)와
+    # 옛 경로 섹션들이 함께 등록돼 있다. 둘 다 implemented이며 승인 상태는 아직 NONE이다.
+    implemented = set(detail["section_workflows"]["implemented"])
+    assert {
+        "section_players",
         "section_availability",
         "section_outlook",
-        "section_players",
-        "section_synthesis",
-    }
+        "section_odds",
+        "section_ai_forecast",
+    } <= implemented
+    # 옛 경로는 지우지 않고 보존한다(과거 실행·승인 기록이 가리키는 이름이다).
+    assert {"section_form", "section_synthesis"} <= implemented
     assert detail["section_workflows"]["unavailable"] == []
     states = {row["workflow_id"]: row["state"] for row in detail["section_approvals"]}
     assert states

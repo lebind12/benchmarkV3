@@ -1,5 +1,6 @@
 """API contract driven by the evaluated four-tab management frontend."""
 
+from datetime import datetime
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
@@ -54,6 +55,35 @@ class RunCreate(BaseModel):
     target_ids: list[int] = Field(min_length=1, max_length=20)
     mode: Literal["initial", "refresh"]
     parent_run_id: str | None = None
+
+
+class PreviewTestRunCreate(BaseModel):
+    """기간 지정 프리뷰 시험 요청.
+
+    경계 검증만 여기서 한다. 통과한 값은 불변 범위 값으로 바꿔 안쪽에 넘긴다.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    target_ids: list[int] = Field(min_length=1, max_length=20)
+    # 양 끝을 포함하는 수집 기간. 시간대가 없으면 거부한다.
+    fixture_from: datetime
+    fixture_to: datetime
+    # 외부 경기 ID 정확히 두 개(중복 불가).
+    preview_fixture_ids: list[int] = Field(min_length=2, max_length=2)
+
+    @model_validator(mode="after")
+    def valid_scope(self):
+        if self.fixture_from.tzinfo is None or self.fixture_to.tzinfo is None:
+            raise ValueError("fixture_from/fixture_to에는 시간대가 필요합니다.")
+        if self.fixture_from > self.fixture_to:
+            raise ValueError("fixture_from은 fixture_to보다 늦을 수 없습니다.")
+        if len(set(self.target_ids)) != len(self.target_ids):
+            raise ValueError("target_ids에 중복 값이 있습니다.")
+        if len(set(self.preview_fixture_ids)) != 2:
+            raise ValueError("preview_fixture_ids는 서로 다른 두 경기여야 합니다.")
+        if any(value <= 0 for value in self.preview_fixture_ids):
+            raise ValueError("preview_fixture_ids는 양의 외부 경기 ID여야 합니다.")
+        return self
 
 
 class TranslationPatch(BaseModel):
@@ -145,6 +175,25 @@ def create_run(payload: RunCreate, session: Db, user: Manager):
     return call(
         lambda: runs.start_run(
             session, payload.target_ids, payload.mode, user, payload.parent_run_id
+        )
+    )
+
+
+@router.post("/runs/preview-test")
+def create_preview_test_run(payload: PreviewTestRunCreate, session: Db, user: Manager):
+    """기간을 지정해 수집하고, 종료 뒤 지정 두 경기의 프리뷰를 생성하는 시험 실행.
+
+    기존 관리 인증·실행/취소/조회 구조를 그대로 쓴다. `mode`는 refresh로 고정이며
+    정기 6시간 정책은 이 요청 범위 밖에서 바뀌지 않는다.
+    """
+    return call(
+        lambda: runs.start_preview_test_run(
+            session,
+            target_ids=payload.target_ids,
+            fixture_from=payload.fixture_from,
+            fixture_to=payload.fixture_to,
+            preview_fixture_ids=payload.preview_fixture_ids,
+            user=user,
         )
     )
 

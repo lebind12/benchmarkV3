@@ -77,8 +77,8 @@ def main(argv: list[str] | None = None) -> int:
 
     from app.auth import identity as identity_module
     from app.auth.passwords import hash_pbkdf2_sha256
-    from app.core.config import get_settings
-    from app.db import get_engine, get_session_factory, reset_engine
+    from app.preview.config import get_settings
+    from app.preview.db import get_engine, get_session_factory, reset_engine
 
     reset_engine()
     identity_module.reset_identity_reader()
@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
 
     engine = get_engine()
     from app.auth import models as _auth_models  # noqa: F401
-    from app.db import Base
+    from app.preview.db import Base
     from app.preview import models as _preview_models  # noqa: F401
 
     password = f"mp02-ui-{secrets.token_urlsafe(9)}"

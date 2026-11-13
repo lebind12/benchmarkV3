@@ -367,6 +367,8 @@ def build_run_inspection(
 ) -> dict[str, Any]:
     """실행 상세를 검사 화면 구조로 만든다. 모듈 목록은 등록부 기준으로 보강한다."""
     run_mode = str((run_detail.get("summary") or {}).get("mode", RunMode.MOCK.value))
+    # 실행 상세에 장부 요약이 이미 있으면 그대로 쓰고, 없으면 생략한다(0으로 꾸미지 않음).
+    ledger_summary = run_detail.get("send_ledger")
     modules = [
         build_module_inspection(module, run_detail.get("artifacts") or (), run_mode=run_mode)
         for module in run_detail.get("modules") or ()
@@ -387,6 +389,8 @@ def build_run_inspection(
         "section_results": rows,
         "section_approvals": section_approval_rows(approval_status),
         "section_workflows": section_workflows,
+        # 전송 장부 요약(저장된 감사 행만 읽는다). 값이 없으면 키를 넣지 않는다.
+        **({"send_ledger": ledger_summary} if ledger_summary is not None else {}),
         "mock_demo_module_id": MOCK_DEMO_MODULE_ID,
         "availability_note": (
             "D0·R1·R2·R3·S1의 실제 조사 구현은 아직 등록되지 않았습니다. 지금 실행"

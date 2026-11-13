@@ -296,6 +296,33 @@ _SECTION_WORKFLOWS: tuple[SectionWorkflowRegistration, ...] = (
         implemented=True,
         unrunnable_reason=None,
     ),
+    # --- 새 기본 경로(정보 원문 묶음) ---
+    # 이 다섯이 2026-11-11 확정 설계의 승인 단위다. AI 전망/점수는 한 번 작성하고 같이
+    # 승인하며, 배당은 모델 없이 수집·정규화한 완결 결과를 시험·승인한다.
+    SectionWorkflowRegistration(
+        workflow_id="section_odds",
+        display_name="배당 현황 섹션",
+        description=(
+            "공개 자료에서 정규화한 정규시간 1X2 배당을 표로 만드는 섹션입니다."
+            " 모델 호출은 없습니다."
+        ),
+        module_ids=("D0",),
+        output_contract_version="mp11-odds-output-1",
+        implemented=True,
+        unrunnable_reason=None,
+    ),
+    SectionWorkflowRegistration(
+        workflow_id="section_ai_forecast",
+        display_name="AI 경기 전망·예상 스코어 섹션",
+        description=(
+            "확보된 섹션 결과와 DB 경기력 자료로 경기 전망과 예상 스코어를 한 번에"
+            " 작성하는 섹션입니다. 새 검색 호출은 하지 않습니다."
+        ),
+        module_ids=("D0", "S1"),
+        output_contract_version="mp11-ai-forecast-output-1",
+        implemented=True,
+        unrunnable_reason=None,
+    ),
     SectionWorkflowRegistration(
         workflow_id="section_synthesis",
         display_name="AI 예상·종합 섹션",

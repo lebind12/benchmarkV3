@@ -155,7 +155,7 @@ def _read_baseline_d0(baseline_run_id: uuid.UUID) -> dict:
     """기준 실행의 D0 payload를 그대로 읽는다(읽기 전용)."""
     from sqlalchemy import text
 
-    from app.db import get_session_factory
+    from app.preview.db import get_session_factory
 
     with get_session_factory()() as session:
         session.execute(text("SET TRANSACTION READ ONLY"))
@@ -178,7 +178,7 @@ def _facts_from_baseline(baseline_run_id: uuid.UUID):
     """
     from sqlalchemy import text
 
-    from app.db import get_session_factory
+    from app.preview.db import get_session_factory
     from app.preview.modules import form
 
     with get_session_factory()() as session:
@@ -239,14 +239,14 @@ def main(argv: list[str] | None = None) -> int:
 
     _load_environment(args.model_credentials, args.dev_credentials)
 
-    from app.core.config import get_settings
+    from app.preview.config import get_settings
 
     get_settings.cache_clear()
     settings = get_settings()
     print(f"model: {settings.model_name} | location: {settings.model_location}")
     print(f"live_enabled: {settings.model_live_enabled}")
 
-    from app.db import get_session_factory
+    from app.preview.db import get_session_factory
     from app.preview import provider, runner, sections
     from app.preview.contracts import Environment, RunMode
     from app.preview.modules import form

@@ -82,7 +82,15 @@ def signup_user(session: Session, payload: SignupInput) -> AppUser:
     return user
 
 
-def login_user(session: Session, payload: LoginInput) -> AppUser:
+def login_user(
+    session: Session, payload: LoginInput, *, touch_last_login: bool = True
+) -> AppUser:
+    """자격 증명을 확인한다.
+
+    `touch_last_login=False`이면 기존 계정 행을 **전혀 갱신하지 않는다**(커밋도 하지
+    않는다). 로컬 프로필에서 운영 계정 원장을 읽기 전용으로 쓰기 위한 경로다.
+    기본값은 원래 동작(`last_login_at` 갱신)이며 운영 배포는 이 기본값을 쓴다.
+    """
     email = normalize_email(payload.email)
     user = session.execute(
         select(AppUser).where(func.lower(AppUser.email) == email)
@@ -91,6 +99,10 @@ def login_user(session: Session, payload: LoginInput) -> AppUser:
         raise InvalidCredentials("invalid_credentials")
     if not user.is_active:
         raise InactiveUser("inactive_user")
+
+    if not touch_last_login:
+        # 행을 바꾸지 않는다. 세션을 닫아도 커밋할 변경이 없다.
+        return user
 
     user.last_login_at = datetime.now(UTC)
     session.commit()

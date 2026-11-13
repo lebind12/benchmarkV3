@@ -1,14 +1,14 @@
-"""기존 운영 계정(`public.app_user`) 읽기 전용 접근.
+"""기존 운영 계정(`public.app_user`) 읽기 접근.
 
 경계:
-- 이 모듈은 `SELECT`만 실행한다. 연결은 `default_transaction_read_only=on`이고
-  트랜잭션마다 statement timeout을 건다.
+- 이 모듈은 `SELECT`만 실행한다. 트랜잭션마다 statement timeout을 건다.
+- 연결 자격 증명은 원래 `DATABASE_URL` 하나이며 그 계정의 기존 전체 권한을 쓴다.
+  계정 전용 축소 역할·별도 읽기 DSN을 만들지 않는다(과거 제안은 폐기됐다).
+  "SELECT만 한다"는 것은 이 조회기의 동작이지, 연결을 읽기 전용으로 강제한다는
+  뜻이 아니다.
 - 스키마는 항상 명시한다(`public.app_user`). 전역 `search_path`에 의존하지 않는다.
 - 비밀번호 해시는 검증 입력으로만 쓰고 로그·응답·보고서에 담지 않는다.
 - 기존 행을 갱신하지 않는다. 과거 구현의 `last_login_at` 갱신은 재현하지 않는다.
-
-읽기 역할은 `public.app_user`에 `SELECT`만 가진 별도 계정이다. 같은 연결로
-개발 세션을 쓰지 않는다(개발 세션 쓰기는 `app/db.py`의 별도 연결).
 """
 
 from __future__ import annotations
@@ -150,12 +150,16 @@ class IdentityReader:
 
 
 def build_read_only_engine(url: str) -> Engine:
-    """읽기 전용 계약을 연결 옵션으로 강제한다."""
+    """조회 전용 독자의 엔진.
+
+    이름은 기존 호출 계약(`build_read_only_engine`)을 유지한다. 다만 **연결 권한을
+    축소하지 않는다**: 원래 `DATABASE_URL`과 그 계정의 기존 권한을 그대로 쓰고,
+    강제 읽기 전용 옵션을 새로 걸지 않는다. SELECT만 하는 것은 이 계층의 동작이다.
+    """
     return create_engine(
         normalize_driver(url),
         pool_pre_ping=True,
         future=True,
-        connect_args={"options": "-c default_transaction_read_only=on"},
     )
 
 

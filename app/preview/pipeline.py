@@ -72,6 +72,7 @@ from app.preview.registry import get_section_workflow
 from app.preview.modules import (
     availability,
     compose as compose_module,
+    form,
     outlook,
     synthesis,
 )
@@ -186,27 +187,77 @@ def required_workflows() -> tuple[str, ...]:
     return SECTION_WORKFLOW_IDS + (synthesis.SECTION_WORKFLOW_ID,)
 
 
-def admission_state(session: Session) -> dict[str, Any]:
-    """지금 코드로 기본 전체 프리뷰를 돌릴 수 있는지. 저장된 승인 행만 읽는다."""
+def bundle_workflows() -> tuple[str, ...]:
+    """공통 생성 서비스(`bundle_pipeline`)가 **실제로 만드는** 섹션 집합.
+
+    출처를 하나로 쓴다. 생성 서비스가 만드는 섹션은
+    `information_bundle.SECTION_IDS`이므로, 승인 판정도 같은 값을 순회해야 실제 생성물과
+    어긋나지 않는다. 옛 파이프라인 경로(`required_workflows`)의 의미는 그대로 둔다.
+    """
+    from app.preview import information_bundle
+
+    return tuple(information_bundle.SECTION_IDS)
+
+
+def _judge(workflows: Sequence[str], session: Session) -> dict[str, Any]:
+    """주어진 워크플로우 집합에 대한 승인 준비 상태. 두 경로가 같은 판정 로직을 쓴다."""
     statuses = {
         workflow_id: approvals.section_approval_status(session, workflow_id)
-        for workflow_id in required_workflows()
+        for workflow_id in workflows
     }
     approved = [wf for wf, status in statuses.items() if status.approved]
-    missing = [wf for wf in required_workflows() if wf not in approved]
-    current = {wf: version_manifest.workflow_version_of(wf) for wf in required_workflows()}
+    missing = [wf for wf in workflows if wf not in approved]
+    current = {wf: version_manifest.workflow_version_of(wf) for wf in workflows}
     approved_versions = {
         wf: (statuses[wf].active_approval.workflow_version if statuses[wf].active_approval else None)
-        for wf in required_workflows()
+        for wf in workflows
     }
     # 승인된 버전과 지금 코드의 구성이 다르면 그 섹션은 "승인됨"이 아니다.
     stale = [
         wf
-        for wf in required_workflows()
+        for wf in workflows
         if approved_versions.get(wf) and approved_versions[wf] != current[wf]
     ]
     return {
         "ready": not missing and not stale,
+        "missing_approval": missing,
+        "stale_approval": stale,
+        "approved": approved,
+        "current_versions": current,
+        "approved_versions": approved_versions,
+    }
+
+
+def bundle_admission_state(session: Session) -> dict[str, Any]:
+    """공통 생성 서비스가 실제로 만드는 섹션 집합의 승인 준비 상태.
+
+    수집 자동 생성 경계는 이 판정을 쓴다. `admission_state`(옛 전체 프리뷰 대상)와 달리
+    form/synthesis를 요구하지 않고 odds/ai_forecast를 포함한다. 승인 행은 읽기만 한다.
+    """
+    judged = _judge(bundle_workflows(), session)
+    return {
+        **judged,
+        "scope": "bundle",
+        "workflows": list(bundle_workflows()),
+        "note": (
+            "공통 생성 서비스가 만드는 정보 원문 묶음 섹션 기준입니다. 승인이 없거나 저장"
+            " 버전이 현재 구성과 다르면 자동 생성을 시작하지 않습니다. 이 판정은 승인 행을"
+            " 만들거나 바꾸지 않습니다."
+        ),
+    }
+
+
+def admission_state(session: Session) -> dict[str, Any]:
+    """지금 코드로 기본 전체 프리뷰를 돌릴 수 있는지. 저장된 승인 행만 읽는다."""
+    workflows = required_workflows()
+    judged = _judge(workflows, session)
+    missing = judged["missing_approval"]
+    stale = judged["stale_approval"]
+    approved = judged["approved"]
+    current = judged["current_versions"]
+    approved_versions = judged["approved_versions"]
+    return {
+        "ready": judged["ready"],
         "missing_approval": missing,
         "stale_approval": stale,
         "approved": approved,
@@ -373,7 +424,7 @@ def bind_session_factory(factory: sessionmaker) -> None:
 
 def plan_session_factory() -> sessionmaker:
     if _SESSION_FACTORY is None:
-        from app.db import get_session_factory
+        from app.preview.db import get_session_factory
 
         return get_session_factory()
     return _SESSION_FACTORY
@@ -474,6 +525,8 @@ def _branch_node(module_id: str, *, plan: _Plan) -> Callable[[Mapping[str, Any]]
             reason = (
                 f"{module_id} 조사에 필요한 공유 자료가 없어 이 갈래를 실행하지 않았습니다."
             )
+            # 시작하지 않기로 확정된 호출의 예약을 반환한다. 전체 상한은 늘지 않는다.
+            plan.budget.cancel_call(_branch_logical_call_id(module_id))
             return {
                 "research": [{"module_id": module_id, "result_id": None, "status": "failed"}],
                 "diagnostics": [reason],
@@ -485,6 +538,8 @@ def _branch_node(module_id: str, *, plan: _Plan) -> Callable[[Mapping[str, Any]]
         if plan.reuse_existing:
             reused = _existing_success(session_factory=plan_session_factory(), plan=plan, module_id=module_id)
             if reused is not None:
+                # 성공한 결과를 다시 부르지 않는다. 그 호출의 예약 몫도 반환한다.
+                plan.budget.cancel_call(_branch_logical_call_id(module_id))
                 return {
                     "research": [reused],
                     "diagnostics": [],
@@ -550,6 +605,27 @@ def _branch_node(module_id: str, *, plan: _Plan) -> Callable[[Mapping[str, Any]]
             session.close()
 
     return run
+
+
+def _branch_logical_call_id(module_id: str) -> str:
+    """갈래의 논리 호출 ID. 모듈이 실제로 쓰는 값을 그대로 가리킨다.
+
+    예산의 예약 반환은 "이 호출을 시작하지 않는다"는 판단과 같은 이름을 써야 한다.
+    다른 이름을 쓰면 반환이 아무 효과도 없거나 엉뚱한 몫을 푼다.
+    """
+    if module_id == "S1":
+        return synthesis.LOGICAL_CALL_ID
+    if module_id == "R2":
+        return availability.LOGICAL_CALL_ID
+    if module_id == "R3":
+        # outlook 모듈은 `f"{MODULE_ID}-outlook"` 형식을 쓴다.
+        return f"{outlook.MODULE_ID}-outlook"
+    if module_id == "R4":
+        from app.preview.modules import players as players_module
+
+        return players_module.LOGICAL_CALL_ID
+    # R1은 `research_form`의 기본 인자와 같은 값을 쓴다.
+    return "R1-form"
 
 
 def _implementation_for(module_id: str, *, plan: _Plan):

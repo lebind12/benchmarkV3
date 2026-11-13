@@ -20,8 +20,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import text  # noqa: E402
 
 from app.auth.passwords import hash_pbkdf2_sha256  # noqa: E402
-from app.core.config import get_settings  # noqa: E402
-from app.db import get_engine, reset_engine  # noqa: E402
+from app.preview.config import get_settings  # noqa: E402
+from app.preview.db import get_engine, reset_engine  # noqa: E402
 
 MIN_PASSWORD_LENGTH = 12
 

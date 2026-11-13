@@ -46,24 +46,14 @@ def test_anonymous_cannot_read_or_create(client):
 
 
 def test_non_admin_cannot_read_runs_or_create_demo(client, make_user):
-    from app.auth.identity import IdentityUser
-    from app.auth.service import issue_session
-    from app.db import get_session_factory
-
+    """로그인은 되지만 역할이 STREAMER이므로 401이 아니라 403이어야 한다."""
     user = make_user(role="STREAMER")
-    # 세션은 유효하지만 역할이 STREAMER인 경우: 401이 아니라 403이어야 한다.
-    factory = get_session_factory()
-    with factory() as session:
-        principal = IdentityUser(
-            id=user["id"], email=user["email"], role=user["role"], is_active=True
-        )
-        issued = issue_session(session, principal)
-        token = issued.token
-        session.commit()
-    client.cookies.set("preview_admin_session", token)
+    login = client.post(LOGIN, json={"email": user["email"], "password": user["password"]})
+    assert login.status_code == 200, login.text
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
-    assert client.get(RUNS).status_code == 403
-    assert client.post(f"{RUNS}/mock-demo").status_code == 403
+    assert client.get(RUNS, headers=headers).status_code == 403
+    assert client.post(f"{RUNS}/mock-demo", headers=headers).status_code == 403
 
 
 def test_mock_demo_run_is_labeled_and_reports_zero_external_calls(client, make_user):

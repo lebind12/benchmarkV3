@@ -1,133 +1,256 @@
-"""애플리케이션 설정.
+"""Application settings (pydantic-settings).
 
-두 연결을 분리한다.
-
-1. `PREVIEW_DATABASE_URL` — 개발 쓰기 연결. 세션 행만 `preview_dev` 스키마에 쓴다.
-   기존 `public` 영역에 대한 쓰기 권한은 DB 역할에서 제거돼 있다.
-2. `PREVIEW_IDENTITY_DATABASE_URL` — 기존 운영 계정 `public.app_user` 읽기 전용
-   연결. 설정하지 않으면 개발 DB를 그대로 쓴다(로컬 합성 계정 검사용).
-
-스킴(SQLite 등)과 목적지 확정은 `parse_database_target`이 연결 전에 거부한다.
-비루프백 대상은 각각의 명시 플래그가 있어야만 허용한다. 플래그만 켜는 것으로
-운영 접속 준비가 끝났다고 간주하지 않는다. 실제 대상 확인과 권한 분리는
-`scripts/preview_dev_provision.py`와 검증 절차가 담당한다.
+Loaded once at import; used by FastAPI, alembic, and workers. Values come
+from ``.env`` (local) or process env (Koyeb / CI). Real secrets are never
+checked in — see ``.env.example``.
 """
 
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Literal
+from pathlib import Path
 
-from pydantic import Field, model_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.core.db_target import AmbiguousDatabaseTarget, parse_database_target
 
-Environment = Literal["dev", "test", "prod"]
-
-LOCAL_DEV_DATABASE_URL = (
-    "postgresql+psycopg://preview:preview_local_dev@127.0.0.1:55432/preview_mp01_dev"
+# 실제 연결에 쓰지 않는 자리표시자. `DATABASE_URL` 미설정을 이 값으로 표현한다.
+PLACEHOLDER_DATABASE_URL = (
+    "postgresql+psycopg://placeholder:placeholder@localhost:5432/placeholder"
 )
 
-__all__ = ["Environment", "Settings", "get_settings", "LOCAL_DEV_DATABASE_URL"]
+
+def _local_dotenv_values(keys: set[str]) -> dict[str, str]:
+    """Read selected local .env values so stale shell exports do not override them."""
+    path = Path(".env")
+    if not path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if key in keys:
+            values[key] = value.strip().strip('"').strip("'")
+    return values
 
 
 class Settings(BaseSettings):
+    """Centralised env-driven configuration."""
+
     model_config = SettingsConfigDict(
-        env_prefix="PREVIEW_",
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        case_sensitive=False,
     )
 
-    database_url: str = Field(default=LOCAL_DEV_DATABASE_URL)
-    identity_database_url: str | None = None
-    # 저장된 경기·부상·순위 자료 읽기 전용 연결(별도 좁은 역할).
-    # 설정이 없으면 조회기는 붙지 않고 화면에 `stored_access.readable=false`가 남는다.
-    fixtures_database_url: str | None = None
-    # 팀·선수 표시 이름(한국어) 읽기 전용 연결. 이름 열만 SELECT하는 별도 역할이라
-    # fixture/identity DSN을 재사용하지 않는다. 설정이 없으면 표시 이름 변환을
-    # 건너뛰고 원문 표기를 그대로 쓴다(번역을 지어내지 않는다).
-    names_database_url: str | None = None
-    env: Environment = "dev"
-    session_ttl_seconds: int = Field(default=8 * 60 * 60, gt=0, le=7 * 24 * 60 * 60)
-    cookie_secure: bool = False
-    allow_nonlocal_db: bool = False
-    allow_nonlocal_identity_db: bool = False
+    # --- Database ---------------------------------------------------------
+    # 원래 benchmark의 Supabase Postgres URL(또는 임의의 libpq URL). **이 값 하나가
+    # 앱과 프리뷰의 모든 DB caller의 자격 증명 기준**이다. alembic도 이 값을 읽는다.
+    # 기본값은 자리표시자이며 실제 연결에 쓰지 않는다: `resolved_database_url()`이
+    # 자리표시자를 미설정으로 보고 멈춘다(다른 DSN으로 대체하지 않는다).
+    database_url: str = Field(
+        default=PLACEHOLDER_DATABASE_URL,
+        description="Primary DB URL (Supabase / local). Shared by the app and the preview callers.",
+    )
 
-    # --- MP-04 모델 제공자 설정 -------------------------------------------
-    # 비밀값은 이름만 두고 값은 환경에서만 읽는다. 조회·보고서에 값을 출력하지
-    # 않는다. `model_credentials_json`은 서비스 계정 JSON 원문이며 로그에 남기지
-    # 않는다(저장소 계약 `__repr__`에서도 가린다).
-    model_provider: str = "vertex"
-    model_project: str | None = None
-    model_location: str = "global"
-    model_name: str | None = None
-    model_credentials_json: str | None = Field(default=None, repr=False)
-    model_timeout_seconds: int = Field(default=300, gt=0)
-    # 실제 유료 호출은 명시적 플래그가 있을 때만 열린다. 기본은 닫힘이다.
-    model_live_enabled: bool = False
+    # Integration test DB URL (separate from prod). Conftest skips integration
+    # tests if unset.
+    test_database_url: str | None = Field(default=None)
+    db_pool_size: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="SQLAlchemy QueuePool size per process. Keep low for Supabase session pooler.",
+    )
+    db_max_overflow: int = Field(
+        default=0,
+        ge=0,
+        le=10,
+        description="Extra SQLAlchemy connections above db_pool_size.",
+    )
+    db_pool_timeout: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        description="Seconds to wait for a pooled DB connection before failing.",
+    )
+    db_pool_recycle: int = Field(
+        default=300,
+        ge=30,
+        le=3600,
+        description="Seconds before recycling pooled DB connections.",
+    )
 
-    @model_validator(mode="after")
-    def _identity_defaults_to_dev(self) -> "Settings":
-        if not self.identity_database_url:
-            self.identity_database_url = self.database_url
-        return self
+    # --- Worker scheduler -------------------------------------------------
+    worker_scheduler_enabled: bool = Field(
+        default=False,
+        description=(
+            "Start APScheduler in this process. Keep false for local/dev web "
+            "servers unless this process is the single intended worker owner."
+        ),
+    )
 
-    @property
-    def resolved_identity_database_url(self) -> str:
-        return self.identity_database_url or self.database_url
+    # --- External APIs ----------------------------------------------------
+    api_football_key: str | None = Field(default=None)
+    api_football_host: str = Field(default="v3.football.api-sports.io")
+    api_football_concurrency: int = Field(
+        default=6,
+        ge=1,
+        le=6,
+        description="Max concurrent API-Football requests. Ultra plan is 450 req/min; keep <= 6.",
+    )
+    api_football_requests_per_minute: int = Field(
+        default=300,
+        ge=1,
+        le=450,
+        description="Paced API-Football request-start limit. Ultra plan hard cap is 450 req/min.",
+    )
 
-    def _assert_usable(self, url: str, *, allow_nonlocal: bool, label: str) -> None:
-        try:
-            target = parse_database_target(url)
-        except AmbiguousDatabaseTarget as exc:
-            raise RuntimeError(
-                f"Refusing to connect: {exc}. {label} requires a single explicit target."
-            ) from None
-        if target.is_loopback or allow_nonlocal:
-            return
-        raise RuntimeError(
-            f"Refusing to connect {label} to a non-loopback database ({target.host}). "
-            "Set the matching allow-nonlocal flag only if the target is deliberate."
+    jwt_secret_key: str | None = Field(default=None)
+    auth_cookie_name: str = Field(default="benchmark_refresh", pattern="^[a-zA-Z0-9_]+$")
+    auth_cookie_secure: bool = Field(default=True)
+    auth_cookie_samesite: str = Field(default="lax", pattern="^(lax|strict|none)$")
+
+    # --- 로컬 개발 프로필 (기본 꺼짐) --------------------------------------
+    # 켜면 인증의 **저장 위치만** 바뀐다: refresh 상태를 원격 Upstash 대신 같은 DB의
+    # `preview_dev.preview_admin_sessions`에 남기고, 로그인 과정에서 기존 계정 행을
+    # 갱신하지 않으며(`last_login_at` 무변경), 계정을 새로 만드는 가입 경로를 닫는다.
+    # JWT 형식·access/refresh 응답 모양·쿠키 이름 규칙·`/me` 응답은 그대로다.
+    # 운영 배포에서는 이 값을 설정하지 않는다(기본 `False` = 원래 동작).
+    local_dev_auth_enabled: bool = Field(
+        default=False,
+        description=(
+            "Use preview_dev for local refresh state, skip existing-account writes, "
+            "and disable signup. Leave false in production."
+        ),
+    )
+
+    # --- Cache / session helpers ------------------------------------------
+    upstash_redis_rest_url: str | None = Field(default=None)
+    upstash_redis_rest_token: str | None = Field(default=None)
+    upstash_redis_key_prefix: str = Field(
+        default="",
+        description="Optional Redis key namespace prefix. Use local:/prod: to isolate environments.",
+    )
+
+    # --- OpenAI (translation-filler) --------------------------------------
+    openai_api_key: str | None = Field(default=None)
+
+    # --- Vertex AI (broadcast AI commentary) -------------------------------
+    google_cloud_project: str | None = Field(default=None)
+    google_cloud_location: str = Field(default="global")
+    vertex_ai_model: str = Field(default="gemini-3.5-flash")
+    google_application_credentials_json: str | None = Field(default=None)
+
+    def model_post_init(self, __context: object) -> None:
+        vertex_env = _local_dotenv_values(
+            {
+                "GOOGLE_CLOUD_PROJECT",
+                "GOOGLE_CLOUD_LOCATION",
+                "VERTEX_AI_MODEL",
+                "GOOGLE_APPLICATION_CREDENTIALS_JSON",
+            }
         )
+        if vertex_env.get("GOOGLE_CLOUD_PROJECT"):
+            self.google_cloud_project = vertex_env["GOOGLE_CLOUD_PROJECT"]
+        if vertex_env.get("GOOGLE_CLOUD_LOCATION"):
+            self.google_cloud_location = vertex_env["GOOGLE_CLOUD_LOCATION"]
+        if vertex_env.get("VERTEX_AI_MODEL"):
+            self.vertex_ai_model = vertex_env["VERTEX_AI_MODEL"]
+        if vertex_env.get("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
+            self.google_application_credentials_json = vertex_env[
+                "GOOGLE_APPLICATION_CREDENTIALS_JSON"
+            ]
 
-    def assert_local_database(self) -> None:
-        """개발 쓰기 연결 대상 검사.
+    # Main preview remains separately configurable from AX/broadcast models.
+    home_preview_enabled: bool = Field(default=False)
+    home_preview_search_enabled: bool = Field(default=True)
+    home_preview_vertex_model: str = Field(default="gemini-3.5-flash")
+    home_preview_vertex_location: str = Field(default="global")
+    home_preview_request_timeout_seconds: float = Field(default=90, ge=10, le=300)
+    home_preview_cause_timeout_seconds: float = Field(default=180, ge=60, le=300)
+    home_preview_cycle_limit: int = Field(default=24,ge=1,le=100)
 
-        `PREVIEW_ALLOW_NONLOCAL_DB`는 기존 이름을 유지한다. 이 플래그가 개발 쓰기
-        연결에 적용되며, 신원 읽기 연결에는 별도 플래그를 쓴다.
-        """
-        self._assert_usable(
-            self.database_url,
-            allow_nonlocal=self.allow_nonlocal_db,
-            label="the development session store",
-        )
-
-    def assert_identity_database(self) -> None:
-        """기존 계정 읽기 연결 대상 검사."""
-        same_as_dev = self.resolved_identity_database_url == self.database_url
-        self._assert_usable(
-            self.resolved_identity_database_url,
-            allow_nonlocal=self.allow_nonlocal_identity_db
-            or (self.allow_nonlocal_db and same_as_dev),
-            label="the identity reader",
-        )
-
-    @property
-    def database_host(self) -> str:
-        return self.database_target.host
-
-    @property
-    def database_target(self):
-        """연결 전에 확정한 목적지. 확정할 수 없으면 그 자체로 거부한다."""
-        return parse_database_target(self.database_url)
-
-    @property
-    def is_loopback_database(self) -> bool:
-        return self.database_target.is_loopback
+    # --- Web clients -------------------------------------------------------
+    cors_allow_origins: str = Field(
+        default="*",
+        description="Comma-separated origins allowed to call the API from browsers.",
+    )
 
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    """Singleton accessor. ``lru_cache`` keeps env parsing one-shot per process."""
     return Settings()
+
+
+def normalize_database_url(database_url: str) -> str:
+    """Force libpq-style Postgres URLs onto the psycopg3 SQLAlchemy dialect."""
+    if database_url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + database_url[len("postgresql://") :]
+    if database_url.startswith("postgres://"):
+        return "postgresql+psycopg://" + database_url[len("postgres://") :]
+    return database_url
+
+
+class MissingDatabaseUrl(RuntimeError):
+    """원래 `DATABASE_URL`이 설정되지 않았다.
+
+    프리뷰 전용·로컬 임시·fixture 계정 DSN으로 대체하지 않는다. 대체하면
+    "원래 계정의 기존 권한 그대로"라는 연결 기준이 조용히 깨진다.
+    """
+
+
+def configured_database_url(settings: Settings | None = None) -> str | None:
+    """원래 `DATABASE_URL` 원문 또는 `None`.
+
+    자리표시자는 **미설정**으로 본다. 값은 반환하되 출력·로그에 쓰지 않는다.
+    """
+    resolved = settings or get_settings()
+    value = (resolved.database_url or "").strip()
+    if not value or value == PLACEHOLDER_DATABASE_URL:
+        return None
+    return value
+
+
+def resolved_database_url(settings: Settings | None = None) -> str:
+    """모든 DB caller가 함께 쓰는 단일 접속 자격 증명.
+
+    미설정이면 `MissingDatabaseUrl`로 멈춘다(추측·대체 없음).
+    """
+    value = configured_database_url(settings)
+    if value is None:
+        raise MissingDatabaseUrl(
+            "DATABASE_URL is not set (the placeholder default is not a connection "
+            "target); set the original benchmark DATABASE_URL"
+        )
+    return normalize_database_url(value)
+
+
+def database_engine_kwargs(settings: Settings | None = None) -> dict[str, object]:
+    """Return SQLAlchemy engine options tuned for the Supabase session pooler."""
+    resolved = settings or get_settings()
+    return {
+        "future": True,
+        "pool_pre_ping": True,
+        "pool_size": resolved.db_pool_size,
+        "max_overflow": resolved.db_max_overflow,
+        "pool_timeout": resolved.db_pool_timeout,
+        "pool_recycle": resolved.db_pool_recycle,
+    }
+
+
+def allowed_web_origins(settings: Settings | None = None) -> list[str]:
+    """One explicit origin policy shared by CORS and cookie-auth CSRF checks."""
+    resolved = settings or get_settings()
+    origins = [
+        origin.strip() for origin in resolved.cors_allow_origins.split(",") if origin.strip()
+    ]
+    if not origins or "*" in origins:
+        return ["http://localhost:5173", "http://127.0.0.1:5173"]
+    return list(dict.fromkeys(origins))

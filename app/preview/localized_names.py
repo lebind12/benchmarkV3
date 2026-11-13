@@ -487,6 +487,13 @@ class LocalizedNameIndex:
 def _match_rank(*, tokens: tuple[str, ...], target: str, row: PlayerNameRow) -> int | None:
     """이름 표기와 저장된 표기의 일치 등급. 낮을수록 강한 일치다.
 
+    0. **저장된 한국어 표기와 같다**(`마크 게히` = `name_ko`/`short_name_ko`).
+
+       모델이 처음부터 한국어 이름을 쓰는 경우가 있다(부상 섹션 본문·구조 값). 그때
+       영어 표기 규칙만 보면 `not_found`가 되어 사진·외부 ID가 비었다(실제 사용자 생성
+       run에서 관측). 비교는 **DB에 저장된 한국어 값과 정확히 같은 표기**일 때만 한다.
+       부분 일치·음차 추정은 하지 않는다(동명이인·오표기를 붙이지 않는다).
+
     1. DB `name`과 같다.
     2. 이름 + 성 전체와 같다.
     3. 이름 + 성 낱말과 같다.
@@ -497,6 +504,16 @@ def _match_rank(*, tokens: tuple[str, ...], target: str, row: PlayerNameRow) -> 
     first_tokens = _tokens(row.firstname)
     last_tokens = _tokens(row.lastname)
     surnames = row.surname_candidates
+
+    if tokens and _has_korean(str(row.name_ko or "") + str(row.short_name_ko or "")):
+        # 한국어 표기는 저장된 한국어 값과 **정확히 같을 때만** 인정한다.
+        # 주의: `normalize_name`은 NFKD로 한글 음절을 자모로 분해하므로, 정규화된
+        # 문자열에 한글 음절 범위 검사를 하면 항상 거짓이 된다. 그래서 한국어 여부는
+        # **저장된 원문**으로 보고, 동등성은 정규화 토큰으로 비교한다(음절·자모 표기
+        # 차이만 흡수하고 부분 일치·음차 추정은 하지 않는다).
+        for korean in (row.name_ko, row.short_name_ko):
+            if korean and _tokens(korean) == tokens:
+                return 0
 
     if target and target == " ".join(name_tokens):
         return 1

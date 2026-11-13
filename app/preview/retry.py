@@ -1,19 +1,20 @@
-"""MP-04 공통 실행 예산과 재시도 정책.
+"""경기 생성의 공통 실행 예산과 재시도 정책 (단일 소유자).
 
-계획 §5(`docs/superpowers/plans/2026-11-10-match-preview.md`)의 초기 개발 설정을
-그대로 옮긴다. 값을 여기저기 복사하지 않고 이 파일 한 곳에서만 정한다.
+값을 여기저기 복사하지 않고 이 파일 한 곳에서만 정한다.
 
 | 항목 | 값 |
 |---|---|
-| 전체 프리뷰 모델 요청 예산 | 재시도·출력 수정 포함 8회 |
-| 정상 경로 모델 호출 | 조사 3 + 종합 1 = 4회 (그래서 재시도 여유는 4회) |
+| 한 생성 실행의 **각 논리 AI 모듈** | 최초 포함 최대 3회 |
+| 여섯 모듈 합계 | 6 × 3 = 18 (가능한 전송 수의 산술적 설명, 공용 예산 아님) |
+| 전체 독립 8회 한도 | **없음**(2026-11-12 사용자 확정으로 제거) |
+| 다른 경기·이전 시험 집합 prior 차감 | **없음**(기록만 보존) |
 | D0 외부 API 요청 예산 | 재시도 포함 24회 |
-| 논리 호출 최대 시도 | 최초 포함 3회 |
 | 모델 동시 요청 | 실행 합계 2 |
 | API 동시 요청 | 실행 합계 2 |
 | 모델 응답 대기 상한 | 300초 |
 | 축구 API 요청 상한 | 30초 |
-| 전체 실행 기한 | 접수 후 1,800초 (대기 포함) |
+| 모델 출력 상한 | 40,000 토큰 |
+| 전체 실행 기한 | 1,800초 — **새 생성 경로의 독립 중단 기준으로 쓰지 않는다** |
 | 대기 | 유효한 Retry-After 우선, 없으면 1초부터 지수 증가, 무작위 지연 포함 60초 상한 |
 
 설계 원칙:
@@ -21,11 +22,17 @@
 - 재시도와 예산을 소유하는 실행기는 **하나**다. LangGraph 노드 재시도나 제공자
   SDK 재시도를 함께 켜서 실제 호출 수가 배로 늘게 두지 않는다. 그래서 SDK 재시도는
   끄거나(전송 계층) 시도 기록에 포함되는지 확인해야 한다.
-- 남은 예산은 "아직 시작하지 않은 필수 단계의 최초 호출 몫"을 먼저 남긴다. 앞 단계의
-  재시도가 뒤 단계의 첫 호출을 굶기지 않게 하기 위함이다.
-- 기한은 대기 시간까지 포함한다. 대기 후 남은 시간이 없으면 재시도하지 않는다.
-- 401·403 같은 영구 오류는 같은 요청을 다시 보내지 않는다. 429는 재시도 대상이며,
+- 모듈 상한이 선언된 실행(`RunBudget.for_generation`)에서는 **모듈별 3회가 단일
+  소유자**다. 전체 상한은 그 합계에서 파생되므로 다른 모듈이 이 모듈의 3회를
+  굶기지 못하고, 옛 8회 값도 병목이 되지 않는다.
+- 남은 예산 예약(미시작 단계의 첫 호출 몫)은 **모듈 상한이 없는 옛 경로**에서만
+  쓴다. 모듈 상한이 있으면 미시작 단계 예약을 다시 빼지 않는다.
+- 전역 기한도 모듈 상한이 있는 경로에서는 끈다. 요청별 300초 타임아웃·명시적
+  취소·기술 실패 기록은 그대로 유지한다.
+- 401·403 같은 영구 오류는 같은 요청을 다시 보내지 않는다. 429·503·타임아웃,
+  `finishReason=MAX_TOKENS` 절단, JSON 파싱 실패는 같은 모듈의 남은 횟수로 처리한다.
   실패한 시도와 성공한 시도를 모두 남긴다(성공만 골라 제출하지 않는다).
+- 글의 길이·내용·근거 수 부족은 재시도 사유가 아니다. 성공 판단은 사용자가 한다.
 """
 
 from __future__ import annotations
@@ -36,7 +43,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Sequence
 
 from app.preview.contracts import ExecutionLimits, RequestClass
 
@@ -52,12 +59,14 @@ __all__ = [
     "MODEL_CONCURRENCY",
     "MODEL_REQUEST_BUDGET",
     "MODEL_TIMEOUT_SECONDS",
+    "MODULE_SEND_CAP",
     "NORMAL_MODEL_CALLS",
     "RETRY_BASE_DELAY_SECONDS",
     "RETRY_MAX_DELAY_SECONDS",
     "RUN_DEADLINE_SECONDS",
     "RetryDecision",
     "RunBudget",
+    "RESERVATION_RETURNED",
     "bounded_wait_seconds",
     "classify_attempt",
     "plan_limits",
@@ -66,9 +75,14 @@ __all__ = [
 # --- 계획 §5 값 ------------------------------------------------------------
 
 MODEL_REQUEST_BUDGET = 8
-# 정상 경로 모델 호출 수. 전체 프리뷰는 조사 4(R1·R2·R3·R4) + 종합 1 = 5회다.
-# 상한(총 8)은 그대로 두고, 재시도 여유만 3회로 줄어든다. 조용히 늘리지 않는다.
-NORMAL_MODEL_CALLS = 5  # 조사 4 + 종합 1
+# 정상 경로 모델 호출 수(2026-11-11 확정 설계). 두 조사 묶음 + 작성 3 + 최종 전망 1 = 6회다.
+# 상한(총 8)은 그대로 두고, 재시도 여유만 2회다. 조용히 늘리지 않는다.
+# 옛 경로(R1~R4 조사 + S1 종합 = 5회)는 그대로 실행되지만 기본 경로가 아니다.
+NORMAL_MODEL_CALLS = 6  # 조사 2 + 작성 3 + 최종 전망 1
+# 사용자 확정(2026-11-12): **한 생성 실행의 각 논리 AI 모듈**에 최초 포함 최대 3회.
+# 전체 독립 8회·trial 누적 차감은 새 생성 경로에서 쓰지 않는다. 여섯 모듈 × 3 = 18은
+# 가능한 전송 수의 산술적 설명이며 공용 여유를 배분하는 정책이 아니다.
+MODULE_SEND_CAP = 3
 API_REQUEST_BUDGET = 24
 MAX_ATTEMPTS_PER_CALL = 3
 MODEL_CONCURRENCY = 2
@@ -78,6 +92,10 @@ API_TIMEOUT_SECONDS = 30
 RUN_DEADLINE_SECONDS = 1800
 RETRY_BASE_DELAY_SECONDS = 1.0
 RETRY_MAX_DELAY_SECONDS = 60.0
+
+# 시작하지 않기로 확정된 정상 호출의 예약을 반환했을 때 남기는 표시. 전체 상한은
+# 늘지 않고, 그 몫만 재시도가 쓸 수 있게 된다.
+RESERVATION_RETURNED = "reservation_returned"
 
 # --- 오류 분류 ------------------------------------------------------------
 
@@ -239,7 +257,24 @@ class RunBudget:
     api_used: int = 0
     attempts_by_call: dict[str, int] = field(default_factory=dict)
     registered_calls: list[str] = field(default_factory=list)
+    # 시작하지 않기로 **확정**된 정상 호출. 예약 몫을 반환하되 전체 상한은 늘리지 않는다.
+    cancelled_calls: list[str] = field(default_factory=list)
+    # 모듈(logical_call_id)별 **실제 전송** 누적 상한. 사용자가 승인한 단위는 전체 합계가
+    # 아니라 모듈별 3회다. `prior_module_usage`는 이전 실행(장부)에서 이미 보낸 수이며,
+    # 새 run으로 0으로 초기화하지 않는다.
+    module_send_cap: int | None = None
+    # 이 실행이 실제로 실행하는 논리 모듈 목록. 있으면 전체 모델 상한을
+    # `module_send_cap × 모듈 수`로 **파생**한다(추가 병목을 만들지 않는다).
+    module_ids: tuple[str, ...] = ()
+    # 이전 시험 집합의 전송 이력. 기록·설명용으로만 남기고 **막는 데 쓰지 않는다**
+    # (다른 경기·이전 시험이 새 실행을 차단하지 않는다).
+    prior_module_usage: dict[str, int] = field(default_factory=dict)
+    sent_by_module: dict[str, int] = field(default_factory=dict)
     stopped_reason: str | None = None
+    # 전체 실행 기한을 **독립 중단 기준으로 쓸지**. 모듈별 3회가 상한을 소유하는 새
+    # 생성 경로에서는 끈다(사용자 확정 2026-11-12). 기한 값 자체는 기록·표시용으로
+    # 남기고, 요청별 300초 타임아웃·명시적 취소는 그대로 둔다.
+    deadline_enforced: bool = True
     # 병렬 갈래가 같은 예산을 동시에 갱신하므로 계산 구간을 잠근다. 잠금 순서는
     # 항상 "잠금 → 판정 → 차감"이며, 차감 도중 다른 갈래가 끼어들지 않는다.
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
@@ -254,6 +289,30 @@ class RunBudget:
         now: datetime | None = None,
     ) -> "RunBudget":
         return cls(limits=limits or BudgetLimits(), started_at=now or _utcnow())
+
+    @classmethod
+    def for_generation(
+        cls,
+        module_ids: Sequence[str],
+        limits: BudgetLimits | None = None,
+        *,
+        prior_module_usage: Mapping[str, int] | None = None,
+        now: datetime | None = None,
+    ) -> "RunBudget":
+        """경기 생성 한 번의 예산. **모듈별 3회가 상한을 소유한다.**
+
+        사용자 확정(2026-11-12): 한 경기 1생성 실행에서 각 논리 AI 모듈의 최초 포함
+        최대 3회다. 전체 8회·다른 경기·시험 집합 prior 차감은 이 경로에서 쓰지 않는다.
+        전체 상한은 모듈 상한의 합계에서 파생하고, 전역 기한은 독립 중단 기준으로
+        쓰지 않는다(요청별 300초 타임아웃은 provider가 그대로 건다).
+        """
+        budget = cls(limits=limits or BudgetLimits(), started_at=now or _utcnow())
+        budget.module_send_cap = MODULE_SEND_CAP
+        budget.module_ids = tuple(str(item) for item in module_ids if str(item))
+        budget.prior_module_usage = dict(prior_module_usage or {})
+        # 새 생성 실행에서 전역 기한으로 모듈 3회를 잘라내지 않는다.
+        budget.deadline_enforced = False
+        return budget
 
     @classmethod
     def restore(
@@ -279,6 +338,22 @@ class RunBudget:
             for key, value in (data.get("attempts_by_call") or {}).items()
         }
         budget.registered_calls = [str(item) for item in data.get("registered_calls") or ()]
+        budget.cancelled_calls = [
+            str(item) for item in data.get("cancelled_calls") or ()
+        ]
+        budget.module_send_cap = data.get("module_send_cap")
+        budget.module_ids = tuple(str(item) for item in data.get("module_ids") or ())
+        budget.prior_module_usage = {
+            str(key): int(value)
+            for key, value in (data.get("prior_module_usage") or {}).items()
+        }
+        budget.sent_by_module = {
+            str(key): int(value)
+            for key, value in (data.get("sent_by_module") or {}).items()
+        }
+        stored_enforced = data.get("deadline_enforced")
+        if stored_enforced is not None:
+            budget.deadline_enforced = bool(stored_enforced)
         return budget
 
     def persistable(self) -> dict[str, Any]:
@@ -290,6 +365,12 @@ class RunBudget:
             "api_used": self.api_used,
             "attempts_by_call": dict(self.attempts_by_call),
             "registered_calls": list(self.registered_calls),
+            "cancelled_calls": list(self.cancelled_calls),
+            "module_send_cap": self.module_send_cap,
+            "module_ids": list(self.module_ids),
+            "prior_module_usage": dict(self.prior_module_usage),
+            "sent_by_module": dict(self.sent_by_module),
+            "deadline_enforced": self.deadline_enforced,
             "stopped_reason": self.stopped_reason,
         }
 
@@ -303,6 +384,13 @@ class RunBudget:
         return max(0.0, ((now or _utcnow()) - self.started_at).total_seconds())
 
     def seconds_left(self, now: datetime | None = None) -> float:
+        """남은 기한. 기한을 독립 중단 기준으로 쓰지 않는 실행에서는 `inf`다.
+
+        `inf`를 돌려주는 이유는 호출자가 `min(요청 타임아웃, 남은 기한)`으로 요청별
+        타임아웃을 깎지 않게 하기 위해서다. 300초 요청 상한은 그대로 적용된다.
+        """
+        if not self.deadline_enforced:
+            return float("inf")
         return max(0.0, self.limits.deadline_seconds - self.elapsed_seconds(now))
 
     def deadline_passed(self, now: datetime | None = None) -> bool:
@@ -320,17 +408,72 @@ class RunBudget:
             if logical_call_id not in self.registered_calls:
                 self.registered_calls.append(logical_call_id)
 
+    def cancel_call(self, logical_call_id: str) -> bool:
+        """시작하지 않기로 확정된 정상 호출의 **예약을 반환**한다.
+
+        반환은 "그 호출이 쓰지 않기로 한 첫 시도 몫을 재시도가 쓸 수 있게" 하는 것이다.
+        전체 실제 전송 상한(`model_requests`)을 늘리지 않는다. 이미 시도를 보낸 호출은
+        취소할 수 없다(그 호출은 이미 자기 몫을 썼다).
+
+        반환값이 `False`면 취소가 거부된 것이다(이미 시작했거나 상한 밖 호출).
+        """
+        with self.lock:
+            if self.attempts_used(logical_call_id) > 0:
+                return False
+            if len(self.registered_calls) >= self.limits.normal_model_calls:
+                # 정상 호출 수를 넘는 추가 호출은 예약 몫이 없으므로 반환할 것도 없다.
+                return False
+            if logical_call_id not in self.cancelled_calls:
+                self.cancelled_calls.append(logical_call_id)
+            return True
+
+    def cancelled_unstarted(self) -> int:
+        """등록되지 않은 채 취소된 호출 수. 예약 계산에서만 뺀다."""
+        return sum(
+            1 for call in self.cancelled_calls if call not in self.registered_calls
+        )
+
     def unstarted_calls(self) -> int:
-        return max(0, self.limits.normal_model_calls - len(self.registered_calls))
+        return max(
+            0,
+            self.limits.normal_model_calls
+            - len(self.registered_calls)
+            - self.cancelled_unstarted(),
+        )
 
     def reserved_model_requests(self) -> int:
         """아직 시작하지 않은 정상 호출의 첫 시도 몫. 재시도는 이 몫을 침범하지 않는다."""
         return self.unstarted_calls()
 
+    def effective_model_requests(self) -> int:
+        """이 실행이 실제로 쓸 수 있는 모델 전송 상한.
+
+        모듈별 3회 상한이 선언되면 전체 값은 **그 합계에서 파생**한다(모듈 6개면 18,
+        섹션 재생성 1개면 3). 옛 숫자 필드(`model_requests`)는 기록 호환용으로 남기되
+        판정에 쓰지 않는다. 그래야 `8`이라는 옛 상한이 모듈별 3회를 잘라내지 않는다.
+        """
+        if self.module_send_cap is not None and self.module_ids:
+            return self.module_send_cap * len(self.module_ids)
+        return self.limits.model_requests
+
     def remaining(self, request_class: str = RequestClass.MODEL.value) -> int:
         if request_class == RequestClass.API.value:
             return max(0, self.limits.api_requests - self.api_used)
-        return max(0, self.limits.model_requests - self.model_used)
+        return max(0, self.effective_model_requests() - self.model_used)
+
+    def module_total(self, logical_call_id: str) -> int:
+        """이 모듈이 **이번 생성 실행**에서 실제로 보낸 수.
+
+        이전 시험 집합의 누적(`prior_module_usage`)은 합산하지 않는다. 사용자 확정은
+        "한 생성 실행의 각 논리 모듈에 최초 포함 최대3회"이며, 다른 경기·이전 시험의
+        사용량이 새 경기 생성을 막지 않는다. 과거 이력은 `prior_module_usage`에 남아
+        화면·보고에 쓰인다.
+        """
+        return int(self.sent_by_module.get(logical_call_id, 0))
+
+    def module_prior_total(self, logical_call_id: str) -> int:
+        """이전 시험 집합에서 보낸 수(표시용). 상한 판정에는 쓰지 않는다."""
+        return int(self.prior_module_usage.get(logical_call_id, 0))
 
     def attempts_used(self, logical_call_id: str) -> int:
         return int(self.attempts_by_call.get(logical_call_id, 0))
@@ -344,13 +487,34 @@ class RunBudget:
         *,
         now: datetime | None = None,
     ) -> tuple[bool, str | None]:
-        """다음 시도를 보낼 수 있는지. 거부 사유는 화면에 그대로 보여줄 수 있는 문장이다."""
-        if self.attempts_used(logical_call_id) >= self.limits.attempts_per_call:
+        """다음 시도를 보낼 수 있는지. 거부 사유는 화면에 그대로 보여줄 수 있는 문장이다.
+
+        **모듈 상한이 선언된 실행에서는 그 상한이 모델 전송의 단일 소유자다.** 전체
+        상한은 모듈 상한의 합계에서 파생되므로 다른 모듈이 이 모듈의 3회를 굶기지
+        못한다. 반대로 상한이 없으면(옛 경로) 예약 기반 전체 상한을 그대로 쓴다.
+        """
+        # 모듈 상한이 있으면 그 값이 시도 상한의 단일 근거다. 둘을 함께 걸어 두면
+        # 정책을 바꿀 때 한쪽만 고쳐 조용히 다른 상한이 남는다.
+        if self.module_send_cap is not None:
+            used = self.module_total(logical_call_id)
+            if used >= self.module_send_cap:
+                prior = self.module_prior_total(logical_call_id)
+                history = (
+                    f". 이전 시험 집합의 {prior}회는 이번 상한에 합산하지 않습니다"
+                    if prior
+                    else ""
+                )
+                return False, (
+                    f"모듈 {logical_call_id}의 이번 생성 전송 상한"
+                    f"({self.module_send_cap}회)에 도달했습니다. 이 모듈은 더 보내지 않습니다"
+                    f"{history}."
+                )
+        elif self.attempts_used(logical_call_id) >= self.limits.attempts_per_call:
             return False, (
                 f"논리 호출 {logical_call_id}의 시도 상한"
                 f"({self.limits.attempts_per_call}회)에 도달했습니다."
             )
-        if self.deadline_passed(now):
+        if self.deadline_enforced and self.deadline_passed(now):
             return False, (
                 f"전체 실행 기한({self.limits.deadline_seconds}초)이 지나 더 보내지 않습니다."
             )
@@ -360,10 +524,19 @@ class RunBudget:
                     f"API 요청 예산({self.limits.api_requests}회)을 모두 사용했습니다."
                 )
             return True, None
+        if self.module_send_cap is not None:
+            # 파생 상한은 모듈 상한의 합계다. 미시작 단계 예약을 다시 빼면 모듈 상한이
+            # 전체 상한에 막히는(사용자가 허용하지 않은) 두 번째 병목이 생긴다.
+            if self.model_used + 1 > self.effective_model_requests():
+                return False, (
+                    f"모델 전송 합계({self.effective_model_requests()}회)에 도달했습니다."
+                )
+            return True, None
         reserved = self.reserved_model_requests()
-        if self.model_used + 1 > self.limits.model_requests - reserved:
+        ceiling = self.effective_model_requests() - reserved
+        if self.model_used + 1 > ceiling:
             return False, (
-                f"모델 요청 예산({self.limits.model_requests}회) 중 아직 시작하지 않은"
+                f"모델 요청 예산({self.effective_model_requests()}회) 중 아직 시작하지 않은"
                 f" 필수 단계 몫({reserved}회)을 남겨야 합니다."
             )
         return True, None
@@ -394,11 +567,96 @@ class RunBudget:
             self.attempts_by_call[logical_call_id] = (
                 self.attempts_used(logical_call_id) + 1
             )
+            self.sent_by_module[logical_call_id] = (
+                self.sent_by_module.get(logical_call_id, 0) + 1
+            )
+
+    def reserve_transports(self, count: int, request_class: str = RequestClass.API.value) -> int:
+        """전송 홉을 **미리** 예약한다. 논리 호출의 '시도' 수는 올리지 않는다.
+
+        리다이렉트 홉은 한 번의 fetch 안에서 일어나는 전송이며, 재시도 상한
+        (`attempts_per_call`)은 논리 호출 재시도에 대한 값이다. 그래서 홉 예약은
+        사용량만 잡고 시도 수는 건드리지 않는다. 남은 예산까지만 잡는다.
+        """
+        with self.lock:
+            if request_class == RequestClass.API.value:
+                free = max(0, self.limits.api_requests - self.api_used)
+                taken = min(int(count), free)
+                self.api_used += taken
+                return taken
+            free = max(0, self.effective_model_requests() - self.model_used)
+            taken = min(int(count), free)
+            self.model_used += taken
+            return taken
+
+    def charge_transport(
+        self, request_class: str = RequestClass.API.value, *, now: datetime | None = None
+    ) -> tuple[bool, str | None]:
+        """전송 **한 홉**을 사용량에서 차감한다. 논리 호출의 '시도' 수는 건드리지 않는다.
+
+        리다이렉트 홉은 한 번의 fetch 안에서 일어나는 전송이며, `attempts_per_call`은
+        논리 호출 재시도 횟수다. 둘을 같은 카운터로 묶으면 `attempts_per_call=1`인 승인
+        실행에서 2번째 홉이 거부되어 수집이 실패한다(검토 F7). 그래서 홉은 사용량(상한
+        24/리다이렉트 상한)으로만 제한하고, 모델 재시도 예산과 섞지 않는다.
+        """
+        with self.lock:
+            if self.deadline_enforced and self.deadline_passed(now):
+                return False, (
+                    f"전체 실행 기한({self.limits.deadline_seconds}초)이 지나 더 보내지 않습니다."
+                )
+            if request_class == RequestClass.API.value:
+                if self.api_used + 1 > self.limits.api_requests:
+                    return False, (
+                        f"API 요청 예산({self.limits.api_requests}회)을 모두 사용했습니다."
+                    )
+                self.api_used += 1
+                return True, None
+            if self.model_used + 1 > self.effective_model_requests():
+                return False, (
+                    f"모델 요청 예산({self.effective_model_requests()}회)을 모두 사용했습니다."
+                )
+            self.model_used += 1
+            return True, None
+
+    def release_reserved(
+        self, count: int, request_class: str = RequestClass.API.value
+    ) -> int:
+        """예약했지만 실제로 보내지 않은 전송 몫을 반환한다. 시도 수는 건드리지 않는다."""
+        if count <= 0:
+            return 0
+        with self.lock:
+            if request_class == RequestClass.API.value:
+                taken = min(int(count), self.api_used)
+                self.api_used -= taken
+                return taken
+            taken = min(int(count), self.model_used)
+            self.model_used -= taken
+            return taken
+
+    def refund(self, logical_call_id: str, request_class: str, count: int) -> int:
+        """**예약했지만 보내지 않은** 전송 몫을 되돌린다.
+
+        리다이렉트 홉을 미리 예약하고 실제로 쓴 만큼만 남기는 경로에서 쓴다. 상한을
+        늘리지 않으며, 이미 쓴 몫을 되돌리지 않는다(`used`가 0 밑으로 내려가지 않는다).
+        """
+        if count <= 0:
+            return 0
+        with self.lock:
+            if request_class == RequestClass.API.value:
+                taken = min(int(count), self.api_used)
+                self.api_used -= taken
+            else:
+                taken = min(int(count), self.model_used)
+                self.model_used -= taken
+            used = self.attempts_used(logical_call_id)
+            if used:
+                self.attempts_by_call[logical_call_id] = max(0, used - taken)
+            return taken
 
     def snapshot(self) -> dict[str, Any]:
         """화면·보고서에 쓰는 예산 상태. 남은 값을 0으로 꾸며 채우지 않는다."""
         return {
-            "model_requests": self.limits.model_requests,
+            "model_requests": self.effective_model_requests(),
             "model_used": self.model_used,
             "model_remaining": self.remaining(),
             "model_reserved_for_unstarted_steps": self.reserved_model_requests(),
@@ -407,8 +665,25 @@ class RunBudget:
             "api_remaining": self.remaining(RequestClass.API.value),
             "attempts_per_call": self.limits.attempts_per_call,
             "deadline_seconds": self.limits.deadline_seconds,
-            "seconds_left": round(self.seconds_left(), 3),
+            "deadline_enforced": self.deadline_enforced,
+            "seconds_left": (
+                None
+                if self.seconds_left() == float("inf")
+                else round(self.seconds_left(), 3)
+            ),
             "registered_calls": list(self.registered_calls),
+            "cancelled_calls": list(self.cancelled_calls),
+            "module_send_cap": self.module_send_cap,
+            "module_ids": list(self.module_ids),
+            "module_quota_total": (
+                self.module_send_cap * len(self.module_ids)
+                if self.module_send_cap is not None and self.module_ids
+                else None
+            ),
+            "prior_module_usage": dict(self.prior_module_usage),
+            "sent_by_module": dict(self.sent_by_module),
+            "reservations_returned": len(self.cancelled_calls),
+            "normal_model_calls": self.limits.normal_model_calls,
             "stopped_reason": self.stopped_reason,
         }
 
