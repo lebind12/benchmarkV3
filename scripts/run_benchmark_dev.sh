@@ -98,4 +98,5 @@ export AUTH_COOKIE_NAME AUTH_COOKIE_SECURE AUTH_COOKIE_SAMESITE
 export CORS_ALLOW_ORIGINS
 export WORKER_SCHEDULER_ENABLED HOME_PREVIEW_ENABLED
 
-exec .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port "${BENCHMARK_PORT:-8000}"
+BENCHMARK_PYTHON="${BENCHMARK_PYTHON:-.venv/bin/python}"
+exec "${BENCHMARK_PYTHON}" -m uvicorn app.main:app --host 127.0.0.1 --port "${BENCHMARK_PORT:-8000}"
