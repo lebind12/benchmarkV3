@@ -1104,3 +1104,213 @@ def test_initial_section_run_boundary_guards_and_regeneration_preserved(
             )
         )
         assert regen_watch is not None
+
+
+def test_canonical_read_preserves_string_and_mapping_evidence(
+    client, make_user, session_factory
+):
+    """정본 3표 저장·재조회(GET /runs/{id}, /section-results)가 문자열·매핑 evidence를 손실 없이 보존한다."""
+    admin_id = _login_admin(client, make_user)
+
+    with session_factory() as session:
+        run_id = uuid.uuid4()
+        ctx = ExecutionContext(
+            run_id=run_id,
+            operation_kind=OperationKind.SECTION,
+            environment=Environment.DEV,
+            mode=RunMode.LIVE,
+            actor_id=admin_id,
+            config_version="test-cfg",
+            limits=ExecutionLimits(),
+        )
+        store.store_run(
+            session,
+            ctx,
+            fixture=store.FixtureIdentity(
+                fixture_id=FIXTURE["fixture_id"],
+                league_id=FIXTURE["league_id"],
+                season=FIXTURE["season"],
+                home_team_id=FIXTURE["home_team_id"],
+                away_team_id=FIXTURE["away_team_id"],
+                kickoff_at=datetime.fromisoformat(FIXTURE["kickoff_at"]),
+            ),
+            label="evidence-preservation",
+        )
+        exec_row = PreviewModuleExecution(
+            id=uuid.uuid4(),
+            run_id=run_id,
+            module_id="bundle_section_players",
+            ordinal=0,
+            status="success",
+            quality="ready",
+            input_payload={},
+            input_hash="ev-ih",
+            delivered_next_input={},
+            started_at=FIXED_NOW,
+        )
+        avail_exec_row = PreviewModuleExecution(
+            id=uuid.uuid4(),
+            run_id=run_id,
+            module_id="bundle_section_availability",
+            ordinal=0,
+            status="success",
+            quality="ready",
+            input_payload={},
+            input_hash="ev-ih-a",
+            delivered_next_input={},
+            started_at=FIXED_NOW,
+        )
+        session.add_all([exec_row, avail_exec_row])
+        session.flush()
+
+        watch_res_id = uuid.uuid4()
+        avail_res_id = uuid.uuid4()
+        session.add_all(
+            [
+                PreviewResult(
+                    id=watch_res_id,
+                    run_id=run_id,
+                    module_execution_id=exec_row.id,
+                    module_id="bundle_section_players",
+                    version=1,
+                    input_hash="ev-ih-w",
+                    status="success",
+                    quality="ready",
+                    contract_version=CONTRACT_VERSION,
+                    prompt_version="p1",
+                    implementation_version="mp11-bundle-sections-8",
+                    payload={"structured": {"players": []}},
+                    created_at=FIXED_NOW,
+                ),
+                PreviewResult(
+                    id=avail_res_id,
+                    run_id=run_id,
+                    module_execution_id=avail_exec_row.id,
+                    module_id="bundle_section_availability",
+                    version=1,
+                    input_hash="ev-ih-a",
+                    status="success",
+                    quality="ready",
+                    contract_version=CONTRACT_VERSION,
+                    prompt_version="p1",
+                    implementation_version="mp11-bundle-sections-8",
+                    payload={"structured": {"injuries": []}},
+                    created_at=FIXED_NOW,
+                ),
+            ]
+        )
+        session.flush()
+
+        watch_sr_id = store.save_section_result(
+            session,
+            run_id=run_id,
+            workflow_id="section_players",
+            workflow_version=runner.section_workflow_version(
+                registry.get_section_workflow("section_players")
+            ),
+            version=1,
+            title="주목 선수",
+            body="엘링 홀란드: 최근 득점 감각",
+            sources=[],
+            mode=RunMode.LIVE,
+            environment=Environment.DEV,
+            quality=QualityStatus.READY,
+            module_execution_ids=[str(exec_row.id)],
+            result_ids=[str(watch_res_id)],
+            output_contract_version=psc.WATCH_PLAYERS_OUTPUT_CONTRACT_VERSION,
+            contract_version=SECTION_RESULT_CONTRACT_VERSION,
+            actor_id=admin_id,
+            now=FIXED_NOW,
+        )
+        avail_sr_id = store.save_section_result(
+            session,
+            run_id=run_id,
+            workflow_id="section_availability",
+            workflow_version=runner.section_workflow_version(
+                registry.get_section_workflow("section_availability")
+            ),
+            version=1,
+            title="부상·결장",
+            body="로드리: 출전 불투명",
+            sources=[],
+            mode=RunMode.LIVE,
+            environment=Environment.DEV,
+            quality=QualityStatus.READY,
+            module_execution_ids=[str(avail_exec_row.id)],
+            result_ids=[str(avail_res_id)],
+            output_contract_version=psc.INJURY_PLAYERS_OUTPUT_CONTRACT_VERSION,
+            contract_version=SECTION_RESULT_CONTRACT_VERSION,
+            actor_id=admin_id,
+            now=FIXED_NOW,
+        )
+
+        str_evidence = ("people-summary-1", "people-span-1")
+        mixed_evidence = ("people-span-2", {"source_id": "src:injury", "span": "p0"})
+
+        player_section_store.save_player_section(
+            session,
+            psc.WatchPlayerSectionInput(
+                run_id=run_id,
+                section_result_id=watch_sr_id.id,
+                fixture_id=FIXTURE["fixture_id"],
+                home_team_id=FIXTURE["home_team_id"],
+                away_team_id=FIXTURE["away_team_id"],
+                home1=psc.WatchPlayerSlot(
+                    player_id=533,
+                    original_name="엘링 홀란드",
+                    name_ko="엘링 홀란드",
+                    body="최근 득점 감각",
+                    name_source=psc.NameSource.DB_KO,
+                    evidence=str_evidence,
+                ),
+            ),
+        )
+        player_section_store.save_player_section(
+            session,
+            psc.InjuryPlayerSectionInput(
+                run_id=run_id,
+                section_result_id=avail_sr_id.id,
+                fixture_id=FIXTURE["fixture_id"],
+                home_team_id=FIXTURE["home_team_id"],
+                away_team_id=FIXTURE["away_team_id"],
+                home1=psc.InjuryPlayerSlot(
+                    player_id=544,
+                    original_name="로드리",
+                    name_ko="로드리",
+                    body="무릎 점검 · 중원 핵심",
+                    name_source=psc.NameSource.DB_KO,
+                    status="doubtful",
+                    injury="무릎 점검",
+                    importance="중원 핵심",
+                    evidence=mixed_evidence,
+                ),
+            ),
+        )
+        session.commit()
+
+    run_resp = client.get(f"/api/v1/admin/preview/runs/{run_id}")
+    assert run_resp.status_code == 200, run_resp.text
+    run_json = run_resp.json()
+    watch_proc = run_json["player_section_processing"]["section_players"]
+    avail_proc = run_json["player_section_processing"]["section_availability"]
+    assert watch_proc["persisted"] is True
+    assert watch_proc["home1"]["evidence"] == ["people-summary-1", "people-span-1"]
+    assert avail_proc["persisted"] is True
+    assert avail_proc["home1"]["evidence"] == [
+        "people-span-2",
+        {"source_id": "src:injury", "span": "p0"},
+    ]
+
+    sr_resp = client.get(
+        f"/api/v1/admin/preview/runs/{run_id}/section-results?include_structured=true"
+    )
+    assert sr_resp.status_code == 200, sr_resp.text
+    by_wf = {row["workflow_id"]: row for row in sr_resp.json()["section_results"]}
+    assert by_wf["section_players"]["structured"]["players"][0]["evidence"] == [
+        "people-summary-1",
+        "people-span-1",
+    ]
+    assert by_wf["section_availability"]["structured"]["injuries"][0]["evidence"] == [
+        "people-span-2",
+        {"source_id": "src:injury", "span": "p0"},
+    ]

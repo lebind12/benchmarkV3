@@ -161,3 +161,25 @@ cd frontend && npm run type-check && npx vitest run \
   - `PYTHONPATH=. /Users/woolee/benchmark/.venv/bin/pytest tests/preview/test_player_section_integration.py tests/preview/test_bundle_integration.py -v` (`task-1279`): **`36 passed, 1 skipped, 1 warning in 17.34s`**
   - `PYTHONPATH=. /Users/woolee/benchmark/.venv/bin/pytest tests/preview/test_form_module.py -k test_live_run_requires_fixture_identity -v`: **`1 passed, 20 deselected, 1 warning in 0.95s`**
 - 단위 모델 스텁 기반 검증이며 실제 AI 모델 호출·브라우저·`preview_dev` 실저장은 아직 미실행.
+
+## 7. 정본 조회 문자열·매핑 evidence 보존 수정 (`task_edc631d3664b`)
+
+### 7.1 원인 및 수정 (`app/preview/player_section_read.py`)
+- 기존 실호출 실행 `86a2408c-5696-4d93-8140-ca9ac26a2af9` (`fixture_id=1557474`, `section_players`)의 정본 테이블에 문자열 `evidence` (`['people-summary-1', 'people-span-1']`, `['people-summary-1', 'people-span-2']`)가 저장돼 있었으나, `app/preview/player_section_read.py`의 `_slot_processing_dict`와 `read_canonical_player_section`이 `[item.value for item in projection.evidence]`를 가정해 `GET /api/v1/admin/preview/runs/{run_id}`에서 500 `AttributeError`가 발생했다.
+- `_serialize_evidence(items)` 헬퍼를 추가해 공통 계약 `EvidenceItem`(`str | Mapping`)과 선택적 `.value` 객체를 모두 손실 없이 직렬화하도록 수정하고 두 호출부를 교체했다.
+
+### 7.2 기존 실실행 `86a2408c-5696-4d93-8140-ca9ac26a2af9` 읽기 전용 점검 (`preview_dev`)
+- 조건: `SET TRANSACTION READ ONLY` + `rollback()`, `preview-dev-restricted.env` 사용, 신규 AI 호출 및 DB 쓰기·변경·undo 없음.
+- 실행 요약: `operation_kind='section'`, `status='succeeded'`, `quality='ready'`, `fixture_id=1557474`, `home_team_id=13`, `away_team_id=4`.
+- 테이블 건수: `section_results=1` (`id='32cc83da-55ca-46fb-bd48-0d56c63a1621'`, `workflow_id='section_players'`, `workflow_version='section_players@75313897ac9b749e'`, `output_contract_version='ns01-watch-players-1'`, `quality='ready'`, `version=1`), `watch_sections=1`, `injury_sections=0`, `candidates=0`.
+- 슬롯 저장 상태 (`home_etc=None`, `away_etc=None`, 전 슬롯 `name_source='db_ko'`, `candidate_id=None`):
+  - `home1`: `player_id=533`, `external_id=1100`, `'엘링 홀란드'`, `evidence=['people-summary-1', 'people-span-1']`
+  - `home2`: `player_id=541`, `external_id=156477`, `'라얀 셰르키'`, `evidence=['people-summary-1', 'people-span-1']`
+  - `away1`: `player_id=124`, `external_id=1455`, `'알렉산더 츄카 이워비'`, `evidence=['people-summary-1', 'people-span-2']`
+  - `away2`: `player_id=144`, `external_id=278133`, `'오스카 보브'`, `evidence=['people-summary-1', 'people-span-2']`
+- 수정 후 읽기 전용 `preview_admin.get_run(UUID('86a2408c-5696-4d93-8140-ca9ac26a2af9'), ...)` 호출 확인: `persisted=True`, `storage_status='persisted'`, `storage_mismatch=False`, `home1_name='엘링 홀란드'`, `home1_ext=1100`, `home1_photo='https://media.api-sports.io/football/players/1100.png'`, `home1_evidence=['people-summary-1', 'people-span-1']`, `away1_evidence=['people-summary-1', 'people-span-2']`, `structured_count=0`, `structured_0_evidence=None`.
+
+### 7.3 로컬 합성 테스트 (`preview_mp01_test`)
+- `tests/preview/test_player_section_integration.py`에 `test_canonical_read_preserves_string_and_mapping_evidence` 추가 (문자열 및 `str | Mapping` 혼합 `evidence` 저장 후 `GET /api/v1/admin/preview/runs/{run_id}` 및 `GET /api/v1/admin/preview/runs/{run_id}/section-results?include_structured=true` 보존 검증).
+- 실행 명령: `PYTHONPATH=. /Users/woolee/benchmark/.venv/bin/pytest tests/preview/test_player_section_integration.py tests/preview/test_inspection_api.py tests/preview/test_player_section_storage.py -q`
+- 결과: `33 passed, 1 warning in 12.69s`.

@@ -77,6 +77,19 @@ def _empty_structured(workflow_id: str) -> dict[str, Any]:
     }
 
 
+def _serialize_evidence(items: Any) -> list[str | dict[str, Any]]:
+    """공통 계약의 문자열/매핑 근거 항목을 직렬화 가능 값으로 보존한다."""
+    serialized: list[str | dict[str, Any]] = []
+    for item in items or ():
+        if isinstance(item, str):
+            serialized.append(item)
+        elif isinstance(item, Mapping):
+            serialized.append(dict(item))
+        elif hasattr(item, "value"):
+            serialized.append(item.value)
+    return serialized
+
+
 def _slot_processing_dict(
     projection: psc.SlotReadProjection,
     *,
@@ -109,7 +122,7 @@ def _slot_processing_dict(
             if projection.candidate_review_status is not None
             else None
         ),
-        "evidence": [item.value for item in projection.evidence],
+        "evidence": _serialize_evidence(projection.evidence),
     }
     if projection.status is not None or projection.injury is not None or projection.importance is not None:
         payload["status"] = projection.status
@@ -386,7 +399,7 @@ def read_canonical_player_section(
                 if projection.candidate_review_status is not None
                 else None
             ),
-            "evidence": [item.value for item in projection.evidence],
+            "evidence": _serialize_evidence(projection.evidence),
         }
         if is_watch:
             structured["players"].append({**common_row, "reason": projection.body})
