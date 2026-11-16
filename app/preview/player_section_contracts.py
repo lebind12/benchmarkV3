@@ -145,6 +145,15 @@ class UnplacedReason(str, Enum):
     MISSING_NAME_KO = "missing_name_ko"
 
 
+def require_non_negative_int(value: Any, field_name: str) -> int:
+    """bool·문자열·음수를 거부하고 0 이상의 정수만 허용한다(0 기반 attempt_ordinal 등)."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ContractError(f"{field_name}는 bool이 아닌 정수여야 합니다: {value!r}")
+    if value < 0:
+        raise ContractError(f"{field_name}는 0 이상이어야 합니다: {value!r}")
+    return value
+
+
 def require_positive_int(value: Any, field_name: str) -> int:
     """bool·문자열·0·음수를 거부하고 양의 정수만 허용한다."""
     if isinstance(value, bool) or not isinstance(value, int):
@@ -205,17 +214,46 @@ def require_aware_datetime(value: Any, field_name: str) -> datetime:
     return value
 
 
-def normalize_evidence(value: Any, field_name: str = "evidence") -> tuple[dict[str, Any], ...]:
+EvidenceItem = str | dict[str, Any]
+
+
+def normalize_evidence(value: Any, field_name: str = "evidence") -> tuple[EvidenceItem, ...]:
+    """기존 `_clean_evidence` 문자열 출처 ID와 매핑 근거 객체를 그대로 보존한다."""
     if value is None:
         return ()
     if isinstance(value, (str, bytes, Mapping)):
-        raise ContractError(f"{field_name}는 근거 객체의 시퀀스여야 합니다.")
-    normalized: list[dict[str, Any]] = []
+        raise ContractError(f"{field_name}는 근거 항목의 시퀀스여야 합니다.")
+    normalized: list[EvidenceItem] = []
     for idx, item in enumerate(value):
-        if not isinstance(item, Mapping):
-            raise ContractError(f"{field_name}[{idx}]는 매핑 객체여야 합니다.")
-        normalized.append(dict(item))
+        if isinstance(item, str):
+            stripped = item.strip()
+            if not stripped:
+                raise ContractError(
+                    f"{field_name}[{idx}] 문자열 출처 ID는 비어 있을 수 없습니다."
+                )
+            normalized.append(stripped)
+        elif isinstance(item, Mapping):
+            normalized.append(dict(item))
+        else:
+            raise ContractError(
+                f"{field_name}[{idx}]는 비어 있지 않은 문자열 또는 매핑 객체여야 합니다."
+            )
     return tuple(normalized)
+
+
+def deterministic_candidate_id(
+    *,
+    run_id: uuid.UUID,
+    section_result_id: uuid.UUID,
+    workflow_id: PlayerSectionWorkflowId | str,
+    slot_key: SlotKey | str,
+) -> uuid.UUID:
+    """동일 실행·결과·워크플로우·슬롯 소유 기준의 안정적 후보 UUIDv5."""
+    r_id = require_uuid(run_id, "run_id")
+    s_id = require_uuid(section_result_id, "section_result_id")
+    wf = _require_enum(PlayerSectionWorkflowId, workflow_id, "workflow_id")
+    key = _require_enum(SlotKey, slot_key, "slot_key")
+    return uuid.uuid5(s_id, f"{r_id}:{wf.value}:{key.value}")
 
 
 def _require_enum(enum_cls: type[Enum], value: Any, field_name: str) -> Any:
@@ -335,7 +373,9 @@ def _slot_column_dict(
             if slot.translation_candidate_id is not None
             else None
         ),
-        f"{prefix}_evidence": [dict(item) for item in slot.evidence],
+        f"{prefix}_evidence": [
+            item if isinstance(item, str) else dict(item) for item in slot.evidence
+        ],
     }
     if include_injury_fields:
         assert isinstance(slot, InjuryPlayerSlot)
@@ -541,7 +581,7 @@ class WatchPlayerSlot:
     name_source: NameSource
     unresolved_reason: str | None = None
     translation_candidate_id: uuid.UUID | None = None
-    evidence: tuple[dict[str, Any], ...] = ()
+    evidence: tuple[EvidenceItem, ...] = ()
 
     def __post_init__(self) -> None:
         (
@@ -623,7 +663,7 @@ class InjuryPlayerSlot:
     importance: str | None = None
     unresolved_reason: str | None = None
     translation_candidate_id: uuid.UUID | None = None
-    evidence: tuple[dict[str, Any], ...] = ()
+    evidence: tuple[EvidenceItem, ...] = ()
 
     def __post_init__(self) -> None:
         (
@@ -739,12 +779,18 @@ def _validate_section_slots_and_candidates(
             expected_candidates[key] = (slot.translation_candidate_id, slot)
 
     seen_candidate_slots: set[SlotKey] = set()
+    seen_candidate_ids: set[uuid.UUID] = set()
     for candidate in candidates:
         if candidate.slot_key in seen_candidate_slots:
             raise ContractError(
                 f"동일 슬롯({candidate.slot_key.value})에 번역 후보가 중복되었습니다."
             )
         seen_candidate_slots.add(candidate.slot_key)
+        if candidate.id in seen_candidate_ids:
+            raise ContractError(
+                f"동일 번역 후보 ID({candidate.id})가 여러 슬롯에 중복될 수 없습니다."
+            )
+        seen_candidate_ids.add(candidate.id)
 
         if candidate.run_id != run_id or candidate.section_result_id != section_result_id:
             raise ContractError(
@@ -1133,7 +1179,7 @@ class PendingWatchSlotDraft:
     body: str
     name_source: NameSource
     unresolved_reason: str | None = None
-    evidence: tuple[dict[str, Any], ...] = ()
+    evidence: tuple[EvidenceItem, ...] = ()
 
     def __post_init__(self) -> None:
         (
@@ -1190,7 +1236,7 @@ class PendingInjurySlotDraft:
     injury: str | None = None
     importance: str | None = None
     unresolved_reason: str | None = None
-    evidence: tuple[dict[str, Any], ...] = ()
+    evidence: tuple[EvidenceItem, ...] = ()
 
     def __post_init__(self) -> None:
         (
@@ -1279,7 +1325,11 @@ class UnplacedPlayerDiagnostic:
 
 @dataclass(frozen=True)
 class PlayerSectionAttemptTrace:
-    """재시도·재생성 포함 모듈 전송 시도 1회의 추적 정보."""
+    """재시도·재생성 포함 모듈 전송 시도 1회의 추적 정보.
+
+    `attempt_ordinal`은 `PreviewAttempt`/provider 장부와 동일한 0 기반 인덱스다
+    (최초 0, 후속 재시도/재생성 1·2, 최대 실제 전송 3회).
+    """
 
     attempt_ordinal: int
     logical_call_id: str
@@ -1289,10 +1339,10 @@ class PlayerSectionAttemptTrace:
     regeneration_reason: RegenerationReason | None = None
 
     def __post_init__(self) -> None:
-        ordinal = require_positive_int(self.attempt_ordinal, "attempt_ordinal")
-        if ordinal > MAX_MODULE_ATTEMPTS:
+        ordinal = require_non_negative_int(self.attempt_ordinal, "attempt_ordinal")
+        if ordinal >= MAX_MODULE_ATTEMPTS:
             raise ContractError(
-                f"모듈 실제 전송 시도는 최대 {MAX_MODULE_ATTEMPTS}회입니다: {ordinal}"
+                f"0 기반 attempt_ordinal은 0..{MAX_MODULE_ATTEMPTS - 1}(최대 {MAX_MODULE_ATTEMPTS}회)여야 합니다: {ordinal}"
             )
         object.__setattr__(self, "attempt_ordinal", ordinal)
         object.__setattr__(
@@ -1335,7 +1385,7 @@ class PlayerSectionProcessingResult:
     away_etc: None = None
     regeneration_count: int = 0
     module_attempt_count: int = 1
-    adopted_attempt_ordinal: int = 1
+    adopted_attempt_ordinal: int = 0
     attempts: tuple[PlayerSectionAttemptTrace, ...] = ()
     unplaced_items: tuple[UnplacedPlayerDiagnostic, ...] = ()
     persisted: bool = False
@@ -1395,12 +1445,12 @@ class PlayerSectionProcessingResult:
             raise ContractError(
                 f"모듈 실제 전송 횟수는 최대 {MAX_MODULE_ATTEMPTS}회입니다: {attempts_count}"
             )
-        adopted = require_positive_int(
+        adopted = require_non_negative_int(
             self.adopted_attempt_ordinal, "adopted_attempt_ordinal"
         )
-        if adopted > attempts_count:
+        if adopted >= attempts_count:
             raise ContractError(
-                f"adopted_attempt_ordinal({adopted})는 module_attempt_count({attempts_count})를 넘을 수 없습니다."
+                f"0 기반 adopted_attempt_ordinal({adopted})는 module_attempt_count({attempts_count}) 미만이어야 합니다."
             )
 
         traces = tuple(self.attempts)
@@ -1408,8 +1458,10 @@ class PlayerSectionProcessingResult:
             ordinals = [t.attempt_ordinal for t in traces]
             if len(ordinals) != len(set(ordinals)) or ordinals != sorted(ordinals):
                 raise ContractError("attempts의 attempt_ordinal은 중복 없이 순증가해야 합니다.")
-            if max(ordinals) > attempts_count:
-                raise ContractError("attempts에 module_attempt_count를 초과하는 시도가 있습니다.")
+            if max(ordinals) >= attempts_count:
+                raise ContractError(
+                    f"attempts에 module_attempt_count({attempts_count}) 이상인 0 기반 attempt_ordinal이 있습니다."
+                )
             if adopted not in ordinals:
                 raise ContractError("adopted_attempt_ordinal에 해당하는 시도 추적이 없습니다.")
             regen_traces = sum(1 for t in traces if t.regeneration_triggered)
@@ -1434,7 +1486,14 @@ class PlayerSectionProcessingResult:
         """C의 `_save_draft`에서 저장 ID를 부여해 정본 저장 입력 계약으로 변환한다."""
         s_id = require_uuid(section_result_id, "section_result_id")
         r_id = require_uuid(run_id, "run_id")
-        make_id = candidate_id_factory or (lambda _slot: uuid.uuid4())
+        make_id = candidate_id_factory or (
+            lambda slot_key: deterministic_candidate_id(
+                run_id=r_id,
+                section_result_id=s_id,
+                workflow_id=self.workflow_id,
+                slot_key=slot_key,
+            )
+        )
 
         materialized_slots: dict[str, Any] = {}
         candidates: list[PlayerNameCandidateInput] = []
@@ -1515,7 +1574,7 @@ class SlotReadProjection:
     status: str | None = None
     injury: str | None = None
     importance: str | None = None
-    evidence: tuple[dict[str, Any], ...] = ()
+    evidence: tuple[EvidenceItem, ...] = ()
 
 
 def project_slot(
@@ -1580,6 +1639,7 @@ def project_slot(
 __all__ = [
     "CandidateReviewStatus",
     "CandidateSource",
+    "EvidenceItem",
     "FIXED_SLOT_KEYS",
     "INJURY_PLAYERS_OUTPUT_CONTRACT_VERSION",
     "INJURY_PLAYERS_TABLE",
@@ -1617,6 +1677,7 @@ __all__ = [
     "WatchPlayerSectionInput",
     "WatchPlayerSectionRecord",
     "WatchPlayerSlot",
+    "deterministic_candidate_id",
     "normalize_evidence",
     "optional_non_empty_text",
     "optional_positive_int",
@@ -1625,6 +1686,7 @@ __all__ = [
     "project_slot",
     "require_aware_datetime",
     "require_non_empty_text",
+    "require_non_negative_int",
     "require_positive_int",
     "require_uuid",
     "team_id_for_slot",
