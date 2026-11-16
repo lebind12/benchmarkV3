@@ -1012,6 +1012,37 @@ def create_section_run(
                     " 필요합니다. 서버가 임의로 최신 묶음을 고르지 않습니다."
                 ),
             )
+        is_initial_run = payload.base_run_id is None
+        if is_initial_run and (
+            payload.base_result_id is not None or payload.composition_id is not None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "기준 실행(base_run_id) 없이 base_result_id 또는 composition_id를"
+                    " 지정할 수 없습니다."
+                ),
+            )
+        if (
+            is_initial_run
+            and payload.workflow_id not in bundle_pipeline_module.INITIAL_PLAYER_SECTIONS
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"{payload.workflow_id} 섹션은 기준 실행(base_run_id) 없이 최초"
+                    " 단독 실행할 수 없습니다. 주목 선수·부상 섹션만 최초 단독 실행을"
+                    " 지원합니다."
+                ),
+            )
+        if is_initial_run and payload.fixture_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "실제 실행에는 경기 식별자(fixture_id·리그·시즌·팀·킥오프)가"
+                    " 필요합니다. 경기 선택 화면에서 경기를 골라 실행하세요."
+                ),
+            )
         transport = _model_transport(mode)
         if transport is None:
             raise HTTPException(
@@ -1023,21 +1054,77 @@ def create_section_run(
             )
         reader = _fixture_reader()
         try:
-            outcome = bundle_pipeline_module.run_section_regeneration(
-                session,
-                section_id=payload.workflow_id,
-                actor_id=principal.user_id,
-                transport=transport,
-                base_run_id=payload.base_run_id or uuid.uuid4(),
-                source_mode=payload.source_mode,
-                base_result_id=payload.base_result_id,
-                reader=reader,
-                limits=None,
-                # 재생성도 **관리자가 고른** 앞 섹션 결과 버전을 그대로 쓴다. 이 값을
-                # 넘기지 않던 것이 "선택은 받지만 최종 AI에 전달되지 않는" 결함이었다.
-                upstream_result_ids=tuple(payload.selected_result_ids),
-                composition_id=payload.composition_id,
-            )
+            if not is_initial_run:
+                outcome = bundle_pipeline_module.run_section_regeneration(
+                    session,
+                    section_id=payload.workflow_id,
+                    actor_id=principal.user_id,
+                    transport=transport,
+                    base_run_id=payload.base_run_id,
+                    source_mode=payload.source_mode,
+                    base_result_id=payload.base_result_id,
+                    reader=reader,
+                    limits=None,
+                    # 재생성도 **관리자가 고른** 앞 섹션 결과 버전을 그대로 쓴다. 이 값을
+                    # 넘기지 않던 것이 "선택은 받지만 최종 AI에 전달되지 않는" 결함이었다.
+                    upstream_result_ids=tuple(payload.selected_result_ids),
+                    composition_id=payload.composition_id,
+                )
+            else:
+                record = None
+                if reader is not None and callable(getattr(reader, "get_fixture", None)):
+                    try:
+                        record = reader.get_fixture(fixture_id=int(payload.fixture_id))
+                    except Exception:  # noqa: BLE001 - D0에서 진단으로 남긴다
+                        record = None
+                effective_fixture = fixture
+                if effective_fixture is None and record is not None:
+                    kickoff = getattr(record, "kickoff_at", None)
+                    if (
+                        getattr(record, "home_team_id", None) is not None
+                        and getattr(record, "away_team_id", None) is not None
+                        and kickoff is not None
+                    ):
+                        effective_fixture = {
+                            "fixture_id": int(record.fixture_id),
+                            "league_id": int(record.league_id),
+                            "season": int(record.season),
+                            "home_team_id": int(record.home_team_id),
+                            "away_team_id": int(record.away_team_id),
+                            "kickoff_at": kickoff.isoformat(),
+                        }
+                if effective_fixture is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=(
+                            "실제 실행에는 경기 식별자(fixture_id·리그·시즌·팀·킥오프)가"
+                            " 필요합니다. 경기 선택 화면에서 경기를 골라 실행하세요."
+                        ),
+                    )
+                home_team = getattr(record, "home_team_name", None) if record else None
+                away_team = getattr(record, "away_team_name", None) if record else None
+                league_name = getattr(record, "league_name", None) if record else None
+                effective_label = payload.fixture_label or (
+                    getattr(record, "label", None) if record else None
+                )
+                if (not home_team or not away_team) and effective_label and " vs " in effective_label:
+                    left, right = effective_label.split(" vs ", 1)
+                    home_team = home_team or left.strip() or None
+                    away_team = away_team or right.strip() or None
+                outcome = bundle_pipeline_module.run_section_initial(
+                    session,
+                    section_id=payload.workflow_id,
+                    fixture=effective_fixture,
+                    actor_id=principal.user_id,
+                    transport=transport,
+                    reader=reader,
+                    limits=None,
+                    label=payload.label,
+                    fixture_label=effective_label,
+                    home_team=home_team,
+                    away_team=away_team,
+                    league=league_name,
+                )
         except bundle_pipeline_module.SectionRegenerationRefused as exc:
             session.rollback()
             raise HTTPException(
@@ -1053,6 +1140,21 @@ def create_section_run(
             if callable(close):
                 close()
         session.commit()
+        if is_initial_run:
+            run_note = (
+                "선택한 경기의 필요한 자료만 준비해 이 섹션을 처음 생성·정본 저장했습니다."
+                " 다른 섹션은 실행하지 않았습니다."
+            )
+        elif outcome.bundle_reused:
+            run_note = (
+                "저장된 정보 원문 묶음만 재사용해 이 섹션을 다시 만들었습니다."
+                " 새 수집·검색 호출은 없고 다른 섹션은 다시 부르지 않았습니다."
+            )
+        else:
+            run_note = (
+                "이 섹션에 필요한 자료만 새로 수집해 다시 만들었습니다."
+                " 다른 섹션 결과는 그대로 두었습니다."
+            )
         return SectionRunResponse(
             run_id=outcome.run_id,
             workflow_id=outcome.section_id,
@@ -1065,15 +1167,7 @@ def create_section_run(
             external_calls=outcome.external_calls,
             budget={},
             unavailable_reason=outcome.unavailable_reason,
-            note=(
-                "저장된 정보 원문 묶음만 재사용해 이 섹션을 다시 만들었습니다."
-                " 새 수집·검색 호출은 없고 다른 섹션은 다시 부르지 않았습니다."
-                if outcome.bundle_reused
-                else (
-                    "이 섹션에 필요한 자료만 새로 수집해 다시 만들었습니다."
-                    " 다른 섹션 결과는 그대로 두었습니다."
-                )
-            ),
+            note=run_note,
             source_mode=outcome.source_mode,
             bundle_id=outcome.bundle_id,
             bundle_reused=outcome.bundle_reused,
@@ -1083,7 +1177,7 @@ def create_section_run(
             new_version=outcome.section_result_version,
             composition_id=outcome.composition_id,
             no_model_call=outcome.expected_model_calls == 0,
-            other_sections_reused=True,
+            other_sections_reused=not is_initial_run,
         )
 
     # --- 옛 경로 섹션 재생성 (기존 노드) ----------------------------------

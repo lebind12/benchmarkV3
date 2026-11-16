@@ -63,12 +63,15 @@ from app.preview.retry import BudgetLimits, ConcurrencyLimiter, MODULE_SEND_CAP,
 __all__ = [
     "BUNDLE_PIPELINE_VERSION",
     "BundlePipelineOutcome",
+    "INITIAL_PLAYER_SECTIONS",
     "REGENERABLE_SECTIONS",
     "SectionRegenerationOutcome",
     "SectionRegenerationRefused",
     "build_bundle_graph",
     "build_db_snapshot",
+    "build_single_section_bundle_graph",
     "run_bundle_pipeline",
+    "run_section_initial",
     "run_section_regeneration",
 ]
 
@@ -1696,6 +1699,291 @@ def run_bundle_pipeline(
         budget=budget.snapshot(),
         unavailable_reason=final.get("unavailable_reason"),
         diagnostics=tuple(str(item) for item in final_state.get("diagnostics") or ()),
+    )
+
+
+# 최초 단독 실행 허용 범위: 주목 선수·부상/결장 두 섹션만 해당한다(타 섹션 확장 금지).
+INITIAL_PLAYER_SECTIONS: tuple[str, ...] = (
+    bundle_contract.SECTION_PLAYERS,
+    bundle_contract.SECTION_AVAILABILITY,
+)
+
+
+def _finalize_single_section_node(section_id: str, plan: _Plan):
+    """단일 섹션 최초 실행의 묶음 전달 기록·실행 종료 상태를 정본 행 기준으로 닫는다."""
+
+    def run(state: Mapping[str, Any]) -> dict[str, Any]:
+        session = _branch_session(plan)
+        try:
+            entries = [dict(item) for item in state.get("sections") or ()]
+            target_entry = next(
+                (entry for entry in entries if str(entry.get("section_id")) == section_id),
+                None,
+            )
+            bundle_id: str | None = None
+            bundle_hash: str | None = None
+            bundle_artifact_id: Any = None
+            bundle_payload = state.get("bundle")
+            if isinstance(bundle_payload, Mapping) and bundle_payload:
+                bundle = bundle_contract.InformationBundle.from_dict(
+                    dict(bundle_payload)
+                )
+                delivery = target_entry.get("delivery") if target_entry else None
+                if isinstance(delivery, Mapping):
+                    bundle = bundle.with_section_delivery(
+                        bundle_contract.SectionDelivery.from_dict(delivery)
+                    )
+                saved = store.save_information_bundle(
+                    session,
+                    run_id=plan.run_id,
+                    bundle=bundle,
+                    actor_id=plan.actor_id,
+                    now=plan.moment,
+                )
+                session.commit()
+                bundle_id = (saved.get("bundle") or {}).get("bundle_id")
+                bundle_hash = (saved.get("bundle") or {}).get("bundle_hash")
+                bundle_artifact_id = saved.get("artifact_id")
+
+            raw_result_id = target_entry.get("result_id") if target_entry else None
+            result_id = uuid.UUID(str(raw_result_id)) if raw_result_id else None
+            saved_row = (
+                store.get_section_result(session, plan.run_id, result_id)
+                if result_id is not None
+                else None
+            )
+            if saved_row is not None:
+                quality = QualityStatus(saved_row.quality)
+                unavailable_reason = saved_row.unavailable_reason
+                saved_version = saved_row.version
+            else:
+                quality = QualityStatus.INSUFFICIENT
+                unavailable_reason = (
+                    (target_entry or {}).get("unavailable_reason")
+                    or state.get("unavailable_reason")
+                    or f"{section_id} 섹션 결과를 저장하지 못했습니다."
+                )
+                saved_version = None
+
+            status = (
+                RunStatus.SUCCEEDED if not unavailable_reason else RunStatus.FAILED
+            )
+            store.finish_run(
+                session,
+                plan.run_id,
+                status=status,
+                quality=quality,
+                failure_detail=unavailable_reason,
+                actor_id=plan.actor_id,
+            )
+            session.commit()
+            return {
+                "diagnostics": [],
+                "unavailable_reason": unavailable_reason,
+                "completed": ["finalize"],
+                "final": {
+                    "section_result_id": str(result_id) if result_id else None,
+                    "section_result_version": saved_version,
+                    "bundle_id": bundle_id,
+                    "bundle_hash": bundle_hash,
+                    "bundle_artifact_id": bundle_artifact_id,
+                    "quality": quality.value,
+                    "status": status.value,
+                    "unavailable_reason": unavailable_reason,
+                },
+            }
+        except Exception as exc:  # noqa: BLE001
+            session.rollback()
+            reason = f"마무리 저장에 실패했습니다: {exc}"
+            return {
+                "diagnostics": [reason],
+                "unavailable_reason": reason,
+                "completed": ["finalize"],
+                "final": {
+                    "section_result_id": None,
+                    "section_result_version": None,
+                    "bundle_id": None,
+                    "bundle_hash": None,
+                    "bundle_artifact_id": None,
+                    "quality": QualityStatus.INSUFFICIENT.value,
+                    "status": RunStatus.FAILED.value,
+                    "unavailable_reason": reason,
+                },
+            }
+        finally:
+            session.close()
+
+    return run
+
+
+def build_single_section_bundle_graph(
+    *,
+    section_id: str,
+    plan: _Plan,
+    checkpointer: Any | None = None,
+):
+    """단일 선수·부상 섹션 최초 실행 LangGraph:
+
+        START → D0 → discovery_people → collection → <section_id> → finalize → END
+
+    선택한 섹션 1개와 그에 필요한 공유 자료 준비(D0·인물 조사·수집)만 실행한다.
+    """
+    if section_id not in INITIAL_PLAYER_SECTIONS:
+        raise SectionRegenerationRefused(
+            f"{section_id} 섹션은 최초 단독 실행 대상이 아닙니다."
+            " 주목 선수·부상 섹션만 최초 단독 실행을 지원합니다."
+        )
+
+    group = regeneration_discovery_group(section_id)
+    discovery_node_name = f"discovery_{group}"
+    graph: StateGraph = StateGraph(_GraphState)
+    graph.add_node("D0", _prepare_node(plan))
+    graph.add_node(discovery_node_name, _discovery_node(group, plan))
+    graph.add_node("collection", _collection_node(plan))
+    graph.add_node(section_id, _section_node(section_id, plan))
+    graph.add_node("finalize", _finalize_single_section_node(section_id, plan))
+
+    graph.add_edge(START, "D0")
+    graph.add_edge("D0", discovery_node_name)
+    graph.add_edge(discovery_node_name, "collection")
+    graph.add_edge("collection", section_id)
+    graph.add_edge(section_id, "finalize")
+    graph.add_edge("finalize", END)
+    return graph.compile(checkpointer=checkpointer)
+
+
+def run_section_initial(
+    session: Session,
+    *,
+    section_id: str,
+    fixture: Mapping[str, Any],
+    actor_id: int,
+    transport: Any,
+    reader: Any = None,
+    http: Any = None,
+    limits: BudgetLimits | None = None,
+    label: str | None = None,
+    fixture_label: str | None = None,
+    mode: RunMode | None = None,
+    now: datetime | None = None,
+    home_team: str | None = None,
+    away_team: str | None = None,
+    league: str | None = None,
+    db_context: str | None = None,
+    target_checker: Any = None,
+    checkpointer: Any | None = None,
+) -> "SectionRegenerationOutcome":
+    """기준 실행(`base_run_id`) 없이 선택한 선수·부상 섹션 1개만 처음 생성·저장한다.
+
+    기존 `build_bundle_graph`와 같은 LangGraph 노드(`D0` → `discovery_people`
+    → `collection` → `_section_node` → `_save_draft`)를 사용하며, 다른 섹션은
+    실행하지 않고 `_save_draft`로 정본 3표까지 같은 트랜잭션에 저장한다.
+    """
+    if section_id not in INITIAL_PLAYER_SECTIONS:
+        raise SectionRegenerationRefused(
+            f"{section_id} 섹션은 최초 단독 실행 대상이 아닙니다."
+            " 주목 선수·부상 섹션만 최초 단독 실행을 지원합니다."
+        )
+
+    moment = now or _now()
+    run_mode = mode or getattr(transport, "mode", RunMode.MOCK)
+    budget_limits = limits or BudgetLimits()
+    identity = FixtureIdentity.from_dict(dict(fixture))
+    run_id = uuid.uuid4()
+
+    context = ExecutionContext(
+        run_id=run_id,
+        operation_kind=OperationKind.SECTION,
+        environment=Environment.DEV,
+        mode=run_mode,
+        actor_id=actor_id,
+        config_version=BUNDLE_PIPELINE_VERSION,
+        limits=budget_limits.execution_limits(),
+    )
+    store.store_run(
+        session,
+        context,
+        fixture=identity,
+        fixture_label=fixture_label or f"fixture {identity.fixture_id}",
+        label=label or f"섹션 최초 실행 · {section_id}",
+        status=RunStatus.RUNNING,
+    )
+    session.commit()
+
+    participating_module_ids = regeneration_logical_call_ids(
+        section_id, source_mode="refresh"
+    )
+    budget = RunBudget.for_generation(
+        participating_module_ids,
+        budget_limits,
+        now=moment,
+    )
+    plan = _Plan(
+        run_id=run_id,
+        context=context,
+        mode=run_mode,
+        identity=identity,
+        fixture=dict(fixture),
+        actor_id=actor_id,
+        moment=moment,
+        budget=budget,
+        transport=transport,
+        reader=reader,
+        http=http,
+        target_checker=target_checker,
+        session_factory=sessionmaker(
+            bind=session.get_bind(), autoflush=False, expire_on_commit=False
+        ),
+        home_team=home_team or f"team {identity.home_team_id}",
+        away_team=away_team or f"team {identity.away_team_id}",
+        resolver=_open_name_resolver((identity.home_team_id, identity.away_team_id)),
+        player_candidates=(),
+        provider_odds_guard=_new_provider_odds_guard(),
+        league=league,
+        db_context=db_context,
+        model_limiter=ConcurrencyLimiter(
+            budget_limits.model_concurrency, label="모델"
+        ),
+    )
+
+    graph = build_single_section_bundle_graph(
+        section_id=section_id, plan=plan, checkpointer=checkpointer
+    )
+    final_state: Mapping[str, Any] = graph.invoke(
+        {
+            "bundle": None,
+            "db_snapshot": None,
+            "discovery": [],
+            "sections": [],
+            "diagnostics": [],
+            "completed": [],
+            "unavailable_reason": None,
+        },
+        {"configurable": {"thread_id": str(run_id)}},
+    )
+
+    final = dict(final_state.get("final") or {})
+    raw_result_id = final.get("section_result_id")
+    result_id = uuid.UUID(str(raw_result_id)) if raw_result_id else None
+    return SectionRegenerationOutcome(
+        run_id=run_id,
+        section_id=section_id,
+        mode=run_mode,
+        quality=QualityStatus(final.get("quality") or QualityStatus.INSUFFICIENT.value),
+        section_result_id=result_id,
+        section_result_version=final.get("section_result_version"),
+        source_mode="refresh",
+        bundle_id=final.get("bundle_id"),
+        bundle_reused=False,
+        bundle_refreshed=bool(final.get("bundle_id")),
+        external_calls=int(budget.model_used),
+        expected_model_calls=len(participating_module_ids),
+        unavailable_reason=final.get("unavailable_reason"),
+        diagnostics=tuple(str(item) for item in final_state.get("diagnostics") or ()),
+        other_sections_untouched=True,
+        base_run_id=None,
+        base_result_id=None,
+        composition_id=None,
     )
 
 

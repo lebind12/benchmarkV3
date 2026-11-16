@@ -891,3 +891,216 @@ def test_legacy_contract_still_reads_legacy_payload_and_workflow_versions_isolat
     assert runner.section_workflow_version(wf_odds) == "section_odds@49923b1c5dcb467a"
     assert wf_outlook.output_contract_version == "section_outlook-output-1"
     assert wf_forecast.output_contract_version == "mp11-ai-forecast-output-1"
+
+
+def _patch_initial_section_runtime(monkeypatch, *, transport, reader):
+    resolver = _canonical_resolver()
+    monkeypatch.setattr(preview_admin, "_model_transport", lambda mode: transport)
+    monkeypatch.setattr(preview_admin, "_fixture_reader", lambda: reader)
+    monkeypatch.setattr(
+        bundle_pipeline,
+        "_open_name_resolver",
+        lambda team_ids=(): resolver,
+    )
+
+    orig_collect = retrieval.collect_with_bodies
+
+    def _collect_with_fake_http(*args, **kwargs):
+        kwargs["http"] = _FakeHttp()
+        kwargs["target_checker"] = lambda url: True
+        return orig_collect(*args, **kwargs)
+
+    monkeypatch.setattr(retrieval, "collect_with_bodies", _collect_with_fake_http)
+
+
+def test_initial_live_section_run_without_base_run_uses_bundle_graph_and_persists_canonical_tables(
+    client, make_user, session_factory, monkeypatch
+):
+    """base_run_id 없는 최초 LIVE 섹션 실행은 해당 선수/부상 섹션만 LangGraph로 생성하고 정본 3표에 저장한다."""
+    _login_admin(client, make_user)
+
+    for workflow_id in ("section_players", "section_availability"):
+        transport = _transport()
+        reader = _FakeFixtureReader()
+        _patch_initial_section_runtime(monkeypatch, transport=transport, reader=reader)
+
+        resp = client.post(
+            "/api/v1/admin/preview/section-runs",
+            json={
+                "workflow_id": workflow_id,
+                "mode": "live",
+                "fixture_id": FIXTURE["fixture_id"],
+                "league_id": FIXTURE["league_id"],
+                "season": FIXTURE["season"],
+                "home_team_id": FIXTURE["home_team_id"],
+                "away_team_id": FIXTURE["away_team_id"],
+                "kickoff_at": FIXTURE["kickoff_at"],
+                "fixture_label": "Manchester City vs Fulham",
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        run_id = uuid.UUID(data["run_id"])
+        result_id = uuid.UUID(data["section_result_id"])
+
+        assert data["workflow_id"] == workflow_id
+        assert data["status"] == "succeeded"
+        assert data["parent_run_id"] is None
+        assert data["base_result_id"] is None
+        assert data["bundle_reused"] is False
+        assert data["bundle_id"]
+        assert data["expected_model_calls"] == 2
+        assert data["no_model_call"] is False
+        assert data["other_sections_reused"] is False
+        assert data["workflow_version"] == runner.section_workflow_version(
+            registry.get_section_workflow(workflow_id)
+        )
+
+        # 선택한 섹션(1개) + 필요한 인물 조사(discovery_people)만 호출한다.
+        called_ids = {str(getattr(spec, "logical_call_id", "")) for spec in transport.calls}
+        assert called_ids == {"discovery_people", workflow_id}, called_ids
+
+        with session_factory() as session:
+            section_rows = list(
+                session.scalars(
+                    select(PreviewSectionResult).where(PreviewSectionResult.run_id == run_id)
+                )
+            )
+            assert len(section_rows) == 1
+            assert section_rows[0].id == result_id
+            assert section_rows[0].workflow_id == workflow_id
+
+            if workflow_id == "section_players":
+                watch = player_section_store.get_watch_player_section(session, result_id)
+                orm_watch = session.get(PreviewWatchPlayerSection, result_id)
+                assert watch is not None and orm_watch is not None
+                assert orm_watch.home_etc is None
+                assert orm_watch.away_etc is None
+                assert watch.home1 is not None and watch.home1.name_ko == "엘링 홀란드"
+                assert watch.away1 is not None and watch.away1.translation_candidate_id is not None
+                cand = session.get(PreviewPlayerNameCandidate, watch.away1.translation_candidate_id)
+                assert cand is not None
+                assert cand.candidate_name_ko == "아카데미 유망주"
+            else:
+                injury = player_section_store.get_injury_player_section(session, result_id)
+                orm_injury = session.get(PreviewInjuryPlayerSection, result_id)
+                assert injury is not None and orm_injury is not None
+                assert injury.home1 is not None and injury.home1.name_ko == "로드리"
+                assert injury.home1.status == "doubtful"
+
+        detail_json = client.get(f"/api/v1/admin/preview/runs/{run_id}").json()
+        proc = detail_json["player_section_processing"][workflow_id]
+        assert proc["persisted"] is True
+        assert proc["storage_status"] == "persisted"
+        assert proc["storage_mismatch"] is False
+        assert detail_json["section_results"][0]["storage_mismatch"] is False
+
+        sr_json = client.get(f"/api/v1/admin/preview/runs/{run_id}/section-results").json()
+        assert sr_json["section_results"][0]["persisted"] is True
+        assert sr_json["section_results"][0]["storage_status"] == "persisted"
+        assert sr_json["section_results"][0]["storage_mismatch"] is False
+
+
+def test_initial_section_run_boundary_guards_and_regeneration_preserved(
+    client, make_user, session_factory, monkeypatch
+):
+    """최초 실행 범위 제한(주목·부상 외 422, reuse/fixture 누락 422)과 기존 base_run_id 재생성 경로를 보존한다."""
+    _login_admin(client, make_user)
+    transport = _transport()
+    reader = _FakeFixtureReader()
+    _patch_initial_section_runtime(monkeypatch, transport=transport, reader=reader)
+
+    # 1) base_run_id 없는 타 섹션 최초 단독 실행은 422로 거부 (범위 확대·가짜 base ID 금지)
+    for forbidden_wf in ("section_outlook", "section_odds", "section_ai_forecast"):
+        resp = client.post(
+            "/api/v1/admin/preview/section-runs",
+            json={
+                "workflow_id": forbidden_wf,
+                "mode": "live",
+                "fixture_id": FIXTURE["fixture_id"],
+                "league_id": FIXTURE["league_id"],
+                "season": FIXTURE["season"],
+                "home_team_id": FIXTURE["home_team_id"],
+                "away_team_id": FIXTURE["away_team_id"],
+                "kickoff_at": FIXTURE["kickoff_at"],
+            },
+        )
+        assert resp.status_code == 422, (forbidden_wf, resp.text)
+
+    # 2) base_run_id 없는 source_mode=reuse 거부(422) & 경기 식별자 누락 거부(422)
+    resp_reuse = client.post(
+        "/api/v1/admin/preview/section-runs",
+        json={
+            "workflow_id": "section_players",
+            "mode": "live",
+            "source_mode": "reuse",
+            "fixture_id": FIXTURE["fixture_id"],
+            "kickoff_at": FIXTURE["kickoff_at"],
+        },
+    )
+    assert resp_reuse.status_code == 422, resp_reuse.text
+
+    resp_no_fixture = client.post(
+        "/api/v1/admin/preview/section-runs",
+        json={"workflow_id": "section_players", "mode": "live"},
+    )
+    assert resp_no_fixture.status_code == 422, resp_no_fixture.text
+    assert transport.calls == []
+
+    # 3) 존재하지 않는 명시적 base_run_id 재생성은 기존대로 404 base run not found
+    resp_missing_base = client.post(
+        "/api/v1/admin/preview/section-runs",
+        json={
+            "workflow_id": "section_players",
+            "mode": "live",
+            "source_mode": "refresh",
+            "base_run_id": str(uuid.uuid4()),
+        },
+    )
+    assert resp_missing_base.status_code == 404, resp_missing_base.text
+    assert resp_missing_base.json()["detail"] == "base run not found"
+
+    # 4) 최초 실행으로 만든 run을 base_run_id로 넘겨 source_mode=reuse 재생성 보존 확인
+    initial_resp = client.post(
+        "/api/v1/admin/preview/section-runs",
+        json={
+            "workflow_id": "section_players",
+            "mode": "live",
+            "fixture_id": FIXTURE["fixture_id"],
+            "league_id": FIXTURE["league_id"],
+            "season": FIXTURE["season"],
+            "home_team_id": FIXTURE["home_team_id"],
+            "away_team_id": FIXTURE["away_team_id"],
+            "kickoff_at": FIXTURE["kickoff_at"],
+            "fixture_label": "Manchester City vs Fulham",
+        },
+    )
+    assert initial_resp.status_code == 200, initial_resp.text
+    initial_data = initial_resp.json()
+    initial_run_id = initial_data["run_id"]
+
+    regen_resp = client.post(
+        "/api/v1/admin/preview/section-runs",
+        json={
+            "workflow_id": "section_players",
+            "mode": "live",
+            "source_mode": "reuse",
+            "base_run_id": initial_run_id,
+            "base_result_id": initial_data["section_result_id"],
+        },
+    )
+    assert regen_resp.status_code == 200, regen_resp.text
+    regen_data = regen_resp.json()
+    assert regen_data["parent_run_id"] == initial_run_id
+    assert regen_data["bundle_reused"] is True
+    assert regen_data["expected_model_calls"] == 1
+    assert regen_data["other_sections_reused"] is True
+
+    with session_factory() as session:
+        regen_watch = session.scalar(
+            select(PreviewWatchPlayerSection).where(
+                PreviewWatchPlayerSection.section_result_id
+                == uuid.UUID(regen_data["section_result_id"])
+            )
+        )
+        assert regen_watch is not None

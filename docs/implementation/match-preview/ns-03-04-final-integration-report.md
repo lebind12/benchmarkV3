@@ -138,3 +138,26 @@ cd frontend && npm run type-check && npx vitest run \
 - **실제 AI 모델 호출(Vertex/live 생성) → `preview_dev` 정본 3표 저장 → 관리자 검사/홈 카드 실물 확인**: 미실행.
 - **실제 ADMIN 브라우저 세션 로그인 후 `/admin/sections`·`/admin/runs` UI 조작 및 승인**: 미실행 (root 브라우저 세션 보호).
 - **사용자 섹션 워크플로우 승인**: 미완료 (자동 테스트 통과는 사용자 승인이 아님).
+
+---
+
+## 6. 후속 수정: 최초 LIVE 선수·부상 섹션 실행 404 해소 (`task_4ae0d636296d` / `ctx_c02c30ff73dd`)
+
+### 6.1 원인 및 최소 수정
+
+- **재현 결함**: `/admin/sections`(`SectionRunView.vue`)에서 기준 실행 없이(`base_run_id=None`) 경기 선택 → `section_players` 또는 `section_availability` → `live` 실행 시 `preview_admin.create_section_run`이 `base_run_id=payload.base_run_id or uuid.uuid4()`로 `run_section_regeneration`을 호출해 `404 base run not found`가 발생.
+- **`app/preview/bundle_pipeline.py`**:
+  - `INITIAL_PLAYER_SECTIONS = ("section_players", "section_availability")` 정의.
+  - `build_single_section_bundle_graph`, `_finalize_single_section_node`, `run_section_initial` 추가: 기존 LangGraph 노드(`D0` → `discovery_people` → `collection` → `_section_node` → `_save_draft` → `finalize`)만 재사용해 선택한 섹션 1개와 필요한 인물 조사·수집만 실행하고 `player_section_store.save_player_section`까지 동일 트랜잭션으로 저장한다(타 섹션·`discovery_outlook`·전체 일괄 생성·옛 runner fallback 우회 없음).
+- **`app/api/v1/preview_admin.py` (`create_section_run`)**:
+  - `payload.base_run_id is None`인 최초 실행과 `payload.base_run_id is not None`인 기존 재생성을 명확히 분리(가짜 `uuid.uuid4()` 제거).
+  - `base_run_id is None`일 때 `source_mode="reuse"`·`base_result_id`/`composition_id` 지정·`INITIAL_PLAYER_SECTIONS` 외 타 섹션(`section_outlook`, `section_odds`, `section_ai_forecast`)·경기 식별자 누락은 `422`로 거부.
+  - 기존 `base_run_id` 재생성(`source_mode=reuse/refresh`, `selected_result_ids`, `composition_id`, 없는 `base_run_id` 404) 경로는 그대로 보존.
+
+### 6.2 경계 검증 결과 (`preview_mp01_test` 합성 환경)
+
+- 1차 확인(`task-1271`): `35 passed, 1 failed, 1 skipped in 18.46s` — 신규 테스트 `test_player_section_integration.py`에서 `/runs/{run_id}` 응답의 `detail_json["section_results"][0]["persisted"]` 키를 잘못 참조해 `KeyError` 1건 발생(`/runs/{run_id}`는 `player_section_processing[workflow_id]["persisted"]`, `/runs/{run_id}/section-results`는 `section_results[0]["persisted"]` 계약 유지).
+- 테스트 단언을 실제 API 계약 두 경로 모두(`detail_json["player_section_processing"][workflow_id]["persisted"]` 및 `sr_json["section_results"][0]["persisted"]`) 검증하도록 보완 후 재실행:
+  - `PYTHONPATH=. /Users/woolee/benchmark/.venv/bin/pytest tests/preview/test_player_section_integration.py tests/preview/test_bundle_integration.py -v` (`task-1279`): **`36 passed, 1 skipped, 1 warning in 17.34s`**
+  - `PYTHONPATH=. /Users/woolee/benchmark/.venv/bin/pytest tests/preview/test_form_module.py -k test_live_run_requires_fixture_identity -v`: **`1 passed, 20 deselected, 1 warning in 0.95s`**
+- 단위 모델 스텁 기반 검증이며 실제 AI 모델 호출·브라우저·`preview_dev` 실저장은 아직 미실행.
