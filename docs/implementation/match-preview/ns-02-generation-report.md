@@ -61,3 +61,25 @@ B 워크트리(`player-section-generation`)에서 `568f2b6` 공통 계약(`dbec8
 
 - 실제 ADMIN 계정 로그인 후 섹션 실행·실제 AI 응답 검사 화면 확인은 사용자 로그인 자격이 필요해 실행하지 않았다(임의 토큰 우회·무인증 호출 미실행).
 - 신규 3표 마이그레이션과 `_save_draft` 영속 저장 연동은 C(`NS-03`) 소유이며, 현재 B UI는 `"저장 예정 값"`(`persisted=false`) 상태로 진단 결과를 표시한다.
+
+## UI 라우팅·인증 후속 보완 (`755ee65` 이후)
+
+기존 세션에서 읽은 `/Users/woolee/benchmark/.agents/skills/poteto-mode/SKILL.md`를 재사용해 관리자 섹션 실행과 실행 이력 진입 결함을 보완했다.
+
+- [router/index.ts](file:///Users/woolee/orca/workspaces/benchmark/player-section-generation/frontend/src/router/index.ts)에 `useAuthStore`의 `verifySession`과 `isAdmin`을 재사용하는 `requireAdminPreviewRoute` 가드를 두고 `/admin/sections`(`name: 'preview-sections'`)와 `/admin/runs`(`name: 'preview-runs'`)를 연결했다. 비로그인은 `login` 라우트(`query.next` 포함)로, 비ADMIN은 `not-found`로 보낸다.
+- [PreviewPanel.vue](file:///Users/woolee/orca/workspaces/benchmark/player-section-generation/frontend/src/components/management/PreviewPanel.vue)에 `canGenerate`(ADMIN)일 때만 보이는 `/admin/sections`·`/admin/runs` 진입 링크(`data-testid="preview-admin-links"`)를 추가했다.
+- [SectionRunView.vue](file:///Users/woolee/orca/workspaces/benchmark/player-section-generation/frontend/src/features/match-preview/SectionRunView.vue)와 [PreviewRunsView.vue](file:///Users/woolee/orca/workspaces/benchmark/player-section-generation/frontend/src/features/match-preview/PreviewRunsView.vue)에서 존재하지 않던 `authApi.session` 호출과 `admin-login` 이동을 제거하고 `useAuthStore`의 `verifySession`, `isAdmin`, `logout`과 실제 `login` 라우트 계약으로 통일했다.
+- [AdminPreviewRouting.test.ts](file:///Users/woolee/orca/workspaces/benchmark/player-section-generation/frontend/src/features/match-preview/AdminPreviewRouting.test.ts)를 추가하고 [SectionRunView.test.ts](file:///Users/woolee/orca/workspaces/benchmark/player-section-generation/frontend/src/features/match-preview/SectionRunView.test.ts)의 구 `authApi.session` mock을 Pinia `useAuthStore` 초기화로 갱신했다.
+
+### 보완 후 검증 결과
+
+- `cd frontend && npm run test:unit -- src/features/match-preview/AdminPreviewRouting.test.ts src/features/match-preview/SectionRunView.test.ts src/features/match-preview/PlayerSectionProcessingView.test.ts`: 3개 파일 12건 모두 통과(`AdminPreviewRouting.test.ts` 3건, `SectionRunView.test.ts` 6건, `PlayerSectionProcessingView.test.ts` 3건).
+- `cd frontend && npm run test:unit -- src/components/management/PreviewPanel.test.ts`: `PreviewPanel.test.ts` 수정 후 실행 기준 21건 통과(단, 기존 `getPreviewRun` mock 누락에 따른 unhandled rejection은 기준선과 동일).
+- `cd frontend && npm run type-check`: `vue-tsc --noEmit` 종료 코드 0.
+- `PreviewRunsView.logout.test.ts`는 기준 리비전부터 `/api/v1/auth/session`·`admin-login`과 `authenticatedFetch` 리프레시 호출 불일치로 6건 실패 상태다(미수정 범위).
+- 실행 중 서버 확인: `term_06359f9b-5c6c-4f6a-beb2-b61e2359e802`(`38001`) `GET /health` 200·`GET /api/v1/auth/me` 401, `term_6e336f14-b178-4a7d-80b6-d0cf7d766fc0`(`5174`) `/admin/sections`·`/admin/runs` 200 및 `/src/router/index.ts`에 `preview-sections`·`preview-runs` 반영을 확인했다. B 실제 로그인·AI 호출은 미실행 상태다.
+
+### 편집 종료 및 C 후속 인계
+
+- B 소유 편집을 종료한다.
+- C 후속 인계 항목: 신규 3표 저장 및 `persisted` 표시, 공개 카드·구버전 보존, 공용 `bundle` `IMPLEMENTATION_VERSION`으로 `section_outlook`·`section_ai_forecast` 승인이 흔들리지 않는 섹션별 버전 분리, 구계약 테스트 기대 갱신.

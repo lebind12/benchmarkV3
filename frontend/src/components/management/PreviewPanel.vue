@@ -19,7 +19,7 @@
  * - 재생성 정책 문구는 "경기 한 번에 각 모듈 최초 포함 3회"다. 전체 8회·시험집합 누적 표현을 쓰지 않는다.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   generatePreview,
   getPreviewFixture,
@@ -489,6 +489,27 @@ onBeforeUnmount(() => {
         생성은 사용자가 누를 때만 실행됩니다. 한 경기 생성에서 각 AI 모듈은 최초 전송을 포함해
         최대 3회까지 시도하며, 기술 실패만 서버가 다시 시도합니다. 화면은 요청을 반복하지 않습니다.
       </p>
+      <nav
+        v-if="canGenerate"
+        class="preview-tab__admin-links"
+        data-testid="preview-admin-links"
+        aria-label="프리뷰 관리 이동"
+      >
+        <RouterLink
+          to="/admin/sections"
+          class="mm-button"
+          data-testid="preview-open-sections"
+        >
+          섹션 실행 워크플로우
+        </RouterLink>
+        <RouterLink
+          to="/admin/runs"
+          class="mm-button mm-button--quiet"
+          data-testid="preview-open-runs"
+        >
+          실행 이력·검사
+        </RouterLink>
+      </nav>
     </header>
 
     <form class="preview-tab__form" data-testid="preview-fixture-form" @submit.prevent="checkFixture">
@@ -902,6 +923,13 @@ onBeforeUnmount(() => {
   padding: 10px 12px;
   border-left: 2px solid var(--color-border);
   background: var(--color-card);
+}
+
+.preview-tab__admin-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .preview-tab__form,
