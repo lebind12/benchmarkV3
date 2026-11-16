@@ -74,9 +74,9 @@ B 워크트리(`player-section-generation`)에서 `568f2b6` 공통 계약(`dbec8
 ### 보완 후 검증 결과
 
 - `cd frontend && npm run test:unit -- src/features/match-preview/AdminPreviewRouting.test.ts src/features/match-preview/SectionRunView.test.ts src/features/match-preview/PlayerSectionProcessingView.test.ts`: 3개 파일 12건 모두 통과(`AdminPreviewRouting.test.ts` 3건, `SectionRunView.test.ts` 6건, `PlayerSectionProcessingView.test.ts` 3건).
-- `cd frontend && npm run test:unit -- src/components/management/PreviewPanel.test.ts`: `PreviewPanel.test.ts` 수정 후 실행 기준 21건 통과(단, 기존 `getPreviewRun` mock 누락에 따른 unhandled rejection은 기준선과 동일).
+- `cd frontend && npm run test:unit -- src/components/management/PreviewPanel.test.ts`: `PreviewPanel.test.ts`는 커밋 `b2ac969` 이후 수정하지 않았으며(`PreviewPanel.vue` 수정 뒤 실행 기준), 테스트 21건 통과와 별도로 기존 `getPreviewRun` mock 누락에 따른 unhandled rejection 1건이 기준선과 동일하게 동반됐다.
 - `cd frontend && npm run type-check`: `vue-tsc --noEmit` 종료 코드 0.
-- `PreviewRunsView.logout.test.ts`는 기준 리비전부터 `/api/v1/auth/session`·`admin-login`과 `authenticatedFetch` 리프레시 호출 불일치로 6건 실패 상태다(미수정 범위).
+- [PreviewRunsView.logout.test.ts](file:///Users/woolee/orca/workspaces/benchmark/player-section-generation/frontend/src/features/match-preview/PreviewRunsView.logout.test.ts): 기존 상태에서는 `useAuthStore` 도입 후 Pinia 미설정과 낡은 `authApi.session`·`admin-login` mock으로 7건 중 7건(`7 failed`)이 실패했다. Pinia(`createPinia()`), `useAuthStore.verifySession()`, 실제 `login` 라우트 계약에 맞춰 로그아웃 실패·네트워크 오류·재시도 후 성공·성공 이동·세션 만료/401 이동·403 오류 유지를 갱신한 뒤 `cd frontend && npm run test:unit -- src/features/match-preview/PreviewRunsView.logout.test.ts` 실행 결과 7건 모두 통과(`7 passed`)를 확인했다.
 - 실행 중 서버 확인: `term_06359f9b-5c6c-4f6a-beb2-b61e2359e802`(`38001`) `GET /health` 200·`GET /api/v1/auth/me` 401, `term_6e336f14-b178-4a7d-80b6-d0cf7d766fc0`(`5174`) `/admin/sections`·`/admin/runs` 200 및 `/src/router/index.ts`에 `preview-sections`·`preview-runs` 반영을 확인했다. B 실제 로그인·AI 호출은 미실행 상태다.
 
 ### 편집 종료 및 C 후속 인계
