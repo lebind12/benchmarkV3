@@ -86,19 +86,26 @@
   "injuries": [
     {
       "player_name": "확인된 이름",
-      "player_id": 7101,
-      "team_id": 50,
+      "team": "소속 팀 표기",
+      "player_id": null,
+      "team_id": null,
       "status": "doubtful | confirmed_absence | available | unknown",
       "injury": "부상 내용 1문장",
       "importance": "이 선수의 중요도·이번 경기 영향 1~2문장",
       "evidence": ["api:injury-7101", "src:...#p0"]
     }
   ],
+  "korean_labels": [
+    {"original": "원문에 쓴 비한국어(영어 등) 이름 표기", "korean": "한국어 표기 후보", "kind": "team | player | coach"}
+  ],
   "uncertainties": ["확인하지 못한 항목"]
 }
 ```
 
-- `status`는 확인된 값만 쓴다. 확실하지 않으면 `unknown`으로 둔다.
-- `player_id`는 DB 자료에 실제로 있는 값만 적는다. 모르면 `null`.
+- `status`는 확인된 값만 쓴다. 확실하지 않으면 `unknown`으로 둔다(미확인을 결장 확정으로 쓰지 않는다).
+- `team`에는 홈·원정 팀 표기를 적는다.
+- `player_id`·`team_id`는 DB 자료에서 확인된 경우에만 참고로 적고 모르면 `null`로 둔다(최종 신원은 시스템이 DB에서 검증한다).
+- `injury`와 `importance`는 비우지 않고 구체적으로 적는다. 같은 선수를 중복해 넣지 않는다.
+- `korean_labels`에는 `injuries`에 등장하는 모든 비한국어 선수·팀 표기의 한국어 표기 후보를 적는다(DB 한국어 표기가 있으면 시스템이 DB 값을 우선 사용한다).
 - `importance`는 근거가 연결된 해석이며, 근거 없는 "핵심 선수" 같은 단정은 쓰지 않는다.
 - 근거가 없는 항목은 넣지 않는다.

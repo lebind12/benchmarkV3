@@ -24,6 +24,7 @@ import InlineEmphasis from '@/features/match-preview/InlineEmphasis.vue'
 import InformationBundlePanel from '@/features/match-preview/InformationBundlePanel.vue'
 import SectionRegenerationPanel from '@/features/match-preview/SectionRegenerationPanel.vue'
 import CompositionPanel from '@/features/match-preview/CompositionPanel.vue'
+import PlayerSectionProcessingView from '@/features/match-preview/PlayerSectionProcessingView.vue'
 import SectionStructuredView from '@/features/match-preview/SectionStructuredView.vue'
 import type { InformationBundleView } from '@/features/match-preview/informationBundle'
 import { structuredFromSectionResult } from '@/features/match-preview/sectionStructured'
@@ -436,6 +437,11 @@ onMounted(load)
             v-if="activeStructured"
             :structured="activeStructured"
             class="structured-host"
+          />
+
+          <PlayerSectionProcessingView
+            v-if="activeResult.player_section_processing"
+            :processing="activeResult.player_section_processing"
           />
 
           <!--

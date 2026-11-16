@@ -229,16 +229,83 @@ class CompareResponse(BaseModel):
     versions_available: list[int]
 
 
+_PLAYER_SECTION_MODULE_IDS: dict[str, str] = {
+    "section_players": "R4",
+    "section_availability": "R2",
+}
+
+
+def _extract_player_section_processing(payload: dict | None) -> dict | None:
+    if not isinstance(payload, dict):
+        return None
+    structured = payload.get("structured")
+    if isinstance(structured, dict) and isinstance(structured.get("processing"), dict):
+        return dict(structured["processing"])
+    if isinstance(payload.get("processing"), dict):
+        return dict(payload["processing"])
+    return None
+
+
+def _attach_player_section_processing(inspection: dict, raw_detail: dict) -> dict:
+    """저장된 NS-02 선수/부상 처리 진단을 읽기 전용으로 실행 상세에 연결한다(모델 재호출 없음)."""
+    by_result_id: dict[str, dict] = {}
+    by_section_id: dict[str, dict] = {}
+    for result in raw_detail.get("results") or ():
+        if not isinstance(result, dict):
+            continue
+        payload = result.get("payload")
+        processing = _extract_player_section_processing(payload)
+        if processing is None:
+            continue
+        result_id = str(result.get("result_id") or "")
+        section_id = str(result.get("section_id") or processing.get("workflow_id") or "")
+        if result_id:
+            by_result_id[result_id] = processing
+        if section_id:
+            by_section_id[section_id] = processing
+
+    if not by_section_id and not by_result_id:
+        return {**inspection, "player_section_processing": {}}
+
+    section_rows = []
+    for row in inspection.get("section_results") or ():
+        row_copy = dict(row)
+        matched = by_result_id.get(str(row_copy.get("result_id") or ""))
+        if matched is None:
+            matched = by_section_id.get(str(row_copy.get("section_id") or ""))
+        if matched is not None:
+            row_copy["player_section_processing"] = matched
+        section_rows.append(row_copy)
+
+    module_to_section = {mod: sec for sec, mod in _PLAYER_SECTION_MODULE_IDS.items()}
+    modules = []
+    for mod in inspection.get("inspector_modules") or ():
+        mod_copy = dict(mod)
+        sec_id = module_to_section.get(str(mod_copy.get("module_id") or ""))
+        if sec_id and sec_id in by_section_id:
+            mod_copy["player_section_processing"] = by_section_id[sec_id]
+        modules.append(mod_copy)
+
+    return {
+        **inspection,
+        "section_results": section_rows,
+        "inspector_modules": modules,
+        "player_section_processing": by_section_id,
+    }
+
+
 def _detail_or_404(session: Session, run_id: UUID) -> dict:
     try:
         detail = store.get_run_detail(session, run_id)
     except store.RunNotFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found") from None
-    return build_run_inspection(
-        detail.to_dict(),
+    raw_detail = detail.to_dict()
+    inspection = build_run_inspection(
+        raw_detail,
         approval_status=approvals.describe_approvals(session),
         section_workflows=describe_section_workflows(),
     )
+    return _attach_player_section_processing(inspection, raw_detail)
 
 
 @router.get("/runs", response_model=RunListResponse)
@@ -300,11 +367,13 @@ def get_run(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
         )
+    raw_detail = detail.to_dict()
     payload = build_run_inspection(
-        detail.to_dict(),
+        raw_detail,
         approval_status=approvals.describe_approvals(session),
         section_workflows=describe_section_workflows(),
     )
+    payload = _attach_player_section_processing(payload, raw_detail)
     # 전송 장부 요약을 상세에 덧붙인다. 저장된 감사 행만 읽으며 외부 호출이 없다.
     payload["send_ledger"] = store.run_send_ledger_summary(session, run_id)
     names = _display_names_for(session, detail)
@@ -323,12 +392,17 @@ def _run_exists(session, run_id: UUID) -> bool:
 def _localized_inspection(payload: dict, *, names) -> dict:
     """검사 응답의 **표시 문자열만** 한국어로 바꾼 사본을 돌려준다.
 
-    저장된 본문·원문·버전은 건드리지 않는다. 표시 이름 파사드가 없으면 그대로 낸다.
+    저장된 본문·원문·버전은 건드리지 않는다. NS-02 선수/부상 섹션 본문은 생성 당시
+    원문을 보존하며 후속 치환으로 재작성하지 않는다.
     """
+    preserved_sections = {"section_players", "section_availability"}
     if names is None or not getattr(names, "active", False):
         # 해석기가 없어도 용어·대회명 사전은 적용한다.
         rows = []
         for row in payload.get("section_results") or ():
+            if row.get("section_id") in preserved_sections or row.get("player_section_processing") is not None:
+                rows.append(row)
+                continue
             body = row.get("body")
             if isinstance(body, str) and body:
                 rows.append({**row, "body": _terms_only(body)})
@@ -338,6 +412,9 @@ def _localized_inspection(payload: dict, *, names) -> dict:
 
     rows = []
     for row in payload.get("section_results") or ():
+        if row.get("section_id") in preserved_sections or row.get("player_section_processing") is not None:
+            rows.append(row)
+            continue
         body = row.get("body")
         if not isinstance(body, str) or not body:
             rows.append(row)
@@ -1181,12 +1258,14 @@ def get_section_results(
                     if candidate is not None:
                         payload = candidate
                         break
+                processing = _extract_player_section_processing(payload)
                 decorated.append(
                     {
                         **row,
                         **structured_row_from_section_result(
                             row, payload=payload, id_context=id_context
                         ),
+                        "player_section_processing": processing,
                     }
                 )
         finally:

@@ -307,6 +307,7 @@ export type ModuleInspection = {
       note: string | null
     }
   }
+  player_section_processing?: PlayerSectionProcessingViewData | null
 }
 
 export type ResultVersionView = {
@@ -428,6 +429,89 @@ export type SectionStructuredForecastRow = {
   note?: string | null
 }
 
+export type PlayerSectionSlotKey = 'home1' | 'home2' | 'away1' | 'away2'
+export type PlayerNameSource = 'db_ko' | 'ai_candidate'
+export type PlayerRegenerationReason =
+  | 'missing_body'
+  | 'duplicate_player'
+  | 'missing_and_duplicate'
+export type PlayerUnplacedReason =
+  | 'missing_body'
+  | 'duplicate_player'
+  | 'team_unresolved'
+  | 'slot_capacity_exceeded'
+  | 'missing_name'
+  | 'missing_name_ko'
+
+export type PlayerSectionSlotDraftView = {
+  slot_key: PlayerSectionSlotKey
+  team_side: 'home' | 'away'
+  team_id: number | null
+  team_name: string | null
+  player_id: number | null
+  external_player_id: number | null
+  resolution_status: 'resolved' | 'unresolved' | 'empty'
+  original_name: string
+  name_ko: string
+  name_source: PlayerNameSource
+  body: string
+  unresolved_reason: string | null
+  evidence: string[]
+  status?: string | null
+  injury?: string | null
+  importance?: string | null
+}
+
+export type PlayerSectionUnplacedView = {
+  original_name: string
+  reason: PlayerUnplacedReason | string
+  team_hint: string | null
+  team_id: number | null
+  player_id: number | null
+  external_player_id?: number | null
+  detail: string | null
+}
+
+export type PlayerSectionAttemptTraceView = {
+  attempt_ordinal: number
+  logical_call_id: string
+  parsed_valid: boolean
+  raw_text: string | null
+  parsed_json: Record<string, unknown> | null
+  regeneration_triggered: boolean
+  regeneration_reason: PlayerRegenerationReason | string | null
+  error_reason: string | null
+}
+
+export type PlayerSectionProcessingViewData = {
+  workflow_id: 'section_players' | 'section_availability' | string
+  fixture_id: number
+  home_team_id: number | null
+  away_team_id: number | null
+  output_contract_version: string
+  persisted: boolean
+  storage_status: string
+  mode: string
+  ok: boolean
+  failed_reason: string | null
+  home1: PlayerSectionSlotDraftView | null
+  home2: PlayerSectionSlotDraftView | null
+  away1: PlayerSectionSlotDraftView | null
+  away2: PlayerSectionSlotDraftView | null
+  home_etc: null
+  away_etc: null
+  regeneration_count: number
+  regeneration_reason: PlayerRegenerationReason | string | null
+  module_attempt_count: number
+  adopted_attempt_ordinal: number | null
+  attempts: PlayerSectionAttemptTraceView[]
+  unplaced_items: PlayerSectionUnplacedView[]
+  translation_defects: string[]
+  diagnostics: string[]
+  korean_labels: Array<Record<string, unknown>>
+  dropped_evidence_count: number
+}
+
 /** 섹션 결과 행의 `structured` 전체. 값이 없는 항목은 빈 배열/`null`이다. */
 export type SectionStructuredProjection = {
   structured_version?: string
@@ -481,6 +565,8 @@ export type SectionResultView = {
    * `unavailable`(본문을 만들지 못했는지)과 다른 값이므로 섞어 쓰지 않는다.
    */
   available?: boolean
+  /** NS-02 선수/부상 섹션 고정 슬롯·재생성·제외 사유 진단(저장 예정 값 또는 저장값). */
+  player_section_processing?: PlayerSectionProcessingViewData | null
 }
 
 export type SectionResultSource = {
@@ -607,6 +693,7 @@ export type RunDetail = {
   mock_demo_module_id: string
   availability_note: string
   undo: UndoState
+  player_section_processing?: Record<string, PlayerSectionProcessingViewData>
 }
 
 export type ModuleRegistration = {

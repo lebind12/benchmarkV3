@@ -99,7 +99,7 @@
     }
   ],
   "korean_labels": [
-    {"original": "본문에 쓴 영어 표기", "korean": "확실한 한국어 표기", "kind": "team | player | coach"}
+    {"original": "원문에 쓴 비한국어(영어 등) 이름 표기", "korean": "한국어 표기 후보", "kind": "team | player | coach"}
   ],
   "uncertainties": ["확인하지 못한 항목"]
 }
@@ -107,6 +107,10 @@
 
 - `selected_player`와 `selection_reason`은 서로 다른 필드다. 이름과 이유를 한 문장으로
   합치지 않는다.
+- 같은 선수를 중복 선정하지 않고, 팀당 2명 이내로 서로 다른 선수를 1~2문장
+  `selection_reason`과 함께 적는다. `selection_reason`을 비우지 않는다.
+- `korean_labels`에는 `players`와 본문에 등장하는 모든 비한국어 선수·팀 표기의 한국어
+  표기 후보를 함께 적는다(DB 한국어 표기가 있으면 시스템이 DB 값을 우선 사용한다).
 - `evidence`에 넣는 값은 위 "인용 가능한 근거 id" 목록에 있는 값만 쓴다.
 - 이유 문장에 내부 필드명·JSON·근거 id를 넣지 않는다.
 - 모르는 값은 비우고 `uncertainties`에 적는다.

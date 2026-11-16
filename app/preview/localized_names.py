@@ -582,6 +582,14 @@ class DisplayNames:
         # 같은 생성 응답이 준 한국어 표기(DB 값이 없을 때만 반영). 진단 추적용.
         self._model_labels: dict[str, dict[str, Any]] = {}
 
+    def fork(self) -> "DisplayNames":
+        """섹션별 격리 실행을 위해 가변 상태를 분리한 복제본을 만든다."""
+        clone = DisplayNames(self._index)
+        clone._aliases = dict(self._aliases)
+        clone._unmapped = list(self._unmapped)
+        clone._model_labels = {key: dict(val) for key, val in self._model_labels.items()}
+        return clone
+
     # --- 구성 -------------------------------------------------------------
 
     @property
