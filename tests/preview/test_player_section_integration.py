@@ -1314,3 +1314,159 @@ def test_canonical_read_preserves_string_and_mapping_evidence(
         "people-span-2",
         {"source_id": "src:injury", "span": "p0"},
     ]
+
+
+def test_get_run_unwraps_module_result_processing_and_attaches_canonical_structured(
+    client, make_user, session_factory
+):
+    """ModuleResult.to_dict() 이중 payload 아래의 processing 추적과 정본 structured(사진 포함)를 get_run이 복원한다."""
+    admin_id = _login_admin(client, make_user)
+
+    with session_factory() as session:
+        run_id = uuid.uuid4()
+        ctx = ExecutionContext(
+            run_id=run_id,
+            operation_kind=OperationKind.SECTION,
+            environment=Environment.DEV,
+            mode=RunMode.LIVE,
+            actor_id=admin_id,
+            config_version="test-cfg",
+            limits=ExecutionLimits(),
+        )
+        store.store_run(
+            session,
+            ctx,
+            fixture=store.FixtureIdentity(
+                fixture_id=FIXTURE["fixture_id"],
+                league_id=FIXTURE["league_id"],
+                season=FIXTURE["season"],
+                home_team_id=FIXTURE["home_team_id"],
+                away_team_id=FIXTURE["away_team_id"],
+                kickoff_at=datetime.fromisoformat(FIXTURE["kickoff_at"]),
+            ),
+            label="unwrap-processing",
+        )
+        exec_row = PreviewModuleExecution(
+            id=uuid.uuid4(),
+            run_id=run_id,
+            module_id="R4",
+            ordinal=0,
+            status="running",
+            quality="pending",
+            input_payload={"fixture_id": FIXTURE["fixture_id"]},
+            input_hash="unwrap-ih",
+            delivered_next_input={},
+            started_at=FIXED_NOW,
+        )
+        session.add(exec_row)
+        session.flush()
+
+        mod_res_id = uuid.uuid4()
+        nested_processing = {
+            "workflow_id": "section_players",
+            "fixture_id": FIXTURE["fixture_id"],
+            "home_team_id": FIXTURE["home_team_id"],
+            "away_team_id": FIXTURE["away_team_id"],
+            "output_contract_version": psc.WATCH_PLAYERS_OUTPUT_CONTRACT_VERSION,
+            "mode": "live",
+            "module_attempt_count": 1,
+            "adopted_attempt_ordinal": 0,
+            "regeneration_count": 0,
+            "attempts": [
+                {
+                    "attempt_ordinal": 0,
+                    "logical_call_id": "section_players",
+                    "parsed_valid": True,
+                    "raw_text": '{"home1": {"name": "Erling Haaland"}}',
+                    "parsed_json": {"home1": {"name": "Erling Haaland"}},
+                    "regeneration_triggered": False,
+                    "regeneration_reason": None,
+                    "error_reason": None,
+                }
+            ],
+        }
+        session.add(
+            PreviewResult(
+                id=mod_res_id,
+                run_id=run_id,
+                module_execution_id=exec_row.id,
+                module_id="R4",
+                version=1,
+                input_hash="unwrap-ih",
+                status="succeeded",
+                quality="ready",
+                contract_version=psc.WATCH_PLAYERS_OUTPUT_CONTRACT_VERSION,
+                prompt_version="p1",
+                implementation_version="i1",
+                payload={
+                    "run_id": str(run_id),
+                    "module_id": "R4",
+                    "status": "succeeded",
+                    "payload": {
+                        "module_id": "R4",
+                        "section_id": "section_players",
+                        "mode": "live",
+                        "body": "본문",
+                        "structured": {"players": [], "processing": nested_processing},
+                    },
+                },
+                created_at=FIXED_NOW,
+            )
+        )
+        session.flush()
+
+        sr = store.save_section_result(
+            session,
+            run_id=run_id,
+            workflow_id="section_players",
+            workflow_version=runner.section_workflow_version(
+                registry.get_section_workflow("section_players")
+            ),
+            version=1,
+            title="주목 선수",
+            body="선정 본문",
+            sources=[],
+            mode=RunMode.LIVE,
+            environment=Environment.DEV,
+            quality=QualityStatus.READY,
+            module_execution_ids=[str(exec_row.id)],
+            result_ids=[str(mod_res_id)],
+            output_contract_version=psc.WATCH_PLAYERS_OUTPUT_CONTRACT_VERSION,
+            contract_version=SECTION_RESULT_CONTRACT_VERSION,
+            actor_id=admin_id,
+            now=FIXED_NOW,
+        )
+        player_section_store.save_player_section(
+            session,
+            psc.WatchPlayerSectionInput(
+                run_id=run_id,
+                section_result_id=sr.id,
+                fixture_id=FIXTURE["fixture_id"],
+                home_team_id=FIXTURE["home_team_id"],
+                away_team_id=FIXTURE["away_team_id"],
+                home1=psc.WatchPlayerSlot(
+                    player_id=533,
+                    original_name="Erling Haaland",
+                    name_ko="엘링 홀란드",
+                    body="득점 감각이 좋습니다.",
+                    name_source=psc.NameSource.DB_KO,
+                    evidence=["e1"],
+                ),
+            ),
+        )
+        session.commit()
+
+    resp = client.get(f"/api/v1/admin/preview/runs/{run_id}")
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    proc = data["player_section_processing"]["section_players"]
+    assert proc["module_attempt_count"] == 1
+    assert proc["adopted_attempt_ordinal"] == 0
+    assert len(proc["attempts"]) == 1
+    assert proc["attempts"][0]["parsed_valid"] is True
+
+    sr_row = data["section_results"][0]
+    assert sr_row["persisted"] is True
+    assert sr_row["structured"]["players"][0]["player"] == "엘링 홀란드"
+    assert data["inspector_modules"][0]["status"] == "succeeded"
+    assert "아직 등록되지 않았습니다" not in data["availability_note"]

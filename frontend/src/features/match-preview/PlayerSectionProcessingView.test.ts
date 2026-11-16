@@ -467,4 +467,25 @@ describe('PlayerSectionProcessingView', () => {
       fetchMock.mock.calls.every((call) => ((call[1]?.method ?? 'GET').toUpperCase() === 'GET')),
     ).toBe(true)
   })
+
+  it('distinguishes unrecorded trace from failure when succeeded persisted run has null adopted_attempt_ordinal', () => {
+    const wrapper = mount(PlayerSectionProcessingView, {
+      props: {
+        processing: makeProcessing({
+          ok: true,
+          persisted: true,
+          adopted_attempt_ordinal: null,
+          module_attempt_count: 0,
+          attempts: [],
+        }),
+      },
+    })
+
+    expect(wrapper.get('[data-testid="ns02-adopted-attempt"]').text()).toBe(
+      '채택 시도 추적 미기록 (저장·성공)',
+    )
+    expect(wrapper.get('[data-testid="ns02-module-attempts"]').text()).toBe(
+      '추적 미기록 (저장·성공)',
+    )
+  })
 })

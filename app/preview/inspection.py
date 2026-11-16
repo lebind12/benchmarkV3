@@ -359,6 +359,33 @@ def primary_section_result(
     return max(rows, key=lambda row: int(row.get("version") or 0))
 
 
+def _build_availability_note(registry: Mapping[str, Any], run_mode: str) -> str:
+    """등록부와 실행 방식에 맞춰 가용성 안내 문장을 생성한다."""
+    implemented_modules = [str(m) for m in (registry.get("implemented") or ()) if str(m)]
+    unavailable_modules = [str(m) for m in (registry.get("unavailable") or ()) if str(m)]
+    wf_info = registry.get("section_workflows") or {}
+    unavailable_wfs = [str(w) for w in (wf_info.get("unavailable") or ()) if str(w)]
+
+    if not implemented_modules:
+        base = "실제 조사 모듈이 아직 등록되지 않았습니다."
+    elif unavailable_modules:
+        base = (
+            f"실제 실행 구현이 등록된 모듈: {'·'.join(implemented_modules)}."
+            f" 단독 미등록/자료 준비 단계({'·'.join(unavailable_modules)}) 외 섹션 워크플로우에서 실행할 수 있습니다."
+        )
+    else:
+        base = f"등록된 모든 조사 모듈({'·'.join(implemented_modules)})이 실제 실행 가능합니다."
+
+    if unavailable_wfs:
+        base += f" 미구현 섹션 워크플로우: {', '.join(unavailable_wfs)}."
+
+    if run_mode == RunMode.MOCK.value:
+        return f"{base} 현재 실행은 명시적 모의 시연이며, 모의 결과는 승인 근거로 쓰지 않습니다."
+    if run_mode == RunMode.REPLAY.value:
+        return f"{base} 현재 실행은 저장 응답 재생이며, 새 외부 AI 호출이 없습니다."
+    return f"{base} 실제 생성 섹션 결과만 승인 근거로 사용하며, 모의 결과는 승인 근거로 쓰지 않습니다."
+
+
 def build_run_inspection(
     run_detail: Mapping[str, Any],
     *,
@@ -392,10 +419,7 @@ def build_run_inspection(
         # 전송 장부 요약(저장된 감사 행만 읽는다). 값이 없으면 키를 넣지 않는다.
         **({"send_ledger": ledger_summary} if ledger_summary is not None else {}),
         "mock_demo_module_id": MOCK_DEMO_MODULE_ID,
-        "availability_note": (
-            "D0·R1·R2·R3·S1의 실제 조사 구현은 아직 등록되지 않았습니다. 지금 실행"
-            " 가능한 경로는 명시적 모의 시연이며, 모의 결과는 승인 근거로 쓰지 않습니다."
-        ),
+        "availability_note": _build_availability_note(registry, run_mode),
         "approval_note": (
             "승인 단위는 프리뷰 섹션을 만드는 완결된 워크플로우입니다. 승인 근거는 그"
             " 워크플로우가 실제로 만든 섹션 본문 결과이며, 내부 노드와 D0 같은 자료 준비"

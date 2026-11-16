@@ -238,11 +238,18 @@ _PLAYER_SECTION_MODULE_IDS: dict[str, str] = {
 def _extract_player_section_processing(payload: dict | None) -> dict | None:
     if not isinstance(payload, dict):
         return None
-    structured = payload.get("structured")
-    if isinstance(structured, dict) and isinstance(structured.get("processing"), dict):
-        return dict(structured["processing"])
-    if isinstance(payload.get("processing"), dict):
-        return dict(payload["processing"])
+    # ModuleResult.to_dict()는 본문 dict를 한 겹 더 `payload` 키 아래 둔다.
+    # 바깥과 안쪽 `payload`를 모두 살펴 저장된 처리 추적을 빠뜨리지 않는다.
+    candidates = [payload]
+    inner = payload.get("payload")
+    if isinstance(inner, dict):
+        candidates.append(inner)
+    for candidate in candidates:
+        structured = candidate.get("structured")
+        if isinstance(structured, dict) and isinstance(structured.get("processing"), dict):
+            return dict(structured["processing"])
+        if isinstance(candidate.get("processing"), dict):
+            return dict(candidate["processing"])
     return None
 
 
@@ -355,6 +362,10 @@ def _attach_player_section_processing(
                 home_team_name=home_label,
                 away_team_name=away_label,
             )
+            row_copy["structured"] = canonical.structured
+            row_copy["available"] = canonical.available
+            row_copy["persisted"] = canonical.persisted
+            row_copy["storage_status"] = canonical.processing.get("storage_status")
             row_copy["player_section_processing"] = canonical.processing
             row_copy["storage_mismatch"] = canonical.storage_mismatch
             if canonical.storage_error:

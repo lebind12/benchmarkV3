@@ -26,6 +26,8 @@ import SectionRegenerationPanel from '@/features/match-preview/SectionRegenerati
 import CompositionPanel from '@/features/match-preview/CompositionPanel.vue'
 import PlayerSectionProcessingView from '@/features/match-preview/PlayerSectionProcessingView.vue'
 import SectionStructuredView from '@/features/match-preview/SectionStructuredView.vue'
+import MatchPreviewBody from '@/components/home-preview/MatchPreviewBody.vue'
+import { buildAdminCardPreviewFromSectionRun } from '@/features/match-preview/bundlePanelAdapters'
 import type { InformationBundleView } from '@/features/match-preview/informationBundle'
 import { structuredFromSectionResult } from '@/features/match-preview/sectionStructured'
 import type { FixtureCandidate } from '@/features/match-preview/fixtures'
@@ -203,7 +205,24 @@ async function loadSectionResults(runId: string) {
     runError.value = detail.message
     return
   }
-  sectionResults.value = detail.data.section_results ?? []
+  let rows = detail.data.section_results ?? []
+  if (typeof previewRunsApi.sectionResults === 'function') {
+    const secRes = await previewRunsApi.sectionResults(runId)
+    if (secRes.ok) {
+      const extraById = new Map(
+        (secRes.data.section_results ?? []).map((row) => [row.section_result_id, row] as const),
+      )
+      rows = rows.map((row) => {
+        const extra = extraById.get(row.section_result_id)
+        if (!extra) return row
+        return {
+          ...row,
+          ...(extra.structured && !row.structured ? { structured: extra.structured } : {}),
+        }
+      })
+    }
+  }
+  sectionResults.value = rows
 }
 
 /**
@@ -314,6 +333,15 @@ const readerPreviewAvailable = computed<boolean>(
 const activeStructured = computed(() =>
   activeResult.value ? structuredFromSectionResult(activeResult.value) : null,
 )
+
+const adminCardPreview = computed(() => {
+  if (!runResult.value || sectionResults.value.length === 0) return null
+  return buildAdminCardPreviewFromSectionRun(
+    runResult.value.run_id,
+    sectionResults.value,
+    selectedFixture.value,
+  )
+})
 
 /** 재사용할 저장 묶음 ID. 없으면 재사용 모드를 열지 않는다. */
 const reuseBundleId = computed<string | null>(() => bundle.value?.bundleId ?? null)
@@ -458,6 +486,21 @@ onMounted(load)
             :structured="activeStructured"
             class="structured-host"
           />
+
+          <details
+            v-if="adminCardPreview"
+            class="card-preview"
+            data-testid="unapproved-card-preview"
+          >
+            <summary class="card-preview__summary">
+              미승인 관리자 카드 미리보기 · 실제 카드(MatchPreviewBody) 확인 (공개·홈 미반영)
+            </summary>
+            <p class="hint card-preview__notice">
+              승인 전 관리자 확인 전용 미리보기입니다. 공개 프리뷰 승인이나 기본 홈 반영과는
+              별개이며, 사진·한국어명·팀 배치를 눈으로 점검할 때 펼칩니다.
+            </p>
+            <MatchPreviewBody :preview="adminCardPreview" variant="embedded" />
+          </details>
 
           <PlayerSectionProcessingView
             v-if="activeResult.player_section_processing"
@@ -677,5 +720,19 @@ onMounted(load)
 }
 .facts dd {
   margin: 0;
+}
+.card-preview {
+  border: 1px solid #cdd5df;
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  background: #f8fafc;
+}
+.card-preview__summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.card-preview__notice {
+  margin: 0.4rem 0 0.75rem;
 }
 </style>

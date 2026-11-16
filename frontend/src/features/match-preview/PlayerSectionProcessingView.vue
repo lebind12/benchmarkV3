@@ -64,8 +64,24 @@ const isMock = computed(() => props.processing.mode === 'mock')
 
 const adoptedLabel = computed(() => {
   const ord = props.processing.adopted_attempt_ordinal
-  if (ord === null || ord === undefined) return '채택 시도 없음 (실패)'
+  if (ord === null || ord === undefined) {
+    if (props.processing.failed_reason) {
+      return `채택 시도 없음 (${props.processing.failed_reason})`
+    }
+    if (props.processing.ok || props.processing.persisted) {
+      return '채택 시도 추적 미기록 (저장·성공)'
+    }
+    return '채택 시도 없음 (실패)'
+  }
   return `시도 ${ord + 1} (attempt_ordinal=${ord})`
+})
+
+const moduleAttemptsLabel = computed(() => {
+  const count = props.processing.module_attempt_count
+  if (count === 0 && (props.processing.ok || props.processing.persisted)) {
+    return '추적 미기록 (저장·성공)'
+  }
+  return `${count}회 (최대 3회)`
 })
 
 const regenerationLabel = computed(() => {
@@ -162,7 +178,7 @@ function formatPrettyJson(value: Record<string, unknown> | null): string {
       </div>
       <div>
         <dt>모듈 실제 전송</dt>
-        <dd data-testid="ns02-module-attempts">{{ processing.module_attempt_count }}회 (최대 3회)</dd>
+        <dd data-testid="ns02-module-attempts">{{ moduleAttemptsLabel }}</dd>
       </div>
       <div>
         <dt>내용 재생성</dt>

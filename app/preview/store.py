@@ -800,13 +800,28 @@ def _module_view(
     results: Sequence[PreviewResult],
     attempts: Sequence[PreviewAttempt],
 ) -> dict[str, Any]:
+    latest = results[-1] if results else None
+    # `bundle_pipeline._save_draft`처럼 실행 행 상태를 닫지 않고 결과만 저장한 경우에도
+    # 읽기 투영은 최신 확정 결과 상태·품질·완료 시각을 그대로 반영한다(DB 행 미변경).
+    terminal_result = latest is not None and latest.status in ("succeeded", "failed")
+    projected_status = latest.status if row.status == "running" and terminal_result else row.status
+    projected_quality = (
+        latest.quality
+        if row.quality in (None, "", "pending") and terminal_result
+        else row.quality
+    )
+    projected_finished_at = (
+        row.finished_at
+        if row.finished_at is not None
+        else (latest.created_at if row.status == "running" and terminal_result else None)
+    )
     return {
         "module_execution_id": str(row.id),
         "run_id": str(row.run_id),
         "module_id": row.module_id,
         "ordinal": row.ordinal,
-        "status": row.status,
-        "quality": row.quality,
+        "status": projected_status,
+        "quality": projected_quality,
         "failure_code": row.failure_code,
         "input": row.input_payload,
         "delivered_next_input": row.delivered_next_input,
@@ -815,9 +830,9 @@ def _module_view(
         "attempt_count": max(int(row.attempt_count or 0), len(attempts)),
         "retry_count": row.retry_count,
         "started_at": row.started_at.isoformat() if row.started_at else None,
-        "finished_at": row.finished_at.isoformat() if row.finished_at else None,
+        "finished_at": projected_finished_at.isoformat() if projected_finished_at else None,
         "result_versions": [r.version for r in results],
-        "latest_result": _result_view(results[-1]) if results else None,
+        "latest_result": _result_view(latest) if latest else None,
         "attempts": [_attempt_view(a) for a in attempts],
     }
 

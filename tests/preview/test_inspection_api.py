@@ -438,3 +438,57 @@ def test_undo_never_targets_existing_game_or_account_data(client, make_user, ses
     assert row.email == user["email"]
     assert row.role == "ADMIN"
     assert row.is_active is True
+
+
+def test_module_view_projects_terminal_result_when_execution_row_left_running(session_factory):
+    """저장 결과는 succeeded/ready인데 실행 행이 running으로 남아도 읽기에서 완료 상태로 투영한다."""
+    from types import SimpleNamespace
+    from datetime import datetime, timezone
+    from uuid import uuid4
+    from app.preview import inspection as insp
+
+    now = datetime.now(timezone.utc)
+    mod_row = SimpleNamespace(
+        id=uuid4(),
+        run_id=uuid4(),
+        module_id="R4",
+        ordinal=0,
+        status="running",
+        quality="pending",
+        failure_code=None,
+        input_payload={"fixture_id": 1557474},
+        delivered_next_input=None,
+        attempt_count=0,
+        retry_count=0,
+        started_at=now,
+        finished_at=None,
+    )
+    res_row = SimpleNamespace(
+        id=uuid4(),
+        run_id=mod_row.run_id,
+        module_execution_id=mod_row.id,
+        module_id="R4",
+        section_id=None,
+        version=1,
+        status="succeeded",
+        quality="ready",
+        failure_code=None,
+        payload={"payload": {"body": "ok"}},
+        contract_version="mp05p-r4-players-output-1",
+        prompt_version="p1",
+        implementation_version="i1",
+        input_hash="h1",
+        supersedes_result_id=None,
+        created_at=now,
+    )
+    view = store._module_view(mod_row, [res_row], [])
+    assert view["status"] == "succeeded"
+    assert view["quality"] == "ready"
+    assert view["finished_at"] == now.isoformat()
+
+    built = insp.build_run_inspection(
+        {"summary": {"mode": "live"}, "modules": [view], "section_results": []}
+    )
+    assert built["inspector_modules"][0]["status"] == "succeeded"
+    assert "아직 등록되지 않았습니다" not in built["availability_note"]
+    assert "R1·R2·R3·R4·S1" in built["availability_note"]

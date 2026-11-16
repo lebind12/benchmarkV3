@@ -20,6 +20,12 @@ import AvailabilityPanel from './panels/AvailabilityPanel.vue'
 import FormPanel from './panels/FormPanel.vue'
 import OutlookPanel from './panels/OutlookPanel.vue'
 import PlayersPanel from './panels/PlayersPanel.vue'
+import MatchPreviewBody from '@/components/home-preview/MatchPreviewBody.vue'
+import {
+  adaptAvailabilityPanelResult,
+  adaptPlayersPanelResult,
+  buildAdminCardPreviewFromDetail,
+} from './bundlePanelAdapters'
 import { structuredFromSectionResult } from './sectionStructured'
 import type { RunDetail, SectionResultView, UndoReport } from './types'
 
@@ -30,6 +36,7 @@ const props = defineProps<{
 const emit = defineEmits<{ (event: 'closed'): void; (event: 'cancelled'): void }>()
 
 const detail = ref<RunDetail | null>(null)
+const extraSectionResults = ref<SectionResultView[]>([])
 const loading = ref(true)
 const errorMessage = ref<string | null>(null)
 const activeModuleId = ref<string | null>(null)
@@ -47,6 +54,7 @@ const undoPending = ref(false)
 async function load() {
   loading.value = true
   errorMessage.value = null
+  extraSectionResults.value = []
   const result = await previewRunsApi.detail(props.runId)
   loading.value = false
   if (!result.ok) {
@@ -56,6 +64,12 @@ async function load() {
   detail.value = result.data
   if (!activeModuleId.value && result.data.inspector_modules.length > 0) {
     activeModuleId.value = result.data.inspector_modules[0].module_execution_id
+  }
+  if (typeof previewRunsApi.sectionResults === 'function') {
+    const secRes = await previewRunsApi.sectionResults(props.runId)
+    if (secRes.ok) {
+      extraSectionResults.value = secRes.data.section_results ?? []
+    }
   }
 }
 
@@ -95,7 +109,21 @@ const activeModuleBody = computed<Record<string, unknown> | null>(() => {
 })
 
 /** 이 실행의 섹션 본문 결과. 승인 근거는 노드 결과가 아니라 이 본문이다. */
-const sectionResults = computed<SectionResultView[]>(() => detail.value?.section_results ?? [])
+const sectionResults = computed<SectionResultView[]>(() => {
+  const baseRows = detail.value?.section_results ?? []
+  if (extraSectionResults.value.length === 0) return baseRows
+  const extraById = new Map(
+    extraSectionResults.value.map((row) => [row.section_result_id, row] as const),
+  )
+  return baseRows.map((row) => {
+    const extra = extraById.get(row.section_result_id)
+    if (!extra) return row
+    return {
+      ...row,
+      ...(extra.structured && !row.structured ? { structured: extra.structured } : {}),
+    }
+  })
+})
 
 const activeSectionResult = computed<SectionResultView | null>(() => {
   const rows = sectionResults.value
@@ -116,6 +144,11 @@ const activeStructured = computed(() =>
   activeSectionResult.value ? structuredFromSectionResult(activeSectionResult.value) : null,
 )
 
+const adminCardPreview = computed(() => {
+  if (!detail.value || sectionResults.value.length === 0) return null
+  return buildAdminCardPreviewFromDetail(detail.value, sectionResults.value)
+})
+
 const activeProcessing = computed(() => {
   const row = activeSectionResult.value
   if (!row) return null
@@ -128,6 +161,22 @@ const activeProcessing = computed(() => {
 
 const activeModuleProcessing = computed(
   () => activeModule.value?.player_section_processing ?? null,
+)
+
+const adaptedAvailabilityResult = computed(() =>
+  adaptAvailabilityPanelResult(
+    activeModuleBody.value,
+    activeModule.value,
+    activeModuleProcessing.value ?? activeProcessing.value,
+  ),
+)
+
+const adaptedPlayersResult = computed(() =>
+  adaptPlayersPanelResult(
+    activeModuleBody.value,
+    activeModule.value,
+    activeModuleProcessing.value ?? activeProcessing.value,
+  ),
 )
 
 /**
@@ -356,6 +405,21 @@ function formatTime(value: string | null): string {
         -->
         <SectionStructuredView v-if="activeStructured" :structured="activeStructured" />
 
+        <details
+          v-if="adminCardPreview"
+          class="card-preview"
+          data-testid="unapproved-card-preview"
+        >
+          <summary class="card-preview__summary">
+            미승인 관리자 카드 미리보기 · 실제 카드(MatchPreviewBody) 확인 (공개·홈 미반영)
+          </summary>
+          <p class="inspector__note card-preview__notice">
+            승인 전 관리자 확인 전용 미리보기입니다. 공개 프리뷰 승인이나 기본 홈 반영과는
+            별개이며, 사진·한국어명·팀 배치를 눈으로 점검할 때 펼칩니다.
+          </p>
+          <MatchPreviewBody :preview="adminCardPreview" variant="embedded" />
+        </details>
+
         <PlayerSectionProcessingView v-if="activeProcessing" :processing="activeProcessing" />
 
         <!--
@@ -419,7 +483,7 @@ function formatTime(value: string | null): string {
         <AvailabilityPanel
           v-else-if="activeModule.module_id === 'R2'"
           :key="`availability-${activeModule.module_execution_id}`"
-          :result="(activeModuleBody as never)"
+          :result="(adaptedAvailabilityResult as never)"
         />
         <OutlookPanel
           v-else-if="activeModule.module_id === 'R3'"
@@ -433,7 +497,7 @@ function formatTime(value: string | null): string {
         <PlayersPanel
           v-else-if="activeModule.module_id === 'R4'"
           :key="`players-${activeModule.module_execution_id}`"
-          :result="(activeModuleBody as never)"
+          :result="(adaptedPlayersResult as never)"
         />
         <AttemptPanel :attempts="activeModule.tabs.request.attempts" />
       </details>
@@ -799,6 +863,25 @@ function formatTime(value: string | null): string {
 .diagnostics {
   border-top: var(--rule-hair) solid var(--color-rule);
   padding-top: var(--space-3);
+}
+
+.card-preview {
+  margin-top: var(--space-3);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-paper-2);
+}
+
+.card-preview__summary {
+  cursor: pointer;
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.card-preview__notice {
+  margin: var(--space-2) 0;
 }
 
 .diagnostics__summary {

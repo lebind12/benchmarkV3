@@ -183,3 +183,48 @@ cd frontend && npm run type-check && npx vitest run \
 - `tests/preview/test_player_section_integration.py`에 `test_canonical_read_preserves_string_and_mapping_evidence` 추가 (문자열 및 `str | Mapping` 혼합 `evidence` 저장 후 `GET /api/v1/admin/preview/runs/{run_id}` 및 `GET /api/v1/admin/preview/runs/{run_id}/section-results?include_structured=true` 보존 검증).
 - 실행 명령: `PYTHONPATH=. /Users/woolee/benchmark/.venv/bin/pytest tests/preview/test_player_section_integration.py tests/preview/test_inspection_api.py tests/preview/test_player_section_storage.py -q`
 - 결과: `33 passed, 1 warning in 12.69s`.
+
+---
+
+## 8. 진단 투영·상태·안내 문구·미승인 카드 미리보기 연결 (`task_3235d0814e16`)
+
+### 8.1 확인된 원인 및 수정 사항
+
+1. **실행 0회 / 채택 시도 없음 오표시 (`PlayerSectionProcessingView`)**:
+   - **원인**: `bundle_pipeline._save_draft`는 `ModuleResult.to_dict()` 래퍼(`{"run_id", "module_id", "status", "payload": {"structured": {"processing": ...}}}`) 형태로 `preview_results.payload`를 저장하지만, `app/api/v1/preview_admin.py`의 `_extract_player_section_processing`이 바깥 dict만 확인해 `raw_processing=None`을 반환했다. 그 결과 정본 재조회에서 `module_attempt_count=0`, `adopted_attempt_ordinal=None`, `attempts=[]`로 초기화됐고, `PlayerSectionProcessingView.vue`도 `ok || persisted`일 때 `adopted_attempt_ordinal == null`을 `'채택 시도 없음 (실패)'`로 고정 표시했다.
+   - **수정**:
+     - `app/api/v1/preview_admin.py` `_extract_player_section_processing`: 바깥 `payload`와 `payload.get("payload")`를 모두 탐색하도록 보완해 `get_run`과 `get_section_results` 모두 저장된 `module_attempt_count`, `adopted_attempt_ordinal`, `attempts`를 그대로 복원한다.
+     - `frontend/src/features/match-preview/PlayerSectionProcessingView.vue`: `ok || persisted`이면서 추적만 비어 있을 때 `'채택 시도 추적 미기록 (저장·성공)'` / `'추적 미기록 (저장·성공)'`으로 표시해 실패와 구분한다.
+2. **모듈 실행 상태 `running` 잔존 및 R4(0명)·R2(빈 패널) 표시**:
+   - **원인 (쓰기 측 보고 대상)**: `app/preview/bundle_pipeline.py:467-560`의 `_save_draft`가 `store.start_module_execution` + `store.save_module_result`만 호출하고 `store.update_module_delivery(..., status=..., quality=...)`를 호출하지 않아, 기존 `preview_dev` DB의 `preview_module_executions` 행(`R4`, `R2`)이 `status='running'`, `quality='pending'`, `finished_at=None`으로 남았다(상류 쓰기 측 보완 후보로 보고).
+   - **원인 (읽기/UI 투영)**: `RunInspector.vue`가 `bundle_pipeline`의 `SectionDraft`(`structured` + `player_section_processing`)를 기존 R4(`PlayersPanel.vue`)·R2(`AvailabilityPanel.vue`) 패널이 기대하는 legacy 필드로 투영하지 않고 그대로 넘겼다.
+   - **수정**:
+     - `app/preview/store.py` `_module_view`: DB 행을 변경하지 않고, `row.status == "running"`이면서 최신 `PreviewResult`가 종료 상태(`succeeded`/`failed`)이면 읽기 응답에서 `status`, `quality`, `finished_at`을 최신 결과 기준으로 투영한다.
+     - `frontend/src/features/match-preview/bundlePanelAdapters.ts` 추가 및 `RunInspector.vue` 연결: `adaptPlayersPanelResult`·`adaptAvailabilityPanelResult`로 `bundle_pipeline` R4/R2 실행을 기존 패널 계약으로 투영한다(기존 legacy R4/R2 payload는 그대로 통과).
+3. **구 버전 하드코딩 `availability_note` 교정**:
+   - **원인**: `app/preview/inspection.py` `build_run_inspection`이 `"D0·R1·R2·R3·S1의 실제 조사 구현은 아직 등록되지 않았습니다..."`를 무조건 반환했다.
+   - **수정**: `_build_availability_note(registry, run_mode)`를 추가해 `describe_registry()`의 `implemented` / `unavailable` 모듈·섹션 목록과 `run_mode`를 반영하도록 교체했다.
+4. **미승인 상태 실제 사진 카드(`MatchPreviewBody`) 명시적 관리자 미리보기 연결**:
+   - **기존 경로 점검**: `MatchPreviewBody.vue`는 `/admin`(`PreviewPanel.vue`)에서만 쓰였고, `/admin/runs`(`RunInspector.vue`)와 `/admin/sections`(`SectionRunView.vue`)는 `/runs/{id}`만 읽어 `structured`(`photo_url`)가 빠지거나, `SectionRunView.vue`의 `openReaderPreview`가 존재하지 않는 `'preview-reader'` 라우트(`section_synthesis` 전용)를 가리켰다.
+   - **수정**:
+     - `app/api/v1/preview_admin.py` `_attach_player_section_processing`: `/runs/{id}` 응답의 정본 선수/부상 섹션 행에도 `structured`·`available`·`persisted`·`storage_status`를 함께 부착해 `photo_url`과 `team_side`가 바로 전달되게 했다.
+     - `RunInspector.vue` 및 `SectionRunView.vue`: 섹션 결과(`sectionResults`)와 `section-results`(지원 시 보강 병합)를 이용해 `toMatchPreviewView`로 `MatchPreviewBody`를 조립하는 접힘형 블록(`data-testid="unapproved-card-preview"`, `"미승인 관리자 카드 미리보기 · 실제 카드(MatchPreviewBody) 확인 (공개·홈 미반영)"`)을 연결했다. 기본 홈/공개 승인 상태는 변경하지 않는다.
+
+### 8.2 검증 결과 (`preview_dev` 읽기 전용 실실행 2건 + 합성 단위 테스트)
+
+- **운영 `preview_dev` 읽기 전용 `preview_admin._detail_or_404` 확인** (`SET TRANSACTION READ ONLY` + `rollback()`, DB 행 무변경, 모델 재호출 없음):
+  - `86a2408c-5696-4d93-8140-ca9ac26a2af9` (`section_players`):
+    - `inspector_modules`: `[{'id': 'R4', 'status': 'succeeded', 'quality': 'ready', 'attempt_count': 1, 'mod_proc_attempts': 1}]`
+    - `player_section_processing`: `persisted=True`, `storage_status='persisted'`, `storage_mismatch=False`, `module_attempt_count=1`, `adopted_attempt_ordinal=0`, `attempts_len=1`, `parsed_valid=[True]`
+    - `sr_structured`: `persisted=True`, `available=True`, `count=4` (엘링 홀란드 1100, 라얀 셰르키 156477, 알렉산더 츄카 이워비 1455, 오스카 보브 278133 모두 `photo_url` 포함)
+    - `availability_note`: `"실제 실행 구현이 등록된 모듈: R1·R2·R3·R4·S1·mock_demo. 단독 미등록/자료 준비 단계(D0) 외 섹션 워크플로우에서 실행할 수 있습니다. 실제 생성 섹션 결과만 승인 근거로 사용하며, 모의 결과는 승인 근거로 쓰지 않습니다."`
+  - `d2764e8d-5aa8-44ca-beb4-97faa91a8929` (`section_availability`):
+    - `inspector_modules`: `[{'id': 'R2', 'status': 'succeeded', 'quality': 'ready', 'attempt_count': 1, 'mod_proc_attempts': 1}]`
+    - `player_section_processing`: `persisted=True`, `storage_status='persisted'`, `storage_mismatch=False`, `module_attempt_count=1`, `adopted_attempt_ordinal=0`, `attempts_len=1`, `parsed_valid=[True]`
+    - `sr_structured`: `persisted=True`, `available=True`, `count=4` (앙투안 세메뇨 19281, 마크 게히 67971, 톰 케어니 19025, 조슈아 킹 389315 모두 `photo_url` 포함)
+- **백엔드 표적 검사 (`preview_mp01_test`)**:
+  - `PYTHONPATH=. /Users/woolee/benchmark/.venv/bin/pytest tests/preview/test_inspection_api.py tests/preview/test_player_section_integration.py -q`: **`27 passed, 1 warning in 11.23s`**
+- **프론트엔드 타입·단위 검사**:
+  - `npm --prefix frontend run type-check && npm --prefix frontend run test:unit -- src/features/match-preview/BundlePanelAdapters.test.ts src/features/match-preview/PlayerSectionProcessingView.test.ts src/features/match-preview/SectionRunView.test.ts src/features/match-preview/panels/AvailabilityPanel.test.ts src/features/match-preview/PlayerSectionStorage.test.ts`: **`type-check` 오류 0건, `Test Files 5 passed (5)`, `Tests 24 passed (24)`**
+  - 비고: 기존 `RunInspector.test.ts` 및 `R4PanelAndBody.test.ts`는 이전 커밋(`b2ac969`)의 `authenticatedFetch` 도입 이후 `setAccessToken`이 설정되지 않아 기존 상태에서도 실패하며 본 작업에서 수정하지 않았다(신규 R4/R2·카드 미리보기 검증은 `BundlePanelAdapters.test.ts`에서 `setAccessToken('test-token')`으로 수행).
+

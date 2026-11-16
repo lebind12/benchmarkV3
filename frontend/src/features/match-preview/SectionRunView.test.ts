@@ -480,4 +480,95 @@ describe('SectionRunView', () => {
 
     await wrapper.unmount()
   })
+
+  it('섹션 실행 결과에서 미승인 관리자 카드 미리보기(MatchPreviewBody)로 선수 사진을 확인할 수 있다', async () => {
+    sectionsMock.mockResolvedValue(sectionsResponse())
+    runSectionMock.mockResolvedValue({
+      ok: true,
+      data: {
+        run_id: '44444444-4444-4444-8444-444444444444',
+        workflow_id: 'section_players',
+        workflow_version: 'section_players@v1',
+        mode: 'live',
+        status: 'succeeded',
+        quality: 'ready',
+        section_result_id: 'sr-players-1',
+        section_result_version: 1,
+        external_calls: 1,
+        budget: {},
+        unavailable_reason: null,
+        note: '저장 완료',
+      },
+    })
+    detailMock.mockResolvedValue({
+      ok: true,
+      data: {
+        section_results: [
+          {
+            section_result_id: 'sr-players-1',
+            run_id: '44444444-4444-4444-8444-444444444444',
+            workflow_id: 'section_players',
+            version: 1,
+            mode: 'live',
+            mode_label: '실제 생성',
+            title: '주목 선수',
+            body: '선정 본문',
+            quality: 'ready',
+            unavailable: false,
+            unavailable_reason: null,
+            sources: [],
+            result_ids: ['res-1'],
+            implementation_version: 'r4-1',
+            prompt_version: 'p-1',
+            contract_version: 'mp05p-r4-players-output-1',
+            created_at: null,
+            supersedes_section_result_id: null,
+            approvable: true,
+            structured: {
+              structured_version: 'mp04-structured-1',
+              workflow_id: 'section_players',
+              players: [
+                {
+                  player: '앙투안 세메뇨',
+                  reason: '돌파력이 뛰어납니다.',
+                  team: 'Manchester City',
+                  team_side: 'home',
+                  photo_url: 'https://media.api-sports.io/football/players/19281.png',
+                  unresolved: false,
+                },
+                {
+                  player: '미확정 선수',
+                  reason: '역습 연결 담당',
+                  team: 'Fulham',
+                  team_side: 'away',
+                  photo_url: null,
+                  unresolved: true,
+                },
+              ],
+              injuries: [],
+              media: [],
+              odds: [],
+              forecast: null,
+            },
+          },
+        ],
+      },
+    })
+
+    const SectionRunView = (await import('@/features/match-preview/SectionRunView.vue')).default
+    const wrapper = mount(SectionRunView)
+    await flushPromises()
+
+    await wrapper.get('[data-test="fixture-stub"]').trigger('click')
+    await wrapper.get('[data-testid="workspace-run"]').trigger('click')
+    await flushPromises()
+
+    const preview = wrapper.get('[data-testid="unapproved-card-preview"]')
+    expect(preview.text()).toContain('미승인 관리자 카드 미리보기')
+    const imgs = preview.findAll('img')
+    expect(imgs.some((img) => img.attributes('src') === 'https://media.api-sports.io/football/players/19281.png')).toBe(true)
+    expect(preview.text()).toContain('미확정 선수')
+
+    await wrapper.unmount()
+  })
 })
