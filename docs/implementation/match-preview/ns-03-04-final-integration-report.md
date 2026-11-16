@@ -228,3 +228,43 @@ cd frontend && npm run type-check && npx vitest run \
   - `npm --prefix frontend run type-check && npm --prefix frontend run test:unit -- src/features/match-preview/BundlePanelAdapters.test.ts src/features/match-preview/PlayerSectionProcessingView.test.ts src/features/match-preview/SectionRunView.test.ts src/features/match-preview/panels/AvailabilityPanel.test.ts src/features/match-preview/PlayerSectionStorage.test.ts`: **`type-check` 오류 0건, `Test Files 5 passed (5)`, `Tests 24 passed (24)`**
   - 비고: 기존 `RunInspector.test.ts` 및 `R4PanelAndBody.test.ts`는 이전 커밋(`b2ac969`)의 `authenticatedFetch` 도입 이후 `setAccessToken`이 설정되지 않아 기존 상태에서도 실패하며 본 작업에서 수정하지 않았다(신규 R4/R2·카드 미리보기 검증은 `BundlePanelAdapters.test.ts`에서 `setAccessToken('test-token')`으로 수행).
 
+## 9. 제한 role 기반 합성 DB 저장·조회·undo 검증 및 최종 5173/38000 기동 증거
+
+### 9-1. 제한 연결(`preview_dev_runtime`) 권한 확인
+- **사용 환경 파일**: `$HOME/.config/match-preview/preview-dev-restricted.env` (`SET TRANSACTION READ ONLY` 세션에서 역할·권한 조회, 접속 비밀값 미기록).
+- **역할 및 권한**:
+  - `role`: `('preview_dev_runtime', 'preview_dev_runtime', 'postgres', 'public')`
+  - `flags`: `{'rolsuper': False, 'rolbypassrls': False, 'rolcreaterole': False, 'rolcreatedb': False}`
+  - `public` 테이블(`app_user`, `fixture`, `player`, `team`): 모두 `can_select=True, can_insert=False, can_update=False, can_delete=False`.
+  - `preview_dev` 테이블(`preview_runs`, `preview_section_results`, `preview_watch_player_sections`, `preview_injury_player_sections`, `preview_player_name_candidates`, `preview_write_audit`): 모두 `can_select=True, can_insert=True, can_delete=True`.
+
+### 9-2. 합성 실행(`ea7a7bce-3596-4055-b6a9-7b5301a19b9a`) 저장·정본 조회·undo 검증
+- **증거 성격 명시**: 본 항목은 제한 DB 역할의 `preview_dev` 쓰기·조회·소유 범위 undo 동작을 검증한 **합성 DB 증거**이며, 실제 AI 번역·모델 호출 증거가 아니다.
+- **기존 실실행 사전 상태(`BEFORE_LIVE_RUNS`)**:
+  - `86a2408c-5696-4d93-8140-ca9ac26a2af9`: `status='succeeded', cancelled_at=None, sr=1, watch=1, injury=0`
+  - `d2764e8d-5aa8-44ca-beb4-97faa91a8929`: `status='succeeded', cancelled_at=None, sr=1, watch=0, injury=1`
+- **합성 저장 및 정본 조회(`READ_BACK`)**:
+  - 합성 `PreviewRun` `ea7a7bce-3596-4055-b6a9-7b5301a19b9a` (fixture `1557474`, `home=13`, `away=4`), `PreviewModuleExecution` 2건(`R4`, `R2`), `PreviewResult` 2건, `PreviewSectionResult` 2건을 저장했다.
+  - `save_watch_player_section`으로 `home1` 확정 선수(`'엘링 홀란드'`, `player_id=533`, `DB_KO`)와 `away1` 미해결 선수(`'합성 미확인 윙어'`, `AI_CANDIDATE`, `cand_watch_id=e3ef20f1-452b-4b9e-90d6-f57f31245de7`, `review_status='pending'`)를 저장했다.
+  - `save_injury_player_section`으로 `home1` 확정 선수(`'마크 게히'`, `player_id=549`, `doubtful`, `DB_KO`)와 `away1` 미해결 선수(`'합성 미확인 수비수'`, `confirmed_absence`, `AI_CANDIDATE`, `cand_inj_id=7210a9cb-051e-46ae-b8c7-a270a70664bc`, `review_status='pending'`)를 저장했다.
+  - 재조회 결과 `detail_watch_persisted=True`, `detail_inj_persisted=True`와 후보 2건(`pending`) 연결을 확인했다.
+- **`undo_report` 및 `cancel_run` 결과**:
+  - `undo_report`: `write_scope='preview_dev'`, `undo.state='cancellable'`, `can_cancel=True`, `would_remove={'preview_watch_player_sections': 1, 'preview_injury_player_sections': 1, 'preview_player_name_candidates': 2, 'preview_artifacts': 0, 'preview_source_snapshots': 0, 'preview_attempts': 0, 'preview_results': 2, 'preview_section_results': 2, 'preview_module_executions': 2}`.
+  - `cancel_run` (`cancelled_at='2026-11-16T15:26:45.690986+00:00'`): 위 소유 행을 모두 삭제하고 `kept=['preview_runs', 'preview_write_audit']`를 유지했다.
+  - undo 이후(`AFTER_UNDO`): `run_status='cancelled'`, `cancelled_at_set=True`, 모든 `remaining_counts=0`, `audit_actions=['run_created', 'section_result_saved', 'section_result_saved', 'player_name_candidate_saved', 'player_section_saved', 'player_name_candidate_saved', 'player_section_saved', 'run_cancelled']`.
+- **기존 실실행 보존(`AFTER_LIVE_RUNS`)**:
+  - `86a2408c-5696-4d93-8140-ca9ac26a2af9` (`watch=1`, `injury=0`) 및 `d2764e8d-5aa8-44ca-beb4-97faa91a8929` (`watch=0`, `injury=1`) 모두 `status='succeeded'`, `cancelled_at=None`으로 원상 보존됐다.
+
+### 9-3. 최종 통합 워크트리 `5173`/`38000` 지속 기동 및 격리 확인
+- **실행 워크트리·코드 SHA**: `/Users/woolee/orca/workspaces/benchmark/player-section-integration` (`lebind12/player-section-integration`), 코드 기준 SHA `d823cdfc2b1de7cf15934cc96870ee6af77d9b2f`.
+- **신규 5173/38000 지속 터미널 및 쿠키 분리**:
+  - 백엔드 `38000`: Orca 터미널 `term_a61aadfe-bafb-4b90-90c5-fe43a9722574` (`title: C-backend-38000`, 셸 PID `35404`, uvicorn 리슨 PID `36569`), `PREVIEW_CREDENTIALS_FILE="$HOME/.config/match-preview/preview-dev-restricted.env"`, `AUTH_COOKIE_NAME=benchmark_refresh_local`, `CORS_ALLOW_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"`.
+  - 프론트엔드 `5173`: Orca 터미널 `term_9796803e-c509-48ca-ac1f-dee1a9dedf1e` (`title: C-frontend-5173`, 셸 PID `35434`, vite 리슨 PID `36646`), `BENCHMARK_BACKEND_URL="http://127.0.0.1:38000"`.
+- **기존 서버·세션 보존 확인**:
+  - Docker `8000` (PID `3541`), B `5174`/`38001` (PID `87512`/`87452`), C root 사용자 세션 `5175`/`38002` (PID `75968`/`31182`, `term_d8731431-0309-4b85-af6e-50227cb9e2f5`, 쿠키명 `benchmark_refresh_c_prep`) 모두 유지했다.
+- **HTTP 검증 결과**:
+  - `http://127.0.0.1:38000/health` `200`, `http://127.0.0.1:5173/` `200`, `http://127.0.0.1:5173/api/v1/home/fixtures` `200`.
+  - `http://127.0.0.1:5173/api/v1/auth/me` `401`, `http://127.0.0.1:38000/api/v1/admin/preview/runs` `401`.
+  - `OPTIONS http://127.0.0.1:38000/api/v1/admin/preview/runs` (`Origin: http://localhost:5173`) `200` (`access-control-allow-origin: http://localhost:5173`, `access-control-allow-credentials: true`).
+  - `http://127.0.0.1:38002/health` `200`, `http://127.0.0.1:5175/` `200`.
+
