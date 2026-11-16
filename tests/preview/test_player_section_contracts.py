@@ -137,17 +137,17 @@ def test_processing_result_materializes_injury_storage_preserving_unknown_status
         ),
         regeneration_count=1,
         module_attempt_count=2,
-        adopted_attempt_ordinal=2,
+        adopted_attempt_ordinal=1,
         attempts=(
             PlayerSectionAttemptTrace(
-                attempt_ordinal=1,
+                attempt_ordinal=0,
                 logical_call_id="call-avail-1",
                 raw_text="{}",
                 regeneration_triggered=True,
                 regeneration_reason=RegenerationReason.MISSING_BODY,
             ),
             PlayerSectionAttemptTrace(
-                attempt_ordinal=2,
+                attempt_ordinal=1,
                 logical_call_id="call-avail-1",
                 raw_text='{"items": []}',
                 parsed_json={"items": []},
@@ -367,12 +367,12 @@ def test_injury_slot_budget_and_projection_guards() -> None:
             ),
             regeneration_count=2,
             module_attempt_count=3,
-            adopted_attempt_ordinal=3,
+            adopted_attempt_ordinal=2,
         )
 
     with pytest.raises(ContractError):
         PlayerSectionAttemptTrace(
-            attempt_ordinal=4,
+            attempt_ordinal=3,
             logical_call_id="call-over-budget",
         )
 
@@ -391,4 +391,155 @@ def test_injury_slot_budget_and_projection_guards() -> None:
             unresolved,
             external_player_id=999999,
             photo_url="https://media.api-sports.io/football/players/999999.png",
+        )
+
+
+def test_attempt_ordinal_uses_zero_based_provider_bookkeeping() -> None:
+    """실제 provider·PreviewAttempt 장부와 같은 0 기반 시도 번호(0, 1, 2)만 허용돼야 관리자 진단이 저장 장부와 어긋나지 않는다."""
+    processing = PlayerSectionProcessingResult(
+        workflow_id=PlayerSectionWorkflowId.SECTION_PLAYERS,
+        fixture_id=9010,
+        home_team_id=10,
+        away_team_id=20,
+        output_contract_version=WATCH_PLAYERS_OUTPUT_CONTRACT_VERSION,
+        home1=PendingWatchSlotDraft(
+            player_id=101,
+            original_name="Son",
+            name_ko="손흥민",
+            body="선제골 후보",
+            name_source=NameSource.DB_KO,
+        ),
+        regeneration_count=1,
+        module_attempt_count=3,
+        adopted_attempt_ordinal=2,
+        attempts=(
+            PlayerSectionAttemptTrace(attempt_ordinal=0, logical_call_id="call-p-1"),
+            PlayerSectionAttemptTrace(
+                attempt_ordinal=1,
+                logical_call_id="call-p-1",
+                regeneration_triggered=True,
+                regeneration_reason=RegenerationReason.DUPLICATE_PLAYER,
+            ),
+            PlayerSectionAttemptTrace(attempt_ordinal=2, logical_call_id="call-p-1"),
+        ),
+    )
+    assert [t.attempt_ordinal for t in processing.attempts] == [0, 1, 2]
+    assert processing.adopted_attempt_ordinal == 2
+
+    with pytest.raises(ContractError):
+        PlayerSectionAttemptTrace(attempt_ordinal=-1, logical_call_id="call-p-1")
+
+    with pytest.raises(ContractError):
+        PlayerSectionProcessingResult(
+            workflow_id=PlayerSectionWorkflowId.SECTION_PLAYERS,
+            fixture_id=9010,
+            home_team_id=10,
+            away_team_id=20,
+            output_contract_version=WATCH_PLAYERS_OUTPUT_CONTRACT_VERSION,
+            module_attempt_count=3,
+            adopted_attempt_ordinal=3,
+        )
+
+
+def test_string_source_id_evidence_is_preserved_without_wrapping() -> None:
+    """bundle_sections._clean_evidence가 만든 문자열 출처 ID가 저장·투영 과정에서 거부되거나 임의 dict로 변형되지 않아야 독자/진단 근거가 유지된다."""
+    run_id = uuid.uuid4()
+    section_result_id = uuid.uuid4()
+    processing = PlayerSectionProcessingResult(
+        workflow_id=PlayerSectionWorkflowId.SECTION_PLAYERS,
+        fixture_id=9011,
+        home_team_id=10,
+        away_team_id=20,
+        output_contract_version=WATCH_PLAYERS_OUTPUT_CONTRACT_VERSION,
+        home1=PendingWatchSlotDraft(
+            player_id=101,
+            original_name="Son",
+            name_ko="손흥민",
+            body="최근 득점 페이스가 좋다.",
+            name_source=NameSource.DB_KO,
+            evidence=("api:fact-1", {"kind": "web", "url": "https://example.com/a"}),
+        ),
+    )
+    stored = processing.materialize_storage_input(
+        section_result_id=section_result_id,
+        run_id=run_id,
+    )
+    assert isinstance(stored, WatchPlayerSectionInput)
+    assert stored.home1 is not None
+    assert stored.home1.evidence == ("api:fact-1", {"kind": "web", "url": "https://example.com/a"})
+
+    cols = stored.home1.to_columns(SlotKey.HOME1)
+    assert cols["home1_evidence"] == ["api:fact-1", {"kind": "web", "url": "https://example.com/a"}]
+    assert WatchPlayerSlot.from_columns(SlotKey.HOME1, cols) == stored.home1
+
+    projected = project_slot(SlotKey.HOME1, stored.home1)
+    assert projected.evidence == ("api:fact-1", {"kind": "web", "url": "https://example.com/a"})
+
+    with pytest.raises(ContractError):
+        WatchPlayerSlot(
+            player_id=101,
+            original_name="Son",
+            name_ko="손흥민",
+            body="설명",
+            name_source=NameSource.DB_KO,
+            evidence=("   ",),
+        )
+
+
+def test_materialize_storage_input_is_deterministic_per_result_and_slot() -> None:
+    """같은 처리 결과를 같은 run_id·section_result_id로 재구체화할 때 후보 ID와 동등성 키가 달라지면 멱등 재저장이 불필요한 충돌로 실패한다."""
+    run_id = uuid.uuid4()
+    section_result_id = uuid.uuid4()
+    other_section_result_id = uuid.uuid4()
+
+    processing = PlayerSectionProcessingResult(
+        workflow_id=PlayerSectionWorkflowId.SECTION_PLAYERS,
+        fixture_id=9012,
+        home_team_id=10,
+        away_team_id=20,
+        output_contract_version=WATCH_PLAYERS_OUTPUT_CONTRACT_VERSION,
+        home1=PendingWatchSlotDraft(
+            player_id=None,
+            original_name="Dejan Kulusevski",
+            name_ko="데얀 쿨루셉스키",
+            body="오른쪽 측면 창의성 공급원이다.",
+            name_source=NameSource.AI_CANDIDATE,
+            unresolved_reason="db_player_not_matched",
+        ),
+        away1=PendingWatchSlotDraft(
+            player_id=None,
+            original_name="Morgan Rogers",
+            name_ko="모건 로저스",
+            body="전환 속도가 빠른 공격 자원이다.",
+            name_source=NameSource.AI_CANDIDATE,
+            unresolved_reason="db_player_not_matched",
+        ),
+    )
+
+    first = processing.materialize_storage_input(
+        section_result_id=section_result_id,
+        run_id=run_id,
+    )
+    second = processing.materialize_storage_input(
+        section_result_id=section_result_id,
+        run_id=run_id,
+    )
+    different_result = processing.materialize_storage_input(
+        section_result_id=other_section_result_id,
+        run_id=run_id,
+    )
+
+    assert first == second
+    assert first.canonical_dict() == second.canonical_dict()
+    assert first.home1 is not None and first.away1 is not None
+    assert first.home1.translation_candidate_id != first.away1.translation_candidate_id
+    assert different_result.home1 is not None
+    assert first.home1.translation_candidate_id != different_result.home1.translation_candidate_id
+
+    shared_id = uuid.uuid4()
+    with pytest.raises(ContractError):
+        processing.materialize_storage_input(
+            section_result_id=section_result_id,
+            run_id=run_id,
+            candidate_id_factory=lambda _slot: shared_id,
         )
