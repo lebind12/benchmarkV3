@@ -10,7 +10,7 @@
  */
 import { computed, ref } from 'vue'
 import { parseNestedModelJson, prettyJsonText } from './panels/players'
-import type { ArtifactRef, ModuleInspection } from './types'
+import type { ArtifactRef, ModuleInspection, PlayerSectionAttemptTraceView } from './types'
 
 const props = defineProps<{
   module: ModuleInspection
@@ -19,6 +19,12 @@ const props = defineProps<{
 const activeTab = ref<'request' | 'response' | 'transform' | 'next_input'>('request')
 
 const tabs = computed(() => props.module.tabs_meta ?? [])
+const processing = computed(() => props.module.player_section_processing ?? null)
+
+function processingTraceFor(attemptOrdinal: number): PlayerSectionAttemptTraceView | null {
+  const traces = processing.value?.attempts ?? []
+  return traces.find((item) => item.attempt_ordinal === attemptOrdinal) ?? null
+}
 
 const panelLabel = computed(() =>
   props.module.panel.registered
@@ -179,7 +185,23 @@ function usageText(usage: Record<string, number | null> | null): string {
         :key="attempt.attempt_id"
         class="attempt"
       >
-        <h3 class="attempt__title">시도 {{ attempt.attempt_ordinal + 1 }}</h3>
+        <h3 class="attempt__title">
+          시도 {{ attempt.attempt_ordinal + 1 }}
+          <span
+            v-if="processing && processing.adopted_attempt_ordinal === attempt.attempt_ordinal"
+            class="attempt__badge attempt__badge--adopted"
+            data-testid="attempt-adopted-badge"
+          >
+            채택 시도
+          </span>
+          <span
+            v-if="processingTraceFor(attempt.attempt_ordinal)?.regeneration_triggered"
+            class="attempt__badge attempt__badge--regen"
+            data-testid="attempt-regeneration-badge"
+          >
+            재생성 유발 ({{ processingTraceFor(attempt.attempt_ordinal)?.regeneration_reason }})
+          </span>
+        </h3>
         <dl class="facts">
           <dt>결과</dt>
           <dd class="measured" data-testid="response-outcome">{{ attempt.outcome }}</dd>

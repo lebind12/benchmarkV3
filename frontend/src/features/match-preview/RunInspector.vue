@@ -12,6 +12,7 @@ import { previewRunsApi } from './api'
 import InformationBundlePanel from './InformationBundlePanel.vue'
 import ModuleResultPanel from './ModuleResultPanel.vue'
 import RunVersionCompare from './RunVersionCompare.vue'
+import PlayerSectionProcessingView from './PlayerSectionProcessingView.vue'
 import SectionStructuredView from './SectionStructuredView.vue'
 import InlineEmphasis from './InlineEmphasis.vue'
 import AttemptPanel from './panels/AttemptPanel.vue'
@@ -113,6 +114,20 @@ const approvableSectionResult = computed<SectionResultView | null>(() => {
 /** 선택한 섹션 결과에 구조화 값이 있으면 표·목록을 더한다(없으면 본문만). */
 const activeStructured = computed(() =>
   activeSectionResult.value ? structuredFromSectionResult(activeSectionResult.value) : null,
+)
+
+const activeProcessing = computed(() => {
+  const row = activeSectionResult.value
+  if (!row) return null
+  return (
+    row.player_section_processing ??
+    detail.value?.player_section_processing?.[row.section_id] ??
+    null
+  )
+})
+
+const activeModuleProcessing = computed(
+  () => activeModule.value?.player_section_processing ?? null,
 )
 
 /**
@@ -333,6 +348,8 @@ function formatTime(value: string | null): string {
         -->
         <SectionStructuredView v-if="activeStructured" :structured="activeStructured" />
 
+        <PlayerSectionProcessingView v-if="activeProcessing" :processing="activeProcessing" />
+
         <!--
           정보 원문. 저장된 출처를 먼저 보여주고, 전달 구간·DB 스냅샷·전체 모델 응답은
           펼치는 진단으로 둔다. 조회 전용이며 어떤 실행도 시작하지 않는다.
@@ -369,6 +386,13 @@ function formatTime(value: string | null): string {
         <ModuleResultPanel
           :key="activeModule.module_execution_id"
           :module="activeModule"
+        />
+        <PlayerSectionProcessingView
+          v-if="
+            activeModuleProcessing &&
+            activeModuleProcessing.workflow_id !== activeProcessing?.workflow_id
+          "
+          :processing="activeModuleProcessing"
         />
         <!--
           R1 경기력 조사 패널. 사실·해석·출처·제외 사유를 나눠 보여주는 진단이며,

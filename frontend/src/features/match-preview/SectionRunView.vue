@@ -15,8 +15,8 @@
  * - 실행되지 않은 섹션(구현 없음)은 실행 버튼을 열지 않고 그 사실을 그대로 표시한다.
  */
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { authApi } from '@/lib/api/http'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { previewRunsApi } from '@/features/match-preview/api'
 import FixtureSelector from '@/features/match-preview/FixtureSelector.vue'
 import BundleGenerationPanel from '@/features/match-preview/BundleGenerationPanel.vue'
@@ -24,6 +24,7 @@ import InlineEmphasis from '@/features/match-preview/InlineEmphasis.vue'
 import InformationBundlePanel from '@/features/match-preview/InformationBundlePanel.vue'
 import SectionRegenerationPanel from '@/features/match-preview/SectionRegenerationPanel.vue'
 import CompositionPanel from '@/features/match-preview/CompositionPanel.vue'
+import PlayerSectionProcessingView from '@/features/match-preview/PlayerSectionProcessingView.vue'
 import SectionStructuredView from '@/features/match-preview/SectionStructuredView.vue'
 import type { InformationBundleView } from '@/features/match-preview/informationBundle'
 import { structuredFromSectionResult } from '@/features/match-preview/sectionStructured'
@@ -36,6 +37,8 @@ import type {
 } from '@/features/match-preview/types'
 
 const router = useRouter()
+const route = useRoute()
+const auth = useAuthStore()
 
 const session = ref<{ user_id: number; role: string } | null>(null)
 const loading = ref(true)
@@ -92,22 +95,33 @@ const canApprove = computed(
     !approving.value,
 )
 
+async function redirectToLogin() {
+  const next = typeof route.fullPath === 'string' && route.fullPath.startsWith('/') ? route.fullPath : '/admin/sections'
+  await router.push({ name: 'login', query: { next } })
+}
+
 async function load() {
   loading.value = true
   errorMessage.value = null
-  const sessionResult = await authApi.session()
-  if (!sessionResult.ok) {
+  const verified = auth.verified && auth.user ? true : await auth.verifySession()
+  if (!verified || !auth.user) {
     loading.value = false
-    await router.push({ name: 'admin-login' })
+    await redirectToLogin()
     return
   }
-  session.value = sessionResult.data as unknown as { user_id: number; role: string }
+  if (!auth.isAdmin) {
+    loading.value = false
+    await router.push({ name: 'not-found' })
+    return
+  }
+  session.value = { user_id: auth.user.id, role: auth.role }
 
   const sectionsResult = await previewRunsApi.sections()
   loading.value = false
   if (!sectionsResult.ok) {
     if (sectionsResult.kind === 'unauthenticated') {
-      await router.push({ name: 'admin-login' })
+      auth.logout()
+      await redirectToLogin()
       return
     }
     errorMessage.value = sectionsResult.message
@@ -436,6 +450,11 @@ onMounted(load)
             v-if="activeStructured"
             :structured="activeStructured"
             class="structured-host"
+          />
+
+          <PlayerSectionProcessingView
+            v-if="activeResult.player_section_processing"
+            :processing="activeResult.player_section_processing"
           />
 
           <!--

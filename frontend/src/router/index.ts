@@ -87,6 +87,14 @@ function isAdminRouteAllowed() {
   return auth.isAdmin || auth.isStreamer
 }
 
+async function requireAdminPreviewRoute(to: { fullPath: string }) {
+  const auth = useAuthStore()
+  if (!(await auth.verifySession())) {
+    return { name: 'login', query: { next: to.fullPath } }
+  }
+  return auth.isAdmin ? true : { name: 'not-found' }
+}
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -157,6 +165,18 @@ const routes: RouteRecordRaw[] = [
         name: 'admin',
         beforeEnter: async (to) => { const auth = useAuthStore(); if (!await auth.verifySession()) return { name: 'login', query: { next: to.fullPath } }; return auth.isAdmin || auth.isStreamer ? true : { name: 'not-found' } },
         component: () => import('@/views/AdminView.vue'),
+      },
+      {
+        path: 'admin/sections',
+        name: 'preview-sections',
+        beforeEnter: requireAdminPreviewRoute,
+        component: () => import('@/features/match-preview/SectionRunView.vue'),
+      },
+      {
+        path: 'admin/runs',
+        name: 'preview-runs',
+        beforeEnter: requireAdminPreviewRoute,
+        component: () => import('@/features/match-preview/PreviewRunsView.vue'),
       },
       { path: 'broadcast', name: 'broadcast', beforeEnter: openBroadcast, component: PlaceholderView, props: { title: '방송' } },
       {

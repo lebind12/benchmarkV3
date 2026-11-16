@@ -841,6 +841,7 @@ def execute_request(
     secret_values: Sequence[str] = (),
     module_execution_id: uuid.UUID | None = None,
     content_check: ContentCheck | None = None,
+    starting_ordinal: int = 0,
 ) -> ExecuteRequestResult:
     """요청 하나를 예산·기한·시도 규칙 안에서 보낸다.
 
@@ -851,6 +852,8 @@ def execute_request(
     - `content_check`가 거부한 응답(잘린 JSON·JSON 파싱 실패)은 **같은 논리 모듈의
       남은 횟수 안에서** 다시 보낸다. 재시도 루프를 하나 더 만들지 않고 여기서 처리한다.
     """
+    if starting_ordinal < 0:
+        raise ValueError(f"starting_ordinal must be >= 0, got {starting_ordinal}")
     request_class = transport.request_class
     # 장부는 "실행 기록이 있는 live 호출"에만 쓴다. 세션이 없으면 기록할 run도 없다.
     journal_enabled = session is not None and transported_live(transport)
@@ -885,7 +888,7 @@ def execute_request(
     final_raw_response: Any = None
     stopped_reason: str | None = None
     missing_configuration: str | None = None
-    ordinal = 0
+    ordinal = starting_ordinal
     wait_seconds = 0.0
 
     while True:
@@ -1333,6 +1336,7 @@ def request_model(
     rng: Callable[[], float] | None = None,
     now: Callable[[], datetime] = _now,
     content_check: ContentCheck | None = None,
+    starting_ordinal: int = 0,
 ) -> ExecuteRequestResult:
     """모델 요청 하나. `execute_request`를 통해서만 나가므로 예산·기록이 같다.
 
@@ -1368,6 +1372,7 @@ def request_model(
         secret_values=secret_values,
         module_execution_id=module_execution_id,
         content_check=content_check,
+        starting_ordinal=starting_ordinal,
     )
 
 

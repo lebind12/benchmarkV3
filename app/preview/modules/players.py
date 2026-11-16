@@ -471,6 +471,7 @@ def resolve_selection_names(
     scope_team_ids: Sequence[int] | None = None,
     id_space: str = "internal",
     id_is_hint: bool = True,
+    rewrite_reason: bool = True,
 ) -> tuple[list[dict[str, Any]], list[Mapping[str, Any]]]:
     """선정 항목의 `selected_player`를 DB 한국어 이름으로 바꾼다.
 
@@ -486,13 +487,19 @@ def resolve_selection_names(
     for item in items:
         original = str(item.get(contract.SELECTED_PLAYER_FIELD) or "").strip()
         team_original = item.get("team") if isinstance(item.get("team"), str) else None
+        raw_ref = item.get("player_ref")
+        player_ref = (
+            raw_ref
+            if isinstance(raw_ref, int) and not isinstance(raw_ref, bool)
+            else None
+        )
         mapping = _resolve_one(
             original,
             team_hint=team_original,
             resolver=resolver,
             name_map=name_map,
             scope_team_ids=scope_team_ids,
-            player_ref=item.get("player_ref") if isinstance(item.get("player_ref"), int) else None,
+            player_ref=player_ref,
             id_space=id_space,
             id_is_hint=id_is_hint,
         )
@@ -541,12 +548,13 @@ def resolve_selection_names(
 
     # 이유 문장 안에 영어로 다시 나온 **같은 인물**도 같은 DB 한국어 값으로 맞춘다.
     # 해석기가 등록한 표기만 바꾸고, 새 이름을 만들지 않는다.
-    rewrite = getattr(resolver, "rewrite_body", None)
-    if callable(rewrite):
-        for row in rows:
-            reason = row.get(contract.SELECTION_REASON_FIELD)
-            if isinstance(reason, str) and reason.strip():
-                row[contract.SELECTION_REASON_FIELD] = rewrite(reason)
+    if rewrite_reason:
+        rewrite = getattr(resolver, "rewrite_body", None)
+        if callable(rewrite):
+            for row in rows:
+                reason = row.get(contract.SELECTION_REASON_FIELD)
+                if isinstance(reason, str) and reason.strip():
+                    row[contract.SELECTION_REASON_FIELD] = rewrite(reason)
     return rows, unmapped
 
 
@@ -664,7 +672,12 @@ def model_players(payload: Mapping[str, Any] | None) -> list[dict[str, Any]]:
                 contract.SELECTED_PLAYER_FIELD: player,
                 contract.SELECTION_REASON_FIELD: reason,
                 "team": str(raw.get("team") or "").strip() or None,
-                "player_ref": int(ref) if isinstance(ref, int) or str(ref or "").isdigit() else None,
+                "player_ref": (
+                    int(ref)
+                    if (isinstance(ref, int) and not isinstance(ref, bool))
+                    or str(ref or "").isdigit()
+                    else None
+                ),
                 "evidence": [str(item) for item in raw.get("evidence") or () if str(item).strip()],
                 "superlative_basis": (
                     str(raw.get("superlative_basis") or "").strip() or None

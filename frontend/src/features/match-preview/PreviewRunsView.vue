@@ -8,15 +8,17 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { authApi, type SessionPayload } from '@/lib/api/http'
+import { authApi } from '@/lib/api/http'
+import { useAuthStore } from '@/stores/auth'
 import { previewRunsApi } from '@/features/match-preview/api'
 import RunInspector from '@/features/match-preview/RunInspector.vue'
 import type { RunSummary } from '@/features/match-preview/types'
 
 const router = useRouter()
 const route = useRoute()
+const auth = useAuthStore()
 
-const session = ref<SessionPayload | null>(null)
+const userEmail = computed(() => auth.user?.email ?? null)
 const runs = ref<RunSummary[] | null>(null)
 const loading = ref(true)
 const errorMessage = ref<string | null>(null)
@@ -26,6 +28,11 @@ const creating = ref(false)
 const createError = ref<string | null>(null)
 const selectedRunId = ref<string | null>(null)
 const notice = ref<string | null>(null)
+
+async function redirectToLogin() {
+  const next = typeof route.fullPath === 'string' && route.fullPath.startsWith('/') ? route.fullPath : '/admin/runs'
+  await router.push({ name: 'login', query: { next } })
+}
 
 async function signOut() {
   signingOut.value = true
@@ -40,7 +47,8 @@ async function signOut() {
     return
   }
 
-  await router.push({ name: 'admin-login' })
+  auth.logout()
+  await router.push({ name: 'login' })
 }
 
 /**
@@ -85,19 +93,24 @@ async function load() {
   loading.value = true
   errorMessage.value = null
 
-  const sessionResult = await authApi.session()
-  if (!sessionResult.ok) {
+  const verified = auth.verified && auth.user ? true : await auth.verifySession()
+  if (!verified || !auth.user) {
     loading.value = false
-    await router.push({ name: 'admin-login' })
+    await redirectToLogin()
     return
   }
-  session.value = sessionResult.data
+  if (!auth.isAdmin) {
+    loading.value = false
+    await router.push({ name: 'not-found' })
+    return
+  }
 
   const runsResult = await previewRunsApi.list()
   loading.value = false
   if (!runsResult.ok) {
     if (runsResult.kind === 'unauthenticated') {
-      await router.push({ name: 'admin-login' })
+      auth.logout()
+      await redirectToLogin()
       return
     }
     errorMessage.value = runsResult.message
@@ -157,7 +170,7 @@ function formatTime(value: string | null): string {
         <RouterLink class="shell__nav-link" to="/admin/metrics">운영 지표</RouterLink>
       </nav>
       <div class="shell__account">
-        <span v-if="session" class="shell__email">{{ session.email }}</span>
+        <span v-if="userEmail" class="shell__email">{{ userEmail }}</span>
         <p v-if="logoutError" class="shell__logout-error" role="alert" data-testid="logout-error">
           로그아웃하지 못했습니다. {{ logoutError }}
         </p>

@@ -9,7 +9,9 @@
  * - 실제 구현이 없는 섹션은 live 실행을 열지 않는다.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
+import { useAuthStore } from '@/stores/auth'
 
 const sectionsMock = vi.fn()
 const detailMock = vi.fn()
@@ -31,14 +33,8 @@ vi.mock('@/features/match-preview/api', () => ({
   },
 }))
 
-vi.mock('@/lib/api/http', () => ({
-  authApi: {
-    session: () =>
-      Promise.resolve({ ok: true, data: { user_id: 1, role: 'ADMIN' } }),
-  },
-}))
-
 vi.mock('vue-router', () => ({
+  useRoute: () => ({ fullPath: '/admin/sections', query: {} }),
   useRouter: () => ({ push: vi.fn() }),
   RouterLink: { template: '<a><slot /></a>' },
 }))
@@ -175,6 +171,14 @@ function detailResponse(mode: 'live' | 'mock', approvable: boolean) {
 
 describe('SectionRunView', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
+    useAuthStore().setUser({
+      id: 1,
+      email: 'admin@local.test',
+      role: 'ADMIN',
+      nickname: 'admin',
+      is_active: true,
+    })
     sectionsMock.mockReset()
     detailMock.mockReset()
     runSectionMock.mockReset()

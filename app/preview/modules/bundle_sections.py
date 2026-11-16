@@ -38,6 +38,8 @@ from typing import Any, Callable, Mapping, Sequence
 from sqlalchemy.orm import Session
 
 from app.preview import information_bundle as bundle_contract
+from app.preview import player_section_contracts as psc
+from app.preview import player_section_processing as player_processing
 from app.preview import provider
 from app.preview.contracts import ExecutionContext, QualityStatus, RunMode
 from app.preview.modules import outlook as outlook_module
@@ -92,10 +94,10 @@ __all__ = [
 # 여기서 올리지 않고 그 섹션이 소유한 별도 축으로 기록한다
 # (`provider_odds.PROVIDER_ODDS_IMPLEMENTATION_VERSION`, `version_manifest._compose_manifest`).
 # 여기서 올리면 관계없는 네 섹션의 승인 버전까지 바뀌어 불필요한 재승인을 만든다.
-IMPLEMENTATION_VERSION = "mp11-bundle-sections-7"
+IMPLEMENTATION_VERSION = "mp11-bundle-sections-8"
 
-PROMPT_VERSION_PLAYERS = "mp11-bundle-players-prompt-3"
-PROMPT_VERSION_AVAILABILITY = "mp11-bundle-availability-prompt-3"
+PROMPT_VERSION_PLAYERS = "mp11-bundle-players-prompt-4"
+PROMPT_VERSION_AVAILABILITY = "mp11-bundle-availability-prompt-4"
 PROMPT_VERSION_OUTLOOK = "mp11-bundle-outlook-prompt-2"
 # 프롬프트 버전: 섹션 프롬프트 파일의 지시가 바뀌면 올린다.
 # - 4: 최종 전망 프롬프트가 `forecast`·`score_reasoning`의 팀/선수 이름을 Markdown
@@ -938,7 +940,7 @@ def _roster_lines(
         if team:
             label += f" ({team})"
         player_id = row.get("player_id")
-        if isinstance(player_id, int):
+        if isinstance(player_id, int) and not isinstance(player_id, bool):
             label += f" [player_ref={player_id}]"
         stats: list[str] = []
         if isinstance(row.get("position"), str) and row["position"].strip():
@@ -1144,6 +1146,7 @@ def _call_model(
     prompt_version: str,
     now: datetime | None,
     content_check: provider.ContentCheck | None = None,
+    starting_ordinal: int = 0,
 ) -> _Call:
     logical_call_id = LOGICAL_CALL_IDS[section_id]
     if logical_call_id is None:  # pragma: no cover - 배당은 이 함수를 부르지 않는다
@@ -1165,6 +1168,7 @@ def _call_model(
         actor_id=getattr(context, "actor_id", None),
         now=lambda: moment,
         content_check=content_check,
+        starting_ordinal=starting_ordinal,
     )
     return _Call(
         text=result.text if result.ok else None,
@@ -1329,9 +1333,15 @@ def _delivery(
     prompt_version: str,
     note: str | None = None,
     search_finding_ids: Sequence[str] = (),
+    sent_attempts_override: int | None = None,
 ) -> bundle_contract.SectionDelivery:
     """실제 전달 기록. payload는 그 요청에 넣은 contents 그대로다."""
     payload = {"contents": [dict(item) for item in call.contents]} if call is not None else {}
+    sent_attempts = (
+        sent_attempts_override
+        if sent_attempts_override is not None
+        else (call.attempts if call is not None else 0)
+    )
     return bundle_contract.build_section_delivery(
         section_id=section_id,
         payload=payload,
@@ -1340,13 +1350,274 @@ def _delivery(
         available_passage_ids=selection.available_ids,
         logical_call_id=LOGICAL_CALL_IDS[section_id],
         model_delivered=model_delivered,
-        sent_attempts=call.attempts if call is not None else 0,
+        sent_attempts=sent_attempts,
         implementation_version=IMPLEMENTATION_VERSION,
         prompt_version=prompt_version,
         note=note,
         # 실제 payload에 들어간 검색 자료 id만 남긴다(자료 유형은 묶음에서 대조).
         search_finding_ids=tuple(search_finding_ids) if model_delivered else (),
     )
+
+
+# --------------------------------------------------------------------------
+# 섹션: 주목 선수 · 부상·결장 공통 생성/재생성 실행기
+# --------------------------------------------------------------------------
+
+
+def _fixture_team_context(
+    payload: Mapping[str, Any], fixture_values: Mapping[str, str]
+) -> player_processing.FixtureTeamContext:
+    fixture = payload.get("fixture") if isinstance(payload.get("fixture"), Mapping) else {}
+
+    def _pos_int(val: Any) -> int | None:
+        if isinstance(val, bool) or not isinstance(val, int) or val <= 0:
+            return None
+        return val
+
+    raw_fid = _pos_int(fixture.get("fixture_id"))
+    if raw_fid is None:
+        text_fid = str(fixture_values.get("fixture_id") or "")
+        raw_fid = int(text_fid) if text_fid.isdigit() and int(text_fid) > 0 else 1
+
+    home_id = _pos_int(fixture.get("home_team_id"))
+    if home_id is None:
+        text_hid = str(fixture_values.get("home_team_id") or "")
+        home_id = int(text_hid) if text_hid.isdigit() and int(text_hid) > 0 else None
+
+    away_id = _pos_int(fixture.get("away_team_id"))
+    if away_id is None:
+        text_aid = str(fixture_values.get("away_team_id") or "")
+        away_id = int(text_aid) if text_aid.isdigit() and int(text_aid) > 0 else None
+
+    return player_processing.FixtureTeamContext(
+        fixture_id=raw_fid,
+        home_team_id=home_id,
+        away_team_id=away_id,
+        home_team_name=fixture_values.get("home_team"),
+        away_team_name=fixture_values.get("away_team"),
+    )
+
+
+def _trace_call_attempts(
+    call: _Call,
+    *,
+    logical_call_id: str,
+    accepted_parsed: Mapping[str, Any] | None,
+    accepted_raw_text: str | None,
+    regeneration_reason: psc.RegenerationReason | None = None,
+) -> list[player_processing.ProcessingAttemptRecord]:
+    attempts = list(getattr(call.result, "attempts", ()) or ())
+    records: list[player_processing.ProcessingAttemptRecord] = []
+    last_idx = len(attempts) - 1
+    for idx, att in enumerate(attempts):
+        is_accepted = accepted_parsed is not None and idx == last_idx
+        records.append(
+            player_processing.ProcessingAttemptRecord(
+                attempt_ordinal=att.attempt_ordinal,
+                logical_call_id=att.logical_call_id or logical_call_id,
+                parsed_valid=is_accepted,
+                raw_text=accepted_raw_text if is_accepted else None,
+                parsed_json=dict(accepted_parsed) if is_accepted else None,
+                regeneration_triggered=bool(is_accepted and regeneration_reason is not None),
+                regeneration_reason=regeneration_reason if is_accepted else None,
+                error_reason=(
+                    None
+                    if is_accepted
+                    else (att.error_message or getattr(att.outcome, "value", "failed"))
+                ),
+            )
+        )
+    return records
+
+
+def _execute_player_section_with_regeneration(
+    *,
+    workflow_id: psc.PlayerSectionWorkflowId,
+    section_id: str,
+    module_id: str,
+    label: str,
+    prompt: str,
+    prompt_version: str,
+    context: ExecutionContext,
+    transport: provider.ProviderTransport,
+    budget: RunBudget,
+    session: Session | None,
+    fixture_ctx: player_processing.FixtureTeamContext,
+    local_resolver: Any,
+    allowed_evidence: frozenset[str],
+    now: datetime | None,
+) -> tuple[_Call, int, player_processing.PlayerSectionProcessingBundle, str | None]:
+    """첫 유효 응답에 설명 누락·중복이 있으면 같은 장부·예산으로 섹션 전체를 최대 1회 재생성한다."""
+    logical_call_id = LOGICAL_CALL_IDS[section_id] or section_id
+    content_check = _content_accepts_for(
+        section_id, label=label, parse=players_module.parse_model_output
+    )
+    call1 = _call_model(
+        section_id=section_id,
+        prompt=prompt,
+        context=context,
+        transport=transport,
+        budget=budget,
+        session=session,
+        module_id=module_id,
+        prompt_version=prompt_version,
+        now=now,
+        content_check=content_check,
+        starting_ordinal=0,
+    )
+    mode = _mode_value(transport)
+    truncated1 = _truncation_reason(call1, label=label)
+    parsed1 = None if truncated1 else players_module.parse_model_output(call1.text)
+    if parsed1 is None:
+        fail_msg = (
+            truncated1
+            if truncated1
+            else (
+                _failure_reason(call1, label=label)
+                if call1.text is None
+                else f"{label} 응답을 JSON으로 해석하지 못했습니다."
+            )
+        )
+        traces1 = _trace_call_attempts(
+            call1,
+            logical_call_id=logical_call_id,
+            accepted_parsed=None,
+            accepted_raw_text=None,
+        )
+        failed_bundle = player_processing.build_failed_processing_bundle(
+            workflow_id=workflow_id,
+            fixture=fixture_ctx,
+            attempts=traces1,
+            regeneration_count=0,
+            regeneration_reason=None,
+            failed_reason=fail_msg,
+            mode=mode,
+        )
+        return call1, call1.attempts, failed_bundle, fail_msg
+
+    candidates1, labels1 = player_processing.evaluate_raw_candidates(
+        workflow_id=workflow_id,
+        payload=parsed1,
+        fixture=fixture_ctx,
+        resolver=local_resolver,
+        allowed_evidence=allowed_evidence,
+    )
+    regen_reason = player_processing.detect_regeneration_reason(candidates1)
+    traces1 = _trace_call_attempts(
+        call1,
+        logical_call_id=logical_call_id,
+        accepted_parsed=parsed1,
+        accepted_raw_text=call1.text,
+        regeneration_reason=regen_reason,
+    )
+    if regen_reason is None:
+        adopted_ordinal = traces1[-1].attempt_ordinal if traces1 else 0
+        processing = player_processing.place_final_candidates(
+            workflow_id=workflow_id,
+            fixture=fixture_ctx,
+            candidates=candidates1,
+            labels=labels1,
+            attempts=traces1,
+            regeneration_count=0,
+            regeneration_reason=None,
+            adopted_attempt_ordinal=adopted_ordinal,
+            mode=mode,
+        )
+        return call1, call1.attempts, processing, None
+
+    # 첫 유효 응답에 누락·중복 결함이 있다: 같은 논리 호출 상한(최대 3회) 안에서만 최대 1회 재생성한다.
+    attempts1_raw = list(getattr(call1.result, "attempts", ()) or ())
+    next_ordinal = (attempts1_raw[-1].attempt_ordinal + 1) if attempts1_raw else 0
+    if next_ordinal >= psc.MAX_MODULE_ATTEMPTS:
+        fail_msg = (
+            f"첫 유효 응답({regen_reason.value})의 내용 재생성이 필요했으나 "
+            f"모듈 전송 상한({psc.MAX_MODULE_ATTEMPTS}회)에 도달해 실패했습니다. 첫 응답으로 대체하지 않습니다."
+        )
+        failed_bundle = player_processing.build_failed_processing_bundle(
+            workflow_id=workflow_id,
+            fixture=fixture_ctx,
+            attempts=traces1,
+            regeneration_count=0,
+            regeneration_reason=regen_reason,
+            failed_reason=fail_msg,
+            mode=mode,
+        )
+        return call1, call1.attempts, failed_bundle, fail_msg
+
+    regen_prompt = prompt + player_processing.build_regeneration_instruction(
+        workflow_id=workflow_id, reason=regen_reason
+    )
+    call2 = _call_model(
+        section_id=section_id,
+        prompt=regen_prompt,
+        context=context,
+        transport=transport,
+        budget=budget,
+        session=session,
+        module_id=module_id,
+        prompt_version=prompt_version,
+        now=now,
+        content_check=content_check,
+        starting_ordinal=next_ordinal,
+    )
+    total_calls = call1.attempts + call2.attempts
+    truncated2 = _truncation_reason(call2, label=label)
+    parsed2 = None if truncated2 else players_module.parse_model_output(call2.text)
+    if parsed2 is None:
+        reason2 = (
+            truncated2
+            if truncated2
+            else (
+                _failure_reason(call2, label=label)
+                if call2.text is None
+                else f"{label} 재생성 응답을 JSON으로 해석하지 못했습니다."
+            )
+        )
+        fail_msg = f"내용 재생성 실패({reason2}). 첫 응답으로 대체하지 않습니다."
+        traces2 = _trace_call_attempts(
+            call2,
+            logical_call_id=logical_call_id,
+            accepted_parsed=None,
+            accepted_raw_text=None,
+        )
+        failed_bundle = player_processing.build_failed_processing_bundle(
+            workflow_id=workflow_id,
+            fixture=fixture_ctx,
+            attempts=traces1 + traces2,
+            regeneration_count=1,
+            regeneration_reason=regen_reason,
+            failed_reason=fail_msg,
+            mode=mode,
+        )
+        return call2, total_calls, failed_bundle, fail_msg
+
+    candidates2, labels2 = player_processing.evaluate_raw_candidates(
+        workflow_id=workflow_id,
+        payload=parsed2,
+        fixture=fixture_ctx,
+        resolver=local_resolver,
+        allowed_evidence=allowed_evidence,
+    )
+    traces2 = _trace_call_attempts(
+        call2,
+        logical_call_id=logical_call_id,
+        accepted_parsed=parsed2,
+        accepted_raw_text=call2.text,
+    )
+    combined_traces = traces1 + traces2
+    adopted_ordinal = traces2[-1].attempt_ordinal if traces2 else next_ordinal
+    processing = player_processing.place_final_candidates(
+        workflow_id=workflow_id,
+        fixture=fixture_ctx,
+        candidates=candidates2,
+        labels=labels2,
+        attempts=combined_traces,
+        regeneration_count=1,
+        regeneration_reason=regen_reason,
+        adopted_attempt_ordinal=adopted_ordinal,
+        mode=mode,
+    )
+    return call2, total_calls, processing, None
 
 
 # --------------------------------------------------------------------------
@@ -1476,19 +1747,13 @@ def _players_section(
     section_id = bundle_contract.SECTION_PLAYERS
     module_id = "R4"
     prompt_version = PROMPT_VERSION_PLAYERS
+    local_resolver = player_processing.clone_section_resolver(resolver)
+    fixture_ctx = _fixture_team_context(payload, fixture_values)
     selection = _select_passages(payload, section_id)
     search = _search_material(payload, section_id)
     diagnostics: list[str] = (
         list(selection.diagnostics) + list(material.diagnostics) + list(search.diagnostics)
     )
-    scope_team_ids = [
-        int(value)
-        for value in (
-            fixture_values["home_team_id"],
-            fixture_values["away_team_id"],
-        )
-        if value.isdigit()
-    ]
 
     # 기사 본문이 없어도 DB 후보나 **검색이 실제로 돌려준 자료**가 있으면 작성을 중단하지
     # 않는다(사용자 확정 기준: 본문 → 검색 자료 → DB 순 사용).
@@ -1528,7 +1793,7 @@ def _players_section(
             "per_team": str(PLAYERS_PER_TEAM),
             "max_players": str(MAX_BUNDLE_PLAYERS),
             "roster": _roster_lines(
-                material.roster, names=material.teams, resolver=resolver
+                material.roster, names=material.teams, resolver=local_resolver
             ),
             "db_facts": _db_block(material),
             "evidence_ids": _evidence_lines(
@@ -1538,24 +1803,26 @@ def _players_section(
             "search_material": _render_search_material(search),
         },
     )
-    call = _call_model(
+    allowed = frozenset(_allowed_evidence(selection, material) | set(search.finding_ids))
+    final_call, total_calls, processing, exec_error = _execute_player_section_with_regeneration(
+        workflow_id=psc.PlayerSectionWorkflowId.SECTION_PLAYERS,
         section_id=section_id,
+        module_id=module_id,
+        label="주목 선수",
         prompt=prompt,
+        prompt_version=prompt_version,
         context=context,
         transport=transport,
         budget=budget,
         session=session,
-        module_id=module_id,
-        prompt_version=prompt_version,
+        fixture_ctx=fixture_ctx,
+        local_resolver=local_resolver,
+        allowed_evidence=allowed,
         now=now,
-        # 잘린 JSON·해석 불가 본문은 같은 모듈의 남은 횟수 안에서 다시 보낸다.
-        content_check=_content_accepts_for(
-            section_id, label="주목 선수", parse=players_module.parse_model_output
-        ),
     )
     delivery = _delivery(
         section_id=section_id,
-        call=call,
+        call=final_call,
         selection=selection,
         model_delivered=True,
         prompt_version=prompt_version,
@@ -1564,105 +1831,68 @@ def _players_section(
             f"검색 자료 {len(search.rows)}건을 전달했습니다."
         ),
         search_finding_ids=search.finding_ids,
+        sent_attempts_override=total_calls,
     )
+    diagnostics.extend(processing.diagnostics)
 
-    truncated = _truncation_reason(call, label="주목 선수")
-    if truncated:
-        diagnostics.append(truncated)
-    parsed = None if truncated else players_module.parse_model_output(call.text)
-    if parsed is None:
-        if truncated:
-            reason = truncated
-        elif call.text is None:
-            reason = _failure_reason(call, label="주목 선수")
-        else:
-            reason = "주목 선수 응답을 JSON으로 해석하지 못했습니다."
+    if exec_error is not None:
         return SectionDraft(
             section_id=section_id,
             module_id=module_id,
             title="주목 선수",
             body="",
+            structured={
+                "korean_labels": [dict(item) for item in processing.korean_labels],
+                "players": [],
+                "processing": processing.to_dict(),
+            },
             quality=QualityStatus.INSUFFICIENT,
-            unavailable_reason=reason,
+            unavailable_reason=exec_error,
             prompt_version=prompt_version,
-            diagnostics=tuple(diagnostics + ["응답을 해석하지 못해 본문을 만들지 않았습니다."]),
+            diagnostics=tuple(diagnostics),
             delivery=delivery,
             mode=_mode_value(transport),
-            external_calls=call.attempts,
+            external_calls=total_calls,
         )
 
-    allowed = _allowed_evidence(selection, material) | set(search.finding_ids)
-    # 같은 응답이 함께 낸 한글 표기. **DB 값이 있으면 DB가 이기고**, DB에 그 엔티티의
-    # 한국어 값이 없을 때만 이 표기를 쓴다(설계 §66). 번역 호출은 없다.
-    korean_labels = players_module._model_korean_labels(parsed)  # noqa: SLF001 - 같은 소유 파일
-    register_labels = getattr(resolver, "register_model_labels", None)
-    if korean_labels and callable(register_labels):
+    register_labels = getattr(local_resolver, "register_model_labels", None)
+    if callable(register_labels) and processing.korean_labels:
         try:
-            applied = register_labels(korean_labels)
-        except Exception:  # noqa: BLE001 - 표기 반영 실패로 본문을 없애지 않는다
-            applied = ()
-            diagnostics.append("같은 응답의 한글 표기를 반영하지 못했습니다.")
-        rejected = [
-            str(item.get("original") or "")
-            for item in applied or ()
-            if isinstance(item, Mapping) and item.get("applied") is False
-        ]
-        if rejected:
-            diagnostics.append(
-                "DB 한국어 값이 있거나 충돌해 쓰지 않은 한글 표기: "
-                + ", ".join(sorted(name for name in rejected if name))
-            )
-    elif korean_labels:
-        diagnostics.append(
-            "이름 해석기가 주입되지 않아 같은 응답의 한글 표기를 표시에 반영하지 못했습니다."
-        )
+            register_labels(processing.korean_labels)
+        except Exception:  # noqa: BLE001
+            pass
 
-    rows, row_diagnostics = _player_rows(
-        parsed, resolver=resolver, scope_team_ids=scope_team_ids
-    )
-    diagnostics.extend(row_diagnostics)
-    # DB에서 확인되지 않은 이름만, **같은 응답의 표기**로 채운다(새 신원을 만들지 않는다).
-    rows, label_diagnostics = _apply_model_labels(rows, korean_labels)
-    diagnostics.extend(label_diagnostics)
-    dropped_total = 0
-    for row in rows:
-        evidence, dropped = _clean_evidence(row.get("evidence"), allowed)
-        dropped_total += dropped
-        row["evidence"] = evidence
-    if dropped_total:
-        diagnostics.append(
-            f"전달하지 않은 근거 id 인용 {dropped_total}건을 표시 근거에서 뺐습니다."
-        )
-
+    rows = [
+        {
+            player_contract.SELECTED_PLAYER_FIELD: slot.name_ko,
+            player_contract.SELECTION_REASON_FIELD: slot.body,
+            "team": slot.team_name,
+            "team_side": slot.team_side.value,
+            "team_id": slot.team_id,
+            "player_id": slot.player_id,
+            "external_player_id": slot.external_player_id,
+            "original_name": slot.original_name,
+            "name_source": slot.name_source.value,
+            "unresolved_reason": slot.unresolved_reason,
+            "evidence": list(slot.evidence),
+        }
+        for slot in processing.placed_slots
+    ]
     composed = players_module.compose_players_body(
         {"players": rows, "reader_sources": list(_reader_sources(selection))}
     )
     body = composed.body if rows else ""
     unavailable_reason = None
     if not body:
-        unavailable_reason = (
-            "표시할 수 있는 주목 선수(이름·선정 이유)가 응답에 없어 본문을 만들지 않았습니다."
+        unavailable_reason = processing.failed_reason or (
+            "표시할 수 있는 주목 선수(이름·한글명·선정 이유)가 없어 본문을 만들지 않았습니다."
         )
         diagnostics.extend(composed.diagnostics)
 
     structured = {
-        # 같은 응답의 한글 표기를 저장 payload에 남긴다. 화면 표시 경계가 DB 값이 없을
-        # 때만 이 값을 쓰고, 지금은 이미 표시 이름에 반영되어 있다.
-        "korean_labels": [dict(item) for item in korean_labels],
-        "players": [
-            {
-                player_contract.SELECTED_PLAYER_FIELD: row.get(
-                    player_contract.SELECTED_PLAYER_FIELD
-                ),
-                player_contract.SELECTION_REASON_FIELD: row.get(
-                    player_contract.SELECTION_REASON_FIELD
-                ),
-                "team": row.get("team"),
-                "player_id": row.get("player_id"),
-                "evidence": list(row.get("evidence") or ()),
-            }
-            for row in rows
-        ]
+        "korean_labels": [dict(item) for item in processing.korean_labels],
+        "players": rows,
+        "processing": processing.to_dict(),
     }
     return SectionDraft(
         section_id=section_id,
@@ -1677,7 +1907,7 @@ def _players_section(
         diagnostics=tuple(diagnostics),
         delivery=delivery,
         mode=_mode_value(transport),
-        external_calls=call.attempts,
+        external_calls=total_calls,
     )
 
 
@@ -1875,6 +2105,8 @@ def _availability_section(
     section_id = bundle_contract.SECTION_AVAILABILITY
     module_id = "R2"
     prompt_version = PROMPT_VERSION_AVAILABILITY
+    local_resolver = player_processing.clone_section_resolver(resolver)
+    fixture_ctx = _fixture_team_context(payload, fixture_values)
     selection = _select_passages(payload, section_id)
     search = _search_material(payload, section_id)
     diagnostics: list[str] = (
@@ -1925,24 +2157,26 @@ def _availability_section(
             "search_material": _render_search_material(search),
         },
     )
-    call = _call_model(
+    allowed = frozenset(_allowed_evidence(selection, material) | set(search.finding_ids))
+    final_call, total_calls, processing, exec_error = _execute_player_section_with_regeneration(
+        workflow_id=psc.PlayerSectionWorkflowId.SECTION_AVAILABILITY,
         section_id=section_id,
+        module_id=module_id,
+        label="부상",
         prompt=prompt,
+        prompt_version=prompt_version,
         context=context,
         transport=transport,
         budget=budget,
         session=session,
-        module_id=module_id,
-        prompt_version=prompt_version,
+        fixture_ctx=fixture_ctx,
+        local_resolver=local_resolver,
+        allowed_evidence=allowed,
         now=now,
-        # 잘린 JSON·해석 불가 본문은 같은 모듈의 남은 횟수 안에서 다시 보낸다.
-        content_check=_content_accepts_for(
-            section_id, label="부상", parse=players_module.parse_model_output
-        ),
     )
     delivery = _delivery(
         section_id=section_id,
-        call=call,
+        call=final_call,
         selection=selection,
         model_delivered=True,
         prompt_version=prompt_version,
@@ -1951,67 +2185,62 @@ def _availability_section(
             f"검색 자료 {len(search.rows)}건을 전달했습니다."
         ),
         search_finding_ids=search.finding_ids,
+        sent_attempts_override=total_calls,
     )
+    diagnostics.extend(processing.diagnostics)
 
-    truncated = _truncation_reason(call, label="부상")
-    if truncated:
-        diagnostics.append(truncated)
-    parsed = None if truncated else players_module.parse_model_output(call.text)
-    if parsed is None:
-        if truncated:
-            reason = truncated
-        elif call.text is None:
-            reason = _failure_reason(call, label="부상")
-        else:
-            reason = "부상 응답을 JSON으로 해석하지 못했습니다."
+    if exec_error is not None:
         return SectionDraft(
             section_id=section_id,
             module_id=module_id,
             title="부상·결장 영향",
             body="",
+            structured={
+                "korean_labels": [dict(item) for item in processing.korean_labels],
+                "injuries": [],
+                "processing": processing.to_dict(),
+            },
             quality=QualityStatus.INSUFFICIENT,
-            unavailable_reason=reason,
+            unavailable_reason=exec_error,
             prompt_version=prompt_version,
-            diagnostics=tuple(diagnostics + ["응답을 해석하지 못해 본문을 만들지 않았습니다."]),
+            diagnostics=tuple(diagnostics),
             delivery=delivery,
             mode=_mode_value(transport),
-            external_calls=call.attempts,
+            external_calls=total_calls,
         )
 
-    allowed = _allowed_evidence(selection, material) | set(search.finding_ids)
-    rows, row_diagnostics, dropped = _injury_rows(
-        parsed,
-        allowed=allowed,
-        names=material.teams,
-        resolver=resolver,
-        # 확인 범위는 **이 경기의 두 팀**이다. 범위를 넓히면 동명이인을 다른 팀에서
-        # 잘못 붙일 수 있으므로 저장된 fixture 팀 id만 넘긴다.
-        scope_team_ids=_scope_team_ids(fixture_values),
-    )
-    diagnostics.extend(row_diagnostics)
-    if dropped:
-        diagnostics.append(
-            f"전달하지 않은 근거 id 인용 {dropped}건을 표시 근거에서 뺐습니다."
-        )
-    body = _compose_injuries_body(rows)
+    register_labels = getattr(local_resolver, "register_model_labels", None)
+    if callable(register_labels) and processing.korean_labels:
+        try:
+            register_labels(processing.korean_labels)
+        except Exception:  # noqa: BLE001
+            pass
+
+    body = player_processing.compose_availability_body(processing.placed_slots)
     structured = {
+        "korean_labels": [dict(item) for item in processing.korean_labels],
         "injuries": [
             {
-                "player_name": row["player_name"],
-                "team": row["team"],
-                # 저장 payload에도 확인된 ID를 남긴다. 화면 구조 값(section_structured)이
-                # 이 값으로 외부 ID·사진을 확인하며, 확인되지 않았으면 `None`이다.
-                "player_id": row.get("player_id"),
-                "team_id": row.get("team_id"),
-                "status": row["status"],
-                "summary": " ".join(
-                    part for part in (row.get("injury"), row.get("importance")) if part
-                )
-                or None,
-                "evidence": list(row["evidence"]),
+                "player_name": slot.name_ko,
+                "team": slot.team_name,
+                "team_side": slot.team_side.value,
+                "player_id": slot.player_id,
+                "external_player_id": slot.external_player_id,
+                "team_id": slot.team_id,
+                "original_name": slot.original_name,
+                "name_source": slot.name_source.value,
+                "unresolved_reason": slot.unresolved_reason,
+                "status": slot.status,
+                "injury": slot.injury,
+                "importance": slot.importance,
+                "body": slot.body,
+                "summary": slot.body or None,
+                "detail": slot.body or None,
+                "evidence": list(slot.evidence),
             }
-            for row in rows
-        ]
+            for slot in processing.placed_slots
+        ],
+        "processing": processing.to_dict(),
     }
     return SectionDraft(
         section_id=section_id,
@@ -2024,13 +2253,16 @@ def _availability_section(
         unavailable_reason=(
             None
             if body
-            else "근거가 확인된 부상·결장 항목이 없어 이 선택 섹션의 본문을 만들지 않았습니다."
+            else (
+                processing.failed_reason
+                or "근거가 확인된 부상·결장 항목이 없어 이 선택 섹션의 본문을 만들지 않았습니다."
+            )
         ),
         prompt_version=prompt_version,
         diagnostics=tuple(diagnostics),
         delivery=delivery,
         mode=_mode_value(transport),
-        external_calls=call.attempts,
+        external_calls=total_calls,
     )
 
 

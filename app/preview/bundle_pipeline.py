@@ -643,6 +643,15 @@ def _call_bundle_builder(**kwargs: Any) -> Any:
     return bundle_sections.build_bundle_section(**kwargs)
 
 
+def _section_resolver(resolver: Any) -> Any:
+    """병렬 섹션 분기마다 공유 이름 해석기의 가변 상태를 격리한다."""
+    if resolver is None:
+        return None
+    from app.preview import player_section_processing
+
+    return player_section_processing.clone_section_resolver(resolver)
+
+
 def _open_name_resolver(team_ids: Sequence[int] = ()) -> Any:
     """DB 한국어 이름 해석기(이름 전용 읽기 역할). 설정이 없으면 `None`이다.
 
@@ -1092,7 +1101,7 @@ def _section_node(section_id: str, plan: _Plan):
                     # 작성 단계에 그대로 넘긴다. 넘기지 않으면 프롬프트에 선수 후보가 비어
                     # 주목 선수 섹션이 근거 없이 비게 된다.
                     fixture_names=_fixture_names(plan, state.get("db_snapshot")),
-                    resolver=plan.resolver,
+                    resolver=_section_resolver(plan.resolver),
                     player_candidates=player_candidates,
                     now=plan.moment,
                     provider_odds=provider_odds,
@@ -1116,6 +1125,12 @@ def _section_node(section_id: str, plan: _Plan):
                         "unavailable_reason": draft.unavailable_reason,
                         "delivery": draft.delivery.to_dict() if draft.delivery else None,
                         "structured": dict(draft.structured or {}),
+                        "processing": (
+                            dict(draft.structured["processing"])
+                            if isinstance(draft.structured, Mapping)
+                            and isinstance(draft.structured.get("processing"), Mapping)
+                            else None
+                        ),
                         "module_id": draft.module_id,
                         "external_calls": draft.external_calls,
                     }
@@ -1252,6 +1267,12 @@ def _forecast_node(plan: _Plan):
                         "unavailable_reason": draft.unavailable_reason,
                         "delivery": draft.delivery.to_dict() if draft.delivery else None,
                         "structured": dict(draft.structured or {}),
+                        "processing": (
+                            dict(draft.structured["processing"])
+                            if isinstance(draft.structured, Mapping)
+                            and isinstance(draft.structured.get("processing"), Mapping)
+                            else None
+                        ),
                         "module_id": draft.module_id,
                         "external_calls": draft.external_calls,
                     }
@@ -2409,7 +2430,7 @@ def run_section_regeneration(
         session=session,
         upstream=upstream,
         fixture_names={"home_team": home_name, "away_team": away_name, "league": None},
-        resolver=_open_name_resolver(regen_team_ids),
+        resolver=_section_resolver(_open_name_resolver(regen_team_ids)),
         player_candidates=_player_candidates(regen_snapshot),
         now=moment,
         provider_odds=regen_provider_odds,
