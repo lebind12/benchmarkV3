@@ -70,6 +70,7 @@ export type MatchPreviewPlayer = {
   photo_url: string | null
   /** 팀 외부 ID. 좌우(홈/원정) 판정에 쓴다. */
   team_external_id: number | null
+  team_side?: 'home' | 'away' | null
 }
 
 export type MatchPreviewInjury = {
@@ -81,6 +82,7 @@ export type MatchPreviewInjury = {
   /** 서버가 준 사진 주소만. 없으면 `null`. */
   photo_url: string | null
   team_external_id: number | null
+  team_side?: 'home' | 'away' | null
 }
 
 export type MatchPreviewMedia = {
@@ -277,6 +279,7 @@ function sideOfTeam(
   team: string | null,
   externalId: number | null,
   identity: TeamIdentity,
+  teamSide?: 'home' | 'away' | null,
 ): 0 | 1 | null {
   // 1) 확정된 외부 팀 ID가 양쪽에 있으면 ID로만 판정한다(이름 표기와 무관).
   if (externalId !== null) {
@@ -286,12 +289,15 @@ function sideOfTeam(
     if (identity.homeExternalId !== null || identity.awayExternalId !== null) return null
   }
   // 2) 이름 비교(저장된 한국어 라벨 별칭 적용).
-  if (team === null) return null
-  const resolve = (name: string) =>
-    identity.aliases.get(normalizeTeam(name)) ?? normalizeTeam(name)
-  const key = resolve(team)
-  if (identity.homeName && resolve(identity.homeName) === key) return 0
-  if (identity.awayName && resolve(identity.awayName) === key) return 1
+  if (team !== null) {
+    const resolve = (name: string) =>
+      identity.aliases.get(normalizeTeam(name)) ?? normalizeTeam(name)
+    const key = resolve(team)
+    if (identity.homeName && resolve(identity.homeName) === key) return 0
+    if (identity.awayName && resolve(identity.awayName) === key) return 1
+  }
+  if (teamSide === 'home') return 0
+  if (teamSide === 'away') return 1
   return null
 }
 
@@ -301,7 +307,7 @@ function sideOfTeam(
  * `side`는 **확인된 값으로만** 정한다. 확인할 수 없으면 `null`이며, 배열 순서로 홈/원정을
  * 만들어 넣지 않는다. 화면은 `resolveSides`로 좌우를 정한다.
  */
-export function groupByTeam<T extends { team: string | null }>(
+export function groupByTeam<T extends { team: string | null; team_side?: 'home' | 'away' | null }>(
   rows: readonly T[],
   identity: TeamIdentity,
   externalIdOf?: (row: T) => number | null,
@@ -309,7 +315,7 @@ export function groupByTeam<T extends { team: string | null }>(
   const groups: TeamGroup<T>[] = []
   for (const row of rows) {
     const externalId = externalIdOf ? externalIdOf(row) : null
-    const side = sideOfTeam(row.team, externalId, identity)
+    const side = sideOfTeam(row.team, externalId, identity, row.team_side ?? null)
     // 같은 묶음 = 같은 팀 이름, 또는 같은 확인된 좌/우.
     const existing = groups.find(
       (group) =>
@@ -625,6 +631,7 @@ function toInjuryRows(structured: StructuredSectionView): MatchPreviewInjury[] {
       // 서버가 준 사진 주소만 쓴다. 없으면(키 없음 포함) null 이고 화면은 이름을 그대로 그린다.
       photo_url: row.photoUrl ?? null,
       team_external_id: row.teamExternalId ?? null,
+      ...(row.teamSide ? { team_side: row.teamSide } : {}),
     }
   })
 }
@@ -790,6 +797,7 @@ export function toMatchPreviewView(
       // 서버가 준 사진 주소만. 내부 player_id(533)로 CDN 주소를 만들지 않는다.
       photo_url: row.photoUrl ?? null,
       team_external_id: row.teamExternalId ?? null,
+      ...(row.teamSide ? { team_side: row.teamSide } : {}),
     })),
     injuries: injuriesStructured ? toInjuryRows(injuriesStructured) : [],
     // 표시 상한은 매체 3곳이다. 서버가 더 줘도 화면은 3곳만 그린다.

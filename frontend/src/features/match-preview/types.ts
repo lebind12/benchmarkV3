@@ -374,6 +374,9 @@ export type SectionStructuredPlayerRow = {
   player?: string | null
   reason?: string | null
   team?: string | null
+  team_side?: 'home' | 'away' | null
+  slot_key?: PlayerSectionSlotKey | null
+  unresolved?: boolean
   /** 내부 선수 ID. 사진 주소를 만드는 데 쓰지 않는다(외부 ID와 다른 값). */
   player_id?: number | null
   external_player_id?: number | null
@@ -387,6 +390,9 @@ export type SectionStructuredPlayerRow = {
 export type SectionStructuredInjuryRow = {
   player?: string | null
   team?: string | null
+  team_side?: 'home' | 'away' | null
+  slot_key?: PlayerSectionSlotKey | null
+  unresolved?: boolean
   /** 원문 상태 표기 그대로. 확정 부상으로 승격하지 않는다. */
   status?: string | null
   summary?: string | null
@@ -450,6 +456,9 @@ export type PlayerSectionSlotDraftView = {
   team_name: string | null
   player_id: number | null
   external_player_id: number | null
+  photo_url?: string | null
+  translation_candidate_id?: string | null
+  candidate_review_status?: string | null
   resolution_status: 'resolved' | 'unresolved' | 'empty'
   original_name: string
   name_ko: string
@@ -491,6 +500,8 @@ export type PlayerSectionProcessingViewData = {
   output_contract_version: string
   persisted: boolean
   storage_status: string
+  storage_mismatch?: boolean
+  storage_error?: string | null
   mode: string
   ok: boolean
   failed_reason: string | null
@@ -567,6 +578,10 @@ export type SectionResultView = {
   available?: boolean
   /** NS-02 선수/부상 섹션 고정 슬롯·재생성·제외 사유 진단(저장 예정 값 또는 저장값). */
   player_section_processing?: PlayerSectionProcessingViewData | null
+  persisted?: boolean
+  storage_status?: string
+  storage_mismatch?: boolean
+  storage_error?: string | null
 }
 
 export type SectionResultSource = {

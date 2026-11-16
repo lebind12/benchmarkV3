@@ -148,6 +148,7 @@ def _row_view(row: Any) -> dict[str, Any] | None:
         "body": body,
         "sources": list(getattr(row, "sources", []) or []),
         "quality": getattr(row, "quality", None),
+        "output_contract_version": getattr(row, "output_contract_version", None),
         "unavailable_reason": getattr(row, "unavailable_reason", None),
         "mode": getattr(row, "mode", None),
         "created_at": created.isoformat() if hasattr(created, "isoformat") else created,
@@ -244,6 +245,7 @@ def composition_section_blocks(
                 # 관리자 진단이 버전을 따라갈 수 있게 남긴다(독자 본문에는 넣지 않는다).
                 "version": row.get("version"),
                 "workflow_version": row.get("workflow_version"),
+                "output_contract_version": row.get("output_contract_version"),
                 "created_at": row.get("created_at"),
             }
         )
@@ -311,7 +313,30 @@ def build_bundle_reader_view(
             if extra is not None:
                 rows.append(extra)
                 known.add(result_id)
-    blocks, problems = composition_section_blocks(rows, selected_result_ids=selected_ids)
+    from app.preview import player_section_read
+
+    checked_rows: list[Mapping[str, Any]] = []
+    mismatch_problems: list[str] = []
+    for row in rows:
+        if session is not None and player_section_read.section_expects_canonical_storage(row):
+            canonical = player_section_read.read_canonical_player_section(session, row)
+            if canonical.storage_mismatch:
+                mismatch_msg = str(canonical.storage_error or "정본 저장 행 누락")
+                mismatch_problems.append(mismatch_msg)
+                checked_rows.append(
+                    {
+                        **dict(row),
+                        "body": "",
+                        "unavailable_reason": mismatch_msg,
+                    }
+                )
+                continue
+        checked_rows.append(row)
+
+    blocks, problems = composition_section_blocks(checked_rows, selected_result_ids=selected_ids)
+    for err in mismatch_problems:
+        if err not in problems:
+            problems.append(err)
     if not blocks:
         return None
     fixture = getattr(detail, "fixture", None)
@@ -535,35 +560,63 @@ def _apply_display_names(reader: dict[str, Any], *, names) -> dict[str, Any]:
         converted = names.localize_players(players, scope_team_ids=scope)
         if converted:
             localized["players_to_watch"] = converted
+    from app.preview import player_section_read
+
+    # 구성본 섹션 블록의 본문·제목에도 **같은 표시 이름 규칙**을 적용한다.
+    # 단, 새 계약 NS-01/02 선수/부상 섹션 본문은 생성 시점 한글 표기를 정본으로
+    # 유지하며 후속 이름 치환으로 재작성하지 않는다.
+    sections = localized.get("sections")
+    has_preserved_player_section = False
+    if isinstance(sections, list) and sections:
+        rewritten_sections: list[Any] = []
+        for item in sections:
+            if not isinstance(item, Mapping):
+                rewritten_sections.append(item)
+                continue
+            preserve_body = (
+                str(item.get("section_id") or "") in {"section_players", "section_availability"}
+                and player_section_read.is_new_player_section_contract(
+                    item.get("output_contract_version")
+                )
+            )
+            if preserve_body:
+                has_preserved_player_section = True
+            rewritten_sections.append(
+                {
+                    **dict(item),
+                    **(
+                        {
+                            "body": (
+                                str(item.get("body") or "")
+                                if preserve_body
+                                else names.rewrite_body(str(item.get("body") or ""))
+                            )
+                        }
+                        if item.get("body")
+                        else {}
+                    ),
+                    **(
+                        {"title": names.rewrite_body(str(item.get("title") or ""))}
+                        if item.get("title")
+                        else {}
+                    ),
+                }
+            )
+        localized["sections"] = rewritten_sections
+
     text = str(localized.get("body") or "")
     if text:
-        localized["body"] = names.rewrite_body(text)
+        if has_preserved_player_section and isinstance(localized.get("sections"), list):
+            localized["body"] = "\n\n".join(
+                str(item.get("body") or "")
+                for item in localized["sections"]
+                if isinstance(item, Mapping) and item.get("body")
+            )
+        else:
+            localized["body"] = names.rewrite_body(text)
     headline = localized.get("headline")
     if isinstance(headline, str) and headline:
         localized["headline"] = names.rewrite_body(headline)
-    # 구성본 섹션 블록의 본문·제목에도 **같은 표시 이름 규칙**을 적용한다. 이 경로를
-    # 빼면 같은 선수가 섹션마다 다른 표기(마티스 라이안 셰르키 / 라얀 셰르키)로 보인다.
-    # 저장된 본문 자체는 건드리지 않고 응답 사본만 바꾼다.
-    sections = localized.get("sections")
-    if isinstance(sections, list) and sections:
-        localized["sections"] = [
-            {
-                **dict(item),
-                **(
-                    {"body": names.rewrite_body(str(item.get("body") or ""))}
-                    if isinstance(item, Mapping) and item.get("body")
-                    else {}
-                ),
-                **(
-                    {"title": names.rewrite_body(str(item.get("title") or ""))}
-                    if isinstance(item, Mapping) and item.get("title")
-                    else {}
-                ),
-            }
-            if isinstance(item, Mapping)
-            else item
-            for item in sections
-        ]
     return localized
 
 

@@ -376,6 +376,7 @@ def test_bundle_pipeline_saves_section_results_with_bodies(session_factory):
             fixture=dict(FIXTURE),
             actor_id=7,
             transport=transport,
+            reader=_StubReader(),
             http=_FakeHttp(),
             target_checker=lambda url: True,
             limits=_limits(),
@@ -505,6 +506,7 @@ def test_bundle_pipeline_ignores_the_removed_pooled_eight_send_cap(session_facto
             fixture=dict(FIXTURE),
             actor_id=7,
             transport=transport,
+            reader=_StubReader(),
             http=_FakeHttp(),
             target_checker=lambda url: True,
             limits=BudgetLimits(
@@ -588,6 +590,7 @@ def test_bundle_pipeline_sends_three_per_module_when_the_model_fails(session_fac
             fixture=dict(FIXTURE),
             actor_id=7,
             transport=transport,
+            reader=_StubReader(),
             http=_FakeHttp(),
             target_checker=lambda url: True,
             mode=RunMode.LIVE,

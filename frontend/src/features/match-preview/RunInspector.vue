@@ -121,7 +121,7 @@ const activeProcessing = computed(() => {
   if (!row) return null
   return (
     row.player_section_processing ??
-    detail.value?.player_section_processing?.[row.section_id] ??
+    detail.value?.player_section_processing?.[row.workflow_id] ??
     null
   )
 })
@@ -314,6 +314,14 @@ function formatTime(value: string | null): string {
           >
             v{{ row.version }}
           </button>
+        </p>
+
+        <p
+          v-if="activeSectionResult?.storage_mismatch"
+          class="notice notice--error"
+          data-testid="section-storage-mismatch"
+        >
+          저장 불일치: {{ activeSectionResult.storage_error || '신규 선수/부상 섹션 전용 테이블 행이 없습니다.' }}
         </p>
 
         <p

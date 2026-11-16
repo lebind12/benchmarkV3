@@ -417,6 +417,13 @@ onMounted(load)
             {{ activeResult.workflow_id }} · v{{ activeResult.version }} · {{ activeResult.mode_label }}
           </p>
           <p
+            v-if="activeResult.storage_mismatch"
+            class="error"
+            data-testid="section-storage-mismatch"
+          >
+            저장 불일치: {{ activeResult.storage_error || '신규 선수/부상 섹션 전용 테이블 행이 없습니다.' }}
+          </p>
+          <p
             v-if="activeResult.unavailable"
             class="state"
             data-testid="workspace-result-unavailable"

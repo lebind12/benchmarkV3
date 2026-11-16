@@ -69,12 +69,18 @@ function withPhotoFields(row: Record<string, unknown>): {
   externalPlayerId?: number
   teamExternalId?: number
   photoUrl?: string
+  teamSide?: 'home' | 'away'
+  slotKey?: string
+  unresolved?: boolean
 } {
   const extra: {
     playerId?: number
     externalPlayerId?: number
     teamExternalId?: number
     photoUrl?: string
+    teamSide?: 'home' | 'away'
+    slotKey?: string
+    unresolved?: boolean
   } = {}
   const playerId = intId(row.player_id ?? row.playerId)
   if (playerId !== null) extra.playerId = playerId
@@ -84,6 +90,11 @@ function withPhotoFields(row: Record<string, unknown>): {
   if (teamExternalId !== null) extra.teamExternalId = teamExternalId
   const photoUrl = photoHref(row.photo_url ?? row.photoUrl)
   if (photoUrl !== null) extra.photoUrl = photoUrl
+  const teamSide = row.team_side ?? row.teamSide
+  if (teamSide === 'home' || teamSide === 'away') extra.teamSide = teamSide
+  const slotKey = text(row.slot_key ?? row.slotKey)
+  if (slotKey !== null) extra.slotKey = slotKey
+  if (typeof row.unresolved === 'boolean') extra.unresolved = row.unresolved
   return extra
 }
 
@@ -120,6 +131,9 @@ export type StructuredPlayer = {
   teamExternalId?: number | null
   /** 서버가 준 사진 주소만. 없으면 `null`(추측해 만들지 않는다). */
   photoUrl?: string | null
+  teamSide?: 'home' | 'away' | null
+  slotKey?: string | null
+  unresolved?: boolean
 }
 
 export type StructuredInjury = {
@@ -133,6 +147,9 @@ export type StructuredInjury = {
   externalPlayerId?: number | null
   teamExternalId?: number | null
   photoUrl?: string | null
+  teamSide?: 'home' | 'away' | null
+  slotKey?: string | null
+  unresolved?: boolean
 }
 
 export type StructuredMedia = {

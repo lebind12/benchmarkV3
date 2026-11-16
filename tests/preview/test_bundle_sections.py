@@ -461,7 +461,9 @@ def test_section_versions_are_code_constants():
         implementation_version, prompt_version = bundle_sections.bundle_section_versions(
             section_id
         )
-        assert implementation_version == bundle_sections.IMPLEMENTATION_VERSION
+        assert implementation_version == bundle_sections.implementation_version_for(
+            section_id
+        )
         assert prompt_version
 
 

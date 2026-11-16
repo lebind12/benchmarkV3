@@ -94,7 +94,9 @@ __all__ = [
 # 여기서 올리지 않고 그 섹션이 소유한 별도 축으로 기록한다
 # (`provider_odds.PROVIDER_ODDS_IMPLEMENTATION_VERSION`, `version_manifest._compose_manifest`).
 # 여기서 올리면 관계없는 네 섹션의 승인 버전까지 바뀌어 불필요한 재승인을 만든다.
-IMPLEMENTATION_VERSION = "mp11-bundle-sections-8"
+IMPLEMENTATION_VERSION = "mp11-bundle-sections-7"
+# NS-02 선수/부상 섹션 전용 구현 버전 축(outlook·odds·ai_forecast의 승인 버전은 보존한다).
+PLAYER_SECTION_IMPLEMENTATION_VERSION = "mp11-bundle-sections-8"
 
 PROMPT_VERSION_PLAYERS = "mp11-bundle-players-prompt-4"
 PROMPT_VERSION_AVAILABILITY = "mp11-bundle-availability-prompt-4"
@@ -106,6 +108,17 @@ PROMPT_VERSION_OUTLOOK = "mp11-bundle-outlook-prompt-2"
 PROMPT_VERSION_FORECAST = "mp11-bundle-forecast-prompt-4"
 # 배당은 프롬프트가 없다(모델 호출 0회). 승인 축에는 "모델 없음"을 남긴다.
 PROMPT_VERSION_ODDS = "mp11-bundle-odds-no-model-1"
+
+_PLAYER_SECTION_IDS = frozenset(
+    {bundle_contract.SECTION_PLAYERS, bundle_contract.SECTION_AVAILABILITY}
+)
+
+
+def implementation_version_for(section_id: str) -> str:
+    """섹션 ID별 구현 버전을 돌려준다(선수·부상 섹션 변경을 다른 섹션에 번지지 않는다)."""
+    if section_id in _PLAYER_SECTION_IDS:
+        return PLAYER_SECTION_IMPLEMENTATION_VERSION
+    return IMPLEMENTATION_VERSION
 
 # 작성 3회 + 최종 1회. 배당은 이 표에 없다(모델 호출 없음).
 _LOGICAL_CALL_IDS: Mapping[str, str] = {
@@ -135,7 +148,7 @@ _PROMPTS: Mapping[str, tuple[str, str]] = {
 
 # A가 워크플로우 버전 축에 연결할 표: 섹션 → (구현 버전, 프롬프트 버전).
 BUNDLE_SECTION_VERSIONS: Mapping[str, tuple[str, str]] = {
-    section_id: (IMPLEMENTATION_VERSION, prompt_version)
+    section_id: (implementation_version_for(section_id), prompt_version)
     for section_id, (_file, prompt_version) in _PROMPTS.items()
 }
 
@@ -222,7 +235,7 @@ class SectionDraft:
     quality: QualityStatus = QualityStatus.PENDING
     unavailable_reason: str | None = None
     prompt_version: str | None = None
-    implementation_version: str = IMPLEMENTATION_VERSION
+    implementation_version: str | None = None
     diagnostics: tuple[str, ...] = ()
     # 실제로 요청에 실린 구간·payload 기록(A가 묶음에 그대로 붙인다).
     delivery: bundle_contract.SectionDelivery | None = None
@@ -230,6 +243,14 @@ class SectionDraft:
     # 이 초안을 만든 실제 모델 전송 수(0이면 무전송).
     external_calls: int = 0
     module_id: str | None = None
+    # NS-02 선수/부상 섹션의 타입 보존 처리 결과(정본 저장 입력 구체화용, to_dict 제외).
+    player_processing: player_processing.PlayerSectionProcessingBundle | None = None
+
+    def __post_init__(self) -> None:
+        if self.implementation_version is None:
+            object.__setattr__(
+                self, "implementation_version", implementation_version_for(self.section_id)
+            )
 
     @property
     def unavailable(self) -> bool:
@@ -1351,7 +1372,7 @@ def _delivery(
         logical_call_id=LOGICAL_CALL_IDS[section_id],
         model_delivered=model_delivered,
         sent_attempts=sent_attempts,
-        implementation_version=IMPLEMENTATION_VERSION,
+        implementation_version=implementation_version_for(section_id),
         prompt_version=prompt_version,
         note=note,
         # 실제 payload에 들어간 검색 자료 id만 남긴다(자료 유형은 묶음에서 대조).
@@ -1908,6 +1929,7 @@ def _players_section(
         delivery=delivery,
         mode=_mode_value(transport),
         external_calls=total_calls,
+        player_processing=processing,
     )
 
 
@@ -2263,6 +2285,7 @@ def _availability_section(
         delivery=delivery,
         mode=_mode_value(transport),
         external_calls=total_calls,
+        player_processing=processing,
     )
 
 

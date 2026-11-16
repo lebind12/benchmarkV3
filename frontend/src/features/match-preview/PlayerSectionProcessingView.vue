@@ -101,10 +101,22 @@ function formatPrettyJson(value: Record<string, unknown> | null): string {
       <div class="ns02-panel__badges">
         <span
           class="ns02-badge"
-          :class="processing.persisted ? 'ns02-badge--ok' : 'ns02-badge--pending'"
+          :class="
+            processing.storage_mismatch
+              ? 'ns02-badge--error'
+              : processing.persisted
+                ? 'ns02-badge--ok'
+                : 'ns02-badge--pending'
+          "
           data-testid="ns02-storage-status"
         >
-          {{ processing.persisted ? '저장됨' : processing.storage_status || '저장 예정 값' }}
+          {{
+            processing.storage_mismatch
+              ? '저장 불일치'
+              : processing.persisted
+                ? '저장됨'
+                : processing.storage_status || '저장 예정 값'
+          }}
         </span>
         <span
           class="ns02-badge"
@@ -116,7 +128,15 @@ function formatPrettyJson(value: Record<string, unknown> | null): string {
       </div>
     </header>
 
-    <p v-if="!processing.persisted" class="ns02-note" data-testid="ns02-pending-note">
+    <p
+      v-if="processing.storage_mismatch"
+      class="ns02-alert ns02-alert--error"
+      data-testid="ns02-storage-mismatch"
+    >
+      저장 불일치: {{ processing.storage_error || '신규 선수/부상 섹션 전용 테이블 행이 없습니다. 기존 payload로 대체 표시하지 않습니다.' }}
+    </p>
+
+    <p v-else-if="!processing.persisted" class="ns02-note" data-testid="ns02-pending-note">
       아직 전용 테이블 통합 전이므로 아래 4슬롯과 후보는 <strong>저장 예정 값</strong>입니다.
       새로고침 조회만으로는 모델을 재호출하지 않습니다.
     </p>
@@ -191,6 +211,14 @@ function formatPrettyJson(value: Record<string, unknown> | null): string {
               <dd><code>{{ entry.slot.player_id ?? 'NULL' }}</code></dd>
               <dt>외부 사진용 ID</dt>
               <dd><code>{{ entry.slot.external_player_id ?? 'NULL' }}</code></dd>
+              <template v-if="entry.slot.photo_url">
+                <dt>사진 URL</dt>
+                <dd><code class="ns02-url">{{ entry.slot.photo_url }}</code></dd>
+              </template>
+              <template v-if="entry.slot.candidate_review_status">
+                <dt>번역 후보 상태</dt>
+                <dd><code>{{ entry.slot.candidate_review_status }}</code></dd>
+              </template>
               <template v-if="entry.slot.team_name || entry.slot.team_id !== null">
                 <dt>소속 팀</dt>
                 <dd>{{ entry.slot.team_name ?? '—' }} (ID: {{ entry.slot.team_id ?? 'NULL' }})</dd>

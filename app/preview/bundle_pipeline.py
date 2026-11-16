@@ -38,6 +38,8 @@ from app.preview import (
     artifacts as artifact_store,
     discovery,
     information_bundle as bundle_contract,
+    player_section_contracts,
+    player_section_store,
     retrieval,
     send_ledger,
     store,
@@ -526,6 +528,32 @@ def _save_draft(
         actor_id=actor_id,
         now=now,
     )
+    if (
+        draft.section_id
+        in player_section_contracts.PLAYER_SECTION_OUTPUT_CONTRACT_VERSIONS
+        and draft.unavailable_reason is None
+        and bool((draft.body or "").strip())
+    ):
+        processing = getattr(draft, "player_processing", None)
+        if processing is None:
+            raise store.ContractError(
+                f"{draft.section_id} 정본 저장에 필요한 player_processing 결과가 없습니다."
+            )
+        contract_result = processing.to_contract_result()
+        if contract_result is None:
+            raise store.ContractError(
+                f"{draft.section_id} 처리 결과가 정본 저장 계약을 만족하지 않습니다."
+            )
+        storage_input = contract_result.materialize_storage_input(
+            section_result_id=row.id,
+            run_id=run_id,
+        )
+        player_section_store.save_player_section(
+            session,
+            storage_input,
+            actor_id=actor_id,
+            now=now,
+        )
     return row.id
 
 
@@ -2435,14 +2463,18 @@ def run_section_regeneration(
         now=moment,
         provider_odds=regen_provider_odds,
     )
-    result_id = _save_draft(
-        session,
-        run_id=run_id,
-        draft=draft,
-        mode=run_mode,
-        actor_id=actor_id,
-        now=moment,
-    )
+    try:
+        result_id = _save_draft(
+            session,
+            run_id=run_id,
+            draft=draft,
+            mode=run_mode,
+            actor_id=actor_id,
+            now=moment,
+        )
+    except Exception:
+        session.rollback()
+        raise
     # 방금 저장된 결과 행을 **지금** 읽는다. 구성본 복사와 응답 메타데이터가 같은 행을
     # 근거로 삼아야 "이 실행이 다시 만든 결과"와 값이 어긋나지 않는다. 이 조회가 없으면
     # 아래 구성본 블록이 아직 없는 변수를 읽거나, 앞 선택 항목의 `row`(다른 결과)를 쓴다.

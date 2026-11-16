@@ -306,7 +306,17 @@ def _public_row(row: Mapping[str, Any]) -> Mapping[str, Any]:
         "workflow_id": structured.get("workflow_id"),
         "players": keep(
             structured.get("players"),
-            ("player", "reason", "team", "external_player_id", "team_external_id", "photo_url"),
+            (
+                "player",
+                "reason",
+                "team",
+                "external_player_id",
+                "team_external_id",
+                "photo_url",
+                "team_side",
+                "slot_key",
+                "unresolved",
+            ),
         ),
         "injuries": keep(
             structured.get("injuries"),
@@ -318,6 +328,9 @@ def _public_row(row: Mapping[str, Any]) -> Mapping[str, Any]:
                 "external_player_id",
                 "team_external_id",
                 "photo_url",
+                "team_side",
+                "slot_key",
+                "unresolved",
             ),
         ),
         "media": keep(
@@ -344,6 +357,11 @@ def project_document(
     """
     rows = list(document.get("rows") or ())
     blocks, problems = composition_section_blocks(rows, selected_result_ids=())
+    for row in rows:
+        if row.get("storage_mismatch") and row.get("storage_error"):
+            err = str(row["storage_error"])
+            if err not in problems:
+                problems.append(err)
     by_workflow = {_text(row.get("workflow_id")): row for row in rows}
     structured_by_result = {
         str(row.get("section_result_id")): _public_row(row).get("structured")
@@ -457,6 +475,7 @@ def _section_row_view(row: PreviewSectionResult) -> dict[str, Any]:
         "sources": list(row.sources or []),
         "quality": row.quality,
         "mode": row.mode,
+        "output_contract_version": getattr(row, "output_contract_version", None),
         "unavailable_reason": row.unavailable_reason,
         "created_at": created.isoformat() if created else None,
         "result_ids": list(row.result_ids or []),
@@ -653,16 +672,40 @@ def read_document(
         id_context, bridge = (None, None)
         if chosen_run is not None:
             id_context, bridge = _id_context(session, chosen_run)
+        from app.preview import player_section_read
+
+        home_name = _text((fixtures or {}).get("home", {}).get("name")) if isinstance(fixtures, Mapping) else None
+        away_name = _text((fixtures or {}).get("away", {}).get("name")) if isinstance(fixtures, Mapping) else None
         decorated = []
         try:
             for row in rows:
-                payload = _latest_payload(payloads, row)
-                row = {
-                    **row,
-                    **structured_row_from_section_result(
-                        row, payload=payload, id_context=id_context
-                    ),
-                }
+                if player_section_read.is_new_player_section_contract(
+                    row.get("output_contract_version")
+                ):
+                    canonical = player_section_read.read_canonical_player_section(
+                        session,
+                        row,
+                        id_context=id_context,
+                        home_team_name=home_name,
+                        away_team_name=away_name,
+                    )
+                    if canonical.storage_mismatch:
+                        row = {
+                            **row,
+                            "body": "",
+                            "unavailable_reason": canonical.storage_error,
+                            **canonical.structured_result_fields(),
+                        }
+                    else:
+                        row = {**row, **canonical.structured_result_fields()}
+                else:
+                    payload = _latest_payload(payloads, row)
+                    row = {
+                        **row,
+                        **structured_row_from_section_result(
+                            row, payload=payload, id_context=id_context
+                        ),
+                    }
                 decorated.append(row)
         finally:
             # 파사드가 연 읽기 전용 연결을 요청 단위로 닫는다.

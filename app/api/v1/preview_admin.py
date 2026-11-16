@@ -246,8 +246,70 @@ def _extract_player_section_processing(payload: dict | None) -> dict | None:
     return None
 
 
-def _attach_player_section_processing(inspection: dict, raw_detail: dict) -> dict:
-    """저장된 NS-02 선수/부상 처리 진단을 읽기 전용으로 실행 상세에 연결한다(모델 재호출 없음)."""
+def _id_context_for_detail(detail, names):
+    """이미 열린 표시 이름 파사드에서 경기 두 팀 범위의 외부 ID 확인 경계를 만든다."""
+    from app.preview.section_structured import StructuredIdContext
+
+    resolver = getattr(names, "names", None) if names is not None else None
+    if resolver is None:
+        return None
+    fixture_block = getattr(detail, "fixture", None)
+    fixture_ids = (
+        fixture_block.to_dict() if getattr(fixture_block, "to_dict", None) else {}
+    )
+    try:
+        return StructuredIdContext(
+            resolver,
+            scope_team_ids=tuple(
+                int(value)
+                for value in (
+                    fixture_ids.get("home_team_id"),
+                    fixture_ids.get("away_team_id"),
+                )
+                if isinstance(value, int)
+            ),
+        )
+    except Exception:  # noqa: BLE001 - 확인 경계 실패로 조회를 깨지 않는다
+        return None
+
+
+def _fixture_team_names(
+    fixture_label: Any, raw_processing: dict | None = None
+) -> tuple[str | None, str | None]:
+    """이름 해석기가 없는 오프라인 환경에서 팀 표시 라벨 보조값을 꺼낸다."""
+    home_name: str | None = None
+    away_name: str | None = None
+    label = str(fixture_label or "").strip()
+    if " vs " in label and not label.lower().startswith("fixture "):
+        left, right = label.split(" vs ", 1)
+        home_name = left.strip() or None
+        away_name = right.strip() or None
+    if isinstance(raw_processing, dict):
+        if home_name is None:
+            for key in ("home1", "home2"):
+                slot = raw_processing.get(key)
+                if isinstance(slot, dict) and isinstance(slot.get("team_name"), str) and slot["team_name"].strip():
+                    home_name = slot["team_name"].strip()
+                    break
+        if away_name is None:
+            for key in ("away1", "away2"):
+                slot = raw_processing.get(key)
+                if isinstance(slot, dict) and isinstance(slot.get("team_name"), str) and slot["team_name"].strip():
+                    away_name = slot["team_name"].strip()
+                    break
+    return home_name, away_name
+
+
+def _attach_player_section_processing(
+    inspection: dict,
+    raw_detail: dict,
+    *,
+    session: Session | None = None,
+    id_context=None,
+) -> dict:
+    """저장된 NS-02 선수/부상 처리 진단을 정본 3표 재조회와 함께 실행 상세에 연결한다."""
+    from app.preview import player_section_read
+
     by_result_id: dict[str, dict] = {}
     by_section_id: dict[str, dict] = {}
     for result in raw_detail.get("results") or ():
@@ -264,33 +326,67 @@ def _attach_player_section_processing(inspection: dict, raw_detail: dict) -> dic
         if section_id:
             by_section_id[section_id] = processing
 
-    if not by_section_id and not by_result_id:
-        return {**inspection, "player_section_processing": {}}
-
     section_rows = []
+    canonical_by_section: dict[str, dict] = {}
     for row in inspection.get("section_results") or ():
         row_copy = dict(row)
-        matched = by_result_id.get(str(row_copy.get("result_id") or ""))
-        if matched is None:
-            matched = by_section_id.get(str(row_copy.get("section_id") or ""))
-        if matched is not None:
-            row_copy["player_section_processing"] = matched
+        raw_proc = None
+        for res_id in row_copy.get("result_ids") or ():
+            raw_proc = by_result_id.get(str(res_id))
+            if raw_proc is not None:
+                break
+        if raw_proc is None:
+            raw_proc = by_result_id.get(str(row_copy.get("result_id") or ""))
+        wf_id = str(row_copy.get("workflow_id") or row_copy.get("section_id") or "")
+        if raw_proc is None and wf_id:
+            raw_proc = by_section_id.get(wf_id)
+
+        if session is not None and player_section_read.is_new_player_section_contract(
+            row_copy.get("output_contract_version")
+        ):
+            home_label, away_label = _fixture_team_names(
+                (raw_detail.get("summary") or {}).get("fixture_label"), raw_proc
+            )
+            canonical = player_section_read.read_canonical_player_section(
+                session,
+                row_copy,
+                raw_processing=raw_proc,
+                id_context=id_context,
+                home_team_name=home_label,
+                away_team_name=away_label,
+            )
+            row_copy["player_section_processing"] = canonical.processing
+            row_copy["storage_mismatch"] = canonical.storage_mismatch
+            if canonical.storage_error:
+                row_copy["storage_error"] = canonical.storage_error
+            if wf_id:
+                canonical_by_section[wf_id] = canonical.processing
+        elif raw_proc is not None:
+            # 구 계약/미저장 초안은 저장된 처리 결과로 오인하지 않는다.
+            legacy_proc = {**raw_proc, "persisted": False}
+            row_copy["player_section_processing"] = legacy_proc
+            if wf_id:
+                canonical_by_section[wf_id] = legacy_proc
         section_rows.append(row_copy)
 
+    if not canonical_by_section and not by_section_id and not by_result_id:
+        return {**inspection, "player_section_processing": {}}
+
+    effective_by_section = {**by_section_id, **canonical_by_section}
     module_to_section = {mod: sec for sec, mod in _PLAYER_SECTION_MODULE_IDS.items()}
     modules = []
     for mod in inspection.get("inspector_modules") or ():
         mod_copy = dict(mod)
         sec_id = module_to_section.get(str(mod_copy.get("module_id") or ""))
-        if sec_id and sec_id in by_section_id:
-            mod_copy["player_section_processing"] = by_section_id[sec_id]
+        if sec_id and sec_id in effective_by_section:
+            mod_copy["player_section_processing"] = effective_by_section[sec_id]
         modules.append(mod_copy)
 
     return {
         **inspection,
         "section_results": section_rows,
         "inspector_modules": modules,
-        "player_section_processing": by_section_id,
+        "player_section_processing": effective_by_section,
     }
 
 
@@ -305,7 +401,16 @@ def _detail_or_404(session: Session, run_id: UUID) -> dict:
         approval_status=approvals.describe_approvals(session),
         section_workflows=describe_section_workflows(),
     )
-    return _attach_player_section_processing(inspection, raw_detail)
+    names = _display_names_for(session, detail)
+    try:
+        id_context = _id_context_for_detail(detail, names)
+        return _attach_player_section_processing(
+            inspection, raw_detail, session=session, id_context=id_context
+        )
+    finally:
+        close = getattr(names, "close", None)
+        if callable(close):
+            close()
 
 
 @router.get("/runs", response_model=RunListResponse)
@@ -373,11 +478,14 @@ def get_run(
         approval_status=approvals.describe_approvals(session),
         section_workflows=describe_section_workflows(),
     )
-    payload = _attach_player_section_processing(payload, raw_detail)
     # 전송 장부 요약을 상세에 덧붙인다. 저장된 감사 행만 읽으며 외부 호출이 없다.
     payload["send_ledger"] = store.run_send_ledger_summary(session, run_id)
     names = _display_names_for(session, detail)
     try:
+        id_context = _id_context_for_detail(detail, names)
+        payload = _attach_player_section_processing(
+            payload, raw_detail, session=session, id_context=id_context
+        )
         return _localized_inspection(payload, names=names)
     finally:
         close = getattr(names, "close", None)
@@ -396,35 +504,36 @@ def _localized_inspection(payload: dict, *, names) -> dict:
     원문을 보존하며 후속 치환으로 재작성하지 않는다.
     """
     preserved_sections = {"section_players", "section_availability"}
-    if names is None or not getattr(names, "active", False):
-        # 해석기가 없어도 용어·대회명 사전은 적용한다.
-        rows = []
-        for row in payload.get("section_results") or ():
-            if row.get("section_id") in preserved_sections or row.get("player_section_processing") is not None:
-                rows.append(row)
-                continue
-            body = row.get("body")
-            if isinstance(body, str) and body:
-                rows.append({**row, "body": _terms_only(body)})
-            else:
-                rows.append(row)
-        return {**payload, "section_results": rows}
-
     rows = []
     for row in payload.get("section_results") or ():
-        if row.get("section_id") in preserved_sections or row.get("player_section_processing") is not None:
+        sec_key = row.get("workflow_id") or row.get("section_id")
+        if sec_key in preserved_sections or row.get("player_section_processing") is not None:
             rows.append(row)
             continue
         body = row.get("body")
-        if not isinstance(body, str) or not body:
+        if isinstance(body, str) and body:
+            rows.append({**row, "body": _terms_only(body)})
+        else:
             rows.append(row)
+    if names is None or not getattr(names, "active", False):
+        return {**payload, "section_results": rows}
+
+    localized_rows = []
+    for row in payload.get("section_results") or ():
+        sec_key = row.get("workflow_id") or row.get("section_id")
+        if sec_key in preserved_sections or row.get("player_section_processing") is not None:
+            localized_rows.append(row)
+            continue
+        body = row.get("body")
+        if not isinstance(body, str) or not body:
+            localized_rows.append(row)
             continue
         try:
             rewritten = names.rewrite_body(body)
         except Exception:  # noqa: BLE001 - 표시 실패로 조회를 깨지 않는다
             rewritten = body
-        rows.append({**row, "body": rewritten})
-    return {**payload, "section_results": rows}
+        localized_rows.append({**row, "body": rewritten})
+    return {**payload, "section_results": localized_rows}
 
 
 def _terms_only(text: str) -> str:
@@ -1203,9 +1312,9 @@ def get_section_results(
     정규시간 1X2 배당 표, AI 예상). 값은 저장된 것만 옮기며 새로 만들지 않는다.
     payload가 없으면 `structured`는 비어 있고 `available=false`다.
     """
+    from app.preview import player_section_read
     from app.preview.section_structured import (
         STRUCTURED_VERSION,
-        StructuredIdContext,
         structured_row_from_section_result,
     )
 
@@ -1227,28 +1336,7 @@ def get_section_results(
         # 내부 ID → 외부 ID 확인 경계. 표시 이름 파사드가 이미 여는 읽기 전용 조회기를
         # **재사용**한다(새 연결·새 grant 없음). 없으면 외부 ID/사진은 `None`이다.
         names = _display_names_for(session, detail)
-        id_context: StructuredIdContext | None = None
-        resolver = getattr(names, "names", None) if names is not None else None
-        fixture_block = getattr(detail, "fixture", None)
-        fixture_ids = (
-            fixture_block.to_dict() if getattr(fixture_block, "to_dict", None) else {}
-        )
-        if resolver is not None:
-            try:
-                # 이름만 있는 저장 행(부상 등)은 **이 경기 두 팀 범위**에서만 확인한다.
-                id_context = StructuredIdContext(
-                    resolver,
-                    scope_team_ids=tuple(
-                        int(value)
-                        for value in (
-                            fixture_ids.get("home_team_id"),
-                            fixture_ids.get("away_team_id"),
-                        )
-                        if isinstance(value, int)
-                    ),
-                )
-            except Exception:  # noqa: BLE001 - 확인 경계 실패로 표를 없애지 않는다
-                id_context = None
+        id_context = _id_context_for_detail(detail, names)
         decorated: list[dict] = []
         try:
             for row in rows:
@@ -1258,16 +1346,46 @@ def get_section_results(
                     if candidate is not None:
                         payload = candidate
                         break
-                processing = _extract_player_section_processing(payload)
-                decorated.append(
-                    {
-                        **row,
-                        **structured_row_from_section_result(
-                            row, payload=payload, id_context=id_context
-                        ),
-                        "player_section_processing": processing,
-                    }
-                )
+                raw_processing = _extract_player_section_processing(payload)
+                if player_section_read.is_new_player_section_contract(
+                    row.get("output_contract_version")
+                ):
+                    home_label, away_label = _fixture_team_names(
+                        getattr(getattr(detail, "summary", None), "fixture_label", None),
+                        raw_processing,
+                    )
+                    canonical = player_section_read.read_canonical_player_section(
+                        session,
+                        row,
+                        raw_processing=raw_processing,
+                        id_context=id_context,
+                        home_team_name=home_label,
+                        away_team_name=away_label,
+                    )
+                    decorated.append(
+                        {
+                            **row,
+                            **canonical.structured_result_fields(),
+                            "player_section_processing": canonical.processing,
+                        }
+                    )
+                else:
+                    legacy_proc = (
+                        {**raw_processing, "persisted": False}
+                        if raw_processing is not None
+                        else None
+                    )
+                    decorated.append(
+                        {
+                            **row,
+                            **structured_row_from_section_result(
+                                row, payload=payload, id_context=id_context
+                            ),
+                            "persisted": False,
+                            "storage_mismatch": False,
+                            "player_section_processing": legacy_proc,
+                        }
+                    )
         finally:
             # 파사드가 연 읽기 전용 연결을 요청 단위로 닫는다.
             close = getattr(names, "close", None)

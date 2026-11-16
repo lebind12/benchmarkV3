@@ -697,8 +697,8 @@ def test_injury_name_only_row_links_to_verified_db_player_id():
 
 
 def test_injury_name_not_in_db_keeps_name_without_id():
-    """DB에서 확인되지 않는 이름은 ID를 만들지 않는다(동명이인·미확인 추측 금지)."""
-    draft, _transport = _run(
+    """DB에서 확인되지 않는 이름은 ID를 만들지 않고, 영문만 있으면 미배치/한글 누락으로 거른다."""
+    draft_en_only, _transport_en = _run(
         bundle_contract.SECTION_AVAILABILITY,
         {
             "injuries": [
@@ -716,9 +716,40 @@ def test_injury_name_not_in_db_keeps_name_without_id():
         },
         resolver=_injury_resolver(),
     )
-    row = draft.structured["injuries"][0]
+    assert draft_en_only.structured["injuries"] == []
+    assert any(
+        item.reason.value == "missing_name_ko"
+        for item in draft_en_only.player_processing.unplaced_items
+    )
+    assert any("번역 결함:" in defect for defect in draft_en_only.player_processing.translation_defects)
+
+    draft_with_ko, _transport_ko = _run(
+        bundle_contract.SECTION_AVAILABILITY,
+        {
+            "injuries": [
+                {
+                    "player_name": "Unknown Trialist",
+                    "player_id": None,
+                    "team_id": 13,
+                    "status": "doubtful",
+                    "injury": "확인 불가",
+                    "importance": "영향 미확인",
+                    "evidence": ["src:stats#p1"],
+                }
+            ],
+            "korean_labels": [
+                {"original": "Unknown Trialist", "korean": "미등록 유망주", "kind": "player"}
+            ],
+            "uncertainties": [],
+        },
+        resolver=_injury_resolver(),
+    )
+    row = draft_with_ko.structured["injuries"][0]
     assert row["player_id"] is None, row
-    assert row["player_name"] == "Unknown Trialist", row
+    assert row["player_name"] == "미등록 유망주", row
+    assert draft_with_ko.player_processing.home1 is not None
+    assert draft_with_ko.player_processing.home1.player_id is None
+    assert draft_with_ko.player_processing.home1.name_ko == "미등록 유망주"
 
 
 # --------------------------------------------------------------------------
@@ -878,14 +909,14 @@ def test_odds_section_without_any_real_value_stays_empty():
 
 
 def test_injury_conflicting_model_player_id_is_dropped_not_guessed():
-    """모델이 적은 ID가 이름과 다른 선수를 가리키면 어느 쪽도 고르지 않는다."""
+    """모델이 적은 타 선수 ID(533)는 신뢰하지 않고 이름 기반 정본 DB 매칭 또는 NULL 처리한다."""
     draft, _transport = _run(
         bundle_contract.SECTION_AVAILABILITY,
         {
             "injuries": [
                 {
                     "player_name": "Marc Guéhi",
-                    # 533은 이 경기 로스터의 다른 선수(홀란드)다.
+                    # 533은 이 경기 로스터의 다른 선수(홀란드)다. 모델 ID는 힌트로 쓰지 않는다.
                     "player_id": 533,
                     "team_id": 13,
                     "status": "doubtful",
@@ -899,9 +930,31 @@ def test_injury_conflicting_model_player_id_is_dropped_not_guessed():
         resolver=_injury_resolver(),
     )
     row = draft.structured["injuries"][0]
-    # 충돌하는 ID를 그대로 두면 다른 선수의 사진이 나온다. 그래서 ID를 비운다.
-    assert row["player_id"] is None, row
-    assert row["player_name"] == "Marc Guéhi", row
+    assert row["player_id"] == 549, row
+    assert row["player_id"] != 533, row
+    assert row["player_name"] == "마크 게히", row
+
+    draft_unmapped, _ = _run(
+        bundle_contract.SECTION_AVAILABILITY,
+        {
+            "injuries": [
+                {
+                    "player_name": "미등록 테스트",
+                    "player_id": 533,
+                    "team_id": 13,
+                    "status": "doubtful",
+                    "injury": "고관절 부상",
+                    "importance": "수비진 영향",
+                    "evidence": ["src:stats#p1"],
+                }
+            ],
+            "uncertainties": [],
+        },
+        resolver=_injury_resolver(),
+    )
+    unmapped_row = draft_unmapped.structured["injuries"][0]
+    assert unmapped_row["player_id"] is None, unmapped_row
+    assert unmapped_row["player_name"] == "미등록 테스트", unmapped_row
 
 
 # --------------------------------------------------------------------------

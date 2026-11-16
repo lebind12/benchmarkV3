@@ -157,6 +157,7 @@ class StructuredIdContext:
         self._scope = tuple(int(item) for item in scope_team_ids if item is not None)
         self._players: dict[int, int | None] = {}
         self._teams: dict[int, int | None] = {}
+        self._team_names: dict[int, str | None] = {}
         self._by_name: dict[tuple[str, str], dict[str, Any] | None] = {}
 
     @property
@@ -176,6 +177,13 @@ class StructuredIdContext:
         if key not in self._teams:
             self._teams[key] = self._resolve_team(key)
         return self._teams[key]
+
+    def team_display_name(self, team_id: int) -> str | None:
+        """내부 팀 ID → 확인된 팀 표시 이름(한국어 우선). 없으면 `None`."""
+        key = int(team_id)
+        if key not in self._team_names:
+            self._team_names[key] = self._resolve_team_name(key)
+        return self._team_names[key]
 
     def player_by_name(
         self, name: Any, *, team_hint: Any = None
@@ -278,6 +286,23 @@ class StructuredIdContext:
             return None
         external = getattr(resolved, "external_id", None)
         return int(external) if isinstance(external, int) and not isinstance(external, bool) else None
+
+    def _resolve_team_name(self, team_id: int) -> str | None:
+        resolve = getattr(self._names, "resolve_team", None)
+        if not callable(resolve):
+            return None
+        try:
+            resolved = resolve(team_id=team_id, id_space="internal")
+        except Exception:  # noqa: BLE001 - 확인 실패로 표를 없애지 않는다
+            return None
+        return _first_text(
+            {
+                "display_name": getattr(resolved, "display_name", None),
+                "name_ko": getattr(resolved, "name_ko", None),
+                "english_name": getattr(resolved, "english_name", None),
+            },
+            ("display_name", "name_ko", "english_name"),
+        )
 
 
 def _int_id(value: Any) -> int | None:

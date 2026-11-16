@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from app.preview import player_section_contracts as psc
 from app.preview.contracts import (
     CONTRACT_VERSION,
     INSPECTOR_VERSION,
@@ -271,7 +272,7 @@ _SECTION_WORKFLOWS: tuple[SectionWorkflowRegistration, ...] = (
         display_name="부상·결장 영향 섹션",
         description="API 부상 자료와 검색 근거로 결장 영향 본문을 만드는 섹션입니다.",
         module_ids=("D0", "R2"),
-        output_contract_version="section_availability-output-1",
+        output_contract_version=psc.INJURY_PLAYERS_OUTPUT_CONTRACT_VERSION,
         implemented=True,
         unrunnable_reason=None,
     ),
@@ -292,7 +293,7 @@ _SECTION_WORKFLOWS: tuple[SectionWorkflowRegistration, ...] = (
             " 선정 선수와 선정 이유를 분리해 표시합니다."
         ),
         module_ids=("D0", "R4"),
-        output_contract_version="mp05p-r4-players-output-2",
+        output_contract_version=psc.WATCH_PLAYERS_OUTPUT_CONTRACT_VERSION,
         implemented=True,
         unrunnable_reason=None,
     ),

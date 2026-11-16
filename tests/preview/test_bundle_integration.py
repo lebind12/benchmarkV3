@@ -1192,6 +1192,7 @@ def test_regeneration_budget_covers_the_modules_that_refresh_actually_runs(
             transport=transport,
             base_run_id=base_run,
             source_mode="refresh",
+            reader=_StubReader(),
             http=_FakeCollectionHttp(),
             limits=BudgetLimits(
                 model_requests=8,
