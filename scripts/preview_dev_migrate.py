@@ -33,6 +33,7 @@ MIGRATION_PATHS = (
     REPO_ROOT / "alembic" / "versions" / "0003_preview_approvals.py",
     REPO_ROOT / "alembic" / "versions" / "0004_section_results.py",
     REPO_ROOT / "alembic" / "versions" / "0005_pipeline_runs.py",
+    REPO_ROOT / "alembic" / "versions" / "0006_player_section_storage.py",
 )
 DEFAULT_CREDENTIALS = Path.home() / ".config" / "match-preview" / "preview-dev.env"
 SCHEMA = "preview_dev"

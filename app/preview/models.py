@@ -455,3 +455,10 @@ class PreviewPipelineRun(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+from app.preview.player_section_models import (  # noqa: E402, F401
+    PreviewInjuryPlayerSection,
+    PreviewPlayerNameCandidate,
+    PreviewWatchPlayerSection,
+)
