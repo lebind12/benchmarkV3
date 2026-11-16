@@ -1,0 +1,36 @@
+{
+  "condition": "C - Scrapling browser render, Fulham JS shell only",
+  "url": "https://www.fulhamfc.com/news/2026/november/06/josh-king-called-up-to-england-squad/",
+  "attempts": 2,
+  "runs": [
+    {
+      "wall_s": 14.05,
+      "status": 200,
+      "rendered_html_bytes": 1679055,
+      "parent_peak_rss_mb": 90.4
+    },
+    {
+      "wall_s": 15.31,
+      "status": 200,
+      "rendered_html_bytes": 1679000,
+      "parent_peak_rss_mb": 115.3
+    }
+  ],
+  "peak_tree_rss_mb": 2220.1,
+  "tree_rss_method": "sampled sum of ps RSS over python pid + descendants ~6-7/s during render; approximate; includes chromium children",
+  "static_fetch_same_url_bytes": 1581891,
+  "static_text_chars": {
+    "A_text": 0,
+    "A_md": 0,
+    "B_default": 0
+  },
+  "rendered_text_chars": {
+    "A_text": 1529,
+    "A_md": 9826,
+    "B_default": 579
+  },
+  "no_captcha_solver": true,
+  "no_proxy_rotation": true,
+  "no_paywall_bypass": true,
+  "note": "one page render, not an HTTP request count comparison; browser issues many subresource requests"
+}

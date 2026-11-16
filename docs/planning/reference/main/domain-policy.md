@@ -1,0 +1,217 @@
+> **기획 참고 원문 · 2026-11-09 정리**
+> 출처: `main` 워크트리의 `AGENTS.md`.
+> 요구·설계·결정의 맥락을 보존한 자료입니다. 본문의 구현 완료, 검증 수치, 실행 명령, 작업 경로, 배포 승인은 당시 기록이며 현재 상태나 새 실행 승인이 아닙니다. 현재는 네 워크트리의 개발 코드가 삭제된 기획 보관 상태입니다. 상충하는 과거안은 상위 기획 요약과 최신 결정 기록을 따릅니다.
+
+> 2026-11-08 최신 결정: 홈프리뷰 기존 백엔드·생성본·benchmark-main 워크트리는 폐기한다. 홈/관리 생성 UI·UX만 보존한다. 아래 과거 프리뷰 구현 지침보다 [폐기 결정](docs/decisions/2026-11-08-remove-home-preview.md)이 우선한다.
+
+# benchmark — 축구 정보 사이트 (방송용 페이지 포함)
+
+## 1. 프로젝트 개요
+
+축구 정보를 제공하는 웹사이트. 일부 페이지는 **방송용** 으로 디자인되어 방송 소프트웨어가 크로마키로 합성해 송출하는 용도로 사용된다.
+데이터 소스는 API-Football(Ultra plan), DB는 Supabase, 캐시/세션 보조는 Upstash, 백엔드는 FastAPI + SQLAlchemy.
+
+## 2. 대상 리그 (초기 5개, STREAMER / ADMIN 이 동적 추가/제외 가능)
+
+초기 시드 리그 (모두 `is_active=true`):
+- Premier League (external_id 39)
+- UEFA Champions League (external_id 2)
+- UEFA Europa League (external_id 3)
+- Carabao Cup / League Cup (external_id 48)
+- FA Cup (external_id 45)
+
+운영 중 인증된 STREAMER / ADMIN 이 관리 endpoint 로 추가/제외 가능 (예: 월드컵, 유로). 수집 대상 설정은 전체 서비스 공통이다. daily-sync 는 최신 2시즌 안의 활성 리그·시즌 대상만 처리해야 하며, 대상 활성 상태와 `league.is_active` 는 일관되게 관리한다. 현재 코드의 차이와 정합화 제안은 `plan.md` 참조.
+
+## 3. 데이터 정책
+
+- **보관 범위**: 최신 2시즌 (현재 시즌 + 직전 시즌)
+- **컵 대회 fixture**: 시즌 전체. 추첨 미정 라운드는 빈 슬롯으로 두고 6시간 sync 시 채움
+- **외부 ID upsert**: API-Football 의 `fixture_id`, `team_id`, `player_id`, `league_id` 를 unique key 로 upsert
+
+## 4. 워커 (4종)
+
+워커는 외부 데이터 → DB 적재 전담. API endpoint 와 분리된 독립 기능.
+
+| 워커 | 주기 | 책임 |
+|---|---|---|
+| `daily-sync` | KST 00/06/12/18 (4회/일) | 활성 league (is_active=true) 의 fixtures / 상세 / team / player / coach / standings / transfers / injuries 적재 |
+| `translation-filler` | 1분 간격 (큐 비면 종료) | 번역 테이블 (`*_translation`) 의 `name_ko IS NULL` row → OpenAI 음역 |
+| `news-fetcher` | 1시간 간격 | EPL 관련 외신 RSS 폴링 → `news_article` 적재 (제목 + 요약 + URL, EPL 팀 키워드 필터) |
+| `news-translator` | 1분 간격 (큐 비면 종료) | `news_article.title_ko IS NULL` row → OpenAI 번역 (의역) |
+
+방송용 페이지의 라이브 데이터는 **워커가 아니라 API endpoint + 캐시** 로 처리 (스트리머가 활용할 때만). 워커 영역과 분리.
+
+운영 원칙:
+- **API-Football rate limit (Ultra plan)**: 450 req/min ≈ 7.5 RPS. 동시 호출 semaphore 상한 = **6** (안전 마진 포함)
+- **재시도**: API 실패는 지수 백오프, 한 사이클 내 최대 3회. 그 이상은 다음 주기로 이월
+- **멱등성**: 외부 ID 기반 upsert. 부분 적재 후 재시작 안전
+- **단일 인스턴스 전제**: Koyeb 단일 service 이므로 분산 락 불필요. APScheduler in-process 단일 스케줄러로 충분
+- **수동 트리거**: 수집 관리·실행은 인증된 STREAMER / ADMIN 에게 제공하고 서버에서도 권한을 검증한다. 다른 워커의 수동 endpoint 유무와 실행 연결은 실제 코드로 확인하며, 이번 범위 밖 워커 API를 선제 구현하지 않는다.
+
+## 5. 번역 테이블
+
+영문/원본 데이터는 entity 테이블 (`league`, `team`, `player`, `coach`) 에서 관리. 번역 테이블은 **한글 표기만** 별도로 관리한다.
+
+### 5.1 테이블 구성 (4개 분리)
+
+| 테이블 | 컬럼 (개념) |
+|---|---|
+| `league_translation` | `league_id` (FK), `name_ko`, `short_name_ko`, `updated_at` |
+| `team_translation` | `team_id` (FK), `name_ko`, `short_name_ko`, `updated_at` |
+| `player_translation` | `player_id` (FK), `name_ko`, `short_name_ko`, `updated_at` |
+| `coach_translation` | `coach_id` (FK), `name_ko`, `short_name_ko`, `updated_at` |
+
+- 분리 이유: 각 entity 별 FK 로 참조 무결성 확보, ORM 모델 명확
+- `name_ko` / `short_name_ko` 가 NULL 인 동안 API 응답은 entity 테이블의 영문 이름 그대로 fallback
+- 자동번역 결과를 노출하되, STREAMER / ADMIN 의 리그·팀·선수·감독 번역 검색·수정·번역/미번역 상태·수정 이력·동시 수정 충돌 처리를 이번 개발 범위에 포함한다. 수정은 전체 서비스에 공통 적용되고 사람이 수정한 값은 이후 수집·자동번역·import에서 보호한다. 뉴스 번역 편집·AI 의심 표기 추천은 필수 범위가 아니다.
+
+### 5.2 적재 책임 분담
+
+| 동작 | 주체 | 방식 |
+|---|---|---|
+| entity 테이블 (league/team/player/coach) 적재 | `daily-sync` | upsert (전체 덮어쓰기) |
+| 번역 테이블에 row 보장 (새 entity 발견 시) | `daily-sync` | INSERT (외부 ID unique 충돌 시 무시). 한글 컬럼은 NULL. **기존 row 절대 갱신 안 함** |
+| 번역 테이블의 한글 컬럼 채움 | `translation-filler` | `name_ko IS NULL` row 탐지 → OpenAI 호출 → UPDATE |
+
+이 분담으로 daily-sync 의 "전체 덮어쓰기" 가 번역 테이블의 기존 한글값에 영향을 주지 않는다.
+
+### 5.3 시드 데이터
+
+| 대상 | 출처 | 방식 |
+|---|---|---|
+| **player_translation** | 이전 프로젝트 산출물 `_Player__202605131748.csv` (6,422 row) | gpt-3.5-turbo few-shot 자동번역 + 주요 선수 수동 수정 |
+| **team_translation** | 이 세션에서 사용자가 5 리그 대상 팀 번역 진행 | 시드 CSV 생성 |
+| **league_translation** | 이 세션에서 사용자가 5 리그 한글표기 결정 | 시드 CSV 생성 |
+| **coach_translation** | `fixture_detail.lineups` 의 coach payload 에서 row 생성 | 운영 중 `translation-filler` 음역 |
+
+백필 작업 중 대량으로 적재된 팀/선수 번역은 `translation-filler` 자동 음역에 맡기지 않고, 직접 조회해 축구 커뮤니티와 인터넷 기사에서 자주 쓰이는 한국어 호칭을 시드 CSV에 반영한 뒤 import 한다.
+
+### 5.4 운영 중 자동번역 (`translation-filler`)
+
+- 대상: 시드에 없는 신규 entity (신규 선수, 신규 컵대회 참가팀, 신규 감독 등) — daily-sync 가 만든 NULL row
+- 모델: **`gpt-3.5-turbo` + few-shot prompting** (음역 중심, web_search 사용 안 함)
+   - 이유: 시드 CSV 와 같은 방식이라 표기 일관성 유지, 비용이 web_search 방식 대비 ~1/100
+   - 한계: 한국 매체 통용 표기 검증 불가. 마이너 entity 는 단순 음역. MVP 허용 범위
+- few-shot 예시: 시드 CSV 에서 무작위 추출하여 일관성 강화
+- 1분 폴링, `name_ko IS NULL` row 가 있을 때만 호출 (없으면 즉시 종료)
+- 비용: 신규 entity 등장 빈도 낮아 월 부담 무시 가능
+
+## 6. 데이터 신선도 SLA
+
+| 페이지 종류 | 데이터 출처 | 신선도 | 클라이언트 polling | 라이브 표시 |
+|---|---|---|---|---|
+| **모든 일반 사용자 페이지** (홈 / 경기 / 매치 디테일 / 순위 / 팀 / 선수 / 스탯 / 뉴스 / ...) | **DB 만** | 6h | **불가** | 카운트다운 / 라이브 score 표시 X |
+| **방송용 페이지** (`/broadcast/...`, STREAMER role 만) | API endpoint + Upstash 캐시 | 실시간 | 허용 (10초) | 라이브 score / events 표시 |
+| 번역명 | best-effort | - | - | NULL 시 영문 fallback |
+
+원칙:
+- API-Football 직접 호출은 **방송용 페이지 + 워커 (daily-sync 등)** 만 허용
+- 자연어 검색은 **로그인 필수**이며 서버에서 활성 USER / STREAMER / ADMIN을 검증한다. 기존 API-Football 기반 DB 저장본을 조회하고 축구 지표·이름·별칭 사전을 실제 DB 데이터에 연결한다. 검색용 LLM은 Vertex AI `gemini-4-argon`으로 지정한다. 결정과 실제 구현 상태는 구분하며 상세는 `docs/decisions/2026-10-25-natural-language-search.md`, 실행 계획은 `docs/ax/natural-language-search/plan.md`를 따른다.
+- 일반 사용자 페이지가 라이브 매치를 보고 있어도 최대 6h stale 가능 (정책상 허용)
+- 메인의 오늘 추천 경기 프리뷰는 부상·최근 5경기·관전 포인트·AI 경기 예측·외부 사이트 전망·경기 전 배당을 포함하는 개발 범위다(2026-10-24 후속 결정). 외부 근거와 생성본을 수집/생성 경로에서 DB에 저장하고 일반 페이지는 저장본만 조회한다. 기존 6시간 갱신 정책은 유지한다. AI 예측은 예측으로 구분하며 사실·통계·부상·외부 사이트 의견·배당을 창작하지 않는다. 출처·자료 기준 시각·생성 시각과 누락 상태를 보존한다. 상세 및 미정 추천 순서는 `plan.md` §5 참조.
+- 라이브 정보가 절실히 필요한 사용자 = 방송용 페이지로 유도 (스트리머 전용)
+- 메인의 오늘 추천 경기 프리뷰는 부상·최근 5경기·관전 포인트·AI 경기 예측·외부 사이트 전망·경기 전 배당을 포함하는 개발 범위다(2026-10-24 후속 결정). 외부 근거와 생성본을 수집/생성 경로에서 DB에 저장하고 일반 페이지는 저장본만 조회한다. 기존 6시간 갱신 정책은 유지한다. AI 예측은 예측으로 구분하며 사실·통계·부상·외부 사이트 의견·배당을 창작하지 않는다. 출처·자료 기준 시각·생성 시각과 누락 상태를 보존한다. 상세 및 미정 추천 순서는 `plan.md` §5 참조.
+
+## 7. 인증/권한
+
+### Role (DB에 저장)
+- `USER` — 일반 사이트 열람
+- `STREAMER` — 방송용 페이지 및 전체 서비스 공통 수집 관리·번역 검수 사용 가능
+- `ADMIN` — 운영/검수 권한
+
+### 세션
+- JWT (access) — stateless, 짧은 만료
+- Refresh token rotation/blacklist 는 **Upstash** 에 저장
+- Upstash 는 MVP 에서 **refresh token rotation/blacklist 용도로만** 사용. 응답 캐시 확장은 post-MVP
+- 같은 Upstash Redis 인스턴스를 local / production 에서 함께 쓰는 경우에도 **키 prefix 로 환경을 반드시 분리**한다.
+  - local 개발: `UPSTASH_REDIS_KEY_PREFIX=local:`
+  - production: `UPSTASH_REDIS_KEY_PREFIX=prod:`
+  - 방송용 캐시/모멘텀/세션 보조 키는 모두 이 prefix 를 통과해야 하며, prefix 없는 키를 새로 만들지 않는다.
+
+### 방송용 페이지 인증
+- 방송용 페이지는 일반 웹사이트의 한 라우트로 제공되며, 방송 SW 가 해당 페이지를 캡처해 크로마키 합성한다 (OBS 브라우저 소스 임베드 아님)
+- 따라서 인증은 일반 웹앱과 동일: STREAMER role JWT
+- 방송용 페이지 배경 크로마키 키컬러: **OBS 기본 녹색** (`#00B140`, chroma green)
+- 방송 UI 내부에는 `#00B140` 또는 유사 크로마키 색상을 쓰지 않는다.
+- 투명도는 크로마키 배경이 컴포넌트 안으로 비쳐 들어오는 경우만 금지한다. 불투명한 카드/이미지/에셋 위에 얹는 광택, 그림자, 내부 하이라이트 용도의 반투명 레이어는 허용한다.
+
+## 8. 개발 프로세스
+
+**프론트엔드 follow 방식** — 백엔드는 프론트가 정의한 엔드포인트 목록을 받아 구현한다.
+
+1. 프론트엔드가 화면/기능을 mockup 으로 구현
+2. mockup 데이터를 가져올 **endpoint 목록 작성** (path, method, 응답 shape 초안)
+3. 백엔드는 그 목록을 기준으로:
+   - 요구 데이터 정의
+   - 필요한 DB 컬럼/관계 점검 (없으면 추가)
+   - API 구현
+4. 프론트가 mock 을 실 endpoint 로 교체
+
+이 순서를 거꾸로 가지 않는다. 백엔드가 "필요할 것 같은" API 를 선제 구현하지 않는다.
+
+## 9. 기술 스택
+
+| 영역 | 도구 |
+|---|---|
+| 백엔드 프레임워크 | FastAPI |
+| ORM | SQLAlchemy |
+| DB | Supabase (Postgres) — supabase CLI 로 마이그레이션/조작 |
+| 캐시/세션 보조 | Upstash (Redis) — upstash CLI |
+| 외부 데이터 | API-Football (Ultra plan), API-Football MCP 활용 |
+| 자동번역 | OpenAI API |
+
+## 10. CLI / MCP 활용 규칙
+
+- DB 스키마 변경: supabase CLI 마이그레이션 파일로 관리. SQLAlchemy 모델과 마이그레이션은 항상 동기 상태 유지
+- API-Football 응답 구조 확인: 코드 작성 전 **API-Football MCP** 로 실응답 조회 후 모델 정의
+- Upstash 키 설계: 코드 푸시 전 upstash CLI 로 키 패턴/TTL 검증
+
+## 11. 이미지 에셋 관리
+
+- 프로젝트 최상위 `assets/` 는 원본/레퍼런스 이미지 에셋의 기준 위치다.
+- Codex / ChatGPT 이미지 생성 도구로 만든 프로젝트용 이미지 에셋은 항상 `assets/generated/` 아래에 저장한다.
+- 월드컵 중계화면 하단 바 에셋은 `assets/generated/world-cup/bottom-bar/` 아래에 저장한다.
+- 웹에서 다운로드한 디자인 참고용/사용 승인된 비트맵 에셋도 앱에서 사용할 목적이면 `assets/generated/` 아래에 기능별 하위 폴더를 만들어 저장한다.
+- 프론트엔드 번들에서 직접 import 해야 하는 경우에만 `frontend/src/assets/` 아래에 파생본을 복사하거나 별도 관리한다.
+- 기존 코드 기반 SVG 아이콘과 수동 관리 에셋은 `frontend/src/assets/broadcast/` 등 기존 디렉터리를 유지할 수 있다.
+- 공식 로고, 팀 엠블럼, 국기처럼 정확성이 필요한 에셋은 임의 생성하지 않는다. API-Football 응답, 공식 출처, 또는 사용 허가가 분명한 소스를 우선한다.
+
+## 12. 향후(post-MVP) 검토 항목
+
+- Upstash 를 API-Football / OpenAI 응답 캐시로 확장 (MVP 외)
+- AI 번역 의심 표기 추천 (선택 후보). 직접 번역 검수·수정 UI는 이번 개발 범위로 이동
+- 번역 정밀도 업그레이드: `gpt-4.1` + Responses API `web_search` + `filters.allowed_domains`(ko.wikipedia.org, 한국 스포츠 미디어). 음역 한계가 운영상 문제될 때 도입. PoC 스크립트는 `scripts/translate_poc.py` 에 보존
+- 방송용 라이브 endpoint 의 캐시 TTL 튜닝 (방송용 페이지 UX 보고 결정)
+- API-Football semaphore 상한 튜닝 (현재 6, 실측 후 조정)
+- 다중 인스턴스 스케일 도입 시 워커 분산 락 (Upstash `SET NX`) 추가 필요
+
+## 13. 프로젝트 운영 정책
+
+- 2026-10-25 최신 사용자 결정: 관리 세션은 `/Users/woolee/benchmark`, 메인 세션은 `/Users/woolee/benchmark-main`, 자연어 검색 AX는 별도 전용 worktree에서 작업한다. 이 결정은 이전 단일 checkout/새 worktree 금지 규칙을 대체한다. 결정 기록: `docs/decisions/2026-10-25-parallel-worktrees.md`.
+- 메인 통합 브랜치는 `feat/home-preview-json`이며 이 worktree 안에서만 메인 작업을 수행한다. 관리/AX의 HEAD·실제 인덱스·작업 파일을 변경하지 않는다. 원본에서 stash/reset/clean/브랜치 전환/전체 변경 일괄 커밋을 하지 않는다.
+- 공용 파일은 메인 관련 변경만 가져오며, 다른 세션의 미커밋 인증·모델·검색 정책을 자동 적용하지 않는다. 공통 의존성은 실제 커밋 기준으로 별도 검토한다.
+- 각 worktree 안에서는 task branch를 순차 사용하고 브랜치 전환 전 해당 worktree의 clean 상태를 확인한다. 과거 `benchmark.fe-feat-main-home` worktree는 재사용/초기화하지 않는다.
+- 본 AGENTS.md 는 도메인/규칙의 SSOT. 변경 시 PR 또는 명시적 결정 기록 동반
+- 2026-10-24 정책 변경: 공통 수집 관리·번역 검수를 STREAMER / ADMIN 에게 제공한다. 결정 기록은 `docs/decisions/2026-10-24-streamer-management-and-ax.md`, 상세 기획은 `plan.md`, 작업·DoD·의존성·상태 정본은 `Plans.md`. 문서의 정책 확정과 기능 구현 완료를 구분한다.
+- 배포 금지 원칙: 사용자가 **"배포해"** 라고 명시적으로 요청하지 않는 한 Koyeb/Vercel/GitHub Actions 등 어떤 서비스에서도 deployment 를 트리거하지 않는다.
+- 배포성 명령에는 `koyeb services update`, `koyeb deploy`, `vercel deploy`, 배포 환경변수 변경, 서비스 재시작/롤링 업데이트가 포함된다. "서비스에 연결", "설정해", "환경변수 넣어" 같은 표현은 배포 허가가 아니다.
+- 2026-10-26 메인 후속 결정: 추천 자격 경기의 킥오프 전 6시간 이내 마지막 정기 수집 완료 후 경기당 1회 프리뷰 생성. 외부 전망은 API-Football 포함 총 3개. 운영 홈은 추천 경기·프리뷰만 표시하고 생성 예정/실제 시각을 안내하며 출처·자료 시점은 접는다. 이전 24시간/4회·웹매체3곳 정책을 대체한다. 상세: `docs/decisions/2026-10-26-home-final-sync.md`.
+- 2026-10-25 목업 평가 결정: 번역 상태는 한국어 이름 유무에 따른 번역/미번역만 제공하며 별도 검수 완료 체크는 두지 않는다. 짧은 이름은 선택 사항이다. 사람 수정 보호·감사 이력·동시 수정 충돌은 유지한다. 동일 결정 기록의 2026-10-25 절을 따른다.
+- 2026-10-25 병렬 작업 운영: 사용자 지시에 따라 관리·메인·AX는 각각 별도 worktree를 사용한다. 위 단일 checkout 규칙보다 이 결정이 우선한다. `docs/decisions/2026-10-25-parallel-worktrees.md` 참조. 2026-10-26 사용자는 검증된 홈 작업의 로컬 main 병합과 필요한 운영 DB migration 적용을 승인했다. 원격 push·배포·서비스 재시작은 금지한다.
+- 2026-10-26 홈 추천 후속: 카라바오컵(external_id48)과 FA컵(45)은 준결승/결승에서만 기존 추천 자격을 평가한다. 8강 이하·라운드 미정은 진행 중이어도 홈 추천 및 신규 프리뷰 생성 대상에서 제외한다. 기존 빅6/우선순위 조건과 다른 대회 정책은 유지한다. `docs/decisions/2026-10-25-home-preview-json.md`의 후속 결정을 따른다.
+
+<!-- turn-development:begin -->
+## 기능 단위 턴 개발
+
+- 개발 작업은 `docs/development/turn-workflow.md`를 따른다. 한 턴은 사용자가 검증할 수 있는 기능/행동 단위이며 고정 시간 제한을 두지 않는다.
+- 새 기능·AI 동작·권한/데이터 계약 변경에는 `.agents/skills/benchmark-feature/SKILL.md`를 읽고 현재 단계의 OpenSpec/목업/API 계약/평가 도구를 사용한다. 상세는 `docs/development/feature-tooling.md`를 따른다. 단순 수정에는 전체 문서 절차를 강제하지 않는다.
+- 확인 사실·사용자 결정·제안·미결정을 구분한다. 사용자 선택이 필요하면 보고서에 근거·선택지·영향·추천·중단 범위를 적고 해당 기능의 개발·검증·후속 워커 배정을 일시 중단한다. 실제 응답과 재개 범위를 기록한 뒤 진행하며 무응답·시간 경과·worker_done으로 재개하지 않는다. 기존 결정과 확정 동작 안의 구현 세부는 반복 승인받지 않는다. 상세는 `docs/development/turn-workflow.md`와 `docs/decisions/2026-11-06-user-decision-gates.md`를 따른다. 도구의 구조 검증을 기능 완성으로 간주하지 않는다.
+- AI가 변경 기능의 자동 테스트를 작성·실행한 뒤 로컬 서버를 유지하고 URL·수동 E2E 순서·결과·미검증 항목을 인계한다. 사용자 E2E 통과는 실제 피드백을 받은 뒤 기록한다.
+- `python3 scripts/dev.py doctor/up/status/down`으로 해당 worktree의 서버를 관리한다. 관련 테스트는 `check backend|frontend|types`로 실행한다.
+- AI 호출 대기는 개발 정체와 구분한다. 같은 실패를 새 근거 없이 반복하지 말고 원인·진행 중 요청·다음 행동을 기록한다. 모델/추론 설정은 사용자 선택을 유지한다.
+- 모든 모델 워커의 설명·진행 보고·질문·검토·최종 결과와 mailbox 제목·본문은 한국어로 작성한다. 코드·명령·식별자·원문 로그는 보존한다. 시작 설정과 상세 규칙은 `docs/development/orca-workers.md`를 따른다.
+- 개발은 적합한 기존 DeepSeek 워커를 우선 재사용하고 없으면 새로 띄워 독립 작업을 배정한다. 동시 실행 2개·최대 3개는 초기 운영 제안값이다. 파일·공유 자원 소유와 선행 산출물을 확인하고 coordinator가 통합·실제 서버·동기화를 담당한다. 상세 분할/격리 기준은 `docs/development/orca-task-routing.md`를 따른다.
+- 요청을 여러 작업/환경으로 배정할 때 `.agents/skills/benchmark-orchestration/SKILL.md`와 `scripts/orca-tasks.py`를 사용한다. 구조 검증·dry-run 뒤 사용자 요청 범위의 배정을 실행하며, 결정은 `docs/decisions/2026-11-05-orca-workers.md`를 따른다.
+- 공통 구성 변경은 `python3 scripts/sync-dev-workflow.py`로 차이를 확인하고 `--apply`로 반영한다. 다른 worktree의 제품 코드·환경 파일·HEAD·index는 보존한다.
+- 결정: `docs/decisions/2026-11-04-turn-development.md`, `docs/decisions/2026-11-04-feature-tooling.md`. 기존 도메인 정책과 배포 금지 규칙을 유지한다.
+<!-- turn-development:end -->

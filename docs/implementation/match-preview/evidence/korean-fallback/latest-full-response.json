@@ -1,0 +1,70 @@
+{
+  "automatic_function_calling_history": [],
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"players\": [\n    {\n      \"selected_player\": \"Erling Haaland\",\n      \"team\": \"Manchester City\",\n      \"player_ref\": null,\n      \"selection_reason\": \"리그 9골로 득점 선두를 달리고 있으며, 최근 리그 3연패로 흔들리는 Manchester City의 공격을 이끌며 분위기 반전을 노릴 핵심 공격수입니다.\",\n      \"evidence\": [\n        \"api:standings-13\",\n        \"https://www.forebet.com/en/predictions-tips-manchester-city-fulham-1925345\"\n      ],\n      \"superlative_basis\": null\n    },\n    {\n      \"selected_player\": \"Rayan Cherki\",\n      \"team\": \"Manchester City\",\n      \"player_ref\": null,\n      \"selection_reason\": \"이번 시즌 Manchester City에서 15경기 6골을 기록하며 팀의 새로운 핵심 미드필더로 자리 잡았고, 이번 경기에서도 창의적인 공격 전개를 주도할 것으로 기대됩니다.\",\n      \"evidence\": [\n        \"https://manchestercitynews.co.uk/squad\"\n      ],\n      \"superlative_basis\": null\n    },\n    {\n      \"selected_player\": \"Josh King\",\n      \"team\": \"Fulham\",\n      \"player_ref\": null,\n      \"selection_reason\": \"이번 시즌 리그 전 경기에 선발 출전해 2골을 기록하는 등 맹활약하며 최근 잉글랜드 성인 대표팀에 최초 발탁된 Fulham의 19세 신성 미드필더입니다.\",\n      \"evidence\": [\n        \"https://www.fulhamfc.com/news/2026/november/06/josh-king-called-up-to-england-squad/\"\n      ],\n      \"superlative_basis\": null\n    }\n  ],\n  \"korean_labels\": [\n    {\n      \"original\": \"Manchester City\",\n      \"korean\": \"맨체스터 시티\",\n      \"kind\": \"team\"\n    },\n    {\n      \"original\": \"Fulham\",\n      \"korean\": \"풀럼\",\n      \"kind\": \"team\"\n    },\n    {\n      \"original\": \"Erling Haaland\",\n      \"korean\": \"엘링 홀란\",\n      \"kind\": \"player\"\n    },\n    {\n      \"original\": \"Rayan Cherki\",\n      \"korean\": \"라얀 체르키\",\n      \"kind\": \"player\"\n    },\n    {\n      \"original\": \"Josh King\",\n      \"korean\": \"조쉬 킹\",\n      \"kind\": \"player\"\n    }\n  ],\n  \"search_note\": \"검색을 통해 Manchester City와 Fulham의 최근 리그 성적, 선수단 정보, 부상 및 대표팀 소집 현황을 확인했습니다. Erling Haaland의 득점 기록, Rayan Cherki의 이번 시즌 출전 및 득점 기록, Josh King의 대표팀 발탁 소식을 검증했습니다.\",\n  \"uncertainties\": []\n}",
+            "thought_signature": "[REDACTED]"
+          }
+        ],
+        "role": "model"
+      },
+      "finish_reason": "STOP",
+      "grounding_metadata": {
+        "retrieval_metadata": {},
+        "search_entry_point": {
+          "rendered_content": "<style>\n.container {\n  align-items: center;\n  border-radius: 8px;\n  display: flex;\n  font-family: Google Sans, Roboto, sans-serif;\n  font-size: 14px;\n  line-height: 20px;\n  padding: 8px 12px;\n}\n.chip {\n  display: inline-block;\n  border: solid 1px;\n  border-radius: 16px;\n  min-width: 14px;\n  padding: 5px 16px;\n  text-align: center;\n  user-select: none;\n  margin: 0 8px;\n  -webkit-tap-highlight-color: transparent;\n}\n.carousel {\n  overflow: auto;\n  scrollbar-width: none;\n  white-space: nowrap;\n  margin-right: -12px;\n}\n.headline {\n  display: flex;\n  margin-right: 4px;\n}\n.gradient-container {\n  position: relative;\n}\n.gradient {\n  position: absolute;\n  transform: translate(3px, -9px);\n  height: 36px;\n  width: 9px;\n}\n@media (prefers-color-scheme: light) {\n  .container {\n    background-color: #fafafa;\n    box-shadow: 0 0 0 1px #0000000f;\n  }\n  .headline-label {\n    color: #1f1f1f;\n  }\n  .chip {\n    background-color: #ffffff;\n    border-color: #d2d2d2;\n    color: #5e5e5e;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #f2f2f2;\n  }\n  .chip:focus {\n    background-color: #f2f2f2;\n  }\n  .chip:active {\n    background-color: #d8d8d8;\n    border-color: #b6b6b6;\n  }\n  .logo-dark {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #fafafa 15%, #fafafa00 100%);\n  }\n}\n@media (prefers-color-scheme: dark) {\n  .container {\n    background-color: #1f1f1f;\n    box-shadow: 0 0 0 1px #ffffff26;\n  }\n  .headline-label {\n    color: #fff;\n  }\n  .chip {\n    background-color: #2c2c2c;\n    border-color: #3c4043;\n    color: #fff;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #353536;\n  }\n  .chip:focus {\n    background-color: #353536;\n  }\n  .chip:active {\n    background-color: #464849;\n    border-color: #53575b;\n  }\n  .logo-light {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #1f1f1f 15%, #1f1f1f00 100%);\n  }\n}\n</style>\n<div class=\"container\">\n  <div class=\"headline\">\n    <svg class=\"logo-light\" width=\"18\" height=\"18\" viewBox=\"9 9 35 35\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M42.8622 27.0064C42.8622 25.7839 42.7525 24.6084 42.5487 23.4799H26.3109V30.1568H35.5897C35.1821 32.3041 33.9596 34.1222 32.1258 35.3448V39.6864H37.7213C40.9814 36.677 42.8622 32.2571 42.8622 27.0064V27.0064Z\" fill=\"#4285F4\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 43.8555C30.9659 43.8555 34.8687 42.3195 37.7213 39.6863L32.1258 35.3447C30.5898 36.3792 28.6306 37.0061 26.3109 37.0061C21.8282 37.0061 18.0195 33.9811 16.6559 29.906H10.9194V34.3573C13.7563 39.9841 19.5712 43.8555 26.3109 43.8555V43.8555Z\" fill=\"#34A853\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M16.6559 29.8904C16.3111 28.8559 16.1074 27.7588 16.1074 26.6146C16.1074 25.4704 16.3111 24.3733 16.6559 23.3388V18.8875H10.9194C9.74388 21.2072 9.06992 23.8247 9.06992 26.6146C9.06992 29.4045 9.74388 32.022 10.9194 34.3417L15.3864 30.8621L16.6559 29.8904V29.8904Z\" fill=\"#FBBC05\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 16.2386C28.85 16.2386 31.107 17.1164 32.9095 18.8091L37.8466 13.8719C34.853 11.082 30.9659 9.3736 26.3109 9.3736C19.5712 9.3736 13.7563 13.245 10.9194 18.8875L16.6559 23.3388C18.0195 19.2636 21.8282 16.2386 26.3109 16.2386V16.2386Z\" fill=\"#EA4335\"/>\n    </svg>\n    <svg class=\"logo-dark\" width=\"18\" height=\"18\" viewBox=\"0 0 48 48\" xmlns=\"http://www.w3.org/2000/svg\">\n      <circle cx=\"24\" cy=\"23\" fill=\"#FFF\" r=\"22\"/>\n      <path d=\"M33.76 34.26c2.75-2.56 4.49-6.37 4.49-11.26 0-.89-.08-1.84-.29-3H24.01v5.99h8.03c-.4 2.02-1.5 3.56-3.07 4.56v.75l3.91 2.97h.88z\" fill=\"#4285F4\"/>\n      <path d=\"M15.58 25.77A8.845 8.845 0 0 0 24 31.86c1.92 0 3.62-.46 4.97-1.31l4.79 3.71C31.14 36.7 27.65 38 24 38c-5.93 0-11.01-3.4-13.45-8.36l.17-1.01 4.06-2.85h.8z\" fill=\"#34A853\"/>\n      <path d=\"M15.59 20.21a8.864 8.864 0 0 0 0 5.58l-5.03 3.86c-.98-2-1.53-4.25-1.53-6.64 0-2.39.55-4.64 1.53-6.64l1-.22 3.81 2.98.22 1.08z\" fill=\"#FBBC05\"/>\n      <path d=\"M24 14.14c2.11 0 4.02.75 5.52 1.98l4.36-4.36C31.22 9.43 27.81 8 24 8c-5.93 0-11.01 3.4-13.45 8.36l5.03 3.85A8.86 8.86 0 0 1 24 14.14z\" fill=\"#EA4335\"/>\n    </svg>\n    <div class=\"gradient-container\"><div class=\"gradient\"></div></div>\n  </div>\n  <div class=\"carousel\">\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGZ9u5i8H6313PE0Z6XpPVnIQi6CWThQu-r79TPhSypZ3y0YTDdnirCA5jpbRsJiv5KfGbWEO4UpU2tFNtrx8IUcF_O9SvcfJH0QDl5GlWi897Cd7K0Tw4cU7QRT6lJyfXptMsKJ0w4wT6qMBAvMYj4z-X9_6_grS6xYkFltM5S78G1QzBn23yNGSOFevFVUuOmpP9yjlvzLiZWORWCNp4ar7ZJilqM6JA8bEfmreo8\">Manchester City vs Fulham 2026-11-21 preview</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQH84l3m3lkwqXENBNIckGQ5fRIAg8575UXZQAAynqytXPYhyaArjqrGJX9tHapjG0Ky44Jlkj_jFsdWUUXn_D0BrgRQkhb-ZEeBPY-qcDCv7HZuyToIWgT4oAgAuXr6T2_ywRl43b75Yh5jQy-_LVmz3SbXXdpVbxNXsLwnazguNG5Bmjg9LZXdYXw6MOUiLX-dap4D2LO8G--pZ-bNmwY_Xg==\">&quot;Josh King&quot; Fulham 2026/27</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQH7QS5iu6JTTv3cNlzq-kD4nhsZFbKRzhT4rNqBMwTwMj5XpQVT7PqmJQqkdwtlybD19o5HXolqPMkDAQt_TKPLCIj12BXeBjZ1nUHG4OnsmREbEfJ9ZXAknK1vMtCD5b7l_Uj3pekE27CJMK1oBYrhvVns1i3CRPpH2exy0ILcDVA1oD1BTtamjELsWPHVNYekX_fy2-4_Xxn4tr-dDKSoFc5CT5k=\">&quot;Erling Haaland&quot; 2026/27 stats</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEwv54rTc4YuNMPC7RLTJbasQMVr2wJkrGTzQtNK_s5szyGvzukB8HUvo1NvASTA9Gj0hh-NZp-tI5TFJWYIk8XyD63Gg-87qhXT1TnmctgDSSO3L3oVu5zFZYNyDH8SdkNmomtzWMsmN0EKYWeUpa_tiwXzmXKPyAqedpP4CEZdMX4KxW69vNYcOrWrcpZtoydgmaU9zA_C6NczRCF7O28AOtWWYtVhuTTYml-LQ==\">&quot;Rayan Cherki&quot; Manchester City 2026/27</a>\n  </div>\n</div>\n"
+        },
+        "web_search_queries": [
+          "Manchester City vs Fulham 2026-11-21",
+          "Manchester City vs Fulham November 2026",
+          "Manchester City squad news November 2026",
+          "Fulham squad news November 2026",
+          "\"Erling Haaland\" 2026/27 stats",
+          "\"Rayan Cherki\" Manchester City 2026/27",
+          "\"Josh King\" Fulham 2026/27",
+          "Manchester City vs Fulham 2026-11-21 preview"
+        ]
+      }
+    }
+  ],
+  "create_time": "2026-11-10T21:11:19.546715Z",
+  "model_version": "gemini-3.5-flash",
+  "response_id": "d4jzapuvIeiPncoP8eqmeQ",
+  "sdk_http_response": {
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "content-encoding": "gzip",
+      "content-type": "application/json; charset=UTF-8",
+      "date": "Tue, 10 Nov 2026 21:11:39 GMT",
+      "server": "scaffolding on HTTPServer2",
+      "transfer-encoding": "chunked",
+      "vary": "Origin, X-Origin, Referer",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "x-goog-request-id": "d4jzapuvIeiPncoP8eqmeQ",
+      "x-xss-protection": "0"
+    }
+  },
+  "usage_metadata": {
+    "candidates_token_count": 719,
+    "candidates_tokens_details": [
+      {
+        "modality": "TEXT",
+        "token_count": 719
+      }
+    ],
+    "prompt_token_count": 1949,
+    "prompt_tokens_details": [
+      {
+        "modality": "TEXT",
+        "token_count": 1949
+      }
+    ],
+    "thoughts_token_count": 4182,
+    "total_token_count": 6850,
+    "traffic_type": "ON_DEMAND"
+  }
+}

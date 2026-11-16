@@ -1,0 +1,64 @@
+> **기획 참고 원문 · 2026-11-09 정리**
+> 출처: `main` 워크트리의 `frontend/endpoint-requests/GET__api_v1_home_fixtures_external_id_prematch.request.json`.
+> 요구·설계·결정의 맥락을 보존한 자료입니다. 본문의 구현 완료, 검증 수치, 실행 명령, 작업 경로, 배포 승인은 당시 기록이며 현재 상태나 새 실행 승인이 아닙니다. 현재는 네 워크트리의 개발 코드가 삭제된 기획 보관 상태입니다. 상충하는 과거안은 상위 기획 요약과 최신 결정 기록을 따릅니다.
+
+# GET__api_v1_home_fixtures_external_id_prematch.request.json
+
+선언형 API/사전 계약의 기획 참고본입니다. 실행 파일이나 테스트 결과가 아닙니다.
+
+```json
+{
+  "endpoint_id": "GET__api_v1_home_fixtures_external_id_prematch",
+  "method": "GET",
+  "path": "/api/v1/home/fixtures/{external_id}/prematch",
+  "from_feature": "home-preview-mock",
+  "auth": "public",
+  "fe_mockup_ref": "frontend/src/views/HomePreviewMockView.vue",
+  "spec_excerpt": "메인 화살표로 선택한 fixture의 저장된 경기 전 JSON 프리뷰를 조회한다. 이 요청에서 웹 검색·외부 API·AI 생성은 실행하지 않는다.",
+  "request_path_params": [
+    {
+      "name": "external_id",
+      "type": "positive integer",
+      "description": "API-Football fixture external_id"
+    }
+  ],
+  "response_example_path": "frontend/src/mocks/home-preview/responses.json",
+  "response_example_json_pointer": "/ready",
+  "response_schema_ref": "docs/spec/schemas/home-preview-response.schema.json",
+  "analysis_schema_ref": "docs/spec/schemas/home-preview-analysis.schema.json",
+  "response_shape": {
+    "schema_version": "1.0 (transport); preview.schema_version=1.1",
+    "fixture_id": "positive integer",
+    "publication": "state ready|partial|pending|failed|unavailable; served current|previous|null; reason enum|null; generated_at/as_of ISO|null",
+    "refresh": "state idle|queued|running|failed; last_attempt_at ISO|null; reason enum|null",
+    "preview": "stored HomePreview payload|null; facts-only generated_at=null and all analysis.data=null",
+    "generation_due_at": "ISO|null; kickoff 직전 마지막 KST 00/06/12/18 정기수집 시작시각, 우선순위/활성대상만 제공"
+  },
+  "scenarios_used": [
+    "ready",
+    "partial",
+    "pending",
+    "failed",
+    "unavailable",
+    "previous",
+    "facts",
+    "invalid_json"
+  ],
+  "notes_for_be": [
+    "Implemented locally; production rollout and PRE-12 acceptance remain separate.",
+    "DB is the only data source for public GET. No live score or polling.",
+    "Strict server schema, source/fixture references, snapshot time and fact verification before saving.",
+    "Missing/unverified/error sections require data=null and a public reason code.",
+    "Worker supplies immutable DB/API facts plus the full storage schema; LLM returns the complete payload JSON. Validate and store unchanged; do not extract dates/causes from prose.",
+    "Keep existing broadcast Markdown API behavior while adding a separate stored JSON path.",
+    "FE error proposal: invalid parameter 422, unknown fixture 404, existing fixture with no snapshot 200 envelope, database unavailable 503; finalize in PRE-03.",
+    "See docs/features/home-preview-contract.md for exact state/time/cup invariants. No automatic generation on GET.",
+    "Unreleased payload v1.1: search_suggestions=null or Google supplied rendered_content + queries; exact supplied style rendered in a no-script sandbox iframe. Never use arbitrary source HTML.",
+    "Optional player_spotlights/player_watchpoints fields provide DB-backed player records and ID-based selections. Injury/spotlight photo_url uses stored API/DB URLs; player names use player_translation at read time. Details: docs/features/home-preview-players.md.",
+    "Optional selected injury cause: verified short Korean label + occurred_on or occurred_month, unknown dates null, web source IDs. Research ONLY final key_absences, max 2/team. Predictions.coverage targets 3 total forecasts: API-Football counts once plus distinct web publishers; partial if fewer. Main detail button uses existing fixture-detail route, no new API. Details: docs/features/home-preview-research.md.",
+    "Optional sources[].published_on preserves a verified YYYY-MM-DD publication day when no exact timestamp is available; published_at stays null. Claim verification can use multiple original passages; current injury facts and incident/publication dates remain separate.",
+    "2026-10-26: 킥오프6시간이내 마지막 정기수집에서1회 생성; 전망은 API-Football포함 총3; LLM전체JSON을 변형없이 저장."
+  ],
+  "payload_schema_ref": "docs/spec/schemas/home-preview-payload.schema.json"
+}
+```

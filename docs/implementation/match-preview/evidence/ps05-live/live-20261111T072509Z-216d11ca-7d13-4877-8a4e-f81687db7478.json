@@ -1,0 +1,327 @@
+{
+  "script_version": "mp11-live-once-1",
+  "fixture_id": 1557474,
+  "run_id": "216d11ca-7d13-4877-8a4e-f81687db7478",
+  "started_at": "2026-11-11T07:25:09.273108+00:00",
+  "finished_at": "2026-11-11T07:35:42.363434+00:00",
+  "duration_seconds": 633.1,
+  "mode": "live",
+  "status": "failed",
+  "quality": "insufficient",
+  "external_calls": 5,
+  "budget": {
+    "model_requests": 6,
+    "model_used": 5,
+    "model_remaining": 1,
+    "model_reserved_for_unstarted_steps": 0,
+    "api_requests": 24,
+    "api_used": 6,
+    "api_remaining": 18,
+    "attempts_per_call": 1,
+    "deadline_seconds": 1800,
+    "seconds_left": 1167.943,
+    "registered_calls": [
+      "discovery_people",
+      "discovery_outlook",
+      "section_availability",
+      "section_players",
+      "section_ai_forecast"
+    ],
+    "cancelled_calls": [
+      "section_outlook"
+    ],
+    "reservations_returned": 1,
+    "normal_model_calls": 6,
+    "stopped_reason": null
+  },
+  "unavailable_reason": "필수 섹션 본문을 만들지 못했습니다: section_ai_forecast, section_players",
+  "bundle": {
+    "available": true,
+    "bundle_id": "bundle-c3030351d5d442ac",
+    "bundle_hash": "5085b87befc6ab4a8257c9647ceccefb654eb5c512026e42795bcb417412f816",
+    "source_count": 6,
+    "usable_source_count": 1,
+    "failed_source_count": 5,
+    "available_passages": 3,
+    "available_chars": 592,
+    "network_usage": {
+      "api_limit": null,
+      "api_used": 0,
+      "http_failed": 5,
+      "http_limit": 24,
+      "http_used": 6,
+      "note": "비모델 HTTP 상한을 수집이 공유한다. 리다이렉트와 실패도 전송으로 센다. 이 함수는 모델을 호출하지 않는다.",
+      "redirects": 0
+    },
+    "db_readable": true,
+    "db_injuries": 0,
+    "odds_quotes": 0,
+    "odds_adopted_quotes": 0,
+    "section_delivery_count": 5,
+    "sources": [
+      {
+        "source_id": "src-1",
+        "final_url": "https://www.premierinjuries.com/teams/manchester-city",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 403,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "blocked_403",
+        "usable": false
+      },
+      {
+        "source_id": "src-2",
+        "final_url": "https://www.premierinjuries.com/teams/fulham",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 403,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "blocked_403",
+        "usable": false
+      },
+      {
+        "source_id": "src-3",
+        "final_url": "https://www.manchestereveningnews.co.uk/sport/football/football-news/manchester-city-injury-news-gvardiol-30335805",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 404,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "http_404",
+        "usable": false
+      },
+      {
+        "source_id": "src-4",
+        "final_url": "https://www.thesportsbank.net/manchester-city/injury-updates-gvardiol-guehi-semenyo/",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 404,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "http_404",
+        "usable": false
+      },
+      {
+        "source_id": "src-5",
+        "final_url": "https://thefalse9.com/2026/11/josh-king-injury-update-return-date.html",
+        "nature": "news",
+        "method": "fresh_http",
+        "http_status": 200,
+        "body_chars": 3093,
+        "passages": 3,
+        "failure": null,
+        "usable": true
+      },
+      {
+        "source_id": "src-6",
+        "final_url": "https://www.football-ecology.org/p/antoine-semenyo-injury-update-man-city",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 403,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "blocked_403",
+        "usable": false
+      }
+    ],
+    "section_deliveries": [
+      {
+        "section_id": "section_players",
+        "model_delivered": true,
+        "passage_ids": [
+          "src-5-p1",
+          "src-5-p2",
+          "src-5-p3"
+        ],
+        "payload_sha256": "1415ba7a3f50c5aa3fcd97189758d6af1533a1ad924e950139cc240157c03c7c",
+        "sent_attempts": 1
+      },
+      {
+        "section_id": "section_availability",
+        "model_delivered": true,
+        "passage_ids": [
+          "src-5-p1",
+          "src-5-p2",
+          "src-5-p3"
+        ],
+        "payload_sha256": "a02d2b146f7a7d0069884547fff6a6c9b7cda7f1a29c8e380e4bbe129ed68ab0",
+        "sent_attempts": 1
+      },
+      {
+        "section_id": "section_outlook",
+        "model_delivered": false,
+        "passage_ids": [],
+        "payload_sha256": null,
+        "sent_attempts": 0
+      },
+      {
+        "section_id": "section_odds",
+        "model_delivered": false,
+        "passage_ids": [],
+        "payload_sha256": null,
+        "sent_attempts": 0
+      },
+      {
+        "section_id": "section_ai_forecast",
+        "model_delivered": true,
+        "passage_ids": [
+          "src-5-p1",
+          "src-5-p2",
+          "src-5-p3"
+        ],
+        "payload_sha256": "a42ef8c84301fea700b7418d78ba3bc2a5b1305b0c8c11600b462a5d479bd65b",
+        "sent_attempts": 1
+      }
+    ],
+    "diagnostics": [
+      "blocked_403 · https://www.premierinjuries.com/teams/manchester-city",
+      "blocked_403 · https://www.premierinjuries.com/teams/fulham",
+      "http_404 · https://www.manchestereveningnews.co.uk/sport/football/football-news/manchester-city-injury-news-gvardiol-30335805",
+      "http_404 · https://www.thesportsbank.net/manchester-city/injury-updates-gvardiol-guehi-semenyo/",
+      "blocked_403 · https://www.football-ecology.org/p/antoine-semenyo-injury-update-man-city",
+      "odds_not_available · 수집한 공개 자료에서 정규시간 1X2 배당을 읽지 못했습니다. (사유: src-5:unknown_table_structure)"
+    ]
+  },
+  "sections": [
+    {
+      "workflow_id": "section_ai_forecast",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "최종 전망 응답을 해석하지 못해 본문을 만들지 않았습니다.",
+      "title": "AI 경기 전망",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "주목 선수 섹션 결과가 입력에 없습니다.",
+        "최종 전망 응답을 JSON으로 해석하지 못했습니다."
+      ]
+    },
+    {
+      "workflow_id": "section_availability",
+      "version": 1,
+      "mode": "live",
+      "quality": "ready",
+      "unavailable": false,
+      "unavailable_reason": null,
+      "title": "부상·결장 영향",
+      "body_chars": 231,
+      "body_excerpt": "## 부상·결장 영향\n\n확인된 부상·결장 상황만 정리했습니다.\n\n### Fulham\n- Josh King: 출전 불확실\n  부상 내용: 11월 7일 뉴캐슬전에서 사타구니 통증(groin tightness)을 느껴 경기 후반에 교체 아웃되었습니다.\n  영향: 잉글랜드 성인 대표팀에 처음 발탁된 19세 미드필더입니다. 아르벨로아 감독은 심각하지 않은 상태라고 언급했으나 아직 정확한 진단 결과는 확인되지 않았습니다.",
+      "source_count": 1,
+      "diagnostics": []
+    },
+    {
+      "workflow_id": "section_odds",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "정규시간 1X2 값이 모두 있는 배당 줄이 없어 이 선택 섹션을 표시하지 않습니다.",
+      "title": "배당 현황",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "접근 가능한 공개 배당 표에서 이 경기의 1X2 값을 확인하지 못했습니다.",
+        "배당은 선택 섹션입니다. 채택 가능한 줄이 없으면 독자 화면에서 생략하고 관리자에게만 사유를 남깁니다. 빠진 값을 추정해 채우지 않습니다."
+      ]
+    },
+    {
+      "workflow_id": "section_outlook",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "외부 전망을 확인할 수집 기사 본문이 없어 매체 전망 요청을 보내지 않았습니다.",
+      "title": "외부 매체 전망",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "모델 호출을 시작하지 않아 예약 몫을 반환했습니다(새 호출 없음)."
+      ]
+    },
+    {
+      "workflow_id": "section_players",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "주목 선수 응답을 JSON으로 해석하지 못했습니다.",
+      "title": "주목 선수",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "응답을 해석하지 못해 본문을 만들지 않았습니다."
+      ]
+    }
+  ],
+  "attempts": [
+    {
+      "logical_call_id": "discovery_people",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 1033,
+        "output_tokens": 728,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T07:25:09.273108+00:00",
+      "finished_at": "2026-11-11T07:25:09.273108+00:00"
+    },
+    {
+      "logical_call_id": "discovery_outlook",
+      "attempt_ordinal": 0,
+      "outcome": "error",
+      "http_status": 503,
+      "usage": null,
+      "started_at": "2026-11-11T07:25:09.273108+00:00",
+      "finished_at": "2026-11-11T07:25:09.273108+00:00"
+    },
+    {
+      "logical_call_id": "section_availability",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 1346,
+        "output_tokens": 249,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T07:25:09.273108+00:00",
+      "finished_at": "2026-11-11T07:25:09.273108+00:00"
+    },
+    {
+      "logical_call_id": "section_players",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 4252,
+        "output_tokens": 68,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T07:25:09.273108+00:00",
+      "finished_at": "2026-11-11T07:25:09.273108+00:00"
+    },
+    {
+      "logical_call_id": "section_ai_forecast",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 1259,
+        "output_tokens": 211,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T07:25:09.273108+00:00",
+      "finished_at": "2026-11-11T07:25:09.273108+00:00"
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "run_id": "22e1a19e-52df-4774-a1b1-1de9f892a840",
+  "attempts": 1,
+  "final_body_empty": true,
+  "real_model_korean_labels": [
+    {
+      "kind": "team",
+      "korean": "맨체스터 시티",
+      "original": "Manchester City"
+    },
+    {
+      "kind": "team",
+      "korean": "풀럼",
+      "original": "Fulham"
+    },
+    {
+      "kind": "player",
+      "korean": "엘링 홀란",
+      "original": "Erling Haaland"
+    },
+    {
+      "kind": "player",
+      "korean": "라얀 체르키",
+      "original": "Rayan Cherki"
+    },
+    {
+      "kind": "player",
+      "korean": "조쉬 킹",
+      "original": "Josh King"
+    }
+  ],
+  "name_label_decisions": [
+    {
+      "original": "Manchester City",
+      "korean": "맨체스터 시티",
+      "kind": "team",
+      "applied": false,
+      "reason": "db_value_wins",
+      "db_display": "맨체스터 시티",
+      "source": "db_korean"
+    },
+    {
+      "original": "Fulham",
+      "korean": "풀럼",
+      "kind": "team",
+      "applied": false,
+      "reason": "db_value_wins",
+      "db_display": "풀럼",
+      "source": "db_korean"
+    },
+    {
+      "original": "Erling Haaland",
+      "korean": "엘링 홀란",
+      "kind": "player",
+      "applied": false,
+      "reason": "db_value_wins",
+      "db_display": "엘링 홀란드",
+      "source": "db_korean"
+    },
+    {
+      "original": "Rayan Cherki",
+      "korean": "라얀 체르키",
+      "kind": "player",
+      "applied": false,
+      "reason": "db_value_wins",
+      "db_display": "라얀 셰르키",
+      "source": "db_korean"
+    },
+    {
+      "original": "Josh King",
+      "korean": "조쉬 킹",
+      "kind": "player",
+      "applied": false,
+      "reason": "db_value_wins",
+      "db_display": "조슈아 킹",
+      "source": "db_korean"
+    }
+  ],
+  "model_candidates": [
+    {
+      "selected_player": "Erling Haaland",
+      "selection_reason": "리그 9골로 득점 선두를 달리고 있으며, 최근 리그 3연패로 흔들리는 Manchester City의 공격을 이끌며 분위기 반전을 노릴 핵심 공격수입니다."
+    },
+    {
+      "selected_player": "Rayan Cherki",
+      "selection_reason": "이번 시즌 Manchester City에서 15경기 6골을 기록하며 팀의 새로운 핵심 미드필더로 자리 잡았고, 이번 경기에서도 창의적인 공격 전개를 주도할 것으로 기대됩니다."
+    },
+    {
+      "selected_player": "Josh King",
+      "selection_reason": "이번 시즌 리그 전 경기에 선발 출전해 2골을 기록하는 등 맹활약하며 최근 잉글랜드 성인 대표팀에 최초 발탁된 Fulham의 19세 신성 미드필더입니다."
+    }
+  ],
+  "diagnostics": [
+    "주목 선수 Erling Haaland: 확인 가능한 사실 조각에 근거가 없어 채택하지 않았습니다(덜어낸 문장: 1개).",
+    "주목 선수 Rayan Cherki: 확인 가능한 사실 조각에 근거가 없어 채택하지 않았습니다(덜어낸 문장: 1개).",
+    "주목 선수 Josh King: 확인 가능한 사실 조각에 근거가 없어 채택하지 않았습니다(덜어낸 문장: 1개)."
+  ],
+  "approvals": 0,
+  "read_only_projection_only": true
+}

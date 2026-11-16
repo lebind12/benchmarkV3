@@ -1,0 +1,7 @@
+readable: True
+teams: [(13, 'Manchester City'), (4, 'Fulham')]
+standings rows: 2 | injuries rows: 0
+roster(stats) rows: 55
+stats coverage: {'topic': '선수 시즌 통계', 'state': 'readable', 'detail': '저장된 선수 통계 55행을 읽었습니다.'}
+stats keys: ['appearances', 'assists', 'display_name_ko', 'goals', 'league_id', 'minutes', 'player_id', 'position', 'rating', 'season_year', 'team_id', 'updated_at']
+no card columns: True

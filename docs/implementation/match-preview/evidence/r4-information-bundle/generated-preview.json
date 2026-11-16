@@ -1,0 +1,230 @@
+{
+  "run_id": "a32f3ed4-df88-4ce3-939f-702c357ef7b2",
+  "reprocessed": true,
+  "new_send": false,
+  "body": "이번 경기의 주목 선수 3명입니다.\n\n선정 선수: 엘링 홀란드\n선정 이유: 이번 시즌 리그 10경기에서 9골을 기록 중이며, 최근 챔피언스리그 라이프치히전에서도 결승골을 터뜨리며 핵심 공격수로서의 득점 감각을 유지하고 있습니다.\n\n선정 선수: 오스카 보브\n선정 이유: 과거 맨체스터 시티에서 활약했으나 현재는 풀럼 소속의 윙어로 활약 중이며, 친정팀을 상대로 어떤 경기력을 보여줄지 기대를 모읍니다.\n\n선정 선수: 루벤 디아스\n선정 이유: 이번 시즌 15경기에 출전했으나 최근 라이프치히전에서는 엔초 마레스카 감독의 선택을 받지 못하고 선발 제외되었기에, 이번 풀럼전 선발 복귀 여부가 주목됩니다.",
+  "title": "주목 선수",
+  "sources": [
+    {
+      "label": "Manchester City Players and Squad 2026-27: Numbers &amp; Stats",
+      "url": "https://manchestercitynews.co.uk/squad",
+      "kind": "web_article",
+      "note": "stats · 브라우저 없이 수집한 본문(fresh_http)"
+    },
+    {
+      "label": "Erling Haaland Stats, Goals &amp; Assists | Premier League 2026-2027 | PLStats.uk",
+      "url": "https://plstats.uk/players/erling-haaland/",
+      "kind": "web_article",
+      "note": "stats · 브라우저 없이 수집한 본문(fresh_http)"
+    },
+    {
+      "label": "Erling Haaland settles thriller for Manchester City to end RB Leipzig resistance | Champions League | The Guardian",
+      "url": "https://www.theguardian.com/football/2026/nov/04/rb-leipzig-manchester-city-champions-league-match-report",
+      "kind": "web_article",
+      "note": "past_match_report · 브라우저 없이 수집한 본문(fresh_http)"
+    },
+    {
+      "label": "Oscar Bobb - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Oscar_Bobb",
+      "kind": "web_article",
+      "note": "profile · 브라우저 없이 수집한 본문(fresh_http)"
+    },
+    {
+      "label": "저장된 경기·순위 자료",
+      "url": null,
+      "kind": "api",
+      "note": "읽기 전용 DB(public.fixture/standings/injury)"
+    }
+  ],
+  "diagnostics": [],
+  "unavailable_reason": null,
+  "quality": "ready",
+  "external_calls": 0,
+  "attempt_count": 1,
+  "node_state": {
+    "external_calls": 0,
+    "bundle_artifact_id": "971ea8ba-e3ac-47c4-91d2-15db33e4cd06",
+    "raw_artifact_id": "9dc1a4be-9827-4742-a300-fc397ff1d868",
+    "reprocessed_from_run": "a32f3ed4-df88-4ce3-939f-702c357ef7b2",
+    "raw_text_chars": 1443,
+    "usage": null,
+    "model_item_count": 3,
+    "accepted_item_count": 3,
+    "rejected_items": [],
+    "validation_notes": [],
+    "korean_labels_applied": [
+      {
+        "original": "Enzo Maresca",
+        "korean": "엔초 마레스카",
+        "kind": "coach",
+        "applied": false,
+        "reason": "db_value_wins",
+        "db_display": "엔초 마레스카",
+        "source": "db_korean"
+      }
+    ],
+    "unmapped": [],
+    "composed": {
+      "title": "주목 선수",
+      "body": "이번 경기의 주목 선수 3명입니다.\n\n선정 선수: 엘링 홀란드\n선정 이유: 이번 시즌 리그 10경기에서 9골을 기록 중이며, 최근 챔피언스리그 라이프치히전에서도 결승골을 터뜨리며 핵심 공격수로서의 득점 감각을 유지하고 있습니다.\n\n선정 선수: 오스카 보브\n선정 이유: 과거 맨체스터 시티에서 활약했으나 현재는 풀럼 소속의 윙어로 활약 중이며, 친정팀을 상대로 어떤 경기력을 보여줄지 기대를 모읍니다.\n\n선정 선수: 루벤 디아스\n선정 이유: 이번 시즌 15경기에 출전했으나 최근 라이프치히전에서는 엔초 마레스카 감독의 선택을 받지 못하고 선발 제외되었기에, 이번 풀럼전 선발 복귀 여부가 주목됩니다.",
+      "sources": [
+        {
+          "label": "Manchester City Players and Squad 2026-27: Numbers &amp; Stats",
+          "url": "https://manchestercitynews.co.uk/squad",
+          "kind": "web_article",
+          "note": "stats · 브라우저 없이 수집한 본문(fresh_http)"
+        },
+        {
+          "label": "Erling Haaland Stats, Goals &amp; Assists | Premier League 2026-2027 | PLStats.uk",
+          "url": "https://plstats.uk/players/erling-haaland/",
+          "kind": "web_article",
+          "note": "stats · 브라우저 없이 수집한 본문(fresh_http)"
+        },
+        {
+          "label": "Erling Haaland settles thriller for Manchester City to end RB Leipzig resistance | Champions League | The Guardian",
+          "url": "https://www.theguardian.com/football/2026/nov/04/rb-leipzig-manchester-city-champions-league-match-report",
+          "kind": "web_article",
+          "note": "past_match_report · 브라우저 없이 수집한 본문(fresh_http)"
+        },
+        {
+          "label": "Oscar Bobb - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Oscar_Bobb",
+          "kind": "web_article",
+          "note": "profile · 브라우저 없이 수집한 본문(fresh_http)"
+        },
+        {
+          "label": "저장된 경기·순위 자료",
+          "url": null,
+          "kind": "api",
+          "note": "읽기 전용 DB(public.fixture/standings/injury)"
+        }
+      ],
+      "quality": "ready",
+      "diagnostics": []
+    },
+    "payload_players": [
+      {
+        "selected_player": "엘링 홀란드",
+        "selection_reason": "이번 시즌 리그 10경기에서 9골을 기록 중이며, 최근 챔피언스리그 라이프치히전에서도 결승골을 터뜨리며 핵심 공격수로서의 득점 감각을 유지하고 있습니다.",
+        "team": "맨체스터 시티",
+        "player_ref": 533,
+        "evidence": [
+          "src:to27vvfzzlihudsj5vhg0h-xzef3kjtfrhdrmr5qagko3x3n#p0",
+          "src:7eah234vjvk7tmusorx1kbmoddyqlo-tdndvvknjumbllvx1#p0"
+        ],
+        "superlative_basis": null,
+        "model_selected_player": "엘링 홀란드",
+        "player_id": 533,
+        "external_id": 1100,
+        "id_space": "internal",
+        "name_source": "db_korean",
+        "mapping_status": "resolved",
+        "mapping_reason": null,
+        "mapping_detail": null,
+        "model_team": "맨체스터 시티",
+        "team_display_name": "맨체스터 시티",
+        "team_mapping": null
+      },
+      {
+        "selected_player": "오스카 보브",
+        "selection_reason": "과거 맨체스터 시티에서 활약했으나 현재는 풀럼 소속의 윙어로 활약 중이며, 친정팀을 상대로 어떤 경기력을 보여줄지 기대를 모읍니다.",
+        "team": "풀럼",
+        "player_ref": 144,
+        "evidence": [
+          "src:fxy9bqp3cqvgjx0yunt00jcttaa6jtgpexqpwfd7dqoktfqa#p0"
+        ],
+        "superlative_basis": null,
+        "model_selected_player": "오스카 보브",
+        "player_id": 144,
+        "external_id": 278133,
+        "id_space": "internal",
+        "name_source": "db_korean",
+        "mapping_status": "resolved",
+        "mapping_reason": null,
+        "mapping_detail": null,
+        "model_team": "풀럼",
+        "team_display_name": "풀럼",
+        "team_mapping": null
+      },
+      {
+        "selected_player": "루벤 디아스",
+        "selection_reason": "이번 시즌 15경기에 출전했으나 최근 라이프치히전에서는 엔초 마레스카 감독의 선택을 받지 못하고 선발 제외되었기에, 이번 풀럼전 선발 복귀 여부가 주목됩니다.",
+        "team": "맨체스터 시티",
+        "player_ref": 510,
+        "evidence": [
+          "src:https-manchestercitynews-co-uk-squad#p0",
+          "src:7eah234vjvk7tmusorx1kbmoddyqlo-tdndvvknjumbllvx1#p1"
+        ],
+        "superlative_basis": null,
+        "model_selected_player": "루벤 디아스",
+        "player_id": 510,
+        "external_id": 567,
+        "id_space": "internal",
+        "name_source": "db_korean",
+        "mapping_status": "resolved",
+        "mapping_reason": null,
+        "mapping_detail": null,
+        "model_team": "맨체스터 시티",
+        "team_display_name": "맨체스터 시티",
+        "team_mapping": null
+      }
+    ]
+  },
+  "request_check": {
+    "checked": true,
+    "request_artifact_id": "f85827cb-95dd-46b2-ba09-c9d7dca125da",
+    "request_chars": 12761,
+    "source_ids_in_request": {
+      "src:https-manchestercitynews-co-uk-squad": true,
+      "src:to27vvfzzlihudsj5vhg0h-xzef3kjtfrhdrmr5qagko3x3n": true,
+      "src:7eah234vjvk7tmusorx1kbmoddyqlo-tdndvvknjumbllvx1": true,
+      "src:fxy9bqp3cqvgjx0yunt00jcttaa6jtgpexqpwfd7dqoktfqa": true
+    },
+    "db_fact_ids_in_request": {
+      "api:fixture-identity": true,
+      "api:standings-13": true,
+      "api:standings-4": true,
+      "api:past-1557465": true,
+      "api:past-1557461": true,
+      "api:past-1635710": true,
+      "api:past-1557447": true,
+      "api:past-1557454": true
+    },
+    "fixture_id_in_request": true,
+    "google_search_tool_absent": true,
+    "note": "요청 아티팩트 본문에서 문자열 존재를 확인한 것이다(실제 전송 본문).",
+    "new_request_in_reprocess": false
+  },
+  "duration_ms": {
+    "reprocess_started_at": "2026-11-11T00:25:01.518920+00:00"
+  },
+  "attempts": [
+    {
+      "attempt_id": "39c796ac-f67a-45d4-8e8a-f1220906aaaa",
+      "logical_call_id": "section_players/research-r4/bundle-trial",
+      "attempt_ordinal": 0,
+      "module_execution_id": "43bb1e1d-4b3c-45f8-aa4c-2328d93886d8",
+      "module_id": "R4",
+      "provider": "vertex",
+      "model": "gemini-3.5-flash",
+      "mode": "live",
+      "operation": "research_players_bundle_trial",
+      "outcome": "ok",
+      "http_status": 200,
+      "error_class": null,
+      "error_message": null,
+      "request_artifact_id": "f85827cb-95dd-46b2-ba09-c9d7dca125da",
+      "response_artifact_id": "9dc1a4be-9827-4742-a300-fc397ff1d868",
+      "usage": {
+        "input_tokens": 6026,
+        "output_tokens": 687,
+        "search_queries": null
+      },
+      "wait_ms": null,
+      "started_at": "2026-11-11T00:17:39.616011+00:00",
+      "finished_at": "2026-11-11T00:17:39.616011+00:00",
+      "request_chars": 12170,
+      "request_sha256": "e8036847d1294ed00d1791374082eff72660ac25635ba000b6ff38007a7f0d37"
+    }
+  ]
+}

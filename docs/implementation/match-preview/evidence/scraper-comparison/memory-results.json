@@ -1,0 +1,77 @@
+{
+  "rss_probes": [
+    {
+      "tool": "scrapling",
+      "html": "/tmp/preview-scraper-compare.PRpmWn/raw/fulham_rendered.html",
+      "runs": 5,
+      "baseline_import_mb": 11.3,
+      "after_warmup_mb": 64.0,
+      "peak_rss_mb": 93.5,
+      "peak_delta_over_baseline_mb": 82.2,
+      "total_chars_materialised": 7645,
+      "loop_wall_s": 0.364,
+      "method": "RUSAGE_SELF ru_maxrss high-water mark for this process"
+    },
+    {
+      "tool": "trafilatura",
+      "html": "/tmp/preview-scraper-compare.PRpmWn/raw/fulham_rendered.html",
+      "runs": 5,
+      "baseline_import_mb": 11.3,
+      "after_warmup_mb": 67.1,
+      "peak_rss_mb": 112.4,
+      "peak_delta_over_baseline_mb": 101.2,
+      "total_chars_materialised": 2895,
+      "loop_wall_s": 0.307,
+      "method": "RUSAGE_SELF ru_maxrss high-water mark for this process"
+    },
+    {
+      "tool": "scrapling",
+      "html": "/tmp/preview-scraper-compare.PRpmWn/raw/gredir1.html",
+      "runs": 5,
+      "baseline_import_mb": 11.3,
+      "after_warmup_mb": 42.7,
+      "peak_rss_mb": 47.9,
+      "peak_delta_over_baseline_mb": 36.6,
+      "total_chars_materialised": 20865,
+      "loop_wall_s": 0.165,
+      "method": "RUSAGE_SELF ru_maxrss high-water mark for this process"
+    },
+    {
+      "tool": "trafilatura",
+      "html": "/tmp/preview-scraper-compare.PRpmWn/raw/gredir1.html",
+      "runs": 5,
+      "baseline_import_mb": 11.7,
+      "after_warmup_mb": 46.5,
+      "peak_rss_mb": 53.4,
+      "peak_delta_over_baseline_mb": 41.6,
+      "total_chars_materialised": 9100,
+      "loop_wall_s": 0.238,
+      "method": "RUSAGE_SELF ru_maxrss high-water mark for this process"
+    },
+    {
+      "tool": "scrapling",
+      "html": "/tmp/preview-scraper-compare.PRpmWn/raw/gredir3.html",
+      "runs": 5,
+      "baseline_import_mb": 11.0,
+      "after_warmup_mb": 48.8,
+      "peak_rss_mb": 69.5,
+      "peak_delta_over_baseline_mb": 58.6,
+      "total_chars_materialised": 91230,
+      "loop_wall_s": 0.376,
+      "method": "RUSAGE_SELF ru_maxrss high-water mark for this process"
+    },
+    {
+      "tool": "trafilatura",
+      "html": "/tmp/preview-scraper-compare.PRpmWn/raw/gredir3.html",
+      "runs": 5,
+      "baseline_import_mb": 10.9,
+      "after_warmup_mb": 54.2,
+      "peak_rss_mb": 66.0,
+      "peak_delta_over_baseline_mb": 55.1,
+      "total_chars_materialised": 72430,
+      "loop_wall_s": 0.792,
+      "method": "RUSAGE_SELF ru_maxrss high-water mark for this process"
+    }
+  ],
+  "method": "RUSAGE_SELF ru_maxrss per fresh process, warmup then 5 runs, excludes browser children"
+}

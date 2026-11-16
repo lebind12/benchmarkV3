@@ -1,0 +1,37 @@
+> **기획 참고 원문 · 2026-11-09 정리**
+> 출처: `news-context` 워크트리의 `docs/spec/endpoints/home-preview.spec.md`.
+> 요구·설계·결정의 맥락을 보존한 자료입니다. 본문의 구현 완료, 검증 수치, 실행 명령, 작업 경로, 배포 승인은 당시 기록이며 현재 상태나 새 실행 승인이 아닙니다. 현재는 네 워크트리의 개발 코드가 삭제된 기획 보관 상태입니다. 상충하는 과거안은 상위 기획 요약과 최신 결정 기록을 따릅니다.
+
+# Home recommendation / stored prematch API — BE spec
+
+FE inputs: GET__api_v1_home_recommendations.request.json and GET__api_v1_home_fixtures_external_id_prematch.request.json. PRE-01 transport v1.0, payload v1.1.
+
+Public GETs query DB only. No dependency on authentication, Redis, API-Football, Vertex or worker state. Invalid external ID/date 422; unknown fixture 404; storage failure 503 with fixed public detail. Existing fixture without snapshot returns 200 pending/unavailable. Ongoing no-snapshot uses kickoff_passed. Response never contains internal runs/errors. Production body must have is_mock=false; cross-fixture, malformed and post-kickoff versions are never served. A changed kickoff/team identity invalidates the saved version.
+
+Recommendations use active league + active LeagueSyncTarget in latest two actual target seasons (not current calendar minus one). A stale is_active league flag alone does not activate an absent/inactive target. Null teams and unsupported states excluded. Stored ongoing states 1H/HT/2H/ET/BT/P/INT/LIVE, scheduled NS, finished FT/AET/PEN. No real-time status inferred from clock. Classification: EPL 39; UCL 2; UEL 3; other Cup competitions require country_name=England for domestic cup rank 7. Ongoing first then confirmed priority 1..8, kickoff, external ID. Display-name translation does not affect ranking. Today finished results separate. Unlimited eligible list; nearest eligible future scheduled date fallback. DB updated_at gives per-fixture state clock; response as_of=max returned fixture.updated_at (nullable when no observed fixture exists), never fabricated now.
+
+DB input builder: exact target fixture identity and translated names; latest completed team fixtures from all competitions, kickoff < min(snapshot,kickoff), updated_at<=snapshot and final score present, excluding current fixture. Actual historical completion cannot be proven from a current-state row unless last verification is <= snapshot; late-mutated fixtures are excluded conservatively. FT/AET/PEN and penalties preserved. Missing/partial form explicit. Existing injury rows have no successful-empty coverage ledger; do not claim zero injuries. Official API read-only captures were verified before implementing adapters because the MCP tool is unavailable. Worker-only /leagues coverage, /injuries, /odds?bet=1 and /predictions populate evidence. Predictions are labelled API-Football algorithm outlooks. Empty injuries do not establish zero. Only regular Match Winner Home/Draw/Away odds updated within six hours are accepted. Original update and collection clocks remain distinct. Optional bounded search fills unavailable sections only after original-page verification. No fabricated replacement.
+
+Storage uses separate HomePreviewSnapshot, HomePreviewVersion, HomePreviewPublication and HomePreviewAttempt tables, cascaded to fixture. Publication owns current immutable version, attempt status and fixture identity fingerprint. Run slots are unique per fixture + KST six-hour slot; max four primary slots per fixture including failures, only scheduled within (now,now+24h]. DB row ownership and lease prevent concurrent publication. Kickoff/teams/status are rechecked under lock at publish. Failure keeps version pointer and original times. Version stores input/schema/prompt/model fingerprint; unchanged inputs skip model invocation but still trace slot evaluation. Same input/version uniqueness avoids duplicates. Facts-only can be stored when no AI provider configured, with generated_at=null and all analysis data=null. Current full version is retained if a newer result loses any previously available section; record unsuccessful refresh instead of silently degrading. All source evidence and analysis use same snapshot, never mix new facts with old AI.
+
+Supabase SQL migration only in this feature, matching SQLAlchemy metadata. Apply only to isolated local DB; production changes require separate deployment authorization. No manual generation API. CLI can audit/dry-run without writes, generate only with explicit execute flag, default single model concurrency and bounded calls. Provider tests use fixed responses; actual check is separately opt-in and records only sanitized metadata.
+
+Tests: shared FE examples + JSON Schema + Pydantic; cross-field negative cases; real PostgreSQL FK/unique/rollback; no-preview/error/previous/production mock rejection; priority and KST fallback; max4 and pre-kickoff recheck; failed/interrupted preservation; public read external-call traps; existing home/broadcast regression. API adapters have actual response fixtures and local execution evidence; real web original-page coverage and independent spec/code review remain pending. See home-preview-sources.md and home-preview-implementation.md.
+
+Fingerprint includes six-hour freshness slot, semantic evidence and explicit model/prompt/schema generation version. Snapshot stores private verification metadata; observation timestamps alone do not trigger repeated generation within the same slot. Failed and explicit retried executions accumulate API/model/search counters. A failed slot permits at most one explicitly requested retry; no automatic AI repair loop. The worker processes at most 24 queued fixtures per cycle and reports deferred IDs, while the public recommendation list has no such display cap. Defaults disable automatic generation and search.
+
+
+## 2026-10-25 후속: 선택 원인·발생 시점과 매체 coverage
+
+최신 정책/계약은 `docs/features/home-preview-research.md`가 이전 검색 예산·호출 수 설명을 대체한다. 분석 후 확정된 key_absences만 팀당 최대2명 원인/발생일을 검색한다. 원문·API 충돌/기사일·복귀일/미확인 날짜/대상 외 선수·기존 facts 불변을 검증한다. 매체 목표3곳은 API 자체 예측 제외, 부족하면 partial, 기존 저장본의 조회는 DB 출처만으로 coverage를 계산한다. 기본 자동 생성 OFF/검색 ON; 선택 원인 단계 포함 최대 모델3회(4슬롯 최대12회), provider 내부 질의 수는 실제값과 초과 여부를 기록한다. 홈 상세 버튼은 기존 fixture-detail route를 선택 external_id로 사용한다.
+
+최종 로컬 검증: BE107/FE unit29/E2E17/실제 DB L3 4/build/lint PASS, 통합 skip0. 단순 링크 추가와 별개로 날짜·월 표시/원인 출처·선택 후 링크 갱신/클릭 이동을 브라우저에서 확인했다. 실제 맨유–본머스 새 연구 후보의 웹 전망0/원인0은 게시하지 않았고 기존 정상 저장본을 보존했다. 웹3곳 달성과 PRE-12 독립 인수/운영 적용 완료를 주장하지 않는다.
+
+
+2026-10-25 후속: 메인 전용 transient 단계 재시도·슬롯 합계4 model request 상한·900초 lease·원인180초/기타90초·불변 snapshot checkpoint/resume를 구현한다. public DB GET은 unchanged. checkpoint는 private snapshot/attempt에만 존재한다. 상세 정책과 이전 설명 대체 관계는 `docs/features/home-preview-retry-policy.md`의 최신 절을 따른다.
+
+
+최신 구현 정정: 실제 중복 일시 오류로 단계당 추가1회/전체 모델6회, lease1200초를 적용했다. responseSchema 원인 검색과 등록 원문 URL 검증, 선택 단계 재개를 포함한다. 최종 실제4경기 흐름과 원문 누락 범위는 `docs/features/home-preview-generation-verification.md` 참조. 이전4회/900초는 중간 기록이다.
+
+
+2026-10-25 후속 계약: source.published_on(선택,YYYY-MM-DD)은 일 단위 게시일을 보존하며 published_at이 없는 경우 시각을 창작하지 않는다. 부상 원인 검색은 실제 URL 확보/원문 수집 후 짧은 출처 ID로 JSON 추출하며 다중 인용/동일 사건/발생일과 발표일을 분리 검증한다. 정상 최대4회·단계 최대3요청·슬롯 전체6회·lease1200초. 실제4경기 생성 흐름 오류0이나 매체3곳/자동 발생일 목표는 미완료이며 최신 generation-verification.md 참조.

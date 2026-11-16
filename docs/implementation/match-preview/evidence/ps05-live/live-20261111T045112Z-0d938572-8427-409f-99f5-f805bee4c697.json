@@ -1,0 +1,236 @@
+{
+  "script_version": "mp11-live-once-1",
+  "fixture_id": 1557474,
+  "run_id": "0d938572-8427-409f-99f5-f805bee4c697",
+  "started_at": "2026-11-11T04:51:12.985634+00:00",
+  "finished_at": "2026-11-11T04:51:44.948407+00:00",
+  "duration_seconds": 32.0,
+  "mode": "live",
+  "status": "failed",
+  "quality": "insufficient",
+  "external_calls": 4,
+  "budget": {
+    "model_requests": 8,
+    "model_used": 4,
+    "model_remaining": 4,
+    "model_reserved_for_unstarted_steps": 0,
+    "api_requests": 24,
+    "api_used": 0,
+    "api_remaining": 24,
+    "attempts_per_call": 3,
+    "deadline_seconds": 1800,
+    "seconds_left": 1768.975,
+    "registered_calls": [
+      "discovery_outlook",
+      "discovery_people",
+      "section_players",
+      "section_ai_forecast"
+    ],
+    "cancelled_calls": [
+      "section_availability",
+      "section_outlook"
+    ],
+    "reservations_returned": 2,
+    "normal_model_calls": 6,
+    "stopped_reason": null
+  },
+  "unavailable_reason": "필수 섹션 본문을 만들지 못했습니다: section_players",
+  "bundle": {
+    "available": true,
+    "bundle_id": "bundle-cf5def869d044c99",
+    "bundle_hash": "2d862c9921a2d4a5def3d3ff0175b87ce9e6e0a525eca797e0c2f5ea664974d5",
+    "source_count": 0,
+    "usable_source_count": 0,
+    "failed_source_count": 0,
+    "available_passages": 0,
+    "available_chars": 0,
+    "network_usage": {
+      "api_limit": null,
+      "api_used": 0,
+      "http_failed": 0,
+      "http_limit": 24,
+      "http_used": 0,
+      "note": "비모델 HTTP 상한을 수집이 공유한다. 리다이렉트와 실패도 전송으로 센다. 이 함수는 모델을 호출하지 않는다.",
+      "redirects": 0
+    },
+    "db_readable": true,
+    "db_injuries": 0,
+    "odds_quotes": 0,
+    "odds_adopted_quotes": 0,
+    "section_delivery_count": 5,
+    "sources": [],
+    "section_deliveries": [
+      {
+        "section_id": "section_players",
+        "model_delivered": true,
+        "passage_ids": [],
+        "payload_sha256": "c93cbbfe42de2961588744bd1dfe6866d7f6efed239e84c28649fccd261375ee",
+        "sent_attempts": 1
+      },
+      {
+        "section_id": "section_availability",
+        "model_delivered": false,
+        "passage_ids": [],
+        "payload_sha256": null,
+        "sent_attempts": 0
+      },
+      {
+        "section_id": "section_outlook",
+        "model_delivered": false,
+        "passage_ids": [],
+        "payload_sha256": null,
+        "sent_attempts": 0
+      },
+      {
+        "section_id": "section_odds",
+        "model_delivered": false,
+        "passage_ids": [],
+        "payload_sha256": null,
+        "sent_attempts": 0
+      },
+      {
+        "section_id": "section_ai_forecast",
+        "model_delivered": true,
+        "passage_ids": [],
+        "payload_sha256": "5a791c2987fbb8e0b28cb51c5492c49dea7d719448481959914e88731b7192f6",
+        "sent_attempts": 1
+      }
+    ],
+    "diagnostics": [
+      "extraction_dependency_missing · trafilatura가 설치되지 않아 기사 본문 추출을 표준 라이브러리 폴백으로만 수행했습니다. 이 결과를 제품 본문 추출 검증으로 인용하지 않습니다.",
+      "no_usable_sources"
+    ]
+  },
+  "sections": [
+    {
+      "workflow_id": "section_ai_forecast",
+      "version": 1,
+      "mode": "live",
+      "quality": "ready",
+      "unavailable": false,
+      "unavailable_reason": null,
+      "title": "AI 경기 전망",
+      "body_chars": 330,
+      "body_excerpt": "## AI 경기 전망\n맨체스터 시티와 풀럼의 맞대결로, 현재 양 팀의 구체적인 리그 순위 정보가 제공되지 않아 전력 비교에 제한이 있습니다. 부상자나 주목할 만한 선수 정보 역시 확인되지 않은 상태에서 경기가 치러집니다. 양 팀 모두 객관적인 전력 분석 데이터가 부족한 상황에서 경기 초반 조심스러운 흐름을 보일 가능성이 있습니다.\n\n### AI 예상 스코어\n2-1\n\n- 양 팀의 순위 정보나 최근 경기력 데이터가 부재하여 전력 차이를 상세히 분석하기는 어렵습니다.\n- 다만 홈팀인 맨체스터 시티가 안방에서의 이점을 살려 근소한 우세를 점할 것으로 예상하여 2대 1의 스코어를 도출했습니다.",
+      "source_count": 0,
+      "diagnostics": [
+        "주목 선수 섹션 결과가 입력에 없습니다."
+      ]
+    },
+    {
+      "workflow_id": "section_availability",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "이 경기의 부상 관련 수집 본문과 DB 부상 행이 모두 없어 요청을 보내지 않았습니다. 부상자가 없다는 뜻은 아닙니다.",
+      "title": "부상·결장 영향",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "모델 호출을 시작하지 않아 예약 몫을 반환했습니다(새 호출 없음)."
+      ]
+    },
+    {
+      "workflow_id": "section_odds",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "정규시간 1X2 값이 모두 있는 배당 줄이 없어 이 선택 섹션을 표시하지 않습니다.",
+      "title": "배당 현황",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "팀 이름이 없어 배당 표에서 이 경기 행을 찾지 못합니다.",
+        "배당은 선택 섹션입니다. 채택 가능한 줄이 없으면 독자 화면에서 생략하고 관리자에게만 사유를 남깁니다. 빠진 값을 추정해 채우지 않습니다."
+      ]
+    },
+    {
+      "workflow_id": "section_outlook",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "외부 전망을 확인할 수집 기사 본문이 없어 매체 전망 요청을 보내지 않았습니다.",
+      "title": "외부 매체 전망",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "모델 호출을 시작하지 않아 예약 몫을 반환했습니다(새 호출 없음)."
+      ]
+    },
+    {
+      "workflow_id": "section_players",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "표시할 수 있는 주목 선수(이름·선정 이유)가 응답에 없어 본문을 만들지 않았습니다.",
+      "title": "주목 선수",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "선정된 선수가 없어서 독자용 본문을 만들지 않았습니다."
+      ]
+    }
+  ],
+  "attempts": [
+    {
+      "logical_call_id": "discovery_outlook",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 818,
+        "output_tokens": 62,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T04:51:12.985634+00:00",
+      "finished_at": "2026-11-11T04:51:12.985634+00:00"
+    },
+    {
+      "logical_call_id": "discovery_people",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 886,
+        "output_tokens": 87,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T04:51:12.985634+00:00",
+      "finished_at": "2026-11-11T04:51:12.985634+00:00"
+    },
+    {
+      "logical_call_id": "section_players",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 1034,
+        "output_tokens": 128,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T04:51:12.985634+00:00",
+      "finished_at": "2026-11-11T04:51:12.985634+00:00"
+    },
+    {
+      "logical_call_id": "section_ai_forecast",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 964,
+        "output_tokens": 308,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T04:51:12.985634+00:00",
+      "finished_at": "2026-11-11T04:51:12.985634+00:00"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "prompt_chars": 12170,
+  "prompt_sha256": "e8036847d1294ed00d1791374082eff72660ac25635ba000b6ff38007a7f0d37",
+  "parsed_ok": true,
+  "model_items": 1,
+  "accepted_items": 1,
+  "rejected_items": [],
+  "notes": [],
+  "compose_body_chars": 85,
+  "compose_body_lines": 4,
+  "compose_quality": "ready",
+  "full_path_rehearsal": {
+    "ok": true,
+    "sent_attempts": 0,
+    "accepted": 1,
+    "rejected": 0,
+    "body_chars": 85,
+    "body_lines": [
+      "이번 경기의 주목 선수 1명입니다.",
+      "",
+      "선정 선수: Erling Haaland",
+      "선정 이유: 리그 9골로 팀 득점을 이끄는 공격수입니다(시험용 합성 응답)."
+    ],
+    "usage_readable": {
+      "input_tokens": 1,
+      "output_tokens": 1,
+      "search_queries": null
+    },
+    "ok_path": true,
+    "elapsed_ms": 0,
+    "note": "합성 기록 응답으로 전송 뒤 경로(응답 읽기·usage·검증·조립)를 실행했다. 실제 모델 전송 0회."
+  },
+  "elapsed_ms": 0,
+  "note": "합성 응답으로 파서·검증·이름 해석·조립과 후처리 경로를 확인했다. 실제 모델 호출은 0회이며, 사실 진위나 모델 품질을 확인한 것이 아니다.",
+  "evidence_chars": 5311,
+  "external_calls": 0
+}

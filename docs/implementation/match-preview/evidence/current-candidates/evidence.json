@@ -1,0 +1,197 @@
+{
+  "task": "current R1 candidate bodies in real preview_dev (zero external calls)",
+  "observed_at_kst": "2026-11-11T03:25 KST",
+  "agent": {
+    "profile": "dsh-tui",
+    "provider": "hive",
+    "model": "deepseek-ai/deepseek-v4.1-flash-1017",
+    "reasoning_effort": "max",
+    "subworkers": 0
+  },
+  "source_code_head": "3b606c0",
+  "derived_workflow_version": "section_form@3721e7df4a7f6a61",
+  "database": "preview_dev schema; public fixture/account data read only",
+  "external_calls": {
+    "execute_request": 0,
+    "request_model": 0,
+    "vertex_sends": 0,
+    "api_football_sends": 0,
+    "method": "호출 직전에 provider.execute_request / provider.request_model 을 AssertionError 스텁으로 교체했고, 실행이 끝난 뒤 두 스텁의 호출 카운터를 읽어 0을 확인했다. 재검증 경로는 저장된 raw_response artifact + 저장 D0 payload만 입력으로 쓴다."
+  },
+  "runs": [
+    {
+      "run_id": "6e59041a-3767-4756-a412-991008873f50",
+      "run_label": "MP-05 section_form 실제 실행 (사용자 검토용)",
+      "section_result_id": "333981a1-0ea0-4ac9-890a-b797e8be6ebe",
+      "section_version": 6,
+      "workflow_version": "section_form@3721e7df4a7f6a61",
+      "section_version_matches_code": true,
+      "quality": "ready",
+      "mode": "live",
+      "environment": "dev",
+      "created_at": "2026-11-10T18:24:56.184997+00:00",
+      "body_chars": 868,
+      "body_paragraphs": 6,
+      "body_sha256": "67143d98732ec2a5f2c1362740047187a5d60c8bdd6f16fe6242156a86049ad9",
+      "diagnostics_count": 12,
+      "diagnostics_are_whole_messages": true,
+      "diagnostics_include_excluded_facts": true,
+      "diagnostics_include_unasserted_premises": true,
+      "diagnostics_sample": "저장된 원문 응답을 새 사실/판단 검증 규칙으로 다시 해석했습니다(외부 호출 0회). 새 근거를 추가하지 않았고, 이전 버전과 원문은 그대로 보존합니다. 검증 구현 버전: mp05-form-3.",
+      "sources_count": 1,
+      "watch_points": 2,
+      "hot_players": 3,
+      "recent_form": 2,
+      "r1_result_id": "1b1f64b8-cd1a-40ab-bbe3-b7a705c0e6b3",
+      "r1_implementation_version": "mp05-form-3",
+      "r1_prompt_version": "mp05-form-prompt-1",
+      "compose_result_id": "5a5c9c07-1011-4e54-a5ea-afd0a49436e5",
+      "manifest": [
+        {
+          "module_id": "D0",
+          "prompt_version": "",
+          "contract_version": "mp02-1",
+          "implementation_version": "mp05-stored-d0-1"
+        },
+        {
+          "module_id": "R1",
+          "prompt_version": "mp05-form-prompt-2",
+          "contract_version": "mp02-1",
+          "implementation_version": "mp05-form-3"
+        },
+        {
+          "module_id": "compose_body",
+          "prompt_version": "",
+          "contract_version": "mp02-1",
+          "implementation_version": "mp05-compose-2"
+        }
+      ],
+      "manifest_nonempty": true,
+      "manifest_workflow_version": "section_form@3721e7df4a7f6a61",
+      "section_stamp_equals_result_stamp": true,
+      "source_generation": {
+        "prompt_version_from_original_run": "mp05-form-prompt-1",
+        "implementation_version_from_original_run": "mp05-form-1",
+        "labelled_as_new_prompt_generation": false
+      },
+      "revalidation": {
+        "kind": "revalidated_from_stored_response",
+        "external_calls": 0,
+        "source_artifact_id": "305d1f89-9940-4edf-8305-92a5d4c5b6a3",
+        "source_attempt_id": "2b1fe55b-9d0e-466c-88ba-160902008ecc",
+        "source_result_id": "8353ac0c-b80f-4659-b16d-558f92ad1543",
+        "validated_by_implementation_version": "mp05-form-3",
+        "validated_by_prompt_version": "mp05-form-prompt-2"
+      },
+      "rejected_premises_absent": {
+        "역사적인 상성 우위를 바탕으로": true,
+        "역사적인 우위를 바탕으로": true,
+        "최근 지적받은": true,
+        "최근 득점으로 자신감을 얻은 만큼": true
+      },
+      "forecasts_selections_retained": {
+        "가장 유력한 해결사": true,
+        "가장 날카로운 무기": true,
+        "책임질 것으로": false,
+        "득점포를 가동할": false,
+        "전망됩니다": false,
+        "가능성이 큽니다": true,
+        "성향을 바탕으로": true,
+        "강력한 압박": true
+      }
+    },
+    {
+      "run_id": "7c0af3c0-4f55-4270-9266-be58c65d8f6b",
+      "run_label": "MP-05 비교 실행",
+      "section_result_id": "df2f574c-4565-4b23-8ac1-0fa80b2deadc",
+      "section_version": 5,
+      "workflow_version": "section_form@3721e7df4a7f6a61",
+      "section_version_matches_code": true,
+      "quality": "ready",
+      "mode": "live",
+      "environment": "dev",
+      "created_at": "2026-11-10T18:25:00.495112+00:00",
+      "body_chars": 837,
+      "body_paragraphs": 7,
+      "body_sha256": "02696d3053a5142848844e9620f76d4252eb33adca21d1b92df187b31f8b8cf5",
+      "diagnostics_count": 12,
+      "diagnostics_are_whole_messages": true,
+      "diagnostics_include_excluded_facts": true,
+      "diagnostics_include_unasserted_premises": true,
+      "diagnostics_sample": "저장된 원문 응답을 새 사실/판단 검증 규칙으로 다시 해석했습니다(외부 호출 0회). 새 근거를 추가하지 않았고, 이전 버전과 원문은 그대로 보존합니다. 검증 구현 버전: mp05-form-3.",
+      "sources_count": 1,
+      "watch_points": 3,
+      "hot_players": 3,
+      "recent_form": 2,
+      "r1_result_id": "5067614d-0dd3-4776-b958-091e266e8756",
+      "r1_implementation_version": "mp05-form-3",
+      "r1_prompt_version": "mp05-form-prompt-1",
+      "compose_result_id": "56cd21f3-b1f5-496f-8764-1755f4723f2b",
+      "manifest": [
+        {
+          "module_id": "D0",
+          "prompt_version": "",
+          "contract_version": "mp02-1",
+          "implementation_version": "mp05-stored-d0-1"
+        },
+        {
+          "module_id": "R1",
+          "prompt_version": "mp05-form-prompt-2",
+          "contract_version": "mp02-1",
+          "implementation_version": "mp05-form-3"
+        },
+        {
+          "module_id": "compose_body",
+          "prompt_version": "",
+          "contract_version": "mp02-1",
+          "implementation_version": "mp05-compose-2"
+        }
+      ],
+      "manifest_nonempty": true,
+      "manifest_workflow_version": "section_form@3721e7df4a7f6a61",
+      "section_stamp_equals_result_stamp": true,
+      "source_generation": {
+        "prompt_version_from_original_run": "mp05-form-prompt-1",
+        "implementation_version_from_original_run": "mp05-form-1-nomime-1",
+        "labelled_as_new_prompt_generation": false
+      },
+      "revalidation": {
+        "kind": "revalidated_from_stored_response",
+        "external_calls": 0,
+        "source_artifact_id": "95f5e638-7f73-41df-a439-a88450d58630",
+        "source_attempt_id": "d015dccc-8e4d-4049-ad10-c0cbb260f492",
+        "source_result_id": "cf9f44c0-6690-4aa6-a419-b00c3f432531",
+        "validated_by_implementation_version": "mp05-form-3",
+        "validated_by_prompt_version": "mp05-form-prompt-2"
+      },
+      "rejected_premises_absent": {
+        "역사적인 상성 우위를 바탕으로": true,
+        "역사적인 우위를 바탕으로": true,
+        "최근 지적받은": true,
+        "최근 득점으로 자신감을 얻은 만큼": true
+      },
+      "forecasts_selections_retained": {
+        "가장 유력한 해결사": false,
+        "가장 날카로운 무기": false,
+        "책임질 것으로": true,
+        "득점포를 가동할": true,
+        "전망됩니다": true,
+        "가능성이 큽니다": false,
+        "성향을 바탕으로": false,
+        "강력한 압박": false
+      }
+    }
+  ],
+  "approvals": {
+    "before": 0,
+    "after": 0,
+    "new_approval_rows_written": 0,
+    "approval_equality_evidence": "reused from f2f3-fix-report.md (7 new + 72 affected paths); no tests repeated"
+  },
+  "preserved": {
+    "old_section_results_kept": 11,
+    "raw_artifacts_kept": 5,
+    "note": "old bodies/diagnostics/raw responses untouched; no backfill; new versions supersede by link only"
+  },
+  "write_scope": "preview_dev 신규 행만: 모듈 실행 +4(실행마다 R1·compose 1건), 모듈 결과 +4, 섹션 결과 +2. preview_runs/preview_attempts/preview_artifacts 변화 0, 승인 0, 기존 행 수정·삭제·backfill 없음."
+}

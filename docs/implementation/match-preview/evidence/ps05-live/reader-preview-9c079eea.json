@@ -1,0 +1,439 @@
+{
+ "captured_at": "2026-11-11T11:14:54.560856+00:00",
+ "run_id": "9c079eea-6f66-46bb-83e2-460850f0a22f",
+ "source": "stored DB rows re-read AFTER outlook v2 append (no model/HTTP call)",
+ "outlook_reprocess": {
+  "script_version": "sf01-outlook-reprocess-1",
+  "new_result_id": "fad82246-8fdf-48db-8db0-5641f576476d",
+  "new_version": 2,
+  "body_chars": 383,
+  "media_items": 3,
+  "source_response_artifact_id": "4f8b5883-65bf-4ddc-83e3-32f650a84ea7",
+  "v1_preserved": true,
+  "attempts_unchanged": 6,
+  "external_calls": 0
+ },
+ "section_versions_all": [
+  {
+   "section_id": "section_ai_forecast",
+   "version": 1,
+   "section_result_id": "423df9d5-279f-4194-8254-8a8529029478",
+   "mode": "live",
+   "quality": "ready",
+   "body_chars": 347
+  },
+  {
+   "section_id": "section_availability",
+   "version": 1,
+   "section_result_id": "405f373c-46df-4537-861c-b1c54d2a3159",
+   "mode": "live",
+   "quality": "ready",
+   "body_chars": 592
+  },
+  {
+   "section_id": "section_odds",
+   "version": 1,
+   "section_result_id": "a498e8fd-8107-4825-b8f4-db5162a44152",
+   "mode": "live",
+   "quality": "insufficient",
+   "body_chars": 0
+  },
+  {
+   "section_id": "section_outlook",
+   "version": 1,
+   "section_result_id": "3b7ffb70-ede3-4d52-ac5c-6db71ff80e47",
+   "mode": "live",
+   "quality": "ready",
+   "body_chars": 164
+  },
+  {
+   "section_id": "section_outlook",
+   "version": 2,
+   "section_result_id": "fad82246-8fdf-48db-8db0-5641f576476d",
+   "mode": "replay",
+   "quality": "ready",
+   "body_chars": 383
+  },
+  {
+   "section_id": "section_players",
+   "version": 1,
+   "section_result_id": "a4917bff-403e-4e48-9619-f7ef10e2216c",
+   "mode": "live",
+   "quality": "ready",
+   "body_chars": 344
+  }
+ ],
+ "reader_preview": {
+  "complete": true,
+  "unavailable_reason": null,
+  "body": "이번 경기의 주목 선수 4명입니다.\n\n선정 선수: 엘링 홀란드\n선정 이유: 이번 시즌 리그 10경기에서 9골을 기록하며 팀의 공격을 책임지고 있는 핵심 스트라이커입니다.\n\n선정 선수: 라얀 셰르키\n선정 이유: 리그 9경기에서 5골 2도움을 기록하며 엘링 홀란드와 함께 맨체스터 시티의 공격을 주도하고 있습니다.\n\n선정 선수: 조슈아 킹\n선정 이유: 최근 잉글랜드 성인 대표팀에 처음 발탁된 유망주로, 사타구니 부상에서 회복해 이번 맨체스터 시티전 복귀를 목표로 하고 있습니다.\n\n선정 선수: 오스카 보브\n선정 이유: 맨체스터 시티 출신의 윙어로, 친정팀을 상대로 풀럼의 측면 공격을 이끌 주역으로 주목받고 있습니다.\n\n## 부상·결장 영향\n\n확인된 부상·결장 상황만 정리했습니다.\n\n### 맨체스터 시티\n- 앙투안 세메뇨: 결장(확정 표기)\n  부상 내용: 다리 부상으로 인해 장기 결장 중입니다.\n  영향: 장기 결장 중인 공격수로, 맨체스터 시티의 공격진 로테이션과 옵션 선택에 제한을 주고 있습니다.\n- 마크 게히: 출전 불확실\n  부상 내용: 엉덩이 부상으로 인해 대표팀에서 하차하여 회복 중입니다.\n  영향: 수비진의 주요 자원으로, 그의 출전 여부에 따라 맨체스터 시티의 수비 라인 구성에 변화가 생길 수 있습니다.\n\n### 풀럼\n- 톰 케어니: 출전 불확실\n  부상 내용: 무릎 부상으로 인해 직전 경기에 결장했습니다.\n  영향: 풀럼의 베테랑 미드필더로, 그의 결장 여부는 팀의 중원 안정감과 경기 조율 능력에 영향을 미칠 수 있습니다.\n- 조쉬 킹: 출전 불확실\n  부상 내용: 뉴캐슬전에서 사타구니 통증을 느껴 교체 아웃되었으나, A매치 휴식기 동안 회복을 거쳐 맨체스터 시티전 복귀를 목표로 하고 있습니다.\n  영향: 최근 잉글랜드 성인 대표팀에 처음 발탁된 19세 유망주 미드필더로, 출전할 경우 풀럼의 중원에 활력을 불어넣을 수 있습니다.\n\n## 외부 매체 전망\n수집한 기사에서 확인한 외부 매체의 이 경기 전망입니다. 이 서비스의 판단과는 별개입니다.\n- Forebet: 맨체스터 시티가 최근 리그 3연패로 주춤하고 있으나, 풀럼을 상대로 역사적인 우세를 바탕으로 승리할 것으로 전망했습니다. 엘링 홀란드가 공격의 핵심 역할을 할 것이며 안투안 세메뇨와 톰 케어니의 부상 결장 가능성을 언급했습니다.\n- FootyPulse: 맨체스터 시티가 제레미 도쿠의 종아리 부상 결장에도 불구하고 홈에서의 완벽한 성적과 상대 전적 우위를 바탕으로 승리할 확률이 68%에 달한다고 분석했습니다.\n- WinDrawWin: 맨체스터 시티의 홈 승리를 예측하며, 양 팀 모두 득점하지 못하고 총 득점이 2.5골 이하가 될 것으로 전망했습니다.\n\n## AI 경기 전망\n맨체스터 시티는 최근 리그에서 주춤한 흐름을 보이고 있으나, 풀럼을 상대로 최근 23경기 무패라는 압도적인 역사적 우위를 점하고 있습니다. 엘링 홀란드와 마티스 라이안 셰르키가 주도하는 맨체스터 시티의 공격진이 경기를 지배할 것으로 보이며, 풀럼은 조쉬 킹의 복귀 여부와 오스카 봅의 측면 공격에 기대를 걸어야 하는 상황입니다.\n\n### AI 예상 스코어\n2-0\n\n- 맨체스터 시티가 홈에서의 강세와 풀럼 상대 압도적인 전적 우위를 바탕으로 경기를 주도할 것입니다.\n- 제레미 도쿠의 결장과 수비진의 일부 전력 누수 우려가 있으나, 엘링 홀란드의 결정력을 앞세워 실점 없이 승리를 가져갈 가능성이 높습니다.",
+  "body_chars": 1668,
+  "blocks": [
+   {
+    "section_id": "section_players",
+    "version": 1,
+    "title": "주목 선수",
+    "body": "이번 경기의 주목 선수 4명입니다.\n\n선정 선수: 엘링 홀란드\n선정 이유: 이번 시즌 리그 10경기에서 9골을 기록하며 팀의 공격을 책임지고 있는 핵심 스트라이커입니다.\n\n선정 선수: 라얀 셰르키\n선정 이유: 리그 9경기에서 5골 2도움을 기록하며 엘링 홀란드와 함께 맨체스터 시티의 공격을 주도하고 있습니다.\n\n선정 선수: 조슈아 킹\n선정 이유: 최근 잉글랜드 성인 대표팀에 처음 발탁된 유망주로, 사타구니 부상에서 회복해 이번 맨체스터 시티전 복귀를 목표로 하고 있습니다.\n\n선정 선수: 오스카 보브\n선정 이유: 맨체스터 시티 출신의 윙어로, 친정팀을 상대로 풀럼의 측면 공격을 이끌 주역으로 주목받고 있습니다.",
+    "body_chars": 344,
+    "sources": [
+     {
+      "url": "https://www.manchestereveningnews.co.uk/sport/football/football-news/khusanov-guehi-gvardiol-man-city-34886691",
+      "kind": "web",
+      "note": "브라우저 없이 수집한 기사 본문입니다.",
+      "label": "Manchester Evening News - Man City Injury News"
+     }
+    ],
+    "quality": "ready",
+    "partial": false
+   },
+   {
+    "section_id": "section_availability",
+    "version": 1,
+    "title": "부상·결장 영향",
+    "body": "## 부상·결장 영향\n\n확인된 부상·결장 상황만 정리했습니다.\n\n### 맨체스터 시티\n- 앙투안 세메뇨: 결장(확정 표기)\n  부상 내용: 다리 부상으로 인해 장기 결장 중입니다.\n  영향: 장기 결장 중인 공격수로, 맨체스터 시티의 공격진 로테이션과 옵션 선택에 제한을 주고 있습니다.\n- 마크 게히: 출전 불확실\n  부상 내용: 엉덩이 부상으로 인해 대표팀에서 하차하여 회복 중입니다.\n  영향: 수비진의 주요 자원으로, 그의 출전 여부에 따라 맨체스터 시티의 수비 라인 구성에 변화가 생길 수 있습니다.\n\n### 풀럼\n- 톰 케어니: 출전 불확실\n  부상 내용: 무릎 부상으로 인해 직전 경기에 결장했습니다.\n  영향: 풀럼의 베테랑 미드필더로, 그의 결장 여부는 팀의 중원 안정감과 경기 조율 능력에 영향을 미칠 수 있습니다.\n- 조쉬 킹: 출전 불확실\n  부상 내용: 뉴캐슬전에서 사타구니 통증을 느껴 교체 아웃되었으나, A매치 휴식기 동안 회복을 거쳐 맨체스터 시티전 복귀를 목표로 하고 있습니다.\n  영향: 최근 잉글랜드 성인 대표팀에 처음 발탁된 19세 유망주 미드필더로, 출전할 경우 풀럼의 중원에 활력을 불어넣을 수 있습니다.",
+    "body_chars": 584,
+    "sources": [
+     {
+      "url": "https://www.manchestereveningnews.co.uk/sport/football/football-news/khusanov-guehi-gvardiol-man-city-34886691",
+      "kind": "web",
+      "note": "브라우저 없이 수집한 기사 본문입니다.",
+      "label": "Manchester Evening News - Man City Injury News"
+     }
+    ],
+    "quality": "ready",
+    "partial": false
+   },
+   {
+    "section_id": "section_outlook",
+    "version": 2,
+    "title": "외부 매체 전망",
+    "body": "## 외부 매체 전망\n수집한 기사에서 확인한 외부 매체의 이 경기 전망입니다. 이 서비스의 판단과는 별개입니다.\n- Forebet: 맨체스터 시티가 최근 리그 3연패로 주춤하고 있으나, 풀럼을 상대로 역사적인 우세를 바탕으로 승리할 것으로 전망했습니다. 엘링 홀란드가 공격의 핵심 역할을 할 것이며 안투안 세메뇨와 톰 케어니의 부상 결장 가능성을 언급했습니다.\n- FootyPulse: 맨체스터 시티가 제레미 도쿠의 종아리 부상 결장에도 불구하고 홈에서의 완벽한 성적과 상대 전적 우위를 바탕으로 승리할 확률이 68%에 달한다고 분석했습니다.\n- WinDrawWin: 맨체스터 시티의 홈 승리를 예측하며, 양 팀 모두 득점하지 못하고 총 득점이 2.5골 이하가 될 것으로 전망했습니다.",
+    "body_chars": 383,
+    "sources": [
+     {
+      "url": "https://footypulse.co.uk/match/manchester-city-vs-fulham-premier-league-2026-27",
+      "kind": "web",
+      "note": "브라우저 없이 수집한 기사 본문입니다.",
+      "label": "Manchester City vs Fulham Prediction, Kick-off Time & Stats"
+     },
+     {
+      "url": "https://www.wincomparator.com/predictions/manchester-city-fulham-8558920/",
+      "kind": "web",
+      "note": "브라우저 없이 수집한 기사 본문입니다.",
+      "label": "Manchester City vs Fulham Prediction & Odds"
+     },
+     {
+      "url": "https://yesplay.bet/sports/events/manchester-city-fulham-fc-72221406",
+      "kind": "web",
+      "note": "브라우저 없이 수집한 기사 본문입니다.",
+      "label": "Manchester City - Fulham FC Betting Odds"
+     },
+     {
+      "url": "https://www.oddsmath.com/football/england/premier-league-1281/2026-11-21/manchester-city-vs-fulham-5138272/",
+      "kind": "web",
+      "note": "브라우저 없이 수집한 기사 본문입니다.",
+      "label": "Manchester City vs Fulham Betting Odds"
+     },
+     {
+      "url": "https://kalshi.com/markets/kxeplgame/manchester-city-vs-fulham/kxeplgame-26nov21mciful",
+      "kind": "web",
+      "note": "브라우저 없이 수집한 기사 본문입니다.",
+      "label": "EPL Manchester City vs Fulham Prediction Market"
+     }
+    ],
+    "quality": "ready",
+    "partial": false
+   },
+   {
+    "section_id": "section_ai_forecast",
+    "version": 1,
+    "title": "AI 경기 전망",
+    "body": "## AI 경기 전망\n맨체스터 시티는 최근 리그에서 주춤한 흐름을 보이고 있으나, 풀럼을 상대로 최근 23경기 무패라는 압도적인 역사적 우위를 점하고 있습니다. 엘링 홀란드와 마티스 라이안 셰르키가 주도하는 맨체스터 시티의 공격진이 경기를 지배할 것으로 보이며, 풀럼은 조쉬 킹의 복귀 여부와 오스카 봅의 측면 공격에 기대를 걸어야 하는 상황입니다.\n\n### AI 예상 스코어\n2-0\n\n- 맨체스터 시티가 홈에서의 강세와 풀럼 상대 압도적인 전적 우위를 바탕으로 경기를 주도할 것입니다.\n- 제레미 도쿠의 결장과 수비진의 일부 전력 누수 우려가 있으나, 엘링 홀란드의 결정력을 앞세워 실점 없이 승리를 가져갈 가능성이 높습니다.",
+    "body_chars": 351,
+    "sources": [],
+    "quality": "ready",
+    "partial": false
+   }
+  ],
+  "source_urls": [
+   "https://www.manchestereveningnews.co.uk/sport/football/football-news/khusanov-guehi-gvardiol-man-city-34886691",
+   "https://www.manchestereveningnews.co.uk/sport/football/football-news/khusanov-guehi-gvardiol-man-city-34886691",
+   "https://footypulse.co.uk/match/manchester-city-vs-fulham-premier-league-2026-27",
+   "https://www.wincomparator.com/predictions/manchester-city-fulham-8558920/",
+   "https://yesplay.bet/sports/events/manchester-city-fulham-fc-72221406",
+   "https://www.oddsmath.com/football/england/premier-league-1281/2026-11-21/manchester-city-vs-fulham-5138272/",
+   "https://kalshi.com/markets/kxeplgame/manchester-city-vs-fulham/kxeplgame-26nov21mciful"
+  ],
+  "sources": [
+   {
+    "url": "https://www.manchestereveningnews.co.uk/sport/football/football-news/khusanov-guehi-gvardiol-man-city-34886691",
+    "kind": "web",
+    "note": "브라우저 없이 수집한 기사 본문입니다.",
+    "label": "Manchester Evening News - Man City Injury News"
+   },
+   {
+    "url": "https://www.manchestereveningnews.co.uk/sport/football/football-news/khusanov-guehi-gvardiol-man-city-34886691",
+    "kind": "web",
+    "note": "브라우저 없이 수집한 기사 본문입니다.",
+    "label": "Manchester Evening News - Man City Injury News"
+   },
+   {
+    "url": "https://footypulse.co.uk/match/manchester-city-vs-fulham-premier-league-2026-27",
+    "kind": "web",
+    "note": "브라우저 없이 수집한 기사 본문입니다.",
+    "label": "Manchester City vs Fulham Prediction, Kick-off Time & Stats"
+   },
+   {
+    "url": "https://www.wincomparator.com/predictions/manchester-city-fulham-8558920/",
+    "kind": "web",
+    "note": "브라우저 없이 수집한 기사 본문입니다.",
+    "label": "Manchester City vs Fulham Prediction & Odds"
+   },
+   {
+    "url": "https://yesplay.bet/sports/events/manchester-city-fulham-fc-72221406",
+    "kind": "web",
+    "note": "브라우저 없이 수집한 기사 본문입니다.",
+    "label": "Manchester City - Fulham FC Betting Odds"
+   },
+   {
+    "url": "https://www.oddsmath.com/football/england/premier-league-1281/2026-11-21/manchester-city-vs-fulham-5138272/",
+    "kind": "web",
+    "note": "브라우저 없이 수집한 기사 본문입니다.",
+    "label": "Manchester City vs Fulham Betting Odds"
+   },
+   {
+    "url": "https://kalshi.com/markets/kxeplgame/manchester-city-vs-fulham/kxeplgame-26nov21mciful",
+    "kind": "web",
+    "note": "브라우저 없이 수집한 기사 본문입니다.",
+    "label": "EPL Manchester City vs Fulham Prediction Market"
+   }
+  ]
+ },
+ "structured_by_module": {
+  "section_odds-writer": {
+   "odds": []
+  },
+  "R3": {
+   "media": [
+    {
+     "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHj6MG_HT3jZltaHyH2C-NL9PBEK2_fg3NvChBaE-lIjHhCu1K7b8L3F3AGs90opuClC91J2j7ZNOl_SfO2Ot5aqK9HqwGOk3hPsqfne51sG9A1KRR2nVSlJ-85lv064ECOSYymWA94kLWmH32I8K_VaRZVXuQA7JuDMkxSjvsZRBeCVWLt6OvIraqsNUsvInCfE1MO3A3S1Iimvrd5dOXhisSkSyWfnIGsjb0dXWH6rYfBkGsnxE8YmNdtpeL03jdexqWz5YS5c_T0Kxwg3s4=",
+     "evidence": [
+      "outlook-summary-1",
+      "outlook-span-1",
+      "outlook-span-2"
+     ],
+     "publisher": "Forebet",
+     "statement": "맨체스터 시티가 최근 리그 3연패로 주춤하고 있으나, 풀럼을 상대로 역사적인 우세를 바탕으로 승리할 것으로 전망했습니다. 엘링 홀란드가 공격의 핵심 역할을 할 것이며 안투안 세메뇨와 톰 케어니의 부상 결장 가능성을 언급했습니다.",
+     "published_at": null,
+     "predicted_score": null
+    },
+    {
+     "url": "https://footypulse.co.uk/match/manchester-city-vs-fulham-premier-league-2026-27",
+     "evidence": [
+      "outlook-summary-2",
+      "outlook-span-3",
+      "src-2-p1"
+     ],
+     "publisher": "FootyPulse",
+     "statement": "맨체스터 시티가 제레미 도쿠의 종아리 부상 결장에도 불구하고 홈에서의 완벽한 성적과 상대 전적 우위를 바탕으로 승리할 확률이 68%에 달한다고 분석했습니다.",
+     "published_at": null,
+     "predicted_score": null
+    },
+    {
+     "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFyUsDKohrV7-bias_gMpy_G_zkYPqPyE3FlsGwNiqexb39Sm21l4enPaBETcztFjIuCnJ8hQ87YkI3XsrBH1arLQi-IcQN1wYHhAwrOdeztkjcc79E60O4xmFnTbVchn0yZ0dLWIA_tf6avI1i3fQPiep6YhqiIGEZkYaILIbptE7IwjSa_u_kP7AF",
+     "evidence": [
+      "outlook-summary-3",
+      "outlook-span-4"
+     ],
+     "publisher": "WinDrawWin",
+     "statement": "맨체스터 시티의 홈 승리를 예측하며, 양 팀 모두 득점하지 못하고 총 득점이 2.5골 이하가 될 것으로 전망했습니다.",
+     "published_at": null,
+     "predicted_score": null
+    }
+   ]
+  },
+  "R2": {
+   "injuries": [
+    {
+     "team": "Manchester City",
+     "status": "confirmed_absence",
+     "summary": "다리 부상으로 인해 장기 결장 중입니다. 장기 결장 중인 공격수로, 맨체스터 시티의 공격진 로테이션과 옵션 선택에 제한을 주고 있습니다.",
+     "evidence": [
+      "people-summary-2",
+      "people-span-3"
+     ],
+     "player_name": "앙투안 세메뇨"
+    },
+    {
+     "team": "Manchester City",
+     "status": "doubtful",
+     "summary": "엉덩이 부상으로 인해 대표팀에서 하차하여 회복 중입니다. 수비진의 주요 자원으로, 그의 출전 여부에 따라 맨체스터 시티의 수비 라인 구성에 변화가 생길 수 있습니다.",
+     "evidence": [
+      "src-9-p1",
+      "src-9-p2",
+      "people-summary-2",
+      "people-span-4",
+      "people-span-5"
+     ],
+     "player_name": "마크 게히"
+    },
+    {
+     "team": "Fulham",
+     "status": "doubtful",
+     "summary": "무릎 부상으로 인해 직전 경기에 결장했습니다. 풀럼의 베테랑 미드필더로, 그의 결장 여부는 팀의 중원 안정감과 경기 조율 능력에 영향을 미칠 수 있습니다.",
+     "evidence": [
+      "people-summary-3"
+     ],
+     "player_name": "톰 케어니"
+    },
+    {
+     "team": "Fulham",
+     "status": "doubtful",
+     "summary": "뉴캐슬전에서 사타구니 통증을 느껴 교체 아웃되었으나, A매치 휴식기 동안 회복을 거쳐 맨시티전 복귀를 목표로 하고 있습니다. 최근 잉글랜드 성인 대표팀에 처음 발탁된 19세 유망주 미드필더로, 출전할 경우 풀럼의 중원에 활력을 불어넣을 수 있습니다.",
+     "evidence": [
+      "people-summary-3",
+      "people-span-2"
+     ],
+     "player_name": "조쉬 킹"
+    }
+   ]
+  },
+  "R4": {
+   "players": [
+    {
+     "team": "맨체스터 시티",
+     "evidence": [
+      "people-summary-1"
+     ],
+     "player_id": 533,
+     "selected_player": "엘링 홀란드",
+     "selection_reason": "이번 시즌 리그 10경기에서 9골을 기록하며 팀의 공격을 책임지고 있는 핵심 스트라이커입니다."
+    },
+    {
+     "team": "맨체스터 시티",
+     "evidence": [
+      "people-summary-1"
+     ],
+     "player_id": 541,
+     "selected_player": "라얀 셰르키",
+     "selection_reason": "리그 9경기에서 5골 2도움을 기록하며 엘링 홀란드와 함께 맨체스터 시티의 공격을 주도하고 있습니다."
+    },
+    {
+     "team": "풀럼",
+     "evidence": [
+      "people-summary-1",
+      "people-summary-3"
+     ],
+     "player_id": 139,
+     "selected_player": "조슈아 킹",
+     "selection_reason": "최근 잉글랜드 성인 대표팀에 처음 발탁된 유망주로, 사타구니 부상에서 회복해 이번 맨체스터 시티전 복귀를 목표로 하고 있습니다."
+    },
+    {
+     "team": "풀럼",
+     "evidence": [
+      "people-summary-1"
+     ],
+     "player_id": 144,
+     "selected_player": "오스카 보브",
+     "selection_reason": "맨체스터 시티 출신의 윙어로, 친정팀을 상대로 풀럼의 측면 공격을 이끌 주역으로 주목받고 있습니다."
+    }
+   ],
+   "korean_labels": [
+    {
+     "kind": "team",
+     "korean": "맨체스터 시티",
+     "original": "Manchester City"
+    },
+    {
+     "kind": "team",
+     "korean": "풀럼",
+     "original": "Fulham"
+    },
+    {
+     "kind": "player",
+     "korean": "엘링 홀란드",
+     "original": "엘링 홀란드"
+    },
+    {
+     "kind": "player",
+     "korean": "라얀 셰르키",
+     "original": "라얀 셰르키"
+    },
+    {
+     "kind": "player",
+     "korean": "조슈아 킹",
+     "original": "조슈아 킹"
+    },
+    {
+     "kind": "player",
+     "korean": "오스카 보브",
+     "original": "오스카 보브"
+    }
+   ]
+  },
+  "S1": {
+   "forecast": {
+    "lean": "home",
+    "score": "2-0",
+    "reasoning": [
+     "맨체스터 시티가 홈에서의 강세와 풀럼 상대 압도적인 전적 우위를 바탕으로 경기를 주도할 것입니다.",
+     "제레미 도쿠의 결장과 수비진의 일부 전력 누수 우려가 있으나, 엘링 홀란드의 결정력을 앞세워 실점 없이 승리를 가져갈 가능성이 높습니다."
+    ]
+   },
+   "forecast_evidence": [
+    "outlook-summary-1",
+    "people-summary-1",
+    "people-summary-3"
+   ]
+  }
+ },
+ "search_material": {
+  "findings_by_type": {
+   "search_ai_summary": 7,
+   "search_snippet": 0,
+   "search_source_meta": 14,
+   "model_cited_span": 13,
+   "model_note": 15
+  },
+  "delivered_ids_by_section": {
+   "section_players": [
+    "people-summary-1",
+    "people-summary-2",
+    "people-summary-3",
+    "people-span-1",
+    "people-span-2",
+    "people-span-3",
+    "people-span-4",
+    "people-span-5"
+   ],
+   "section_availability": [
+    "people-summary-1",
+    "people-summary-2",
+    "people-summary-3",
+    "people-span-1",
+    "people-span-2",
+    "people-span-3",
+    "people-span-4",
+    "people-span-5"
+   ],
+   "section_outlook": [],
+   "section_odds": [],
+   "section_ai_forecast": [
+    "outlook-summary-1",
+    "outlook-summary-2",
+    "outlook-summary-3",
+    "outlook-summary-4",
+    "people-summary-1",
+    "people-summary-2",
+    "people-summary-3",
+    "outlook-span-1"
+   ]
+  }
+ },
+ "composition": {
+  "available": false,
+  "reason": "이 실행에는 저장된 구성본이 없습니다.",
+  "note": "composition 선택 경로는 이번에 검증하지 않았습니다(미사용)."
+ },
+ "display_names_note": null
+}

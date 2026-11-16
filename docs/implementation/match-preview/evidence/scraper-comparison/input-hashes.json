@@ -1,0 +1,37 @@
+{
+  "citysquad.html": {
+    "bytes": 100581,
+    "sha256": "e36937b52aa487261c4bc4919582141a1f1541ca08d0a4c1d9747e33360b6fc4",
+    "temp_path": "/tmp/preview-scraper-compare.PRpmWn/raw/citysquad.html"
+  },
+  "forebet.html": {
+    "bytes": 5843,
+    "sha256": "2e29370824df86d59f1ec59169b9e7c966dbd2ef13c4ea09546b293e247fd42d",
+    "temp_path": "/tmp/preview-scraper-compare.PRpmWn/raw/forebet.html"
+  },
+  "fulham.html": {
+    "bytes": 1581891,
+    "sha256": "2c7f938e09fc74ebfdeede6082978eba2db1d7435617c2b794b6b152636e584d",
+    "temp_path": "/tmp/preview-scraper-compare.PRpmWn/raw/fulham.html"
+  },
+  "fulham_rendered.html": {
+    "bytes": 1679055,
+    "sha256": "371293a1ac377d2caf4f91078301227fb9bec106314721e445761306f78976a2",
+    "temp_path": "/tmp/preview-scraper-compare.PRpmWn/raw/fulham_rendered.html"
+  },
+  "gredir1.html": {
+    "bytes": 84849,
+    "sha256": "0d0beb9533e6f1513a8d09c9721a203e580f9816e42b56819dffe8669c4a4505",
+    "temp_path": "/tmp/preview-scraper-compare.PRpmWn/raw/gredir1.html"
+  },
+  "gredir2.html": {
+    "bytes": 483322,
+    "sha256": "0c08a8e062cc62aa16a755c4401652cc955555261bd7805cd34a4379c4c61f29",
+    "temp_path": "/tmp/preview-scraper-compare.PRpmWn/raw/gredir2.html"
+  },
+  "gredir3.html": {
+    "bytes": 279903,
+    "sha256": "7a6fc2c9818bec79ea8bb0b7c981adcdbf88cb46cd20528f9433d47fed4176a9",
+    "temp_path": "/tmp/preview-scraper-compare.PRpmWn/raw/gredir3.html"
+  }
+}

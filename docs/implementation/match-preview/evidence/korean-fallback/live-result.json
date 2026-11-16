@@ -1,0 +1,62 @@
+{
+  "run_id": "22e1a19e-52df-4774-a1b1-1de9f892a840",
+  "workflow_id": "section_players",
+  "workflow_version": "section_players@4e632e66c83e3549",
+  "mode": "live",
+  "status": "succeeded",
+  "quality": "insufficient",
+  "external_calls": 1,
+  "attempt_count": 1,
+  "model_used": "gemini-3.5-flash",
+  "fixture": "Manchester City vs Fulham",
+  "fixture_id": 1557474,
+  "started_at": "2026-11-10T21:11:16.421693+00:00",
+  "budget": {
+    "model_requests": 1,
+    "model_used": 1,
+    "model_remaining": 0,
+    "model_reserved_for_unstarted_steps": 0,
+    "api_requests": 24,
+    "api_used": 0,
+    "api_remaining": 24,
+    "attempts_per_call": 1,
+    "deadline_seconds": 1800,
+    "seconds_left": 1775.482,
+    "registered_calls": [
+      "section_players/research-r4"
+    ],
+    "stopped_reason": null
+  },
+  "unavailable_reason": "검증을 통과한 주목 선수 선정이 없어 이 섹션의 본문을 만들지 않았습니다.",
+  "section_result_id": "c206fa53-76ba-4467-b4cd-2053d494e998",
+  "body": "",
+  "sources": [],
+  "diagnostics": [
+    "주목 선수 Erling Haaland: 확인 가능한 사실 조각에 근거가 없어 채택하지 않았습니다(덜어낸 문장: 1개).",
+    "주목 선수 Rayan Cherki: 확인 가능한 사실 조각에 근거가 없어 채택하지 않았습니다(덜어낸 문장: 1개).",
+    "주목 선수 Josh King: 확인 가능한 사실 조각에 근거가 없어 채택하지 않았습니다(덜어낸 문장: 1개).",
+    "research 상태에 R4 결과가 없습니다."
+  ],
+  "step_log": [
+    {
+      "node": "prepare_data",
+      "unavailable": false,
+      "external_calls": 0
+    },
+    {
+      "node": "research",
+      "unavailable": false,
+      "external_calls": 1
+    },
+    {
+      "node": "compose_body",
+      "unavailable": true,
+      "external_calls": 0
+    },
+    {
+      "node": "finalize",
+      "unavailable": true,
+      "external_calls": 0
+    }
+  ]
+}

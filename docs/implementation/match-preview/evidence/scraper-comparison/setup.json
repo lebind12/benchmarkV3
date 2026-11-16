@@ -1,0 +1,59 @@
+{
+  "experiment": "Scrapling vs Trafilatura extraction comparison (6 saved URLs + 1 browser render)",
+  "isolated_dir": "/tmp/preview-scraper-compare.PRpmWn",
+  "note": "isolated venv and browsers under temp dir; product venv and global packages untouched",
+  "python": "3.11.4",
+  "versions": {
+    "scrapling": "0.5.1",
+    "trafilatura": "2.3.1",
+    "curl_cffi": "0.17.0",
+    "playwright": "1.65.0",
+    "patchright": "1.64.4",
+    "browserforge": "1.2.4",
+    "markdownify": "1.2.3",
+    "lxml": "6.1.3",
+    "lxml_html_clean": "0.4.6",
+    "justext": "3.0.2",
+    "htmldate": "1.11.0",
+    "courlan": "1.4.0",
+    "cssselect": "1.6.0"
+  },
+  "install": {
+    "step1": {
+      "cmd": "pip install scrapling trafilatura",
+      "wall_s": 7.83,
+      "venv_mb_after": 102
+    },
+    "step2": {
+      "cmd": "pip install 'scrapling[fetchers]' markdownify",
+      "wall_s": 14.62,
+      "venv_mb_before": 103,
+      "venv_mb_after": 417
+    },
+    "step3": {
+      "cmd": "pip install lxml_html_clean",
+      "wall_s": 0.64,
+      "note": "required: trafilatura 2.3.1 imports justext -> lxml.html.clean, removed in lxml 6.x"
+    },
+    "browser": {
+      "cmd": "patchright install chromium",
+      "wall_s": 42.01,
+      "path": "/tmp/preview-scraper-compare.PRpmWn/browsers",
+      "size_mb": 581,
+      "revision": "chromium-1248 (156.0.8078.4)"
+    }
+  },
+  "no_heavy_ml": true,
+  "host": {
+    "cpus": 10,
+    "mem_gb": 32,
+    "load_avg_observed": "7.7 to 10.4 (1-min) during session",
+    "note": "busy host; variants alternated so both sides saw same noise"
+  },
+  "probes": [
+    "/tmp/preview-scraper-compare.PRpmWn/probe_extract.py",
+    "/tmp/preview-scraper-compare.PRpmWn/bench_final.py",
+    "/tmp/preview-scraper-compare.PRpmWn/probe_rss.py",
+    "/tmp/preview-scraper-compare.PRpmWn/probe_browser.py"
+  ]
+}

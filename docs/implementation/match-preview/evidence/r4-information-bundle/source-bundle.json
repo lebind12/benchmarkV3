@@ -1,0 +1,755 @@
+{
+  "prototype": "experimental-prototype-not-product",
+  "bundle_id": "r4-bundle-20261111T001550Z",
+  "script_version": "r4-information-bundle-trial-1",
+  "built_at": "2026-11-11T00:15:50.644214+00:00",
+  "as_of": "2026-11-11T00:15:50.644214+00:00",
+  "fixture_external_id": 1557474,
+  "browser_used": false,
+  "browser_note": "브라우저 실행·렌더 캡처를 쓰지 않았다. 렌더 HTML(fulham_rendered.html)은 이 묶음에서 제외했다.",
+  "search_discovery": {
+    "reused_saved_responses": [
+      {
+        "file": "latest-full-response.json",
+        "response_id": "d4jzapuvIeiPncoP8eqmeQ",
+        "create_time": "2026-11-10T21:11:19.546715Z",
+        "model_version": "gemini-3.5-flash",
+        "grounding_keys": [
+          "retrieval_metadata",
+          "search_entry_point",
+          "web_search_queries"
+        ],
+        "has_chunks": false,
+        "chunk_count": 0,
+        "queries": 8
+      },
+      {
+        "file": "previous-success-full-response.json",
+        "response_id": "gn_zasC5MvCKx9gPtPbxuQk",
+        "create_time": "2026-11-10T20:33:06.826560Z",
+        "model_version": "gemini-3.5-flash",
+        "grounding_keys": [
+          "grounding_chunks",
+          "grounding_supports",
+          "search_entry_point",
+          "web_search_queries"
+        ],
+        "has_chunks": true,
+        "chunk_count": 8,
+        "queries": 14
+      }
+    ],
+    "new_paid_search_calls": 0,
+    "note": "새 검색 호출을 하지 않았다. 저장된 응답의 URL 후보만 재사용했다. 후보 URL의 '발견'과 실제 본문 '수집'은 다른 단계이며, 실패한 후보도 남긴다."
+  },
+  "fulham_static_probe": [
+    {
+      "url": "https://www.fulhamfc.com/news/2026/november/06/josh-king-called-up-to-england-squad/_payload.json",
+      "method": "public_api_probe",
+      "http_status": 200,
+      "content_type": "text/html",
+      "bytes": 1581891,
+      "body_chars": 1581880,
+      "failure": "JSON이 아닌 응답",
+      "elapsed_ms": 551,
+      "excerpt": "<!DOCTYPE html><html><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<link rel=\"preconnect\" href=\"https://images.gc.fulhamfcservices.co.uk\">\n<script src=\"https://js.stripe.com/v3/\"></script>\n<script src=\"https://imagesrv.adition.com/js/aut.js\"></script>\n<script src=\"https://imagesrv.adition.com/js/srp.js\"></script>\n<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push("
+    },
+    {
+      "url": "https://www.fulhamfc.com/news/2026/november/06/josh-king-called-up-to-england-squad/payload.json",
+      "method": "public_api_probe",
+      "http_status": 200,
+      "content_type": "text/html",
+      "bytes": 1581891,
+      "body_chars": 1581880,
+      "failure": "JSON이 아닌 응답",
+      "elapsed_ms": 603,
+      "excerpt": "<!DOCTYPE html><html><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<link rel=\"preconnect\" href=\"https://images.gc.fulhamfcservices.co.uk\">\n<script src=\"https://js.stripe.com/v3/\"></script>\n<script src=\"https://imagesrv.adition.com/js/aut.js\"></script>\n<script src=\"https://imagesrv.adition.com/js/srp.js\"></script>\n<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push("
+    },
+    {
+      "url": "https://www.fulhamfc.com/_payload.json",
+      "method": "public_api_probe",
+      "http_status": 200,
+      "content_type": "application/json",
+      "bytes": 69,
+      "body_chars": 69,
+      "failure": null,
+      "elapsed_ms": 8,
+      "excerpt": "[{\"data\":1,\"prerenderedAt\":3},[\"ShallowReactive\",2],{},1794238421861]"
+    }
+  ],
+  "limits": {
+    "max_candidate_fetches": 6,
+    "http_timeout_seconds": 25.0,
+    "http_max_redirects": 5,
+    "max_source_passages": 3,
+    "max_passage_chars": 1500,
+    "max_web_evidence_chars": 16000,
+    "web_evidence_chars_used": 3410
+  },
+  "db_snapshot": {
+    "collected_at": "2026-11-11T00:15:50.644214+00:00",
+    "prototype": "experimental-prototype-not-product",
+    "fixture": {
+      "internal_id": 41125,
+      "fixture_id": 1557474,
+      "league_id": 1,
+      "league_name": "Premier League",
+      "season": 2026,
+      "home_team_id": 13,
+      "home_team_name": "Manchester City",
+      "away_team_id": 4,
+      "away_team_name": "Fulham",
+      "label": "Manchester City vs Fulham",
+      "kickoff_at": "2026-11-21T12:30:00+00:00",
+      "status_short": "NS",
+      "referee": null,
+      "updated_at": "2026-11-10T21:04:14.700151+00:00",
+      "id_note": "internal_id는 DB 행, fixture_id는 API-Football 외부 경기 ID입니다. 동일성 판단에는 fixture_id를 씁니다.",
+      "id_space_note": "internal_id는 DB 행, fixture_id는 API-Football 외부 ID다. 저장 경기의 팀 ID(13/4)는 DB 내부 키다."
+    },
+    "teams": [
+      {
+        "team_id": 4,
+        "external_id": 36,
+        "english_name": "Fulham",
+        "name_ko": "풀럼",
+        "short_name_ko": "풀럼",
+        "source": {
+          "table": "public.team + public.team_translation",
+          "role": "preview_dev_names_ro"
+        }
+      },
+      {
+        "team_id": 13,
+        "external_id": 50,
+        "english_name": "Manchester City",
+        "name_ko": "맨체스터 시티",
+        "short_name_ko": "맨시티",
+        "source": {
+          "table": "public.team + public.team_translation",
+          "role": "preview_dev_names_ro"
+        }
+      }
+    ],
+    "standings": [
+      {
+        "team_id": 13,
+        "rank": 3,
+        "points": 21,
+        "played": 10,
+        "win": 7,
+        "draw": 0,
+        "loss": 3,
+        "goals_for": 21,
+        "goals_against": 13,
+        "form": "LLLWW"
+      },
+      {
+        "team_id": 4,
+        "rank": 15,
+        "points": 10,
+        "played": 10,
+        "win": 2,
+        "draw": 4,
+        "loss": 4,
+        "goals_for": 10,
+        "goals_against": 12,
+        "form": "DDWWL"
+      }
+    ],
+    "injuries": {
+      "rows": [],
+      "state": "unknown",
+      "note": "저장된 부상 행이 없다. 이것은 '부상자 없음'의 증거가 아니다.",
+      "source": {
+        "table": "public.injury",
+        "role": "preview_dev_fixture_ro"
+      }
+    },
+    "past_matches": {
+      "rows": [
+        {
+          "external_id": 1557465,
+          "kickoff_at": "2026-11-07T17:30:00+00:00",
+          "home_team_id": 18,
+          "away_team_id": 13,
+          "goals_home": 3,
+          "goals_away": 1,
+          "status_short": "FT"
+        },
+        {
+          "external_id": 1557461,
+          "kickoff_at": "2026-11-07T15:00:00+00:00",
+          "home_team_id": 4,
+          "away_team_id": 2,
+          "goals_home": 1,
+          "goals_away": 1,
+          "status_short": "FT"
+        },
+        {
+          "external_id": 1635710,
+          "kickoff_at": "2026-11-04T20:00:00+00:00",
+          "home_team_id": 132518,
+          "away_team_id": 13,
+          "goals_home": 2,
+          "goals_away": 3,
+          "status_short": "FT"
+        },
+        {
+          "external_id": 1557447,
+          "kickoff_at": "2026-10-31T20:00:00+00:00",
+          "home_team_id": 19,
+          "away_team_id": 4,
+          "goals_home": 1,
+          "goals_away": 1,
+          "status_short": "FT"
+        },
+        {
+          "external_id": 1557454,
+          "kickoff_at": "2026-10-31T15:00:00+00:00",
+          "home_team_id": 13,
+          "away_team_id": 14,
+          "goals_home": 0,
+          "goals_away": 1,
+          "status_short": "FT"
+        },
+        {
+          "external_id": 1640387,
+          "kickoff_at": "2026-10-28T19:45:00+00:00",
+          "home_team_id": 4,
+          "away_team_id": 15,
+          "goals_home": 0,
+          "goals_away": 1,
+          "status_short": "FT"
+        },
+        {
+          "external_id": 1557440,
+          "kickoff_at": "2026-10-24T14:00:00+00:00",
+          "home_team_id": 2100,
+          "away_team_id": 4,
+          "goals_home": 0,
+          "goals_away": 1,
+          "status_short": "FT"
+        },
+        {
+          "external_id": 1557438,
+          "kickoff_at": "2026-10-24T11:30:00+00:00",
+          "home_team_id": 19,
+          "away_team_id": 13,
+          "goals_home": 2,
+          "goals_away": 1,
+          "status_short": "FT"
+        },
+        {
+          "external_id": 1635693,
+          "kickoff_at": "2026-10-20T19:00:00+00:00",
+          "home_team_id": 13,
+          "away_team_id": 102850,
+          "goals_home": 5,
+          "goals_away": 1,
+          "status_short": "FT"
+        },
+        {
+          "external_id": 1557431,
+          "kickoff_at": "2026-10-17T14:00:00+00:00",
+          "home_team_id": 4,
+          "away_team_id": 2075,
+          "goals_home": 1,
+          "goals_away": 0,
+          "status_short": "FT"
+        }
+      ],
+      "state": "available",
+      "statement": "SELECT f.external_id, f.kickoff_at, f.home_team_id, f.away_team_id, f.goals_home, f.goals_away, f.status_short FROM public.fixture f WHERE (f.home_team_id = ANY(:team_ids) OR f.away_team_id = ANY(:team_ids)) AND f.status_short = 'FT' AND f.kickoff_at < :as_of ORDER BY f.kickoff_at DESC LIMIT :limit",
+      "source": {
+        "table": "public.fixture",
+        "role": "preview_dev_fixture_ro"
+      },
+      "note": "지난 완료 경기(FT)만. 이번 경기 예측 근거가 아니라 배경 자료다."
+    },
+    "roles": {
+      "fixtures": "preview_dev_fixture_ro",
+      "past_matches": "preview_dev_fixture_ro",
+      "names": "preview_dev_names_ro"
+    },
+    "failures": [],
+    "elapsed_ms": 5356,
+    "standings_source": {
+      "table": "public.standings",
+      "reader": "StoredFixtureReader.standings_for_league",
+      "role": "preview_dev_fixture_ro",
+      "rows_total": 20
+    },
+    "roster": [
+      {
+        "player_id": 88,
+        "english_name": "A. Semenyo",
+        "name_ko": "앙투안 세메뇨",
+        "team_id": 13
+      },
+      {
+        "player_id": 120,
+        "english_name": "Jorge Cuenca",
+        "name_ko": "호르헤 쿠엔카",
+        "team_id": 4
+      },
+      {
+        "player_id": 121,
+        "english_name": "K. Tete",
+        "name_ko": "케네디 테테",
+        "team_id": 4
+      },
+      {
+        "player_id": 122,
+        "english_name": "E. Smith Rowe",
+        "name_ko": "에밀 스미스 로우",
+        "team_id": 4
+      },
+      {
+        "player_id": 123,
+        "english_name": "B. Leno",
+        "name_ko": "베른트 레노",
+        "team_id": 4
+      },
+      {
+        "player_id": 124,
+        "english_name": "A. Iwobi",
+        "name_ko": "알렉산더 츄카 이워비",
+        "team_id": 4
+      },
+      {
+        "player_id": 125,
+        "english_name": "S. Berge",
+        "name_ko": "산데르 베르게",
+        "team_id": 4
+      },
+      {
+        "player_id": 126,
+        "english_name": "J. Andersen",
+        "name_ko": "요아킴 안데르센",
+        "team_id": 4
+      },
+      {
+        "player_id": 129,
+        "english_name": "T. Castagne",
+        "name_ko": "티모시 카스타뉴",
+        "team_id": 4
+      },
+      {
+        "player_id": 130,
+        "english_name": "Adama Traoré",
+        "name_ko": "아모드 트라오레",
+        "team_id": 4
+      },
+      {
+        "player_id": 132,
+        "english_name": "T. Cairney",
+        "name_ko": "톰 케어니",
+        "team_id": 4
+      },
+      {
+        "player_id": 133,
+        "english_name": "R. Sessegnon",
+        "name_ko": "라이언 세시니온",
+        "team_id": 4
+      },
+      {
+        "player_id": 135,
+        "english_name": "H. Reed",
+        "name_ko": "해리슨 리드",
+        "team_id": 4
+      },
+      {
+        "player_id": 136,
+        "english_name": "B. Lecomte",
+        "name_ko": "벤자민 르콩트",
+        "team_id": 4
+      },
+      {
+        "player_id": 137,
+        "english_name": "C. Bassey",
+        "name_ko": "칼빈 바시",
+        "team_id": 4
+      },
+      {
+        "player_id": 138,
+        "english_name": "Rodrigo Muniz",
+        "name_ko": "로드리고 무니즈",
+        "team_id": 4
+      },
+      {
+        "player_id": 139,
+        "english_name": "Joshua King",
+        "name_ko": "조슈아 킹",
+        "team_id": 4
+      },
+      {
+        "player_id": 140,
+        "english_name": "Andreas Pereira",
+        "name_ko": "안드레아스 페레이라",
+        "team_id": 4
+      },
+      {
+        "player_id": 142,
+        "english_name": "A. Robinson",
+        "name_ko": "앤토니 로빈슨",
+        "team_id": 4
+      },
+      {
+        "player_id": 143,
+        "english_name": "Kevin",
+        "name_ko": "케빈",
+        "team_id": 4
+      },
+      {
+        "player_id": 144,
+        "english_name": "Oscar Bobb",
+        "name_ko": "오스카 보브",
+        "team_id": 4
+      },
+      {
+        "player_id": 146,
+        "english_name": "S. Amissah",
+        "name_ko": "사무엘 아미사",
+        "team_id": 4
+      },
+      {
+        "player_id": 147,
+        "english_name": "J. Kusi-Asare",
+        "name_ko": "요나 쿠시-아사레",
+        "team_id": 4
+      },
+      {
+        "player_id": 148,
+        "english_name": "S. Ridgeon",
+        "name_ko": "리드게오느",
+        "team_id": 4
+      },
+      {
+        "player_id": 340,
+        "english_name": "J. Grealish",
+        "name_ko": "잭 그릴리쉬",
+        "team_id": 13
+      },
+      {
+        "player_id": 510,
+        "english_name": "Rúben Dias",
+        "name_ko": "루벤 디아스",
+        "team_id": 13
+      },
+      {
+        "player_id": 514,
+        "english_name": "M. Bettinelli",
+        "name_ko": "마커스 베티넬리",
+        "team_id": 13
+      },
+      {
+        "player_id": 515,
+        "english_name": "R. Aït-Nouri",
+        "name_ko": "라얀 아이트누리",
+        "team_id": 13
+      },
+      {
+        "player_id": 518,
+        "english_name": "Matheus Nunes",
+        "name_ko": "마테우스 누네스",
+        "team_id": 13
+      },
+      {
+        "player_id": 519,
+        "english_name": "J. Gvardiol",
+        "name_ko": "요슈코 그바르디올",
+        "team_id": 13
+      },
+      {
+        "player_id": 521,
+        "english_name": "Nico González",
+        "name_ko": "니코 곤살레스",
+        "team_id": 13
+      },
+      {
+        "player_id": 522,
+        "english_name": "J. Wilson-Esbrand",
+        "name_ko": "조슈아 윌슨 에스브란드",
+        "team_id": 13
+      },
+      {
+        "player_id": 524,
+        "english_name": "R. Lewis",
+        "name_ko": "리코 루이스",
+        "team_id": 13
+      },
+      {
+        "player_id": 525,
+        "english_name": "N. O&apos;Reilly",
+        "name_ko": "니코 오라일리",
+        "team_id": 13
+      },
+      {
+        "player_id": 526,
+        "english_name": "A. Khusanov",
+        "name_ko": "압두코디르 후사노프",
+        "team_id": 13
+      },
+      {
+        "player_id": 531,
+        "english_name": "P. Foden",
+        "name_ko": "필 포든",
+        "team_id": 13
+      },
+      {
+        "player_id": 533,
+        "english_name": "E. Haaland",
+        "name_ko": "엘링 홀란드",
+        "team_id": 13
+      },
+      {
+        "player_id": 534,
+        "english_name": "J. Doku",
+        "name_ko": "제레미 도쿠",
+        "team_id": 13
+      },
+      {
+        "player_id": 535,
+        "english_name": "G. Donnarumma",
+        "name_ko": "잔루이지 돈나룸마",
+        "team_id": 13
+      },
+      {
+        "player_id": 536,
+        "english_name": "M. Kovačić",
+        "name_ko": "마테오 코바치치",
+        "team_id": 13
+      }
+    ],
+    "roster_source": {
+      "reader": "DbNameLookup.load_players",
+      "role": "preview_dev_names_ro",
+      "rows": 66
+    }
+  },
+  "db_facts": [
+    {
+      "fact_id": "api:fixture-identity",
+      "text": "경기 Manchester City vs Fulham · 리그 Premier League(1) · 시즌 2026 · 킥오프(UTC) 2026-11-21T12:30:00+00:00 · 상태 NS",
+      "source": "public.fixture"
+    },
+    {
+      "fact_id": "api:standings-13",
+      "text": "team_id 13: 리그 3위, 10경기 7승 0무 3패, 승점 21, 득점 21 실점 13, 최근 5경기 폼 LLLWW",
+      "source": "public.standings"
+    },
+    {
+      "fact_id": "api:standings-4",
+      "text": "team_id 4: 리그 15위, 10경기 2승 4무 4패, 승점 10, 득점 10 실점 12, 최근 5경기 폼 DDWWL",
+      "source": "public.standings"
+    },
+    {
+      "fact_id": "api:past-1557465",
+      "text": "지난 경기 1557465(2026-11-07T17:30:00+00:00): team 18 3-1 team 13 (FT)",
+      "source": "public.fixture"
+    },
+    {
+      "fact_id": "api:past-1557461",
+      "text": "지난 경기 1557461(2026-11-07T15:00:00+00:00): team 4 1-1 team 2 (FT)",
+      "source": "public.fixture"
+    },
+    {
+      "fact_id": "api:past-1635710",
+      "text": "지난 경기 1635710(2026-11-04T20:00:00+00:00): team 132518 2-3 team 13 (FT)",
+      "source": "public.fixture"
+    },
+    {
+      "fact_id": "api:past-1557447",
+      "text": "지난 경기 1557447(2026-10-31T20:00:00+00:00): team 19 1-1 team 4 (FT)",
+      "source": "public.fixture"
+    },
+    {
+      "fact_id": "api:past-1557454",
+      "text": "지난 경기 1557454(2026-10-31T15:00:00+00:00): team 13 0-1 team 14 (FT)",
+      "source": "public.fixture"
+    },
+    {
+      "fact_id": "api:past-1640387",
+      "text": "지난 경기 1640387(2026-10-28T19:45:00+00:00): team 4 0-1 team 15 (FT)",
+      "source": "public.fixture"
+    },
+    {
+      "fact_id": "api:past-1557440",
+      "text": "지난 경기 1557440(2026-10-24T14:00:00+00:00): team 2100 0-1 team 4 (FT)",
+      "source": "public.fixture"
+    },
+    {
+      "fact_id": "api:past-1557438",
+      "text": "지난 경기 1557438(2026-10-24T11:30:00+00:00): team 19 2-1 team 13 (FT)",
+      "source": "public.fixture"
+    },
+    {
+      "fact_id": "api:past-1635693",
+      "text": "지난 경기 1635693(2026-10-20T19:00:00+00:00): team 13 5-1 team 102850 (FT)",
+      "source": "public.fixture"
+    },
+    {
+      "fact_id": "api:past-1557431",
+      "text": "지난 경기 1557431(2026-10-17T14:00:00+00:00): team 4 1-0 team 2075 (FT)",
+      "source": "public.fixture"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "src:-predictions-tips-manchester-city-fulham-1925345",
+      "source_type": "unavailable",
+      "source_type_note": "본문을 확보하지 못했다. 후보로만 남는다.",
+      "requested_url": "https://www.forebet.com/en/predictions-tips-manchester-city-fulham-1925345",
+      "final_url": "https://www.forebet.com/en/predictions-tips-manchester-city-fulham-1925345",
+      "title": "Just a moment...",
+      "capture_time": "2026-11-11T00:15:50.644214+00:00",
+      "method": "fresh_http",
+      "stored_capture_at": null,
+      "collector": "trafilatura-2.3.1/defaults",
+      "http_status": 403,
+      "html_sha256": "c699b3fff0b4e93e0216aaaa7b0d4a41cf5412a1f00a203b16ec9bbb1f0b036e",
+      "body_chars": 0,
+      "passages": [],
+      "failure": "HTTP 403",
+      "elapsed_ms": 323,
+      "excerpts": []
+    },
+    {
+      "source_id": "src:https-manchestercitynews-co-uk-squad",
+      "source_type": "stats",
+      "source_type_note": "팀 스쿼드/명단 자료(통계 성격).",
+      "requested_url": "https://manchestercitynews.co.uk/squad",
+      "final_url": "https://manchestercitynews.co.uk/squad",
+      "title": "Manchester City Players and Squad 2026-27: Numbers &amp; Stats",
+      "capture_time": "2026-11-11T00:15:50.644214+00:00",
+      "method": "fresh_http",
+      "stored_capture_at": null,
+      "collector": "scrapling-0.5.1/get_all_text(list_page_fallback)",
+      "http_status": 200,
+      "redirects": 0,
+      "html_sha256": "af8f14c55e4a3f1e2375f87a2f1f5755dcfe027934d53befa6cf7c054b6933b6",
+      "body_chars": 2096,
+      "body_sha256": "3a1a268a9d1c45984e2ef790b234c15d24b0147e2d7c96ce3fc131fc40e526bc",
+      "passages": [
+        "#3 Rúben Dias Defender 15 Apps · 0 Goals",
+        "#27 Matheus Nunes Midfielder 10 Apps · 0 Goals",
+        "#75 F. Samba Attacker 3 Apps · 2 Goals Citizens Press Independent Manchester City fan hub - all the latest from the club based at Etihad Stadium, since 1880. Updated daily. Next up: → Fulham · 21 Nov 2026 12:30 Explore Home"
+      ],
+      "failure": null,
+      "elapsed_ms": 1213,
+      "excerpts": [
+        "#3 Rúben Dias Defender 15 Apps · 0 Goals",
+        "#27 Matheus Nunes Midfielder 10 Apps · 0 Goals",
+        "#75 F. Samba Attacker 3 Apps · 2 Goals Citizens Press Independent Manchester City fan hub - all the latest from the club based at Etihad Stadium, since 1880. Updated daily. Next up: → Fulham · 21 Nov 2026 12:30 Explore Home"
+      ]
+    },
+    {
+      "source_id": "src:november-06-josh-king-called-up-to-england-squad",
+      "source_type": "unavailable",
+      "source_type_note": "본문을 확보하지 못했다. 후보로만 남는다.",
+      "requested_url": "https://www.fulhamfc.com/news/2026/november/06/josh-king-called-up-to-england-squad/",
+      "final_url": "https://www.fulhamfc.com/news/2026/november/06/josh-king-called-up-to-england-squad/",
+      "title": null,
+      "capture_time": "2026-11-11T00:15:50.644214+00:00",
+      "method": "fresh_http",
+      "stored_capture_at": null,
+      "collector": null,
+      "http_status": 200,
+      "html_sha256": "2c7f938e09fc74ebfdeede6082978eba2db1d7435617c2b794b6b152636e584d",
+      "body_chars": 0,
+      "passages": [],
+      "failure": "본문 추출 0자(정적 HTML에 기사 텍스트 없음 또는 JS 셸)",
+      "elapsed_ms": 995,
+      "excerpts": []
+    },
+    {
+      "source_id": "src:to27vvfzzlihudsj5vhg0h-xzef3kjtfrhdrmr5qagko3x3n",
+      "source_type": "stats",
+      "source_type_note": "선수 개인 기록/통계 페이지.",
+      "requested_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHXooPbQJUqz6WpyDk89tY3c4zKYCbkVYP90-bibzZ2CbJNHjIltN2Zo1_1jegURJ7jXjIwQE3LSEccSY0S-jeoto27vvfzzlIHuDsJ5vHG0h-XzEf3KJTFRHdRMR5QAgko3X3N",
+      "final_url": "https://plstats.uk/players/erling-haaland/",
+      "title": "Erling Haaland Stats, Goals &amp; Assists | Premier League 2026-2027 | PLStats.uk",
+      "capture_time": "2026-11-11T00:15:50.644214+00:00",
+      "method": "fresh_http",
+      "stored_capture_at": null,
+      "collector": "trafilatura-2.3.1/defaults",
+      "http_status": 200,
+      "redirects": 1,
+      "html_sha256": "0d0beb9533e6f1513a8d09c9721a203e580f9816e42b56819dffe8669c4a4505",
+      "body_chars": 1820,
+      "body_sha256": "1ecb8f9b0c70d9653f4539294ffd8539a2c69b4233a1430dd7577186861f4b5e",
+      "passages": [
+        "Premier League 2026-2027 · Updated Erling Haaland (26, Norway) is a striker at Manchester City. Premier League 2026-2027: 10 appearances (890 minutes), 9 goals and 0 assists. Appearances 10 Minutes 890 Goals 9 Assists 0 xG",
+        "6.87 Avg rating 7.69 Scores shown with Manchester City's goals first. | Match | Date | Result | G | A | Mins | Rating | |---|---|---|---|---|---|---| | Nottingham 3–1 Manchester City | 7 Nov 2026 | L | 0 | 0 | 90 |  | | Manchester City 0–1 Brighton | 31 Oct 2026 | L | 0 | 0 | 90 |  |",
+        "Player data covers the Premier League from 2010-11; detailed stats from 2024-25. ~ Minutes before 2024-25 are estimated from lineups and substitutions (added time not counted)."
+      ],
+      "failure": null,
+      "elapsed_ms": 1994,
+      "excerpts": [
+        "Premier League 2026-2027 · Updated Erling Haaland (26, Norway) is a striker at Manchester City. Premier League 2026-2027: 10 appearances (890 minutes), 9 goals and 0 assists. Appearances 10 Minutes 890 Goals 9 Assists 0 xG",
+        "6.87 Avg rating 7.69 Scores shown with Manchester City's goals first. | Match | Date | Result | G | A | Mins | Rating | |---|---|---|---|---|---|---| | Nottingham 3–1 Manchester City | 7 Nov 2026 | L | 0 | 0 | 90 |  | | Manchester City 0–1 Brighton | 31 Oct 2026 | L | 0 | 0 | 90 |  |",
+        "Player data covers the Premier League from 2010-11; detailed stats from 2024-25. ~ Minutes before 2024-25 are estimated from lineups and substitutions (added time not counted)."
+      ]
+    },
+    {
+      "source_id": "src:7eah234vjvk7tmusorx1kbmoddyqlo-tdndvvknjumbllvx1",
+      "source_type": "past_match_report",
+      "source_type_note": "지난 경기 보도(리포트). 이번 경기 프리뷰가 아니다.",
+      "requested_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG4Cn2GkY4-v-xku29pjvjHZEugvyg-ECRyW-yXRmee5JOP0G1OawZgEDhVt_5bpq20E5rd5H7AC6I8SMRIYUQ7R_btl9nPebffe8wPrEKKL2ahtf1WxdToHNn2N4uBksLUaZqv3lrmGwSLX4t1bCKhoTq5QoMZwRWT7zHWlUNe7Eah234vJVk7tMuSORX1KbmODDYqlO-tDndvVKNjUmblLVx1",
+      "final_url": "https://www.theguardian.com/football/2026/nov/04/rb-leipzig-manchester-city-champions-league-match-report",
+      "title": "Erling Haaland settles thriller for Manchester City to end RB Leipzig resistance | Champions League | The Guardian",
+      "capture_time": "2026-11-11T00:15:50.644214+00:00",
+      "method": "fresh_http",
+      "stored_capture_at": null,
+      "collector": "trafilatura-2.3.1/defaults",
+      "http_status": 200,
+      "redirects": 1,
+      "html_sha256": "a81bb01cdf9f4b7c828b8d9585db12d83ccfb3a773656a7498335411a9672f3b",
+      "body_chars": 4735,
+      "body_sha256": "771fae16bb151bf188a755053656d127874a1752851bd45e359ec04a06c4170b",
+      "passages": [
+        "Feed Erling Haaland and Manchester City’s totemic No 9 will score. The problem, recently, has been a paucity of openings for him. This was true again before Elliot Anderson crossed and Haaland slid home a priceless winner for Enzo Maresca’s disjointed unit, Rayan Cherki hitting a post late on.",
+        "City’s quest to return to victorious ways featured an XI of four changes from Saturday’s Brighton reverse. Noteworthy was Maresca’s dropping of Rúben Dias as Abdukodir Khusanov’s pace was preferred at centre-back to the captain, Haaland taking the armband.",
+        "The Brighton defeat featured close to zero service for Haaland and City’s 13-goal man was again hard to find, Matheus Nunes’s loose cross, when the captain lurked, emblematic. So, too, as a sign of Leipzig’s ascendancy, was Marc Guéhi scrambling to clear danger, Nusa firing in the ball from the left, and Christoph Baumgartner having space to shoot marginally wide of Donnarumma’s left post."
+      ],
+      "failure": null,
+      "elapsed_ms": 326,
+      "excerpts": [
+        "Feed Erling Haaland and Manchester City’s totemic No 9 will score. The problem, recently, has been a paucity of openings for him. This was true again before Elliot Anderson crossed and Haaland slid home a priceless winner for Enzo Maresca’s disjointed unit, Rayan Cherki hitting a post late on.",
+        "City’s quest to return to victorious ways featured an XI of four changes from Saturday’s Brighton reverse. Noteworthy was Maresca’s dropping of Rúben Dias as Abdukodir Khusanov’s pace was preferred at centre-back to the captain, Haaland taking the armband.",
+        "The Brighton defeat featured close to zero service for Haaland and City’s 13-goal man was again hard to find, Matheus Nunes’s loose cross, when the captain lurked, emblematic. So, too, as a sign of Leipzig’s ascendancy, was Marc Guéhi scrambling to clear danger, Nusa firing in the ball from the left, and Christoph Baumgartner having space to shoot marginally wide of Donnarumma’s left post."
+      ]
+    },
+    {
+      "source_id": "src:fxy9bqp3cqvgjx0yunt00jcttaa6jtgpexqpwfd7dqoktfqa",
+      "source_type": "profile",
+      "source_type_note": "백과 선수 소개(프로필).",
+      "requested_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQE6xKuFVuMdNU2z2GSYevkJCxBPzx5LDHPLiZCZq8FOe_N86wNF0YdtYijZJvEmn9qqANEaTWZRDc-b2FZCOdfxY9bqP3CQVgjx0yUNt00JCTTAA6JTGpExQPWfD7dQOkTfQA==",
+      "final_url": "https://en.wikipedia.org/wiki/Oscar_Bobb",
+      "title": "Oscar Bobb - Wikipedia",
+      "capture_time": "2026-11-11T00:15:50.644214+00:00",
+      "method": "fresh_http",
+      "stored_capture_at": null,
+      "collector": "trafilatura-2.3.1/defaults",
+      "http_status": 200,
+      "redirects": 1,
+      "html_sha256": "7a6fc2c9818bec79ea8bb0b7c981adcdbf88cb46cd20528f9433d47fed4176a9",
+      "body_chars": 14958,
+      "body_sha256": "1bb6f705938f22b51f1aef1679268636a54206e409cd081faf406bfe0f4ab701",
+      "passages": [
+        "Oscar Bobb (born 12 July 2003) is a Norwegian professional footballer who plays as a right winger for Premier League club Fulham and the Norway national team. Early life [edit] Bobb was born in Oslo on 12 July 2003.[3][4] He has Gambian and Norwegian heritage.[5][6][7] His father is Abdou Bobb,[8] a Gambian-Norwegian.[citation needed] Bobb was largely raised by his mother, Norwegian actress Turid Gunnes, who had sole custody of him.[9] Bobb began showing prowess for football at an early age.[9]",
+        "On 2 September 2023, Bobb was given his Premier League debut against Fulham coming on as an 88th minute substitute for Phil Foden, where he was involved in the buildup leading to the 5th goal scored by fellow Norwegian Erling Haaland.[17] On 19 September, he made his Champions League debut against Red Star Belgrade, replacing Phil Foden in the 83rd minute in a 3–1 win.[18] On 13 December also against Red Star Belgrade, Bobb scored his first Champions League goal in a 3–2 victory.[19] On 13 January 2024, he scored his first Premier League goal in the 91st minute, securing a 3–2 comeback away win over Newcastle United, after a Kevin De Bruyne cross. A month later, on 26 February, he signed a new long-term contract at the club until 2029.[20]",
+        "Manchester City - Premier League: 2023–24[2] - FA Community Shield: 2024[37] - UEFA Super Cup: 2023[38] - FIFA Club World Cup: 2023[39] - FA Cup runner-up: 2023–24[40] Individual [edit] [edit] - Profile at the Fulham F.C. website"
+      ],
+      "failure": null,
+      "elapsed_ms": 899,
+      "excerpts": [
+        "Oscar Bobb (born 12 July 2003) is a Norwegian professional footballer who plays as a right winger for Premier League club Fulham and the Norway national team. Early life [edit] Bobb was born in Oslo on 12 July 2003.[3][4] He has Gambian and Norwegian heritage.[5][6][7] His father is Abdou Bobb,[8] a Gambian-Norwegian.[citation needed] Bobb was largely raised by his mother, Norwegian actress Turid Gunnes, who had sole",
+        "On 2 September 2023, Bobb was given his Premier League debut against Fulham coming on as an 88th minute substitute for Phil Foden, where he was involved in the buildup leading to the 5th goal scored by fellow Norwegian Erling Haaland.[17] On 19 September, he made his Champions League debut against Red Star Belgrade, replacing Phil Foden in the 83rd minute in a 3–1 win.[18] On 13 December also against Red Star Belgrad",
+        "Manchester City - Premier League: 2023–24[2] - FA Community Shield: 2024[37] - UEFA Super Cup: 2023[38] - FIFA Club World Cup: 2023[39] - FA Cup runner-up: 2023–24[40] Individual [edit] [edit] - Profile at the Fulham F.C. website"
+      ]
+    }
+  ],
+  "fulltext_note": "기사 본문 전문은 저장소에 넣지 않았다. /tmp 스크래치와 preview_dev 아티팩트에만 있으며, 여기에는 해시와 짧은 발췌만 있다."
+}

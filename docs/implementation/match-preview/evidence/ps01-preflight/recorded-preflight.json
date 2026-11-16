@@ -1,0 +1,79 @@
+{
+  "script_version": "mp11-preflight-1",
+  "mode": "recorded",
+  "external_paid_calls": 0,
+  "fixture_id": 1557474,
+  "run_id": "d674bcc8-1df7-46cd-afaa-daf7d1b532ce",
+  "checks": [
+    {
+      "check": "test_database_target",
+      "ok": true,
+      "detail": {
+        "host": "127.0.0.1",
+        "port": 55432,
+        "name": "preview_mp01_test"
+      }
+    },
+    {
+      "check": "normal_six_sends",
+      "ok": true,
+      "detail": {
+        "budget": 6,
+        "ledger": 6
+      }
+    },
+    {
+      "check": "ninth_send_refused_without_transport",
+      "ok": true,
+      "detail": {
+        "calls_before": 8,
+        "calls_after": 8
+      }
+    },
+    {
+      "check": "post_send_failure_keeps_charge_and_body",
+      "ok": true,
+      "detail": {
+        "charged": 1,
+        "rows_with_usage": 1
+      }
+    },
+    {
+      "check": "bundle_saved_and_reopened",
+      "ok": true,
+      "detail": {
+        "artifact_id": "1f1c74c4-b1a6-4d13-b0e8-ef66abf9b71f"
+      }
+    },
+    {
+      "check": "section_delivery_matches_payload",
+      "ok": true,
+      "detail": {
+        "payload_sha256": "994dc6489d76"
+      }
+    },
+    {
+      "check": "section_result_saved_with_version",
+      "ok": true,
+      "detail": {
+        "section_result_id": "6e5e57b2-cbf4-430d-b327-2fd8ff7506eb"
+      }
+    },
+    {
+      "check": "replay_makes_new_version_without_sending",
+      "ok": true,
+      "detail": {
+        "new_version": 2
+      }
+    },
+    {
+      "check": "ledger_unchanged_by_replay",
+      "ok": true,
+      "detail": {
+        "charged": 8
+      }
+    }
+  ],
+  "all_passed": true,
+  "note": "기록 transport preflight입니다. 실제 모델·외부 HTTP를 부르지 않았으며 이 결과를 live 성공으로 인용하지 않습니다. 전용 로컬 테스트 DB만 사용했습니다."
+}

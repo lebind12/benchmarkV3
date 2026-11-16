@@ -1,0 +1,417 @@
+{
+  "script_version": "mp11-live-once-1",
+  "fixture_id": 1557474,
+  "run_id": "270baa93-aff4-4b0c-a949-7610b631c6ac",
+  "started_at": "2026-11-11T07:46:45.437057+00:00",
+  "finished_at": "2026-11-11T07:50:05.880020+00:00",
+  "duration_seconds": 200.4,
+  "mode": "live",
+  "status": "succeeded",
+  "quality": "ready",
+  "external_calls": 4,
+  "budget": {
+    "model_requests": 6,
+    "model_used": 4,
+    "model_remaining": 2,
+    "model_reserved_for_unstarted_steps": 0,
+    "api_requests": 24,
+    "api_used": 14,
+    "api_remaining": 10,
+    "attempts_per_call": 1,
+    "deadline_seconds": 1800,
+    "seconds_left": 1600.623,
+    "registered_calls": [
+      "discovery_outlook",
+      "discovery_people",
+      "section_players",
+      "section_ai_forecast"
+    ],
+    "cancelled_calls": [
+      "section_availability",
+      "section_outlook"
+    ],
+    "module_send_cap": 3,
+    "prior_module_usage": {
+      "discovery_outlook": 2,
+      "discovery_people": 2,
+      "section_players": 2,
+      "section_ai_forecast": 2,
+      "section_availability": 1
+    },
+    "sent_by_module": {
+      "discovery_outlook": 1,
+      "discovery_people": 1,
+      "section_players": 1,
+      "section_ai_forecast": 1
+    },
+    "reservations_returned": 2,
+    "normal_model_calls": 6,
+    "stopped_reason": null
+  },
+  "unavailable_reason": null,
+  "bundle": {
+    "available": true,
+    "bundle_id": "bundle-2cbe280395ab4018",
+    "bundle_hash": "5da20d55d8e5d0047824631574e5306425b66fab73ac16e91da72b3506d559dd",
+    "source_count": 14,
+    "usable_source_count": 0,
+    "failed_source_count": 14,
+    "available_passages": 0,
+    "available_chars": 0,
+    "network_usage": {
+      "api_limit": null,
+      "api_used": 0,
+      "http_failed": 14,
+      "http_limit": 24,
+      "http_used": 14,
+      "note": "비모델 HTTP 상한을 수집이 공유한다. 리다이렉트와 실패도 전송으로 센다. 이 함수는 모델을 호출하지 않는다.",
+      "redirects": 0
+    },
+    "db_readable": true,
+    "db_injuries": 0,
+    "odds_quotes": 0,
+    "odds_adopted_quotes": 0,
+    "section_delivery_count": 5,
+    "sources": [
+      {
+        "source_id": "src-1",
+        "final_url": "https://www.forebet.com/en/predictions/predictions-tips-manchester-city-fulham-1926639",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 403,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "blocked_403",
+        "usable": false
+      },
+      {
+        "source_id": "src-2",
+        "final_url": "https://www.windrawwin.com/tips/man-city-v-fulham/2026-11-21/1557474/",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 403,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "blocked_403",
+        "usable": false
+      },
+      {
+        "source_id": "src-3",
+        "final_url": "https://www.wincomparator.com/en-gb/predictions/manchester-city-fulham-1926639/",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 404,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "http_404",
+        "usable": false
+      },
+      {
+        "source_id": "src-4",
+        "final_url": "https://www.fotmob.com/matches/manchester-city-vs-fulham/2v8v",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 404,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "http_404",
+        "usable": false
+      },
+      {
+        "source_id": "src-5",
+        "final_url": "https://www.sofascore.com/manchester-city-fulham/dsH",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 403,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "blocked_403",
+        "usable": false
+      },
+      {
+        "source_id": "src-6",
+        "final_url": "https://www.flashscore.com/match/MCI-FUL-2026-11-21/odds/",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 404,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "http_404",
+        "usable": false
+      },
+      {
+        "source_id": "src-7",
+        "final_url": "https://www.goal.com/en/news/manchester-city-vs-fulham-premier-league-kick-off-time-tv-channel-live-stream-how-to-buy-tickets/blt1234567890",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 404,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "http_404",
+        "usable": false
+      },
+      {
+        "source_id": "src-8",
+        "final_url": "https://www.365scores.com/football/match/manchester-city-fulham-13-4-39-2026",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 301,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "empty_body",
+        "usable": false
+      },
+      {
+        "source_id": "src-9",
+        "final_url": "https://thefalse9.com/2026/11/semenyo-injury-update-return-date-december-target.html",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 404,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "http_404",
+        "usable": false
+      },
+      {
+        "source_id": "src-10",
+        "final_url": "https://thefalse9.com/2026/11/guehi-injury-update-return-date-hip-scan-out-of-england.html",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 404,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "http_404",
+        "usable": false
+      },
+      {
+        "source_id": "src-11",
+        "final_url": "https://thefalse9.com/2026/11/gvardiol-injury-update-return-date-fit-for-croatia-after-forest-knock.html",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 404,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "http_404",
+        "usable": false
+      },
+      {
+        "source_id": "src-12",
+        "final_url": "https://thefalse9.com/2026/11/josh-king-injury-update-return-date-arbeloa-says-nothing-serious.html",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 404,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "http_404",
+        "usable": false
+      },
+      {
+        "source_id": "src-13",
+        "final_url": "https://www.premierinjuries.com/teams/fulham",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 403,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "blocked_403",
+        "usable": false
+      },
+      {
+        "source_id": "src-14",
+        "final_url": "https://www.starting11.com/injuries/premier-league/fulham",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 301,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "empty_body",
+        "usable": false
+      }
+    ],
+    "section_deliveries": [
+      {
+        "section_id": "section_players",
+        "model_delivered": true,
+        "passage_ids": [],
+        "payload_sha256": "fdc69e7f57c9ad53ab8f6efdb451954fa22142c771db6bf55b8e10ff683311e0",
+        "sent_attempts": 1
+      },
+      {
+        "section_id": "section_availability",
+        "model_delivered": false,
+        "passage_ids": [],
+        "payload_sha256": null,
+        "sent_attempts": 0
+      },
+      {
+        "section_id": "section_outlook",
+        "model_delivered": false,
+        "passage_ids": [],
+        "payload_sha256": null,
+        "sent_attempts": 0
+      },
+      {
+        "section_id": "section_odds",
+        "model_delivered": false,
+        "passage_ids": [],
+        "payload_sha256": null,
+        "sent_attempts": 0
+      },
+      {
+        "section_id": "section_ai_forecast",
+        "model_delivered": true,
+        "passage_ids": [],
+        "payload_sha256": "464de34f1d5f9b634c3b27f00c6abbd2c2c2df2aaea5a95f867b28a0cc4a0ddc",
+        "sent_attempts": 1
+      }
+    ],
+    "diagnostics": [
+      "blocked_403 · https://www.forebet.com/en/predictions/predictions-tips-manchester-city-fulham-1926639",
+      "blocked_403 · https://www.windrawwin.com/tips/man-city-v-fulham/2026-11-21/1557474/",
+      "http_404 · https://www.wincomparator.com/en-gb/predictions/manchester-city-fulham-1926639/",
+      "http_404 · https://www.fotmob.com/matches/manchester-city-vs-fulham/2v8v",
+      "blocked_403 · https://www.sofascore.com/manchester-city-fulham/dsH",
+      "http_404 · https://www.flashscore.com/match/MCI-FUL-2026-11-21/odds/",
+      "http_404 · https://www.goal.com/en/news/manchester-city-vs-fulham-premier-league-kick-off-time-tv-channel-live-stream-how-to-buy-tickets/blt1234567890",
+      "empty_body · https://www.365scores.com/football/match/manchester-city-fulham-13-4-39-2026",
+      "http_404 · https://thefalse9.com/2026/11/semenyo-injury-update-return-date-december-target.html",
+      "http_404 · https://thefalse9.com/2026/11/guehi-injury-update-return-date-hip-scan-out-of-england.html",
+      "http_404 · https://thefalse9.com/2026/11/gvardiol-injury-update-return-date-fit-for-croatia-after-forest-knock.html",
+      "http_404 · https://thefalse9.com/2026/11/josh-king-injury-update-return-date-arbeloa-says-nothing-serious.html",
+      "blocked_403 · https://www.premierinjuries.com/teams/fulham",
+      "empty_body · https://www.starting11.com/injuries/premier-league/fulham",
+      "odds_not_available · 수집한 공개 자료에서 정규시간 1X2 배당을 읽지 못했습니다.",
+      "no_usable_sources"
+    ]
+  },
+  "sections": [
+    {
+      "workflow_id": "section_ai_forecast",
+      "version": 1,
+      "mode": "live",
+      "quality": "ready",
+      "unavailable": false,
+      "unavailable_reason": null,
+      "title": "AI 경기 전망",
+      "body_chars": 360,
+      "body_excerpt": "## AI 경기 전망\n리그 3위 맨체스터 시티는 최근 2연승을 거두며 흐름을 되찾았고, 이번 시즌 9골을 터뜨린 엘링 홀란드와 뛰어난 공격 효율을 보이는 라얀 셰르키를 앞세워 경기를 주도할 것입니다. 이에 맞서는 리그 15위 풀럼은 미드필더 알렉산더 츄카 이워비의 안정적인 조율과 조슈아 킹의 공격 기여를 바탕으로 맨체스터 시티의 수비를 공략하려 할 것입니다.\n\n### AI 예상 스코어\n3-1\n\n- 맨체스터 시티는 엘링 홀란드와 라얀 셰르키라는 확실한 공격 자원을 보유하고 있어 홈에서 다득점을 올릴 가능성이 큽니다.\n- 풀럼은 조슈아 킹을 앞세워 반격을 시도하겠으나, 전력 차이와 맨체스터 시티의 공세를 극복하기는 어려울 것으로 예상됩니다.",
+      "source_count": 0,
+      "diagnostics": []
+    },
+    {
+      "workflow_id": "section_availability",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "이 경기의 부상 관련 수집 본문과 DB 부상 행이 모두 없어 요청을 보내지 않았습니다. 부상자가 없다는 뜻은 아닙니다.",
+      "title": "부상·결장 영향",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "모델 호출을 시작하지 않아 예약 몫을 반환했습니다(새 호출 없음)."
+      ]
+    },
+    {
+      "workflow_id": "section_odds",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "정규시간 1X2 값이 모두 있는 배당 줄이 없어 이 선택 섹션을 표시하지 않습니다.",
+      "title": "배당 현황",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "접근 가능한 공개 배당 표에서 이 경기의 1X2 값을 확인하지 못했습니다.",
+        "배당은 선택 섹션입니다. 채택 가능한 줄이 없으면 독자 화면에서 생략하고 관리자에게만 사유를 남깁니다. 빠진 값을 추정해 채우지 않습니다."
+      ]
+    },
+    {
+      "workflow_id": "section_outlook",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "외부 전망을 확인할 수집 기사 본문이 없어 매체 전망 요청을 보내지 않았습니다.",
+      "title": "외부 매체 전망",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "모델 호출을 시작하지 않아 예약 몫을 반환했습니다(새 호출 없음)."
+      ]
+    },
+    {
+      "workflow_id": "section_players",
+      "version": 1,
+      "mode": "live",
+      "quality": "ready",
+      "unavailable": false,
+      "unavailable_reason": null,
+      "title": "주목 선수",
+      "body_chars": 395,
+      "body_excerpt": "이번 경기의 주목 선수 4명입니다.\n\n선정 선수: 엘링 홀란드\n선정 이유: 이번 시즌 10경기에서 9골을 터뜨리며 팀의 핵심 공격수로 활약하고 있으며, 7.6의 높은 평점으로 맨체스터 시티의 공격을 이끌고 있습니다.\n\n선정 선수: 라얀 셰르키\n선정 이유: 9경기에 출전해 5골 2도움을 기록하며 뛰어난 공격 효율을 보여주고 있어 이번 경기에서도 활약이 기대됩니다.\n\n선정 선수: 알렉산더 츄카 이워비\n선정 이유: 이번 시즌 10경기에 출전해 827분을 소화하며 평점 7.36으로 풀럼의 미드필더진에서 가장 안정적인 경기력을 보여주고 있습니다.\n\n선정 선수: 조슈아 킹\n선정 이유: 10경기에서 2골 1도움을 기록하며 팀 내에서 중요한 공격 기여도를 보여주고 있어 맨체스터 시티의 수비진을 위협할 선수입니다.",
+      "source_count": 0,
+      "diagnostics": [
+        "이름 해석기가 주입되지 않아 같은 응답의 한글 표기를 표시에 반영하지 못했습니다."
+      ]
+    }
+  ],
+  "attempts": [
+    {
+      "logical_call_id": "discovery_outlook",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 965,
+        "output_tokens": 922,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T07:46:45.437057+00:00",
+      "finished_at": "2026-11-11T07:46:45.437057+00:00"
+    },
+    {
+      "logical_call_id": "discovery_people",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 1033,
+        "output_tokens": 710,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T07:46:45.437057+00:00",
+      "finished_at": "2026-11-11T07:46:45.437057+00:00"
+    },
+    {
+      "logical_call_id": "section_players",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 3918,
+        "output_tokens": 707,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T07:46:45.437057+00:00",
+      "finished_at": "2026-11-11T07:46:45.437057+00:00"
+    },
+    {
+      "logical_call_id": "section_ai_forecast",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 1363,
+        "output_tokens": 326,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T07:46:45.437057+00:00",
+      "finished_at": "2026-11-11T07:46:45.437057+00:00"
+    }
+  ]
+}

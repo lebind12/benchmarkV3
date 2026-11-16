@@ -1,0 +1,15 @@
+stats DSN present: True
+role: True
+bounded read rows: 5 | columns in projection: 11
+granted count: 11
+granted set == approved set: True
+denied as expected: raw_stats
+denied as expected: shirt_number
+denied as expected: id
+denied as expected: public.app_user
+denied as expected: public.fixture
+denied as expected: preview_dev.preview_runs
+table-wide SELECT (false expected): False
+preview_dev USAGE (false expected): False
+public CREATE (false expected): False
+role superuser (false expected): False

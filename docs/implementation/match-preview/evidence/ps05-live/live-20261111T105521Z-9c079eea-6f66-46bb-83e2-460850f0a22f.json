@@ -1,0 +1,419 @@
+{
+  "script_version": "mp11-live-once-1",
+  "fixture_id": 1557474,
+  "run_id": "9c079eea-6f66-46bb-83e2-460850f0a22f",
+  "started_at": "2026-11-11T10:55:21.389612+00:00",
+  "finished_at": "2026-11-11T10:57:34.582376+00:00",
+  "duration_seconds": 133.2,
+  "mode": "live",
+  "status": "succeeded",
+  "quality": "ready",
+  "external_calls": 6,
+  "budget": {
+    "model_requests": 6,
+    "model_used": 6,
+    "model_remaining": 0,
+    "model_reserved_for_unstarted_steps": 0,
+    "api_requests": 24,
+    "api_used": 18,
+    "api_remaining": 6,
+    "attempts_per_call": 1,
+    "deadline_seconds": 1800,
+    "seconds_left": 1668.371,
+    "registered_calls": [
+      "discovery_outlook",
+      "discovery_people",
+      "section_availability",
+      "section_outlook",
+      "section_players",
+      "section_ai_forecast"
+    ],
+    "cancelled_calls": [],
+    "module_send_cap": 3,
+    "prior_module_usage": {},
+    "sent_by_module": {
+      "discovery_outlook": 1,
+      "discovery_people": 1,
+      "section_outlook": 1,
+      "section_availability": 1,
+      "section_players": 1,
+      "section_ai_forecast": 1
+    },
+    "reservations_returned": 0,
+    "normal_model_calls": 6,
+    "stopped_reason": null
+  },
+  "unavailable_reason": null,
+  "bundle": {
+    "available": true,
+    "bundle_id": "bundle-793c3ac9976d43ce",
+    "bundle_hash": "8db8754d8a6b52d3d0a63ea9c020b6f5bf174e22beddd4b7fe7df96e7ad7760d",
+    "source_count": 9,
+    "usable_source_count": 6,
+    "failed_source_count": 3,
+    "available_passages": 15,
+    "available_chars": 1610,
+    "network_usage": {
+      "api_limit": null,
+      "api_used": 0,
+      "http_failed": 3,
+      "http_limit": 24,
+      "http_used": 18,
+      "note": "비모델 HTTP 상한을 수집이 공유한다. 리다이렉트와 실패도 전송으로 센다. 이 함수는 모델을 호출하지 않는다.",
+      "redirects": 9
+    },
+    "db_readable": true,
+    "db_injuries": 0,
+    "odds_quotes": 0,
+    "odds_adopted_quotes": 0,
+    "section_delivery_count": 5,
+    "sources": [
+      {
+        "source_id": "src-1",
+        "final_url": "https://www.forebet.com/en/football-match-previews/32191-manchester-city-aim-to-reassert-dominance-as-fulham-seek-a-rare-breakthrough-at-the-etihad",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 403,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "blocked_403",
+        "usable": false
+      },
+      {
+        "source_id": "src-2",
+        "final_url": "https://footypulse.co.uk/match/manchester-city-vs-fulham-premier-league-2026-27",
+        "nature": "preview",
+        "method": "fresh_http",
+        "http_status": 200,
+        "body_chars": 2946,
+        "passages": 3,
+        "failure": null,
+        "usable": true
+      },
+      {
+        "source_id": "src-3",
+        "final_url": "https://www.windrawwin.com/tips/england-premier-league/man-city-v-fulham/875764/",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 403,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "blocked_403",
+        "usable": false
+      },
+      {
+        "source_id": "src-4",
+        "final_url": "https://www.wincomparator.com/predictions/manchester-city-fulham-8558920/",
+        "nature": "odds",
+        "method": "fresh_http",
+        "http_status": 200,
+        "body_chars": 5298,
+        "passages": 3,
+        "failure": null,
+        "usable": true
+      },
+      {
+        "source_id": "src-5",
+        "final_url": "https://yesplay.bet/sports/events/manchester-city-fulham-fc-72221406",
+        "nature": "odds",
+        "method": "fresh_http",
+        "http_status": 200,
+        "body_chars": 1891,
+        "passages": 2,
+        "failure": null,
+        "usable": true
+      },
+      {
+        "source_id": "src-6",
+        "final_url": "https://sportsbook.fanduel.ca/soccer/english-premier-league/man-city-v-fulham-36293092",
+        "nature": "unavailable",
+        "method": "fresh_http",
+        "http_status": 403,
+        "body_chars": null,
+        "passages": 0,
+        "failure": "blocked_403",
+        "usable": false
+      },
+      {
+        "source_id": "src-7",
+        "final_url": "https://www.oddsmath.com/football/england/premier-league-1281/2026-11-21/manchester-city-vs-fulham-5138272/",
+        "nature": "odds",
+        "method": "fresh_http",
+        "http_status": 200,
+        "body_chars": 5218,
+        "passages": 3,
+        "failure": null,
+        "usable": true
+      },
+      {
+        "source_id": "src-8",
+        "final_url": "https://kalshi.com/markets/kxeplgame/manchester-city-vs-fulham/kxeplgame-26nov21mciful",
+        "nature": "unknown",
+        "method": "fresh_http",
+        "http_status": 200,
+        "body_chars": 600,
+        "passages": 1,
+        "failure": null,
+        "usable": true
+      },
+      {
+        "source_id": "src-9",
+        "final_url": "https://www.manchestereveningnews.co.uk/sport/football/football-news/khusanov-guehi-gvardiol-man-city-34886691",
+        "nature": "news",
+        "method": "fresh_http",
+        "http_status": 200,
+        "body_chars": 2594,
+        "passages": 3,
+        "failure": null,
+        "usable": true
+      }
+    ],
+    "section_deliveries": [
+      {
+        "section_id": "section_players",
+        "model_delivered": true,
+        "passage_ids": [
+          "src-9-p1",
+          "src-9-p2",
+          "src-9-p3"
+        ],
+        "payload_sha256": "0a83824fa0a2c8d4c77212df6f614faf8df7023936a4e81c381c39c4bf3f12f4",
+        "sent_attempts": 1
+      },
+      {
+        "section_id": "section_availability",
+        "model_delivered": true,
+        "passage_ids": [
+          "src-9-p1",
+          "src-9-p2",
+          "src-9-p3"
+        ],
+        "payload_sha256": "27b711acaa96aa391a8f4ec567e3f6cc7fca4cf1fb5fb00b258e9e6118ecc427",
+        "sent_attempts": 1
+      },
+      {
+        "section_id": "section_outlook",
+        "model_delivered": true,
+        "passage_ids": [
+          "src-2-p1",
+          "src-2-p2",
+          "src-2-p3",
+          "src-4-p1",
+          "src-4-p2",
+          "src-4-p3",
+          "src-5-p1",
+          "src-5-p2",
+          "src-7-p1",
+          "src-7-p2",
+          "src-7-p3",
+          "src-8-p1"
+        ],
+        "payload_sha256": "5c546cbd01f63ceec37dcad047d44df415b26b02729a0ed14566a06f8e2bb0de",
+        "sent_attempts": 1
+      },
+      {
+        "section_id": "section_odds",
+        "model_delivered": false,
+        "passage_ids": [],
+        "payload_sha256": null,
+        "sent_attempts": 0
+      },
+      {
+        "section_id": "section_ai_forecast",
+        "model_delivered": true,
+        "passage_ids": [
+          "src-2-p1",
+          "src-2-p2",
+          "src-2-p3",
+          "src-4-p1",
+          "src-4-p2",
+          "src-4-p3",
+          "src-5-p1",
+          "src-5-p2",
+          "src-7-p1",
+          "src-7-p2",
+          "src-7-p3",
+          "src-8-p1",
+          "src-9-p1",
+          "src-9-p2",
+          "src-9-p3"
+        ],
+        "payload_sha256": "a45bd07747bb24ca4dfeac563e0fdf57ffc2f6d7035d02ee03dcc8c214467fc7",
+        "sent_attempts": 1
+      }
+    ],
+    "diagnostics": [
+      "blocked_403 · https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHj6MG_HT3jZltaHyH2C-NL9PBEK2_fg3NvChBaE-lIjHhCu1K7b8L3F3AGs90opuClC91J2j7ZNOl_SfO2Ot5aqK9HqwGOk3hPsqfne51sG9A1KRR2nVSlJ-85lv064ECOSYymWA94kLWmH32I8K_VaRZVXuQA7JuDMkxSjvsZRBeCVWLt6OvIraqsNUsvInCfE1MO3A3S1Iimvrd5dOXhisSkSyWfnIGsjb0dXWH6rYfBkGsnxE8YmNdtpeL03jdexqWz5YS5c_T0Kxwg3s4=",
+      "blocked_403 · https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFyUsDKohrV7-bias_gMpy_G_zkYPqPyE3FlsGwNiqexb39Sm21l4enPaBETcztFjIuCnJ8hQ87YkI3XsrBH1arLQi-IcQN1wYHhAwrOdeztkjcc79E60O4xmFnTbVchn0yZ0dLWIA_tf6avI1i3fQPiep6YhqiIGEZkYaILIbptE7IwjSa_u_kP7AF",
+      "blocked_403 · https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGMrdmJyKojohrckDGiuueJ_TdG_pTzXF3zh7CjqukKRvXIdOTt3f9DLST_R-7FfA7VOPiHxB6uWyOV4U3oNfavmuWiAaNnn7YzglVhkvsS3taGEd4v_6-JrrbvLWBq7WVARfdZoxZYvx2z8aAJwhoV1sbe3-6rogiDLfREHbtGZoKrH7NjpTJkKU3HXfk-Sc2s",
+      "max_sources_reached · https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEoZtYOKGYxzqaxYsQ-a0FuJiasbqT0GWxachTAn-jyD4OxQNiLH3GkWdTKh5fV2Jil-CTSSowgb0ho0pDSxmpvInGchVJ4ArzVBRNDrQOgSKS1_iebG59HL3ZBSWxgtcP0nyZ1Nzyviqm5R-D3frcVcNiSoVD6oWv0WsIa-Voo1sERAw==",
+      "max_sources_reached · https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFYdUspvvDoV7TD6UtXI2K4Jtr7p94HnT7WCwIPL5dKQ7_XnoihJ5_Vi40zOpqkJPTSwQgew8VjKqCdf_lqEU6b9hRE6zASw1_2-qSVO2Q_8kLDTMAKticlH6yh4LwdQ5dHRBXlT2z8KG9Z4RFcDFKUiyD2IYAg4fD8qCa8Z-CrOAg=",
+      "max_sources_reached · https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGnQNyZedSMMwvr5dr7uxblDzNXCb9xH9-0g78IKzwNo-ItpPGKB3aSo12Yb3SCrQF1Z71kIDarzcvPVzkVm8IY1oK-ipUn7QAVSSf-ISDDKd85Q-LbJ3ww72ecUKAC4srHvvdoWcURfc6VdfROGzm9fseDWiRu9C6bqgZZuycjWgJWBhZhZ0AkHbCgQ6f4PREGcZ0wTvHAbv7yiEihpnbnEKnC7ha4G8-wxgrzxdNnT_Ij-k0=",
+      "max_sources_reached · https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGRmnlInxka3dXrlzHnuNZ6t1_7l4-6ZE_HPXSJXe9F4P5t9aAtfHHFLJ-Q9RDoiHb31wSCterG2bjIVr87ZHtmeuoiFbBLGdWz00fJSZt2x3jxEefQH7zHPgrWjSAoeptskKNXNetvN2O2ZqS3m-GlqOOIl6qmdDTpOH47tU9p-HqTmc7fPRciOu-AOHfa28wzH47_e7NHNyICM87P1oX7QqQ32FA-88RZ5mrMhKItiyEd_RIe9DGEVc_pVNSBGs1KWS8=",
+      "max_sources_reached · https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLgVY9ToPQvs8w0ErZYdH75NFkX2Qr8AuSiXxOkeQB-FkbnZPIBy1yxPDiIcHlCWcqprnzFY88vEOfQRVJiyjDRdGgZGEHC7-Z6YXFAZVUe0sIwmMqaaAqCiYP7xssptCpPoeJ-NxwbhNCYhjNWr1tCiOqcMUqKtVbFwW0Uw==",
+      "max_sources_reached · https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG1HiycVOhOfRNg1erD38bJDCcI1FWGm2ol_MG3S-7HrDqIc6530169TTicbOzYFmPENBZMOuch3RqTOCILfuP23eiTOTa_y5iOmHpODFTvq4rEGP6t2_GuaRuLT4cCWUhtkq--8g27T51B64jYULMCYC4cYc5L1MaqlZdLTM8O1gHI0yYXrzbuii73LeEP5RtMKZt2HWgtBHHWKUx1Cw==",
+      "odds_not_available · 수집한 공개 자료에서 정규시간 1X2 배당을 읽지 못했습니다. (사유: src-2:unknown_table_structure, src-4:unknown_table_structure, src-5:unknown_table_structure, src-7:unknown_table_structure, src-8:empty_table, src-9:unknown_table_structure)"
+    ]
+  },
+  "sections": [
+    {
+      "workflow_id": "section_ai_forecast",
+      "version": 1,
+      "mode": "live",
+      "quality": "ready",
+      "unavailable": false,
+      "unavailable_reason": null,
+      "title": "AI 경기 전망",
+      "body_chars": 347,
+      "body_excerpt": "## AI 경기 전망\n맨체스터 시티는 최근 리그에서 주춤한 흐름을 보이고 있으나, 풀럼을 상대로 최근 23경기 무패라는 압도적인 역사적 우위를 점하고 있습니다. 엘링 홀란드와 마티스 라이안 셰르키가 주도하는 맨시티의 공격진이 경기를 지배할 것으로 보이며, 풀럼은 조쉬 킹의 복귀 여부와 오스카 봅의 측면 공격에 기대를 걸어야 하는 상황입니다.\n\n### AI 예상 스코어\n2-0\n\n- 맨체스터 시티가 홈에서의 강세와 풀럼 상대 압도적인 전적 우위를 바탕으로 경기를 주도할 것입니다.\n- 제레미 도쿠의 결장과 수비진의 일부 전력 누수 우려가 있으나, 엘링 홀란드의 결정력을 앞세워 실점 없이 승리를 가져갈 가능성이 높습니다.",
+      "source_count": 0,
+      "diagnostics": [
+        "검색 자료 상한(8건)에 닿아 남은 줄은 전달하지 않았습니다."
+      ]
+    },
+    {
+      "workflow_id": "section_availability",
+      "version": 1,
+      "mode": "live",
+      "quality": "ready",
+      "unavailable": false,
+      "unavailable_reason": null,
+      "title": "부상·결장 영향",
+      "body_chars": 592,
+      "body_excerpt": "## 부상·결장 영향\n\n확인된 부상·결장 상황만 정리했습니다.\n\n### Manchester City\n- 앙투안 세메뇨: 결장(확정 표기)\n  부상 내용: 다리 부상으로 인해 장기 결장 중입니다.\n  영향: 장기 결장 중인 공격수로, 맨체스터 시티의 공격진 로테이션과 옵션 선택에 제한을 주고 있습니다.\n- 마크 게히: 출전 불확실\n  부상 내용: 엉덩이 부상으로 인해 대표팀에서 하차하여 회복 중입니다.\n  영향: 수비진의 주요 자원으로, 그의 출전 여부에 따라 맨체스터 시티의 수비 라인 구성에 변화가 생길 수 있습니다.\n\n### Fulham\n- 톰 케어니: 출전 불확실\n  부상 내용: 무릎 부상으로 인해 직전 경기에 결장했습니다.\n  영향: 풀럼의 베테랑 미드필더로, 그의 결장 여부는 팀의 중원 안정감과 경기 조율 능력에 영향을 미칠 수 있습니다.\n- 조쉬 킹: 출전 불확실\n  부상 내용: 뉴캐슬전에서 사타구니 통증을 느껴 교체 아웃되었으나, A매치 휴식기 동안 회복을 거쳐 맨시티전 복귀를 목표로 하고 있습니다.\n  영향: 최근 잉글랜드 성인 대표팀에 처음 발탁된 19세 유망주 미드필더로, 출전할 경우 풀럼의 중원에 활력을 불어넣을 수 있습니다.",
+      "source_count": 1,
+      "diagnostics": [
+        "검색 자료 상한(8건)에 닿아 남은 줄은 전달하지 않았습니다."
+      ]
+    },
+    {
+      "workflow_id": "section_odds",
+      "version": 1,
+      "mode": "live",
+      "quality": "insufficient",
+      "unavailable": true,
+      "unavailable_reason": "정규시간 1X2 값이 모두 있는 배당 줄이 없어 이 선택 섹션을 표시하지 않습니다.",
+      "title": "배당 현황",
+      "body_chars": 0,
+      "body_excerpt": "",
+      "source_count": 0,
+      "diagnostics": [
+        "접근 가능한 공개 배당 표에서 이 경기의 1X2 값을 확인하지 못했습니다.",
+        "배당은 선택 섹션입니다. 채택 가능한 줄이 없으면 독자 화면에서 생략하고 관리자에게만 사유를 남깁니다. 빠진 값을 추정해 채우지 않습니다."
+      ]
+    },
+    {
+      "workflow_id": "section_outlook",
+      "version": 1,
+      "mode": "live",
+      "quality": "ready",
+      "unavailable": false,
+      "unavailable_reason": null,
+      "title": "외부 매체 전망",
+      "body_chars": 164,
+      "body_excerpt": "## 외부 매체 전망\n수집한 기사에서 확인한 외부 매체의 이 경기 전망입니다. 이 서비스의 판단과는 별개입니다.\n- FootyPulse: 맨체스터 시티가 제레미 도쿠의 종아리 부상 결장에도 불구하고 홈에서의 완벽한 성적과 상대 전적 우위를 바탕으로 승리할 확률이 68%에 달한다고 분석했습니다.",
+      "source_count": 5,
+      "diagnostics": [
+        "검색 자료 상한(8건)에 닿아 남은 줄은 전달하지 않았습니다.",
+        "수집한 출처 목록에 없는 주소(https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHj6MG_HT3jZltaHyH2C-NL9PBEK2_fg3NvChBaE-lIjHhCu1K7b8L3F3AGs90opuClC91J2j7ZNOl_SfO2Ot5aqK9HqwGOk3hPsqfne51sG9A1KRR2nVSlJ-85lv064ECOSYymWA94kLWmH32I8K_VaRZVXuQA7JuDMkxSjvsZRBeCVWLt6OvIraqsNUsvInCfE1MO3A3S1Iimvrd5dOXhisSkSyWfnIGsjb0dXWH6rYfBkGsnxE8YmNdtpeL03jdexqWz5YS5c_T0Kxwg3s4=)를 가리킨 매체 항목은 표시하지 않았습니다.",
+        "수집한 출처 목록에 없는 주소(https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFyUsDKohrV7-bias_gMpy_G_zkYPqPyE3FlsGwNiqexb39Sm21l4enPaBETcztFjIuCnJ8hQ87YkI3XsrBH1arLQi-IcQN1wYHhAwrOdeztkjcc79E60O4xmFnTbVchn0yZ0dLWIA_tf6avI1i3fQPiep6YhqiIGEZkYaILIbptE7IwjSa_u_kP7AF)를 가리킨 매체 항목은 표시하지 않았습니다."
+      ]
+    },
+    {
+      "workflow_id": "section_players",
+      "version": 1,
+      "mode": "live",
+      "quality": "ready",
+      "unavailable": false,
+      "unavailable_reason": null,
+      "title": "주목 선수",
+      "body_chars": 344,
+      "body_excerpt": "이번 경기의 주목 선수 4명입니다.\n\n선정 선수: 엘링 홀란드\n선정 이유: 이번 시즌 리그 10경기에서 9골을 기록하며 팀의 공격을 책임지고 있는 핵심 스트라이커입니다.\n\n선정 선수: 라얀 셰르키\n선정 이유: 리그 9경기에서 5골 2도움을 기록하며 엘링 홀란드와 함께 맨체스터 시티의 공격을 주도하고 있습니다.\n\n선정 선수: 조슈아 킹\n선정 이유: 최근 잉글랜드 성인 대표팀에 처음 발탁된 유망주로, 사타구니 부상에서 회복해 이번 맨체스터 시티전 복귀를 목표로 하고 있습니다.\n\n선정 선수: 오스카 보브\n선정 이유: 맨체스터 시티 출신의 윙어로, 친정팀을 상대로 풀럼의 측면 공격을 이끌 주역으로 주목받고 있습니다.",
+      "source_count": 1,
+      "diagnostics": [
+        "검색 자료 상한(8건)에 닿아 남은 줄은 전달하지 않았습니다.",
+        "이름 해석기가 주입되지 않아 같은 응답의 한글 표기를 표시에 반영하지 못했습니다."
+      ]
+    }
+  ],
+  "attempts": [
+    {
+      "logical_call_id": "discovery_people",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 1418,
+        "output_tokens": 3656,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T10:55:21.389612+00:00",
+      "finished_at": "2026-11-11T10:55:21.389612+00:00"
+    },
+    {
+      "logical_call_id": "discovery_outlook",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 1308,
+        "output_tokens": 3572,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T10:55:21.389612+00:00",
+      "finished_at": "2026-11-11T10:55:21.389612+00:00"
+    },
+    {
+      "logical_call_id": "section_outlook",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 4459,
+        "output_tokens": 885,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T10:55:21.389612+00:00",
+      "finished_at": "2026-11-11T10:55:21.389612+00:00"
+    },
+    {
+      "logical_call_id": "section_availability",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 4342,
+        "output_tokens": 665,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T10:55:21.389612+00:00",
+      "finished_at": "2026-11-11T10:55:21.389612+00:00"
+    },
+    {
+      "logical_call_id": "section_players",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 7067,
+        "output_tokens": 750,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T10:55:21.389612+00:00",
+      "finished_at": "2026-11-11T10:55:21.389612+00:00"
+    },
+    {
+      "logical_call_id": "section_ai_forecast",
+      "attempt_ordinal": 0,
+      "outcome": "ok",
+      "http_status": 200,
+      "usage": {
+        "input_tokens": 6183,
+        "output_tokens": 344,
+        "search_queries": null
+      },
+      "started_at": "2026-11-11T10:55:21.389612+00:00",
+      "finished_at": "2026-11-11T10:55:21.389612+00:00"
+    }
+  ]
+}

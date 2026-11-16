@@ -1,48 +1,21 @@
-# Python
+# Git 작업 공간의 OS 메타데이터만 제외
+.DS_Store
+Thumbs.db
+
+# 로컬 개발 환경 (MP-01)
+.venv/
 __pycache__/
 *.py[cod]
-*$py.class
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
-*.egg-info/
-build/
-dist/
-
-# Virtualenvs
-.venv/
-venv/
-env/
-
-# Env files
-.env
-.env.local
-.env.*.local
-
-# IDE / editor
-.vscode/
-.idea/
-*.swp
-.DS_Store
-
-# Coverage
-.coverage
-htmlcov/
-
-# Local generated output
-out/
-
-# Claude Code local runtime (per-machine, not shared)
-.claude/memory/
-.claude/sessions/
-
-# Worktree-local copy of env
 .env
 
-# Vercel link metadata (linked via CLI, not shared)
-.vercel/
+# 프론트엔드 로컬 환경 (MP-01)
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/.e2e/
 
-
-# Supabase CLI runtime
-supabase/.temp/
-supabase/.branches/
+# preview_dev 연결 자격 증명 (로컬 0600 파일, 절대 커밋 금지)
+**/.env.local
+*.preview-dev.env

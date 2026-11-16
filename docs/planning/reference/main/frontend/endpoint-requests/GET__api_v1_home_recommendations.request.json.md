@@ -1,0 +1,41 @@
+> **기획 참고 원문 · 2026-11-09 정리**
+> 출처: `main` 워크트리의 `frontend/endpoint-requests/GET__api_v1_home_recommendations.request.json`.
+> 요구·설계·결정의 맥락을 보존한 자료입니다. 본문의 구현 완료, 검증 수치, 실행 명령, 작업 경로, 배포 승인은 당시 기록이며 현재 상태나 새 실행 승인이 아닙니다. 현재는 네 워크트리의 개발 코드가 삭제된 기획 보관 상태입니다. 상충하는 과거안은 상위 기획 요약과 최신 결정 기록을 따릅니다.
+
+# GET__api_v1_home_recommendations.request.json
+
+선언형 API/사전 계약의 기획 참고본입니다. 실행 파일이나 테스트 결과가 아닙니다.
+
+```json
+{
+  "endpoint_id": "GET__api_v1_home_recommendations",
+  "method": "GET",
+  "path": "/api/v1/home/recommendations",
+  "from_feature": "home-preview-mock",
+  "auth": "public",
+  "fe_mockup_ref": "frontend/src/views/HomePreviewMockView.vue",
+  "spec_excerpt": "DB 저장 상태로 요청 KST 날짜의 모든 추천 경기와 오늘 결과를 조회한다. 대상이 없으면 가장 가까운 자격 충족 예정 날짜. 검색/AI/외부 API 호출 및 생성 enqueue 금지.",
+  "request_query_params": [
+    {
+      "name": "date",
+      "type": "YYYY-MM-DD",
+      "required": false,
+      "description": "미지정 시 서버의 현재 KST 날짜; 실제 달력 날짜 검증"
+    }
+  ],
+  "response_schema_ref": "docs/spec/schemas/home-preview-recommendations.schema.json",
+  "response_example_path": "frontend/src/mocks/home-preview/recommendations.json",
+  "response_example_json_pointer": "",
+  "notes_for_be": [
+    "로컬 구현됨. 최신 추천/생성 결정 및 운영 배포 상태는 관련 결정 기록을 따른다.",
+    "홈 우선순위 2026-10-25; ongoing 먼저, priority, kickoff, fixture_id 순. 4개 상한 없음.",
+    "활성 수집 대상의 DB fixture를 사용하고 리그 display name이나 초기 5개 ID로 제한하지 않는다. domestic_cup은 수집 대상 메타데이터에서 결정한다.",
+    "DB 후보 조회 범위: 요청일부터 보관 중인 활성 최신 2시즌의 미래 일정에서 가장 가까운 자격 충족 날짜를 찾는다. AI 생성 탐색은 별도로 킥오프6시간 이내 마지막 수집의 예정 경기만이다.",
+    "as_of는 DB 수집 snapshot 기준이며 응답 생성 현재 시각을 대신 넣지 않는다. 각 fixture.status_as_of는 그 상태를 마지막 확인한 DB 시각이다.",
+    "today_results는 요청일 종료 경기의 저장된 최종 점수만 포함. 추천 ongoing에는 score 없음.",
+    "public GET DB only; no polling, countdown or live score. Invalid date 422; DB unavailable 503 proposal.",
+    "참고 docs/features/home-preview-contract.md.",
+    "2026-10-26: 카라바오컵48/FA컵45는 준결승·결승만 기존 빅6 추천 조건 평가. 예정·진행중 모두 8강이하/미정 제외. 생성후보도 같은 조건."
+  ]
+}
+```

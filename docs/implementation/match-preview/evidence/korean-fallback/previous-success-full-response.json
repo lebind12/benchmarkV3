@@ -1,0 +1,229 @@
+{
+  "automatic_function_calling_history": [],
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"players\": [\n    {\n      \"selected_player\": \"Erling Haaland\",\n      \"team\": \"Manchester City\",\n      \"player_ref\": null,\n      \"selection_reason\": \"이번 시즌 리그 10경기에서 9골을 기록하며 득점 선두를 달리고 있는 Manchester City의 핵심 공격수입니다. 최근 RB Leipzig와의 Champions League 경기에서도 결승골을 터뜨리며 뛰어난 결정력을 유지하고 있습니다.\",\n      \"evidence\": [\n        \"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHXooPbQJUqz6WpyDk89tY3c4zKYCbkVYP90-bibzZ2CbJNHjIltN2Zo1_1jegURJ7jXjIwQE3LSEccSY0S-jeoto27vvfzzlIHuDsJ5vHG0h-XzEf3KJTFRHdRMR5QAgko3X3N\",\n        \"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG4Cn2GkY4-v-xku29pjvjHZEugvyg-ECRyW-yXRmee5JOP0G1OawZgEDhVt_5bpq20E5rd5H7AC6I8SMRIYUQ7R_btl9nPebffe8wPrEKKL2ahtf1WxdToHNn2N4uBksLUaZqv3lrmGwSLX4t1bCKhoTq5QoMZwRWT7zHWlUNe7Eah234vJVk7tMuSORX1KbmODDYqlO-tDndvVKNjUmblLVx1\"\n      ],\n      \"superlative_basis\": null\n    },\n    {\n      \"selected_player\": \"Oscar Bobb\",\n      \"team\": \"Fulham\",\n      \"player_ref\": null,\n      \"selection_reason\": \"2026년 1월 Manchester City에서 Fulham으로 이적한 Norway 출신 윙어로, 친정팀을 상대로 Etihad Stadium 원정 경기에 나섭니다. 최근 Coventry City전에서 결승골을 터뜨리는 등 Fulham 공격의 핵심적인 활력소 역할을 하고 있습니다.\",\n      \"evidence\": [\n        \"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFGbAo--6_ifvmd094cR_GzpUE0hsYlCNpRsoFKMRtPsVLSSlPrsVH470ImJZRturKPltO7b6C1c2-Xd3URiGesOy_fVcU0unzbfqIK8dYwY8OjE8NCONEHNo2UyX0lExjcrkKLnXetU_ONsfm0lrJp00MkZLRjAthJAbbvXEaGBG_A-rc_7DsOFeWBil9Gf8PV-suAyV6mBu_WJykLj2V2D87RsYnKr_7gQv7W8ThkMIysn2av\",\n        \"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF2CRngRhnmH9zI-C6euaxRYGvc1WbMdZuc-S_xUOEStUgLgLeARfHQCb9YhEhfYfa18nPT1MRBFv6V6_TY6LjrsdfZrE_MohlkxSqfjPB2yU-TjO_kO00uuhpTcqYf2OsVcB-ZD6tXwpucY9qBJ980_SJihsaHyFcMT_QPlMT3Xbn1Ru9yuhhw4IwERPGlTpg9oB4NDLU=\"\n      ],\n      \"superlative_basis\": null\n    },\n    {\n      \"selected_player\": \"Phil Foden\",\n      \"team\": \"Manchester City\",\n      \"player_ref\": null,\n      \"selection_reason\": \"최근 Champions League AEK Athens전에서 hat-trick을 기록하는 등 Enzo Maresca 감독 체제 하에서 점차 지난 시즌의 최상의 폼을 되찾아가고 있습니다. Erling Haaland와 함께 Manchester City의 공격을 이끌며 창의적인 기회를 만들어낼 핵심 자원입니다.\",\n      \"evidence\": [\n        \"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFaJtAWXBEq4-h2pnGzSE_GrwW20C9zqDwoR7NJ4QHLhOPy3Lu_5M4vTaMGpoXC28cCYVj4rf9wP9-CLozRRS6Hy6V8gtxJ9SXAKGu3ElEirVv5yhlS_IOC8q9RJfMmDlw6rZk=\",\n        \"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGNpj0KEYQ_bkPdCAOAJIJtB7ywftl9coplgj8jUaqLOmDDQfcmVdwqaFiCVjZ43ivHsv3ocE0U_r4pTw4CjDHy8LDzFQiPdlonO0T_WHZkvLWo8GXChskllLh49b-vQ-EoD3DKVB9qOgq0XxWzS-vYDhbAB4yDbQpZiXk7b_3JCUzIIzRB5EY0vWK_2krYIqnlXfCPrXcegD0=\"\n      ],\n      \"superlative_basis\": null\n    }\n  ],\n  \"search_note\": \"검색을 통해 Erling Haaland의 이번 시즌 리그 득점 기록(10경기 9골) 및 최근 RB Leipzig전 결승골 기록을 확인했습니다. Oscar Bobb의 Manchester City에서 Fulham으로의 이적 사실(2026년 1월, 2700만 파운드)과 최근 Coventry City전 결승골 기록을 확인했습니다. Phil Foden의 최근 AEK Athens전 hat-trick 기록을 확인했습니다. 경기 당일의 선발 여부 및 부상 복귀 상태는 불확실합니다.\",\n  \"uncertainties\": [\n    \"경기 당일 각 선수의 선발 출전 여부\",\n    \"최근 부상 우려가 있는 Manchester City 수비진(Josko Gvardiol, Marc Guehi, Abdukodir Khusanov 등)의 복귀 및 출전 가능 여부\"\n  ]\n}",
+            "thought_signature": "[REDACTED]"
+          }
+        ],
+        "role": "model"
+      },
+      "finish_reason": "STOP",
+      "grounding_metadata": {
+        "grounding_chunks": [
+          {
+            "web": {
+              "domain": "plstats.uk",
+              "title": "plstats.uk",
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHXooPbQJUqz6WpyDk89tY3c4zKYCbkVYP90-bibzZ2CbJNHjIltN2Zo1_1jegURJ7jXjIwQE3LSEccSY0S-jeoto27vvfzzlIHuDsJ5vHG0h-XzEf3KJTFRHdRMR5QAgko3X3N"
+            }
+          },
+          {
+            "web": {
+              "domain": "theguardian.com",
+              "title": "theguardian.com",
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG4Cn2GkY4-v-xku29pjvjHZEugvyg-ECRyW-yXRmee5JOP0G1OawZgEDhVt_5bpq20E5rd5H7AC6I8SMRIYUQ7R_btl9nPebffe8wPrEKKL2ahtf1WxdToHNn2N4uBksLUaZqv3lrmGwSLX4t1bCKhoTq5QoMZwRWT7zHWlUNe7Eah234vJVk7tMuSORX1KbmODDYqlO-tDndvVKNjUmblLVx1"
+            }
+          },
+          {
+            "web": {
+              "domain": "wikipedia.org",
+              "title": "wikipedia.org",
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQE6xKuFVuMdNU2z2GSYevkJCxBPzx5LDHPLiZCZq8FOe_N86wNF0YdtYijZJvEmn9qqANEaTWZRDc-b2FZCOdfxY9bqP3CQVgjx0yUNt00JCTTAA6JTGpExQPWfD7dQOkTfQA=="
+            }
+          },
+          {
+            "web": {
+              "domain": "skysports.com",
+              "title": "skysports.com",
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFGbAo--6_ifvmd094cR_GzpUE0hsYlCNpRsoFKMRtPsVLSSlPrsVH470ImJZRturKPltO7b6C1c2-Xd3URiGesOy_fVcU0unzbfqIK8dYwY8OjE8NCONEHNo2UyX0lExjcrkKLnXetU_ONsfm0lrJp00MkZLRjAthJAbbvXEaGBG_A-rc_7DsOFeWBil9Gf8PV-suAyV6mBu_WJykLj2V2D87RsYnKr_7gQv7W8ThkMIysn2av"
+            }
+          },
+          {
+            "web": {
+              "domain": "theguardian.com",
+              "title": "theguardian.com",
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF2CRngRhnmH9zI-C6euaxRYGvc1WbMdZuc-S_xUOEStUgLgLeARfHQCb9YhEhfYfa18nPT1MRBFv6V6_TY6LjrsdfZrE_MohlkxSqfjPB2yU-TjO_kO00uuhpTcqYf2OsVcB-ZD6tXwpucY9qBJ980_SJihsaHyFcMT_QPlMT3Xbn1Ru9yuhhw4IwERPGlTpg9oB4NDLU="
+            }
+          },
+          {
+            "web": {
+              "domain": "wikipedia.org",
+              "title": "wikipedia.org",
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFaJtAWXBEq4-h2pnGzSE_GrwW20C9zqDwoR7NJ4QHLhOPy3Lu_5M4vTaMGpoXC28cCYVj4rf9wP9-CLozRRS6Hy6V8gtxJ9SXAKGu3ElEirVv5yhlS_IOC8q9RJfMmDlw6rZk="
+            }
+          },
+          {
+            "web": {
+              "domain": "thescore.com",
+              "title": "thescore.com",
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGNpj0KEYQ_bkPdCAOAJIJtB7ywftl9coplgj8jUaqLOmDDQfcmVdwqaFiCVjZ43ivHsv3ocE0U_r4pTw4CjDHy8LDzFQiPdlonO0T_WHZkvLWo8GXChskllLh49b-vQ-EoD3DKVB9qOgq0XxWzS-vYDhbAB4yDbQpZiXk7b_3JCUzIIzRB5EY0vWK_2krYIqnlXfCPrXcegD0="
+            }
+          },
+          {
+            "web": {
+              "domain": "manchestereveningnews.co.uk",
+              "title": "manchestereveningnews.co.uk",
+              "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHq4kLZpF0MBs7aVMhtF076v3E4csJlchy9cjy_ZNjCFzHB-4Sr8SOslwZ_9Vz6WvBXQ6TUBMWbFJItNARoXlXNdOyjaJ_IrhBylcfI-m-SX0VPe9cJ-8ey-BfZwd4ya_z2HfZ2yiqOGVU8ivEwBT8buavhHOwYakYRdewBz2XsVBb1jyBlSQ_7_wHADUftQzV5sPMNRN4h9qycPXYkok9w"
+            }
+          }
+        ],
+        "grounding_supports": [
+          {
+            "grounding_chunk_indices": [
+              0
+            ],
+            "segment": {
+              "end_index": 287,
+              "start_index": 131,
+              "text": "\"selection_reason\": \"이번 시즌 리그 10경기에서 9골을 기록하며 득점 선두를 달리고 있는 Manchester City의 핵심 공격수입니다"
+            }
+          },
+          {
+            "grounding_chunk_indices": [
+              1
+            ],
+            "segment": {
+              "end_index": 420,
+              "start_index": 289,
+              "text": "최근 RB Leipzig와의 Champions League 경기에서도 결승골을 터뜨리며 뛰어난 결정력을 유지하고 있습니다"
+            }
+          },
+          {
+            "grounding_chunk_indices": [
+              2,
+              3
+            ],
+            "segment": {
+              "end_index": 1277,
+              "start_index": 1106,
+              "text": "\"selection_reason\": \"2026년 1월 Manchester City에서 Fulham으로 이적한 Norway 출신 윙어로, 친정팀을 상대로 Etihad Stadium 원정 경기에 나섭니다"
+            }
+          },
+          {
+            "grounding_chunk_indices": [
+              4
+            ],
+            "segment": {
+              "end_index": 1408,
+              "start_index": 1279,
+              "text": "최근 Coventry City전에서 결승골을 터뜨리는 등 Fulham 공격의 핵심적인 활력소 역할을 하고 있습니다"
+            }
+          },
+          {
+            "grounding_chunk_indices": [
+              5,
+              6
+            ],
+            "segment": {
+              "end_index": 2396,
+              "start_index": 2195,
+              "text": "\"selection_reason\": \"최근 Champions League AEK Athens전에서 hat-trick을 기록하는 등 Enzo Maresca 감독 체제 하에서 점차 지난 시즌의 최상의 폼을 되찾아가고 있습니다"
+            }
+          },
+          {
+            "grounding_chunk_indices": [
+              7
+            ],
+            "segment": {
+              "end_index": 2520,
+              "start_index": 2398,
+              "text": "Erling Haaland와 함께 Manchester City의 공격을 이끌며 창의적인 기회를 만들어낼 핵심 자원입니다"
+            }
+          },
+          {
+            "grounding_chunk_indices": [
+              1,
+              0
+            ],
+            "segment": {
+              "end_index": 3263,
+              "start_index": 3099,
+              "text": "\"search_note\": \"검색을 통해 Erling Haaland의 이번 시즌 리그 득점 기록(10경기 9골) 및 최근 RB Leipzig전 결승골 기록을 확인했습니다"
+            }
+          },
+          {
+            "grounding_chunk_indices": [
+              4,
+              3
+            ],
+            "segment": {
+              "end_index": 3429,
+              "start_index": 3265,
+              "text": "Oscar Bobb의 Manchester City에서 Fulham으로의 이적 사실(2026년 1월, 2700만 파운드)과 최근 Coventry City전 결승골 기록을 확인했습니다"
+            }
+          },
+          {
+            "grounding_chunk_indices": [
+              5
+            ],
+            "segment": {
+              "end_index": 3504,
+              "start_index": 3431,
+              "text": "Phil Foden의 최근 AEK Athens전 hat-trick 기록을 확인했습니다"
+            }
+          }
+        ],
+        "search_entry_point": {
+          "rendered_content": "<style>\n.container {\n  align-items: center;\n  border-radius: 8px;\n  display: flex;\n  font-family: Google Sans, Roboto, sans-serif;\n  font-size: 14px;\n  line-height: 20px;\n  padding: 8px 12px;\n}\n.chip {\n  display: inline-block;\n  border: solid 1px;\n  border-radius: 16px;\n  min-width: 14px;\n  padding: 5px 16px;\n  text-align: center;\n  user-select: none;\n  margin: 0 8px;\n  -webkit-tap-highlight-color: transparent;\n}\n.carousel {\n  overflow: auto;\n  scrollbar-width: none;\n  white-space: nowrap;\n  margin-right: -12px;\n}\n.headline {\n  display: flex;\n  margin-right: 4px;\n}\n.gradient-container {\n  position: relative;\n}\n.gradient {\n  position: absolute;\n  transform: translate(3px, -9px);\n  height: 36px;\n  width: 9px;\n}\n@media (prefers-color-scheme: light) {\n  .container {\n    background-color: #fafafa;\n    box-shadow: 0 0 0 1px #0000000f;\n  }\n  .headline-label {\n    color: #1f1f1f;\n  }\n  .chip {\n    background-color: #ffffff;\n    border-color: #d2d2d2;\n    color: #5e5e5e;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #f2f2f2;\n  }\n  .chip:focus {\n    background-color: #f2f2f2;\n  }\n  .chip:active {\n    background-color: #d8d8d8;\n    border-color: #b6b6b6;\n  }\n  .logo-dark {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #fafafa 15%, #fafafa00 100%);\n  }\n}\n@media (prefers-color-scheme: dark) {\n  .container {\n    background-color: #1f1f1f;\n    box-shadow: 0 0 0 1px #ffffff26;\n  }\n  .headline-label {\n    color: #fff;\n  }\n  .chip {\n    background-color: #2c2c2c;\n    border-color: #3c4043;\n    color: #fff;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #353536;\n  }\n  .chip:focus {\n    background-color: #353536;\n  }\n  .chip:active {\n    background-color: #464849;\n    border-color: #53575b;\n  }\n  .logo-light {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #1f1f1f 15%, #1f1f1f00 100%);\n  }\n}\n</style>\n<div class=\"container\">\n  <div class=\"headline\">\n    <svg class=\"logo-light\" width=\"18\" height=\"18\" viewBox=\"9 9 35 35\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M42.8622 27.0064C42.8622 25.7839 42.7525 24.6084 42.5487 23.4799H26.3109V30.1568H35.5897C35.1821 32.3041 33.9596 34.1222 32.1258 35.3448V39.6864H37.7213C40.9814 36.677 42.8622 32.2571 42.8622 27.0064V27.0064Z\" fill=\"#4285F4\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 43.8555C30.9659 43.8555 34.8687 42.3195 37.7213 39.6863L32.1258 35.3447C30.5898 36.3792 28.6306 37.0061 26.3109 37.0061C21.8282 37.0061 18.0195 33.9811 16.6559 29.906H10.9194V34.3573C13.7563 39.9841 19.5712 43.8555 26.3109 43.8555V43.8555Z\" fill=\"#34A853\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M16.6559 29.8904C16.3111 28.8559 16.1074 27.7588 16.1074 26.6146C16.1074 25.4704 16.3111 24.3733 16.6559 23.3388V18.8875H10.9194C9.74388 21.2072 9.06992 23.8247 9.06992 26.6146C9.06992 29.4045 9.74388 32.022 10.9194 34.3417L15.3864 30.8621L16.6559 29.8904V29.8904Z\" fill=\"#FBBC05\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 16.2386C28.85 16.2386 31.107 17.1164 32.9095 18.8091L37.8466 13.8719C34.853 11.082 30.9659 9.3736 26.3109 9.3736C19.5712 9.3736 13.7563 13.245 10.9194 18.8875L16.6559 23.3388C18.0195 19.2636 21.8282 16.2386 26.3109 16.2386V16.2386Z\" fill=\"#EA4335\"/>\n    </svg>\n    <svg class=\"logo-dark\" width=\"18\" height=\"18\" viewBox=\"0 0 48 48\" xmlns=\"http://www.w3.org/2000/svg\">\n      <circle cx=\"24\" cy=\"23\" fill=\"#FFF\" r=\"22\"/>\n      <path d=\"M33.76 34.26c2.75-2.56 4.49-6.37 4.49-11.26 0-.89-.08-1.84-.29-3H24.01v5.99h8.03c-.4 2.02-1.5 3.56-3.07 4.56v.75l3.91 2.97h.88z\" fill=\"#4285F4\"/>\n      <path d=\"M15.58 25.77A8.845 8.845 0 0 0 24 31.86c1.92 0 3.62-.46 4.97-1.31l4.79 3.71C31.14 36.7 27.65 38 24 38c-5.93 0-11.01-3.4-13.45-8.36l.17-1.01 4.06-2.85h.8z\" fill=\"#34A853\"/>\n      <path d=\"M15.59 20.21a8.864 8.864 0 0 0 0 5.58l-5.03 3.86c-.98-2-1.53-4.25-1.53-6.64 0-2.39.55-4.64 1.53-6.64l1-.22 3.81 2.98.22 1.08z\" fill=\"#FBBC05\"/>\n      <path d=\"M24 14.14c2.11 0 4.02.75 5.52 1.98l4.36-4.36C31.22 9.43 27.81 8 24 8c-5.93 0-11.01 3.4-13.45 8.36l5.03 3.85A8.86 8.86 0 0 1 24 14.14z\" fill=\"#EA4335\"/>\n    </svg>\n    <div class=\"gradient-container\"><div class=\"gradient\"></div></div>\n  </div>\n  <div class=\"carousel\">\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFIHAYNbLiH1EkeZOpD2Af_xREiMj8Di1KGO1kjrzuMZPd5vp4BYljVyp5hjJNMJAGLx36ejZb9310Aw_HSV4OUWs_Im9qGcgzARtEbV9he-1ksM7a_aChvL_dAT1uToDTcrCfd9P-M6LapiGYFMP0vmWdjdczl30aAqjTfyKMFJjfE9Pe9zrEnWLJuZT6Teag-iVRTxKjR9nW9ESLM9FBYJKs6Id790pM=\">&quot;Phil Foden&quot; Manchester City 2026</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHRoPB2a7eHUHs6gn60XHFwNE2FSBIdq_zuct_OYON0v7LWPr862mNWHmnA42POlKuKbS1SdInaPNETGpgL-irZ_PGer6eCc4zyo9xxIjNeLgGPQA90CIDo3bN-5wZLC6V0A_8I6pRTnS8Zhfspv6Y-K8hURl6YFIc9OpL9CLpL2iCvT-lFLeU9xtus4Y3iKe981mncsqmj-ncqdIJIjYInXIeIKnltfd4r-Sv2aZQz-CYw\">&quot;Enzo Fernandez&quot; &quot;Manchester City&quot; 2026</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGyl1JJKOI5qKa9ZHgAej0diD2x9w0hnf1d_qPuJDAI1mds9KEUbPlTWdg83GswatF_r3dNwA7NJ5O9cCssD4KcG_2LNFvkNloj04f5NZgGY7lwQkFsIiA1tY_i4J5YnrRHfZUSs5qd2Zm_pxiIijZB1nW6XfsCvOoOxTkvg6YMkPme3DvP5U03tW5wYNpq3c2mCF2fTAHWQ0ycCPLsbJNL3MBPJ3Z7GBS17l3jEKF4Wg==\">&quot;Abdukodir Khusanov&quot; Manchester City 2026</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGJBWQzsElhlB5TrvPoc07_7E6Qv3iWBuiu8zact6gtT_713-DtfFw1WCne_Ws1QPX7NnUg_hmMl86U-8TsGMJ3FLw5GnozAPV50Ai1-DdWJD7Q7fdfS2ngbqdOPGlTH8CCdH3JlWZP9LSR5PIDmqsJugzZvZHqs1GTpz_4twuPLwB0Ib_3bECIcuy4n_uN93WNK73GFG2TVabKXQUw6QbxW9dLwr8vS_KHMQGGzQ==\">&quot;Elliot Anderson&quot; Manchester City 2026</a>\n  </div>\n</div>\n"
+        },
+        "web_search_queries": [
+          "\"Manchester City\" \"Fulham\" 2026",
+          "Manchester City Premier League November 2026",
+          "Fulham Premier League November 2026",
+          "Manchester City squad 2026 2027",
+          "\"Erling Haaland\" goals 2026 2027",
+          "\"Erling Haaland\" Manchester City 2026",
+          "Fulham top scorer 2026 2027",
+          "Fulham squad 2026 2027",
+          "\"Oscar Bobb\" Fulham 2026",
+          "\"Oscar Bobb\" transfer Fulham",
+          "\"Enzo Fernandez\" \"Manchester City\" 2026",
+          "\"Phil Foden\" Manchester City 2026",
+          "\"Abdukodir Khusanov\" Manchester City 2026",
+          "\"Elliot Anderson\" Manchester City 2026"
+        ]
+      }
+    }
+  ],
+  "create_time": "2026-11-10T20:33:06.826560Z",
+  "model_version": "gemini-3.5-flash",
+  "response_id": "gn_zasC5MvCKx9gPtPbxuQk",
+  "sdk_http_response": {
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "content-encoding": "gzip",
+      "content-type": "application/json; charset=UTF-8",
+      "date": "Tue, 10 Nov 2026 20:33:40 GMT",
+      "server": "scaffolding on HTTPServer2",
+      "transfer-encoding": "chunked",
+      "vary": "Origin, X-Origin, Referer",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "x-goog-request-id": "gn_zasC5MvCKx9gPtPbxuQk",
+      "x-xss-protection": "0"
+    }
+  },
+  "usage_metadata": {
+    "candidates_token_count": 1642,
+    "candidates_tokens_details": [
+      {
+        "modality": "TEXT",
+        "token_count": 1642
+      }
+    ],
+    "prompt_token_count": 1523,
+    "prompt_tokens_details": [
+      {
+        "modality": "TEXT",
+        "token_count": 1523
+      }
+    ],
+    "thoughts_token_count": 8255,
+    "total_token_count": 11420,
+    "traffic_type": "ON_DEMAND"
+  }
+}
