@@ -174,3 +174,89 @@ def test_section_result_ddl_matches_the_model(engine, schema):
         f"{SCHEMA}.preview_section_results"
     ]
     assert {column.name for column in model_table.columns} == ddl_columns
+
+
+# --------------------------------------------------------------------------
+# NS-01: 선수 섹션 고정 슬롯·한글명 후보 표 (0006)
+# --------------------------------------------------------------------------
+
+PLAYER_SECTION_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "alembic"
+    / "versions"
+    / "0006_player_section_storage.py"
+)
+
+PLAYER_SECTION_MIGRATED_TABLES = (
+    "preview_player_name_candidates",
+    "preview_watch_player_sections",
+    "preview_injury_player_sections",
+)
+
+
+def _load_player_section_migration():
+    spec = importlib.util.spec_from_file_location(
+        "ns01_player_section_migration_ddl", PLAYER_SECTION_MIGRATION_PATH
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_player_section_migration_refuses_shared_alembic_and_registers_explicit_runner():
+    """공용 Alembic으로 0006을 실행하면 실패하고, 명시적 preview_dev_migrate 목록에 등록되어 있어야 한다."""
+    import scripts.preview_dev_migrate as migrate_runner
+
+    migration = _load_player_section_migration()
+    assert migration.VERSION == "0006_player_section_storage"
+    assert migration.down_revision == "0005_pipeline_runs"
+    assert migration.SCHEMA == SCHEMA
+    assert PLAYER_SECTION_MIGRATION_PATH in migrate_runner.MIGRATION_PATHS
+
+    with pytest.raises(RuntimeError) as raised:
+        migration.upgrade()
+    assert "preview_dev_migrate.py" in str(raised.value)
+    with pytest.raises(RuntimeError):
+        migration.downgrade()
+
+
+def test_player_section_ddl_matches_models_and_is_repeatable(engine, schema):
+    """0006 DDL이 ORM 모델과 일치하고 반복 실행해도 안전해야 두 섹션 저장이 어긋나지 않는다."""
+    from sqlalchemy import inspect
+
+    migration = _load_player_section_migration()
+    with engine.begin() as conn:
+        for statement in migration.UPGRADE_STATEMENTS:
+            conn.execute(text(statement))
+        for statement in migration.UPGRADE_STATEMENTS:
+            conn.execute(text(statement))
+
+    inspector = inspect(engine)
+    for table_name in PLAYER_SECTION_MIGRATED_TABLES:
+        ddl_columns = {
+            column["name"]
+            for column in inspector.get_columns(table_name, schema=SCHEMA)
+        }
+        model_table = preview_models.Base.metadata.tables[f"{SCHEMA}.{table_name}"]
+        assert {column.name for column in model_table.columns} == ddl_columns
+
+    watch_cols = {
+        column["name"]
+        for column in inspector.get_columns("preview_watch_player_sections", schema=SCHEMA)
+    }
+    injury_cols = {
+        column["name"]
+        for column in inspector.get_columns("preview_injury_player_sections", schema=SCHEMA)
+    }
+    assert {"home_etc", "away_etc"} <= watch_cols
+    assert "home_etc" not in injury_cols
+    assert "away_etc" not in injury_cols
+
+    cand_uniques = inspector.get_unique_constraints(
+        "preview_player_name_candidates", schema=SCHEMA
+    )
+    assert any(
+        set(uc["column_names"]) == {"section_result_id", "slot_key"}
+        for uc in cand_uniques
+    )

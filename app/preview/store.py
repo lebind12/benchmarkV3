@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping, Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import false, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.preview import artifacts as artifact_store
@@ -50,9 +50,20 @@ from app.preview.models import (
     PreviewModuleExecution,
     PreviewResult,
     PreviewRun,
+    PreviewSectionApproval,
     PreviewSectionResult,
     PreviewSourceSnapshot,
     PreviewWriteAudit,
+)
+from app.preview.player_section_contracts import (
+    INJURY_PLAYERS_TABLE,
+    PLAYER_NAME_CANDIDATES_TABLE,
+    WATCH_PLAYERS_TABLE,
+)
+from app.preview.player_section_models import (
+    PreviewInjuryPlayerSection,
+    PreviewPlayerNameCandidate,
+    PreviewWatchPlayerSection,
 )
 
 __all__ = [
@@ -1151,11 +1162,84 @@ def _undo_view(session: Session, row: PreviewRun) -> dict[str, Any]:
     }
 
 
+def _owned_section_result_ids(session: Session, run_id: uuid.UUID) -> set[uuid.UUID]:
+    owned = set(
+        session.scalars(
+            select(PreviewSectionResult.id).where(PreviewSectionResult.run_id == run_id)
+        )
+    )
+    for model_cls in (
+        PreviewWatchPlayerSection,
+        PreviewInjuryPlayerSection,
+        PreviewPlayerNameCandidate,
+    ):
+        owned.update(
+            session.scalars(
+                select(model_cls.section_result_id).where(model_cls.run_id == run_id)
+            )
+        )
+    return owned
+
+
+def _foreign_composition_refs(
+    session: Session,
+    run_id: uuid.UUID,
+    owned_section_result_ids: set[uuid.UUID],
+) -> list[str]:
+    owned_strs = {str(item) for item in owned_section_result_ids}
+    run_str = str(run_id)
+    rows = session.execute(
+        select(PreviewArtifact.run_id, PreviewArtifact.body).where(
+            PreviewArtifact.run_id != run_id,
+            PreviewArtifact.kind == artifact_store.ArtifactKind.NORMALIZED_TRANSFORM.value,
+            PreviewArtifact.body.is_not(None),
+            PreviewArtifact.body.contains(COMPOSITION_RECORD_TYPE),
+        )
+    ).all()
+
+    refs: list[str] = []
+    for other_run_id, raw_body in rows:
+        if not raw_body:
+            continue
+        try:
+            record = json.loads(raw_body)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(record, Mapping) or record.get("record_type") != COMPOSITION_RECORD_TYPE:
+            continue
+        comp = record.get("composition")
+        if not isinstance(comp, Mapping):
+            continue
+
+        matched_ids: list[str] = []
+        for field_name in ("section_result_ids", "selected_result_ids"):
+            for value in comp.get(field_name) or ():
+                if str(value) in owned_strs and str(value) not in matched_ids:
+                    matched_ids.append(str(value))
+        for item in comp.get("items") or ():
+            if not isinstance(item, Mapping):
+                continue
+            item_result = item.get("result_id")
+            if item_result is not None and str(item_result) in owned_strs:
+                if str(item_result) not in matched_ids:
+                    matched_ids.append(str(item_result))
+            elif item.get("run_id") == run_str and item_result is not None:
+                if str(item_result) not in matched_ids:
+                    matched_ids.append(str(item_result))
+
+        if matched_ids:
+            comp_id = comp.get("composition_id") or "unknown"
+            refs.append(
+                f"실행 {other_run_id} 구성본 {comp_id} (결과 {', '.join(matched_ids)})"
+            )
+    return refs
+
+
 def _cancel_conflict(session: Session, row: PreviewRun) -> str | None:
     """취소 전에 확인하는 조건. 통과하면 `None`.
 
-    범위 조건 두 가지(개발 영역·개발 환경)와, 다른 실행이 남긴 후속 버전이 없는지
-    확인한다. 후속 버전이 있으면 그 기록까지 함께 지우게 되므로 충돌로 중단한다.
+    범위 조건 두 가지(개발 영역·개발 환경), 다른 실행이 남긴 후속 버전,
+    활성 승인 또는 다른 실행의 저장 구성본에서 참조 중인 섹션 결과를 확인한다.
     """
     if row.write_scope != "preview_dev":
         return (
@@ -1185,6 +1269,38 @@ def _cancel_conflict(session: Session, row: PreviewRun) -> str | None:
             "이 실행이 만든 모듈 실행에 다른 실행이 남긴 결과 버전이 있습니다: "
             f"{described}. 현재 값을 되돌리면 그 기록도 사라지므로 충돌로 중단합니다."
         )
+
+    owned_section_result_ids = _owned_section_result_ids(session, row.id)
+    approval_cond = PreviewSectionApproval.reviewed_run_id == row.id
+    if owned_section_result_ids:
+        approval_cond = or_(
+            approval_cond,
+            PreviewSectionApproval.section_result_id.in_(owned_section_result_ids),
+        )
+    active_approvals = session.execute(
+        select(
+            PreviewSectionApproval.id,
+            PreviewSectionApproval.workflow_id,
+            PreviewSectionApproval.section_result_id,
+        ).where(PreviewSectionApproval.active.is_(True), approval_cond)
+    ).all()
+    if active_approvals:
+        described = ", ".join(
+            f"{workflow_id} (승인 {approval_id}, 결과 {result_id})"
+            for approval_id, workflow_id, result_id in active_approvals
+        )
+        return (
+            "이 실행의 결과가 활성 섹션 승인에서 참조되고 있습니다: "
+            f"{described}. 활성 승인의 근거는 삭제할 수 없으므로 충돌로 중단합니다."
+        )
+
+    if owned_section_result_ids:
+        comp_refs = _foreign_composition_refs(session, row.id, owned_section_result_ids)
+        if comp_refs:
+            return (
+                "다른 실행의 저장 구성본이 이 실행의 섹션 결과를 참조하고 있습니다: "
+                f"{', '.join(comp_refs)}. 참조 중인 결과는 삭제할 수 없으므로 충돌로 중단합니다."
+            )
     return None
 
 
@@ -1198,9 +1314,9 @@ def cancel_run(
 ) -> dict[str, Any]:
     """이 실행이 만든 개발 영역 기록만 지우고, 실행 행과 감사 표시는 남긴다.
 
-    지우는 대상은 이 실행 ID로 만들어진 모듈 실행·시도·결과·자료 스냅샷·원문이다.
-    기존 경기·계정 자료는 처음부터 쓰지 않으므로 대상이 아니다. 다른 실행의 기록을
-    건드리지 않는다.
+    지우는 대상은 이 실행 ID로 만들어진 선수 섹션·번역 후보·섹션 결과·모듈 실행·
+    시도·결과·자료 스냅샷·원문이다. 기존 경기·계정 자료는 처음부터 쓰지 않으므로
+    대상이 아니다. 다른 실행의 기록을 건드리지 않는다.
     """
     row = _load_run(session, run_id)
     conflict = _cancel_conflict(session, row)
@@ -1213,6 +1329,27 @@ def cancel_run(
 
     moment = now or datetime.now(timezone.utc)
 
+    watch_sections = list(
+        session.scalars(
+            select(PreviewWatchPlayerSection).where(
+                PreviewWatchPlayerSection.run_id == row.id
+            )
+        )
+    )
+    injury_sections = list(
+        session.scalars(
+            select(PreviewInjuryPlayerSection).where(
+                PreviewInjuryPlayerSection.run_id == row.id
+            )
+        )
+    )
+    name_candidates = list(
+        session.scalars(
+            select(PreviewPlayerNameCandidate).where(
+                PreviewPlayerNameCandidate.run_id == row.id
+            )
+        )
+    )
     artifacts = list(
         session.scalars(select(PreviewArtifact).where(PreviewArtifact.run_id == row.id))
     )
@@ -1239,6 +1376,9 @@ def cancel_run(
     )
 
     removed = {
+        WATCH_PLAYERS_TABLE: len(watch_sections),
+        INJURY_PLAYERS_TABLE: len(injury_sections),
+        PLAYER_NAME_CANDIDATES_TABLE: len(name_candidates),
         "preview_artifacts": len(artifacts),
         "preview_source_snapshots": len(snapshots),
         "preview_attempts": len(attempts),
@@ -1247,6 +1387,14 @@ def cancel_run(
         "preview_module_executions": len(executions),
     }
 
+    for watch_row in watch_sections:
+        session.delete(watch_row)
+    for injury_row in injury_sections:
+        session.delete(injury_row)
+    session.flush()
+    for cand_row in name_candidates:
+        session.delete(cand_row)
+    session.flush()
     for artifact in artifacts:
         session.delete(artifact)
     session.flush()
@@ -1291,60 +1439,34 @@ def cancel_run(
     }
 
 
+_UNDO_COUNT_TABLES = (
+    (WATCH_PLAYERS_TABLE, PreviewWatchPlayerSection),
+    (INJURY_PLAYERS_TABLE, PreviewInjuryPlayerSection),
+    (PLAYER_NAME_CANDIDATES_TABLE, PreviewPlayerNameCandidate),
+    ("preview_artifacts", PreviewArtifact),
+    ("preview_source_snapshots", PreviewSourceSnapshot),
+    ("preview_attempts", PreviewAttempt),
+    ("preview_results", PreviewResult),
+    ("preview_section_results", PreviewSectionResult),
+    ("preview_module_executions", PreviewModuleExecution),
+)
+
+
 def undo_report(
     session: Session, run_id: uuid.UUID
 ) -> dict[str, Any]:
     """화면이 '무엇이 지워지는지' 먼저 보여줄 수 있게 한다."""
     row = _load_run(session, run_id)
     counts = {
-        "preview_artifacts": int(
+        table_name: int(
             session.scalar(
                 select(func.count())
-                .select_from(PreviewArtifact)
-                .where(PreviewArtifact.run_id == row.id)
+                .select_from(model_cls)
+                .where(model_cls.run_id == row.id)
             )
             or 0
-        ),
-        "preview_source_snapshots": int(
-            session.scalar(
-                select(func.count())
-                .select_from(PreviewSourceSnapshot)
-                .where(PreviewSourceSnapshot.run_id == row.id)
-            )
-            or 0
-        ),
-        "preview_attempts": int(
-            session.scalar(
-                select(func.count())
-                .select_from(PreviewAttempt)
-                .where(PreviewAttempt.run_id == row.id)
-            )
-            or 0
-        ),
-        "preview_results": int(
-            session.scalar(
-                select(func.count())
-                .select_from(PreviewResult)
-                .where(PreviewResult.run_id == row.id)
-            )
-            or 0
-        ),
-        "preview_section_results": int(
-            session.scalar(
-                select(func.count())
-                .select_from(PreviewSectionResult)
-                .where(PreviewSectionResult.run_id == row.id)
-            )
-            or 0
-        ),
-        "preview_module_executions": int(
-            session.scalar(
-                select(func.count())
-                .select_from(PreviewModuleExecution)
-                .where(PreviewModuleExecution.run_id == row.id)
-            )
-            or 0
-        ),
+        )
+        for table_name, model_cls in _UNDO_COUNT_TABLES
     }
     return {
         "run_id": str(row.id),
