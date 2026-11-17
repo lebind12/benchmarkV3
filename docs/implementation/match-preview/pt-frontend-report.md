@@ -70,16 +70,20 @@ B 소유 파일만 수정했다.
 
 | 명령 | 결과 |
 |---|---|
-| `vue-tsc --noEmit` (tsconfig.app) | exit 0, 오류 0 |
-| `vue-tsc --noEmit -p tsconfig.node.json` | exit 0, 오류 0 |
-| `vitest run src/components/management/` | 36 통과 (PreviewTestPanel 11, PreviewPanel 25) |
-| `vitest run src/lib/api/` | 4 통과 (collectionProxy) |
-| `vitest run src/components/home-preview/MatchPreviewBody.test.ts src/features/match-preview/PlayerSectionStorage.test.ts src/features/match-preview/BundlePanelAdapters.test.ts` | 15 통과 |
-| `vitest run` (전체) | 65 파일 중 13 실패 / 450 중 58 실패 |
+| `vue-tsc -p tsconfig.app.json --noEmit` | exit 2, 오류 5건 — **전부 기존** `bundlePanelAdapters.ts` (기준 워크트리와 동일) |
+| `vue-tsc -p tsconfig.node.json --noEmit` | exit 0, 오류 0 |
+| `vitest run src/components/management/ src/lib/api/` | 42 통과 (PreviewTestPanel 13, PreviewPanel 25, collectionProxy 4) |
+| `vitest run src/components/home-preview/MatchPreviewBody.test.ts src/features/match-preview/PlayerSectionStorage.test.ts` | 14 통과 |
+| `vitest run` (전체) | 65 파일 중 13 실패 / 452 중 58 실패 |
+
+**주의(정정).** 이 패키지의 `tsconfig.json`은 `files: []` + 프로젝트 참조만 있어서
+`vue-tsc --noEmit`(프로젝트 미지정)은 **아무 파일도 검사하지 않고 exit 0을 낸다.** 실제
+검사는 `-p tsconfig.app.json`으로 해야 한다. 이 함정 때문에 아래 §8의 타입 결함 4건이
+처음 보고에서 "통과"로 잘못 적혔다가 이후 발견·수정됐다.
 
 전체 회귀 실패 13 파일·58 사례는 **기준 워크트리
 `player-section-integration`에서 같은 명령으로 동일하게 재현**됐다(13 파일 / 58 사례).
-내가 추가한 19 사례는 그 안에서 전부 통과한다. 이 실패들은 `FixtureSelector`,
+내가 추가한 21 사례는 그 안에서 전부 통과한다. 이 실패들은 `FixtureSelector`,
 `PreviewMetricsView`, `RunInspector`, `R4PanelAndBody` 등 인증·네트워크 mock 미연결
 계열이며 이번 변경과 무관하다.
 
@@ -138,3 +142,63 @@ A가 인계한 run 상세 매핑(19:53·19:58 메시지)을 반영했다. `count
   범위 밖이다(C 담당).
 - `storage_mismatch` 차단은 이 화면의 문서 wrapper에서만 적용된다. 홈 공개 문서와 다른
   관리 화면의 투영은 바꾸지 않았고, 그쪽 동작은 이번에 확인하지 않았다.
+
+## 8. 후속 수정 — A 소스 대조로 발견한 계약 불일치 2건과 타입 결함 4건
+
+조정자가 A 커밋 `f9bc34c`를 읽으라고 인계한 뒤, 그 **실제 소스**를 직접 대조해 아래를
+발견하고 고쳤다. 처음 착수 시에는 A 응답을 문자 그대로 믿었고 그것이 틀렸다.
+
+### 8.1 `blocking_reasons`는 문자열 목록이 아니라 `{code, message}` 객체 목록
+
+A의 `app/services/preview_test.py`는
+`blocking.append({"code": "fixture_started", "message": ...})` 형태로 만든다. 처음 구현은
+문자열 목록으로 파싱해 **사유 6종이 화면에서 모두 사라졌다**(`textList`가 객체를 걸러냈고
+`can_collect=false`만 남았다). 그러면 사용자는 "이유 없이 실행 불가"만 본다.
+
+수정: `TestBlockingReason = {code, message}`로 모델링하고 `message`를 그대로 표시, `code`는
+진단용으로만 쓴다. 문자열만 주는 구현도 계속 받는다.
+
+### 8.2 `fixture_to`는 `null`일 수 있다
+
+A는 `fixture_to = max(kickoffs) if kickoffs else None`이며, 킥오프 시각이 없는 경기가 있으면
+`None`을 준다. 처음 구현은 `null`을 파싱 실패로 처리해 **정상 응답을 오류로 표시**했다.
+
+수정: `fixture_to: string | null`로 받고, `null`이면 `can_collect`를 `false`로 확정한다.
+`startCollection`은 끝 시각이 없으면 요청을 보내지 않고 사유를 보여준다(값을 만들지 않는다).
+
+### 8.3 `vue-tsc --noEmit` 무검사 함정과 타입 결함 4건
+
+위 수정 중 `fixture_to: string | null`을 `string` 자리에 넣었는데도 타입 검사가 exit 0을
+냈다. 원인은 `tsconfig.json`이 `files: []` + 참조만 가진 것이라 **프로젝트를 지정하지 않은
+`vue-tsc --noEmit`이 아무 파일도 검사하지 않는다**는 점이다. `-p tsconfig.app.json`으로
+다시 돌려 아래 4건을 잡아 고쳤다.
+
+1. `PreviewTestPanel.vue` — `fixture_to` nullable을 시작 요청에 넘기던 곳.
+2. `PreviewTestPanel.vue` — 불가 사유 객체를 `:key`로 쓰던 곳.
+3. `PreviewTestPanel.test.ts` — 대역 단계 유니온의 `held` 분기 좁히기 누락.
+4. `PreviewTestPanel.test.ts` — `sectionRow` 반환 타입이 `SectionResultView`를 만족하지 않음.
+
+수정 뒤 `-p tsconfig.app.json`의 남은 오류는 기준 워크트리와 동일한 5건
+(`bundlePanelAdapters.ts`, 이번 소유 파일 아님)뿐이다.
+
+### 8.4 새로 확인한 계약(코드 확인)
+
+- 후보 응답 `candidates`/`as_of`/`timezone`/`reason`과 후보 7필드는 A 소스와 일치한다.
+- 수집 계획 `targets[]`는 `{id, league_name, season, include_details}`로 일치한다.
+- 수집 시작 `POST /preview-test/runs`는 `fixture_ids`/`fixture_from`/`fixture_to`만 받고
+  `extra="forbid"`다(계획의 `target_ids`를 함께 보내면 422). 이 화면은 세 필드만 보낸다.
+- 단건 조회는 `id`를 키로 주며 `payload_view`를 쓴다. 목록은 A가 아직 `items`/`limit`만
+  주지만(`active` 미포함), 이 화면은 목록을 쓰지 않으므로 영향 없다.
+- `bundle-runs`의 `request_id`는 저장된 실행 재사용, 같은 값 다른 경기는 409,
+  생성 중 재전달도 409다. 재전송 시 같은 값을 쓰는 이 화면 동작과 맞는다.
+
+### 8.5 이번 후속의 검사
+
+| 명령 | 결과 |
+|---|---|
+| `vue-tsc -p tsconfig.app.json --noEmit` | exit 2, 오류 5건 전부 기존 `bundlePanelAdapters.ts` |
+| `vue-tsc -p tsconfig.node.json --noEmit` | exit 0 |
+| `vitest run src/components/management/ src/lib/api/` | 42 통과 (PreviewTestPanel 13) |
+| `vitest run` (전체) | 13 파일 / 58 실패 — 기준 워크트리와 동일 |
+
+여전히 실제 수집·생성·모델 호출은 0회이며, 위 통과는 모의 대역 근거다.

@@ -75,6 +75,7 @@ vi.mock('@/lib/api/session', () => ({
       step = step.then
     }
     if (step.kind === 'network') throw new TypeError('network down')
+    if (step.kind !== 'json') throw new TypeError('held step was not released')
     return new Response(JSON.stringify(step.body), {
       status: step.status ?? 200,
       headers: { 'content-type': 'application/json' },
@@ -92,6 +93,7 @@ import {
   withoutBlockedSections,
 } from '@/lib/api/previewView'
 import type { PreviewRunData } from '@/lib/api/preview'
+import type { SectionResultView } from '@/features/match-preview/types'
 
 const PT = '/api/v1/admin/management/preview-test'
 const PV = '/api/v1/admin/preview'
@@ -246,7 +248,7 @@ function readerPreview(fixtureId: number, label: string) {
   }
 }
 
-function sectionRow(overrides: Record<string, unknown> = {}) {
+function sectionRow(overrides: Partial<SectionResultView> = {}): SectionResultView {
   return {
     section_result_id: 'sr-forecast',
     run_id: 'run-a',
@@ -274,7 +276,7 @@ function sectionRow(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function sectionsPayload(runId: string, rowOverrides: Record<string, unknown> = {}) {
+function sectionsPayload(runId: string, rowOverrides: Partial<SectionResultView> = {}) {
   return { run_id: runId, section_results: [sectionRow({ run_id: runId, ...rowOverrides })] }
 }
 
@@ -283,7 +285,7 @@ function queueGeneratedRun(
   fixtureId: number,
   runId: string,
   label: string,
-  rowOverrides: Record<string, unknown> = {},
+  rowOverrides: Partial<SectionResultView> = {},
 ) {
   queueFor('POST', `${PV}/bundle-runs`, fixtureId, { kind: 'json', body: bundleRun(runId) })
   queue('GET', `${PV}/runs/${runId}/preview`, { kind: 'json', body: readerPreview(fixtureId, label) })
@@ -502,6 +504,53 @@ describe('기간 수집 시험 — 수집과 생성의 분리', () => {
 
     expect(wrapper.get('[data-testid="ptp-item-7"]').text()).toContain('처리 단위')
     expect(wrapper.get('[data-testid="ptp-item-7"]').text()).toContain('저장 5')
+  })
+})
+
+describe('기간 수집 시험 — 서버 계획 응답의 실제 모양', () => {
+  it('수집 불가 사유는 {code, message} 객체이며 message를 그대로 보여준다', async () => {
+    queue('GET', `${PT}/candidates`, { kind: 'json', body: candidatesPayload() })
+    queue('GET', `${PT}/plan?fixture_ids=${CITY_FULHAM}&fixture_ids=${CHELSEA_LEEDS}`, {
+      kind: 'json',
+      body: {
+        ...planPayload(),
+        can_collect: false,
+        blocking_reasons: [
+          { code: 'fixture_started', message: '경기 1557474의 킥오프가 이미 지났습니다.' },
+          { code: 'target_inactive', message: '수집 대상 7(시즌 2026)이 비활성 상태입니다.' },
+        ],
+      },
+    })
+
+    const wrapper = await mountPanel()
+    const blocked = wrapper.get('[data-testid="ptp-blocked"]')
+    expect(blocked.text()).toContain('킥오프가 이미 지났습니다')
+    expect(blocked.text()).toContain('비활성 상태입니다')
+    // 실행 불가이므로 수집 버튼은 눌리지 않는다.
+    expect(
+      wrapper.get('[data-testid="ptp-start-collection"]').attributes('disabled'),
+    ).toBeDefined()
+  })
+
+  it('끝 시각을 확인하지 못한 계획은 실행하지 않고 사유를 보여준다', async () => {
+    queue('GET', `${PT}/candidates`, { kind: 'json', body: candidatesPayload() })
+    queue('GET', `${PT}/plan?fixture_ids=${CITY_FULHAM}&fixture_ids=${CHELSEA_LEEDS}`, {
+      kind: 'json',
+      body: {
+        ...planPayload(),
+        fixture_to: null,
+        can_collect: false,
+        blocking_reasons: [{ code: 'kickoff_unknown', message: '경기 1557470의 킥오프 시각이 없습니다.' }],
+      },
+    })
+
+    const wrapper = await mountPanel()
+    // 끝 시각이 없으면 기간이 성립하지 않는다. 수집을 보내면 안 된다.
+    expect(
+      wrapper.get('[data-testid="ptp-start-collection"]').attributes('disabled'),
+    ).toBeDefined()
+    expect(wrapper.get('[data-testid="ptp-blocked"]').text()).toContain('킥오프 시각이 없습니다')
+    expect(posts()).toEqual([])
   })
 })
 
