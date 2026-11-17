@@ -53,10 +53,22 @@ export const previewRunsApi = {
     return previewRequest<FixtureCandidate>(`${BASE}/fixtures/${fixtureId}`)
   },
 
-  runBundle(fixtureId: number): Promise<ApiResult<BundlePreviewRunResponse>> {
+  /**
+   * 경기 하나의 전체 프리뷰를 만든다(사용자가 명시적으로 누를 때만).
+   *
+   * `requestId`는 같은 논리 요청을 서버가 알아보게 하는 값이다. 응답을 받지 못한 요청을
+   * 그대로 다시 보낼 때 같은 값을 다시 쓰면 서버가 기존 실행을 돌려주거나 충돌로 알려 주므로
+   * 두 번째 모델 호출이 생기지 않는다. 사용자가 **새 실행**을 명시하면 새 값을 쓴다.
+   */
+  runBundle(
+    fixtureId: number,
+    options: { requestId?: string } = {},
+  ): Promise<ApiResult<BundlePreviewRunResponse>> {
+    const body: Record<string, unknown> = { fixture_id: fixtureId, mode: 'live' }
+    if (options.requestId) body.request_id = options.requestId
     return previewRequest<BundlePreviewRunResponse>(`${BASE}/bundle-runs`, {
       method: 'POST',
-      body: JSON.stringify({ fixture_id: fixtureId, mode: 'live' }),
+      body: JSON.stringify(body),
     })
   },
 

@@ -70,9 +70,20 @@ export function getPreviewFixture(fixtureId: number): Promise<ApiResult<FixtureC
   return previewRunsApi.fixture(fixtureId)
 }
 
-/** 사용자가 명시적으로 누른 생성 요청. 통신 오류를 자동 재전송하지 않는다. */
-export function generatePreview(fixtureId: number): Promise<ApiResult<BundlePreviewRunResponse>> {
-  return previewRunsApi.runBundle(fixtureId)
+/**
+ * 사용자가 명시적으로 누른 생성 요청. 통신 오류를 자동 재전송하지 않는다.
+ *
+ * `requestId`는 같은 논리 요청을 서버가 알아보게 하는 값이다. 응답을 받지 못한 요청을 다시
+ * 보낼 때 같은 값을 쓰면 서버가 기존 실행을 돌려주므로 두 번째 모델 호출이 생기지 않는다.
+ */
+export function generatePreview(
+  fixtureId: number,
+  options: { requestId?: string } = {},
+): Promise<ApiResult<BundlePreviewRunResponse>> {
+  // 식별자가 없으면 인자를 붙이지 않는다(기존 호출 모양 유지).
+  return options.requestId
+    ? previewRunsApi.runBundle(fixtureId, { requestId: options.requestId })
+    : previewRunsApi.runBundle(fixtureId)
 }
 
 /**
