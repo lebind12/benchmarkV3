@@ -705,6 +705,145 @@ describe('프리뷰 탭 — 저장 결과 표시', () => {
   })
 })
 
+describe('프리뷰 탭 — 정본 저장 불일치 문서 처리', () => {
+  /**
+   * 생성 응답은 왔지만 선수 섹션의 정본 저장 행을 찾지 못한 실행을 연다.
+   * 사용자가 보면 안 되는 것: 응답에서 만든 본문이 정상 저장 문서처럼 보이는 화면.
+   */
+  async function openMismatchedRun() {
+    previewApi.readerPreview.mockResolvedValue(
+      ok(
+        readerPreview({
+          sections: [
+            {
+              section_id: 'section_players',
+              title: '주목 선수',
+              body: '응답에서 만든 선수 본문입니다.',
+              sources: [],
+              quality: 'ready',
+              partial: false,
+              version: 1,
+            },
+            {
+              section_id: 'section_ai_forecast',
+              title: 'AI 경기 전망',
+              body: '## AI 경기 전망\n저장된 전망 본문입니다.',
+              sources: [],
+              quality: 'ready',
+              partial: false,
+              version: 1,
+            },
+          ],
+        }),
+      ),
+    )
+    previewApi.sectionResults.mockResolvedValue(
+      ok({
+        run_id: 'run-mismatch',
+        section_results: [
+          sectionResult({
+            section_result_id: 'sr-players-mismatch',
+            run_id: 'run-mismatch',
+            workflow_id: 'section_players',
+            title: '주목 선수',
+            body: '응답에서 만든 선수 본문입니다.',
+            storage_status: 'storage_mismatch',
+            storage_mismatch: true,
+            storage_error: '정본 저장 행을 찾지 못했습니다(output_contract_version="psc-1").',
+            available: false,
+          }),
+          sectionResult({
+            section_result_id: 'sr-forecast-ok',
+            run_id: 'run-mismatch',
+            workflow_id: 'section_ai_forecast',
+            title: 'AI 경기 전망',
+            body: '## AI 경기 전망\n저장된 전망 본문입니다.',
+            structured: {},
+          }),
+        ],
+      }),
+    )
+    previewApi.detail.mockResolvedValue(ok(runDetail()))
+    const wrapper = mount(PreviewPanel, mountOptions())
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-mismatch')
+    await submitOpenRun(wrapper)
+    await flushPromises()
+    return wrapper
+  }
+
+  it('불일치 섹션은 정상 문서로 그리지 않고 문서 위에 사유를 표시한다', async () => {
+    const wrapper = await openMismatchedRun()
+
+    const banner = wrapper.get('[data-testid="preview-storage-blocked"]')
+    expect(banner.text()).toContain('section_players')
+    expect(banner.text()).toContain('정본 저장 행을 찾지 못했습니다')
+
+    const body = wrapper.get('[data-testid="preview-body"]')
+    // 응답 본문이 정상 카드/본문으로 보이면 사용자가 저장된 결과로 오인한다.
+    expect(body.text()).not.toContain('응답에서 만든 선수 본문입니다.')
+    // 정본이 확인된 다른 섹션은 부분 문서로 남는다.
+    expect(body.text()).toContain('저장된 전망 본문입니다.')
+
+    // 원문은 접힌 참고 진단에만 남는다(진단 자체를 펼쳐야 보인다).
+    const diagnostics = wrapper.get('[data-testid="preview-diagnostics"]')
+      .element as HTMLDetailsElement
+    diagnostics.open = true
+    await wrapper.get('[data-testid="preview-diagnostics"]').trigger('toggle')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="preview-body"]').text()).not.toContain(
+      '응답에서 만든 선수 본문입니다.',
+    )
+    const raw = wrapper.get('[data-testid="preview-blocked-raw"]')
+    expect(raw.element.tagName.toLowerCase()).toBe('details')
+    expect((raw.element as HTMLDetailsElement).open).toBe(false)
+    expect(raw.text()).toContain('응답에서 만든 선수 본문입니다.')
+    expect(raw.text()).toContain('정본 저장 행을 찾지 못했습니다')
+  })
+
+  it('구계약 실행(플래그 없음)에는 차단 배너를 만들지 않는다', async () => {
+    previewApi.readerPreview.mockResolvedValue(ok(readerPreview()))
+    previewApi.sectionResults.mockResolvedValue(ok(savedSections()))
+    previewApi.detail.mockResolvedValue(ok(runDetail()))
+    const wrapper = mount(PreviewPanel, mountOptions())
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-a')
+    await submitOpenRun(wrapper)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="preview-storage-blocked"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="preview-blocked-raw"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="preview-body"]').text()).toContain('엘링 홀란드')
+  })
+})
+
+describe('프리뷰 탭 — 기간 수집 시험 영역 연결', () => {
+  it('ADMIN에게 기간 수집·다경기 영역을 기존 탭 안에 보여주고, 진입만으로는 POST를 보내지 않는다', async () => {
+    const wrapper = mount(PreviewPanel, mountOptions())
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="preview-test-panel"]').exists()).toBe(true)
+    // 기존 단일 경기 흐름도 그대로 남아 있다.
+    expect(wrapper.find('[data-testid="preview-fixture-form"]').exists()).toBe(true)
+    expect(previewApi.runBundle).not.toHaveBeenCalled()
+  })
+
+  it('시험 영역이 연 저장 문서는 같은 실행을 GET으로 열고 생성은 보내지 않는다', async () => {
+    previewApi.readerPreview.mockResolvedValue(ok(readerPreview()))
+    previewApi.sectionResults.mockResolvedValue(ok(savedSections()))
+    previewApi.detail.mockResolvedValue(ok(runDetail()))
+    const wrapper = mount(PreviewPanel, mountOptions())
+    await flushPromises()
+
+    // 시험 표에서 "저장된 문서 보기"를 누른 것과 같은 경로로 연다.
+    const panel = wrapper.findComponent({ name: 'PreviewTestPanel' })
+    panel.vm.$emit('openDocument', { runId: 'run-1557474-a' })
+    await flushPromises()
+
+    expect(previewApi.readerPreview).toHaveBeenCalledWith('run-1557474-a')
+    expect(previewApi.runBundle).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="preview-body"]').text()).toContain('엘링 홀란드')
+  })
+})
+
 describe('프리뷰 탭 — 저장된 실행 주소', () => {
   it('주소의 previewRun으로 진입하면 저장 결과를 GET으로 열고 POST는 보내지 않는다', async () => {
     currentQuery.value = { tab: 'preview', previewRun: '9c079eea-6f66-46bb-83e2-460850f0a22f' }
