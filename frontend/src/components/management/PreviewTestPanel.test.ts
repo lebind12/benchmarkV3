@@ -94,12 +94,14 @@ import {
 } from '@/lib/api/previewView'
 import type { PreviewRunData } from '@/lib/api/preview'
 import type { SectionResultView } from '@/features/match-preview/types'
+import { parsePlan, parseRun } from '@/lib/api/previewTest'
 
 const PT = '/api/v1/admin/management/preview-test'
 const PV = '/api/v1/admin/preview'
 
 const CITY_FULHAM = 1557474
 const CHELSEA_LEEDS = 1557470
+const TOTTENHAM_IPSWICH = 1557476
 
 function candidatesPayload() {
   return {
@@ -123,6 +125,15 @@ function candidatesPayload() {
         league_name: 'Premier League',
         season: 2026,
         priority: 2,
+      },
+      {
+        fixture_id: TOTTENHAM_IPSWICH,
+        kickoff_at: '2026-11-21T15:00:00+00:00',
+        home_name: '토트넘',
+        away_name: '입스위치',
+        league_name: 'Premier League',
+        season: 2026,
+        priority: 3,
       },
     ],
     reason: null,
@@ -504,6 +515,256 @@ describe('기간 수집 시험 — 수집과 생성의 분리', () => {
 
     expect(wrapper.get('[data-testid="ptp-item-7"]').text()).toContain('처리 단위')
     expect(wrapper.get('[data-testid="ptp-item-7"]').text()).toContain('저장 5')
+  })
+})
+
+describe('기간 수집 시험 — 생성 선택은 세 경기 이상 허용', () => {
+  it('세 경기를 골라도 선택이 유지되고, 생성은 그 셋을 순서대로 실행한다', async () => {
+    queueBase()
+    queueFor('POST', `${PV}/bundle-runs`, CITY_FULHAM, {
+      kind: 'json',
+      status: 500,
+      body: { detail: '첫 경기 실패' },
+    })
+    queueGeneratedRun(CHELSEA_LEEDS, 'run-b', '첼시 vs 리즈 유나이티드')
+    queueGeneratedRun(TOTTENHAM_IPSWICH, 'run-c', '토트넘 vs 입스위치')
+
+    const wrapper = await mountPanel()
+    // 기본 선택 두 개에 세 번째를 더한다. 기존 선택이 자동으로 빠지면 안 된다.
+    await wrapper.get(`[data-testid="ptp-candidate-${TOTTENHAM_IPSWICH}"]`).setValue(true)
+    await flushPromises()
+
+    for (const fixtureId of [CITY_FULHAM, CHELSEA_LEEDS, TOTTENHAM_IPSWICH]) {
+      const input = wrapper.get(`[data-testid="ptp-candidate-${fixtureId}"]`)
+      expect((input.element as HTMLInputElement).checked).toBe(true)
+    }
+    // 선택이 세 개면 생성 버튼은 눌린다.
+    expect(wrapper.get('[data-testid="ptp-generate"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-testid="ptp-generate"]').text()).toContain('3경기')
+
+    await wrapper.get('[data-testid="ptp-generate"]').trigger('click')
+    await flushPromises()
+
+    // 세 경기가 고른 순서대로 한 번씩 나간다.
+    expect(
+      bundleCalls().map((call) => (call.body as { fixture_id: number }).fixture_id),
+    ).toEqual([CITY_FULHAM, CHELSEA_LEEDS, TOTTENHAM_IPSWICH])
+    // 첫 경기가 실패해도 둘째·셋째가 저장까지 확인된다.
+    expect(wrapper.get(`[data-testid="ptp-generation-${CITY_FULHAM}"]`).text()).toContain('실패')
+    expect(wrapper.get(`[data-testid="ptp-storage-${CHELSEA_LEEDS}"]`).text()).toContain('저장 확인')
+    expect(
+      wrapper.get(`[data-testid="ptp-storage-${TOTTENHAM_IPSWICH}"]`).text(),
+    ).toContain('저장 확인')
+  })
+
+  it('선택이 두 개가 아니면 수집 버튼이 이유를 안내하고 계획을 조회하지 않는다', async () => {
+    // 계획 응답은 두 경기 조합에만 예약한다. 세 경기에서 계획을 부르면 대역이 없어 실패한다.
+    // 진입 시 한 번, 선택을 두 개로 되돌릴 때 한 번이므로 두 번 예약한다.
+    queue('GET', `${PT}/candidates`, { kind: 'json', body: candidatesPayload() })
+    for (let index = 0; index < 2; index += 1) {
+      queue('GET', `${PT}/plan?fixture_ids=${CITY_FULHAM}&fixture_ids=${CHELSEA_LEEDS}`, {
+        kind: 'json',
+        body: planPayload(),
+      })
+    }
+
+    const wrapper = await mountPanel()
+    // 진입 시 두 경기 선택으로 한 번 조회된 계획은 이미 유효한 근거다.
+    const plansAtMount = calls.filter((call) => call.url.includes('/plan')).length
+    expect(plansAtMount).toBe(1)
+
+    await wrapper.get(`[data-testid="ptp-candidate-${TOTTENHAM_IPSWICH}"]`).setValue(true)
+    await flushPromises()
+
+    const hint = wrapper.get('[data-testid="ptp-collection-scope-hint"]')
+    expect(hint.text()).toContain('정확히 두 경기')
+    expect(hint.text()).toContain('3경기')
+    expect(wrapper.get('[data-testid="ptp-start-collection"]').attributes('disabled')).toBeDefined()
+
+    // 세 경기 상태에서는 계획 조회를 보내지 않는다(서버가 422로 거부하는 요청).
+    expect(calls.filter((call) => call.url.includes('/plan')).length).toBe(plansAtMount)
+    // 선택이 두 개로 돌아오면 계획이 다시 조회된다.
+    await wrapper.get(`[data-testid="ptp-candidate-${TOTTENHAM_IPSWICH}"]`).setValue(false)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="ptp-collection-scope-hint"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="ptp-scope"]').text()).toContain('수집 기간')
+  })
+})
+
+describe('기간 수집 시험 — 실제 수집 근거 표시', () => {
+  function evidenceRun(evidence: unknown, overrides: Record<string, unknown> = {}) {
+    return collectionRun({
+      status: 'succeeded',
+      finished_at: '2026-11-17T10:05:00+00:00',
+      collection_evidence: evidence,
+      ...overrides,
+    })
+  }
+
+  async function runWithEvidence(evidence: unknown) {
+    queueBase()
+    queue('POST', `${PT}/runs`, { kind: 'json', body: evidenceRun(evidence) })
+    const wrapper = await mountPanel()
+    await wrapper.get('[data-testid="ptp-start-collection"]').trigger('click')
+    await flushPromises()
+    return wrapper
+  }
+
+  it('계획·저장 확인·상세 저장·미확인을 각각 표시하고 생성 대상과 합치지 않는다', async () => {
+    const wrapper = await runWithEvidence({
+      scope_fixture_ids: [CITY_FULHAM, CHELSEA_LEEDS],
+      fixture_from: '2026-11-16T15:00:00+00:00',
+      fixture_to: '2026-11-21T15:00:00+00:00',
+      planned_fixture_ids: [111, 222, 333],
+      stored_fixture_ids: [111, 222],
+      detail_stored_fixture_ids: [222],
+      unverified_fixture_ids: [333],
+      partial: false,
+      counts: { planned: 3, stored: 2, detail_stored: 1, unverified: 1 },
+      notes: ['계획 경기와 저장 경기를 구별합니다.'],
+    })
+
+    expect(wrapper.get('[data-testid="ptp-evidence-scope"]').text()).toContain(
+      `${CITY_FULHAM}, ${CHELSEA_LEEDS}`,
+    )
+    const summary = wrapper.get('[data-testid="ptp-evidence-detail"] summary').text()
+    expect(summary).toContain('계획 3')
+    expect(summary).toContain('저장 확인 2')
+    expect(summary).toContain('상세 응답 저장 1')
+    expect(summary).toContain('미확인 1')
+
+    expect(wrapper.get('[data-testid="ptp-evidence-planned"]').text()).toBe('111, 222, 333')
+    expect(wrapper.get('[data-testid="ptp-evidence-stored"]').text()).toBe('111, 222')
+    expect(wrapper.get('[data-testid="ptp-evidence-detail-stored"]').text()).toBe('222')
+    expect(wrapper.get('[data-testid="ptp-evidence-unverified"]').text()).toBe('333')
+    // 근거는 접힌 채로 두고 사용자가 펼친다(표 위 공간을 차지하지 않게).
+    expect(
+      (wrapper.get('[data-testid="ptp-evidence-detail"]').element as HTMLDetailsElement).open,
+    ).toBe(false)
+    // 미확인을 실패로 단정하지 않는다는 문장이 함께 있다.
+    expect(wrapper.text()).toContain('저장 미확인은 실패로 단정하지 않습니다')
+  })
+
+  it('근거 객체가 없으면 0건으로 추정하지 않고 미기록으로 표시한다', async () => {
+    const wrapper = await runWithEvidence(undefined)
+
+    const missing = wrapper.get('[data-testid="ptp-evidence-missing"]')
+    expect(missing.text()).toContain('근거가 기록되지 않았습니다')
+    expect(missing.text()).toContain('0건으로 추정하지 않습니다')
+    expect(wrapper.find('[data-testid="ptp-evidence-detail"]').exists()).toBe(false)
+  })
+
+  it('부분 확인 상태를 표시한다', async () => {
+    const wrapper = await runWithEvidence({
+      scope_fixture_ids: [CITY_FULHAM, CHELSEA_LEEDS],
+      fixture_from: '2026-11-16T15:00:00+00:00',
+      fixture_to: '2026-11-21T15:00:00+00:00',
+      planned_fixture_ids: [111],
+      stored_fixture_ids: [],
+      detail_stored_fixture_ids: [],
+      unverified_fixture_ids: [111],
+      partial: true,
+      counts: { planned: 1, stored: 0, detail_stored: 0, unverified: 1 },
+      notes: [],
+    })
+
+    expect(wrapper.get('[data-testid="ptp-evidence-partial"]').text()).toContain(
+      '확인하지 못했습니다',
+    )
+    // 저장이 0이면 "없음(0건)"이며 목록 자체가 없는 것과 다르다.
+    expect(wrapper.get('[data-testid="ptp-evidence-stored"]').text()).toBe('없음(0건)')
+  })
+})
+
+describe('기간 수집 시험 — 계획 응답 경계 정규화', () => {
+  /**
+   * A의 실제 응답 모양에서 **존재하는 target 차단 사례 하나**를 그대로 넣어, 경계가
+   * message를 안내에 쓰고 code를 보존하는지 본다.
+   */
+  it('target_not_found 사유의 message를 보존하고 code를 함께 남긴다', () => {
+    const parsed = parsePlan({
+      fixture_ids: [CITY_FULHAM, CHELSEA_LEEDS],
+      fixture_from: '2026-11-16T15:00:00+00:00',
+      fixture_to: '2026-11-21T15:00:00+00:00',
+      target_ids: [],
+      targets: [],
+      can_collect: false,
+      blocking_reasons: [
+        {
+          code: 'target_not_found',
+          message: '경기 1557474의 리그/시즌(39/2026)에 수집 대상이 없습니다.',
+        },
+      ],
+      scope_notes: [],
+    })
+
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.blocking_reasons).toEqual([
+      {
+        code: 'target_not_found',
+        message: '경기 1557474의 리그/시즌(39/2026)에 수집 대상이 없습니다.',
+      },
+    ])
+    expect(parsed.value.can_collect).toBe(false)
+  })
+
+  it('끝 시각이 없으면 실행 불가로 확정하고 목록 해석을 계속한다', () => {
+    const parsed = parsePlan({
+      fixture_ids: [CITY_FULHAM, CHELSEA_LEEDS],
+      fixture_from: '2026-11-16T15:00:00+00:00',
+      fixture_to: null,
+      target_ids: [7],
+      targets: [{ id: 7, league_name: 'Premier League', season: 2026, include_details: true }],
+      can_collect: true,
+      blocking_reasons: [{ code: 'kickoff_unknown', message: '킥오프 시각이 없습니다.' }],
+      scope_notes: [],
+    })
+
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    // 서버가 can_collect=true라 해도 끝 시각이 없으면 기간이 성립하지 않는다.
+    expect(parsed.value.can_collect).toBe(false)
+    expect(parsed.value.fixture_to).toBeNull()
+    expect(parsed.value.targets[0].id).toBe(7)
+  })
+})
+
+describe('기간 수집 시험 — 실제 수집 근거 파싱', () => {
+  it('근거 객체의 네 목록과 건수를 그대로 옮기고, 없으면 null이다', () => {
+    const withEvidence = parseRun({
+      id: 'run-1',
+      status: 'succeeded',
+      items: [],
+      logs: [],
+      collection_evidence: {
+        scope_fixture_ids: [CITY_FULHAM, CHELSEA_LEEDS],
+        planned_fixture_ids: [11, 22],
+        stored_fixture_ids: [11],
+        detail_stored_fixture_ids: [],
+        unverified_fixture_ids: [22],
+        partial: false,
+        counts: { planned: 2, stored: 1, detail_stored: 0, unverified: 1 },
+        notes: ['구분합니다.'],
+      },
+    })
+    expect(withEvidence.ok).toBe(true)
+    if (!withEvidence.ok) return
+    const evidence = withEvidence.value.collection_evidence
+    expect(evidence?.planned_fixture_ids).toEqual([11, 22])
+    expect(evidence?.unverified_fixture_ids).toEqual([22])
+    expect(evidence?.counts).toEqual({
+      planned: 2,
+      stored: 1,
+      detail_stored: 0,
+      unverified: 1,
+    })
+
+    // 근거 키가 없는 응답은 "미기록"이며, 0건으로 채우지 않는다.
+    const without = parseRun({ id: 'run-2', status: 'succeeded', items: [], logs: [] })
+    expect(without.ok).toBe(true)
+    if (!without.ok) return
+    expect(without.value.collection_evidence).toBeNull()
   })
 })
 

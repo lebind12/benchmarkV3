@@ -28,6 +28,7 @@ import {
   type TestCandidate,
   type TestCandidates,
   type TestPlan,
+  type TestCollectionEvidence,
   type TestRun,
 } from '@/lib/api/previewTest'
 import { generatePreview, getPreviewRun } from '@/lib/api/preview'
@@ -177,7 +178,11 @@ const selectedRows = computed(() =>
     .filter((row): row is TestCandidate => row !== null),
 )
 
-const selectionReady = computed(() => selectedIds.value.length === 2)
+/** 생성은 고른 경기가 하나 이상이면 실행할 수 있다(선택 전체를 순차 실행). */
+const hasSelection = computed(() => selectedIds.value.length > 0)
+
+/** 수집 API 계약은 정확히 두 경기다. 이 제약은 선택이 아니라 수집 버튼에만 적용한다. */
+const collectionScopeReady = computed(() => selectedIds.value.length === 2)
 
 const collectionActive = computed(
   () => collecting.value || isActiveRun(collectionRun.value?.status ?? null),
@@ -186,14 +191,24 @@ const collectionActive = computed(
 const canStartCollection = computed(
   () =>
     props.canGenerate &&
-    selectionReady.value &&
+    collectionScopeReady.value &&
     plan.value?.can_collect === true &&
     !collectionActive.value,
 )
 
 const canGenerateSelection = computed(
-  () => props.canGenerate && selectionReady.value && !generating.value && !collectionActive.value,
+  () => props.canGenerate && hasSelection.value && !generating.value && !collectionActive.value,
 )
+
+/**
+ * 수집 버튼이 눌리지 않는 이유. 선택이 두 개가 아닐 때 화면이 그 사실을 말해 준다
+ * (버튼만 흐리게 두면 사용자는 무엇을 고쳐야 하는지 알 수 없다).
+ */
+const collectionScopeHint = computed(() => {
+  const count = selectedIds.value.length
+  if (count === 2) return null
+  return `기간 수집은 정확히 두 경기가 필요합니다(현재 ${count}경기 선택). 생성을 원하면 ${count}경기 전체를 그대로 실행할 수 있습니다.`
+})
 
 const planBlocked = computed(() => {
   const reasons = plan.value?.blocking_reasons ?? []
@@ -230,6 +245,45 @@ function countText(value: number | null, kind: string | null, itemTotalKnown: bo
   if (kind === 'legacy_unknown' || itemTotalKnown === false) return '미상'
   if (value === null) return '—'
   return String(value)
+}
+
+/** 근거 목록에서 꺼낼 키. 화면이 쓰는 네 목록만 다룬다. */
+type EvidenceKey = 'planned' | 'stored' | 'detail_stored' | 'unverified'
+
+const EVIDENCE_FIELD = {
+  planned: 'planned_fixture_ids',
+  stored: 'stored_fixture_ids',
+  detail_stored: 'detail_stored_fixture_ids',
+  unverified: 'unverified_fixture_ids',
+} as const satisfies Record<EvidenceKey, keyof TestCollectionEvidence>
+
+/** 생성 대상(선택 두 경기). 근거의 `scope`가 있으면 그것을, 없으면 서버 계획을 쓴다. */
+const evidenceScopeIds = computed<number[]>(() => {
+  const evidence = collectionRun.value?.collection_evidence
+  if (evidence && evidence.scope_fixture_ids.length > 0) return evidence.scope_fixture_ids
+  return plan.value?.fixture_ids ?? []
+})
+
+function evidenceList(key: EvidenceKey): number[] | null {
+  const evidence = collectionRun.value?.collection_evidence
+  if (!evidence) return null
+  return evidence[EVIDENCE_FIELD[key]]
+}
+
+/** 건수 표기. 목록이 아예 없는 키는 0이 아니라 `—`다(근거 없음과 0건을 구분). */
+function evidenceCount(key: EvidenceKey): string {
+  const evidence = collectionRun.value?.collection_evidence
+  if (!evidence) return '—'
+  const value = evidence.counts[key]
+  if (value !== null) return String(value)
+  const rows = evidenceList(key)
+  return rows === null ? '—' : String(rows.length)
+}
+
+function idListText(ids: number[] | null): string {
+  if (ids === null) return '기록 없음'
+  if (ids.length === 0) return '없음(0건)'
+  return ids.join(', ')
 }
 
 function syncQuery(ids: number[], runIds: Record<number, string>, collection: string | null) {
@@ -283,7 +337,9 @@ let planSequence = 0
 
 async function loadPlan() {
   const sequence = ++planSequence
-  if (!selectionReady.value) {
+  // 계획은 수집 범위(정확히 두 경기)의 기간·대상을 해석하는 조회다. 세 경기 이상이면
+  // 서버가 422로 거부하므로 보내지 않고, 수집 버튼이 이유를 안내한다.
+  if (!collectionScopeReady.value) {
     plan.value = null
     planError.value = null
     planLoading.value = false
@@ -303,15 +359,20 @@ async function loadPlan() {
   plan.value = response.data
 }
 
+/**
+ * 후보 선택 토글.
+ *
+ * 생성은 **선택 전체**를 순차 실행하므로 세 개 이상을 허용하고, 사용자가 고른 것을
+ * 자동으로 빼지 않는다(고른 경기가 소리 없이 사라지면 무엇을 생성할지 알 수 없다).
+ * 수집만 API 계약이 정확히 두 경기이므로, 그 제약은 선택을 깎는 대신 **수집 버튼**에서
+ * 안내한다.
+ */
 function toggleSelection(fixtureId: number) {
   if (collectionActive.value || generating.value) return
   const current = selectedIds.value
-  if (current.includes(fixtureId)) {
-    selectedIds.value = current.filter((id) => id !== fixtureId)
-  } else {
-    // 수집 API 계약이 정확히 두 경기이므로, 세 번째를 고르면 가장 오래된 선택을 뺀다.
-    selectedIds.value = [...current, fixtureId].slice(-2)
-  }
+  selectedIds.value = current.includes(fixtureId)
+    ? current.filter((id) => id !== fixtureId)
+    : [...current, fixtureId]
   syncQuery(selectedIds.value, persistedRunIds(), collectionRun.value?.run_id ?? null)
 }
 
@@ -688,8 +749,8 @@ onBeforeUnmount(() => {
       </ul>
     </div>
 
-    <p v-if="!selectionReady" class="ptp__hint" data-testid="ptp-selection-hint">
-      수집과 생성은 정확히 두 경기를 선택해야 시작할 수 있습니다(현재 {{ selectedIds.length }}경기).
+    <p v-if="!hasSelection" class="ptp__hint" data-testid="ptp-selection-hint">
+      경기를 하나 이상 선택해야 시작할 수 있습니다(현재 0경기).
     </p>
 
     <p v-if="planLoading" class="ptp__status" role="status">수집 기간과 대상을 확인하는 중입니다.</p>
@@ -699,10 +760,9 @@ onBeforeUnmount(() => {
     <div v-if="plan" class="ptp__plan" data-testid="ptp-plan">
       <p v-if="scopeLine" class="ptp__scope" data-testid="ptp-scope">{{ scopeLine }}</p>
       <p class="ptp__hint" data-testid="ptp-scope-split">
-        위 기간 안의 경기 자료가 실제 수집 범위입니다. 프리뷰 생성 대상은 선택한 두
-        경기({{ plan.fixture_ids.join(', ') }})뿐이며, 범위가 다릅니다. 수집 실행의 수량은
-        서버가 밝힌 단위로만 표시하며, 실제 수집 경기 목록은 서버 응답에 없으면 표시하지
-        않습니다.
+        위 기간 안의 경기 자료가 실제 수집 범위입니다. 수집 시험의 대상은 이 계획의 두
+        경기({{ plan.fixture_ids.join(', ') }})이고, 생성 대상은 아래 선택입니다. 둘은
+        범위가 다릅니다.
       </p>
       <ul v-if="plan.scope_notes.length" class="ptp__notes" data-testid="ptp-scope-notes">
         <li v-for="note in plan.scope_notes" :key="note">{{ note }}</li>
@@ -725,6 +785,13 @@ onBeforeUnmount(() => {
         {{ collectionActive ? '기간 수집 진행 중…' : '기간 지정 수집' }}
       </button>
       <p class="ptp__hint">수집은 자료만 갱신합니다. 프리뷰 생성은 아래 별도 버튼입니다.</p>
+      <p
+        v-if="collectionScopeHint"
+        class="ptp__hint"
+        data-testid="ptp-collection-scope-hint"
+      >
+        {{ collectionScopeHint }}
+      </p>
     </div>
 
     <p v-if="collectionError" class="ptp__alert" role="alert" data-testid="ptp-collection-error">
@@ -769,6 +836,62 @@ onBeforeUnmount(() => {
       <p v-if="collectionRun.warning_count" class="ptp__hint">
         경고 {{ collectionRun.warning_count }}건이 기록에 있습니다.
       </p>
+
+      <!--
+        실제 수집 근거. 처리 단위 카운터와 다른 축이므로 그 아래에 따로 둔다.
+        생성 대상(선택 두 경기)과 기간 안 수집 범위를 합쳐 한 숫자로 보이지 않게 한다.
+      -->
+      <div class="ptp__evidence" data-testid="ptp-evidence">
+        <p class="ptp__run-head">기간 안 실제 수집 근거</p>
+        <template v-if="collectionRun.collection_evidence">
+          <p class="ptp__hint" data-testid="ptp-evidence-scope">
+            생성 대상(선택한 두 경기): {{ idListText(evidenceScopeIds) }}. 아래 목록은 기간 안
+            수집 범위이며 이 두 경기와 별개입니다.
+          </p>
+          <p
+            v-if="collectionRun.collection_evidence.partial"
+            class="ptp__hint"
+            data-testid="ptp-evidence-partial"
+          >
+            수집 범위 일부를 확인하지 못했습니다. 아래 건수는 확인된 범위 기준입니다.
+          </p>
+          <details class="ptp__evidence-detail" data-testid="ptp-evidence-detail">
+            <summary>
+              계획 {{ evidenceCount('planned') }} · 저장 확인 {{ evidenceCount('stored') }} ·
+              상세 응답 저장 {{ evidenceCount('detail_stored') }} · 미확인
+              {{ evidenceCount('unverified') }}
+            </summary>
+            <dl class="ptp__facts">
+              <dt>계획(기간 내)</dt>
+              <dd data-testid="ptp-evidence-planned">{{ idListText(evidenceList('planned')) }}</dd>
+              <dt>저장 확인</dt>
+              <dd data-testid="ptp-evidence-stored">{{ idListText(evidenceList('stored')) }}</dd>
+              <dt>상세 응답 저장</dt>
+              <dd data-testid="ptp-evidence-detail-stored">
+                {{ idListText(evidenceList('detail_stored')) }}
+              </dd>
+              <dt>저장 미확인</dt>
+              <dd data-testid="ptp-evidence-unverified">
+                {{ idListText(evidenceList('unverified')) }}
+              </dd>
+            </dl>
+            <ul v-if="collectionRun.collection_evidence.notes.length" class="ptp__notes">
+              <li v-for="note in collectionRun.collection_evidence.notes" :key="note">
+                {{ note }}
+              </li>
+            </ul>
+          </details>
+          <p class="ptp__hint">
+            저장 미확인은 실패로 단정하지 않습니다. 상세 응답 저장은 정상 빈 응답도 포함하므로
+            자료가 채워졌다는 뜻이 아닙니다. 부상 자료(/injuries)는 이번 수집에 포함되지
+            않습니다.
+          </p>
+        </template>
+        <p v-else class="ptp__hint" data-testid="ptp-evidence-missing">
+          이 실행에는 아직 실제 수집 근거가 기록되지 않았습니다(0건으로 추정하지 않습니다).
+          아래 처리 단위 수량은 경기 수와 다른 값입니다.
+        </p>
+      </div>
       <button
         type="button"
         class="mm-button mm-button--quiet"
@@ -787,7 +910,7 @@ onBeforeUnmount(() => {
         :disabled="!canGenerateSelection"
         @click="generateSelection"
       >
-        {{ generating ? '선택 경기 생성 중…' : '선택 경기 프리뷰 생성' }}
+        {{ generating ? '선택 경기 생성 중…' : `선택 ${selectedIds.length}경기 프리뷰 생성` }}
       </button>
       <p class="ptp__hint">
         고른 순서대로 한 경기씩 생성합니다. 한 경기가 실패해도 다음 경기는 계속 진행합니다.
@@ -992,6 +1115,38 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 13px;
   font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.ptp__evidence {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.ptp__evidence-detail > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.ptp__facts {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.ptp__facts dt {
+  color: var(--color-muted);
+}
+
+.ptp__facts dd {
+  margin: 0;
   overflow-wrap: anywhere;
 }
 
