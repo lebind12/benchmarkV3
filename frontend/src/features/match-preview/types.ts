@@ -141,6 +141,11 @@ export type ClaimView = {
   decision: string
   decision_reason: string | null
   snapshot_ids: string[]
+  /**
+   * 근거 원문 주소. 서버 `EvidenceClaim.to_dict()`는 이 값을 항상 내보내지만, 그 이전에
+   * 저장된 payload에는 없을 수 있으므로 선택 필드로 둔다. 읽는 쪽은 없으면 `null`로 둔다.
+   */
+  source_url?: string | null
 }
 
 export type CoverageView = {

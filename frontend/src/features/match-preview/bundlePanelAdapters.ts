@@ -394,15 +394,29 @@ export function buildAdminCardPreviewFromDetail(
           home_team_name: null,
           away_team_name: null,
           label: detail.summary.fixture_label ?? '',
+          // 실행 상세에는 저장 목록 후보의 상태·출처 필드가 없다. 값을 지어내지 않고
+          // "고르는 목록의 후보가 아님"만 사실대로 표시한다. 투영은 위 표시 값만 읽는다.
+          status_short: null,
+          origin: 'stored_db',
+          origin_note: '실행 상세에서 투영한 경기 정보',
+          run_id: detail.summary.run_id,
+          mode: detail.summary.mode,
+          selectable: false,
         }
       : null
   return toMatchPreviewView({
     run_id: detail.summary.run_id,
     preview: null,
+    preview_error: null,
     sections: {
       run_id: detail.summary.run_id,
       section_results: [...rows],
     },
+    sections_error: null,
+    // 이 어댑터는 행에서만 값을 투영한다. 상세 payload를 넘겨 별칭표를 채우면 화면이
+    // 지금과 다른 문서를 그리므로 연결하지 않는다.
+    detail: null,
+    detail_error: null,
     fixture: candidate,
   })
 }
@@ -416,10 +430,15 @@ export function buildAdminCardPreviewFromSectionRun(
   return toMatchPreviewView({
     run_id: runId,
     preview: null,
+    preview_error: null,
     sections: {
       run_id: runId,
       section_results: [...rows],
     },
+    sections_error: null,
+    // 위 함수와 같은 이유로 상세 payload는 넘기지 않는다(행 투영만 유지).
+    detail: null,
+    detail_error: null,
     fixture,
   })
 }
