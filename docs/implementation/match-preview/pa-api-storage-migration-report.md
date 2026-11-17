@@ -46,3 +46,29 @@
 3. DB 권한 확인. API 프로세스의 `preview_db.get_db` 연결이 `preview_dev.preview_runs`, `preview_section_results`, `preview_section_approvals`, `preview_compositions`, `preview_results` 및 3개 canonical 선수 테이블 읽기 권한을 갖는지 확인한다.
 4. 무변경 실측 확인(1557474). `GET /api/v1/home/recommendations`에서 1557474의 `preview.state`가 `unavailable`이 아니라 `partial` (`served="current"`, 또는 미승인 시 `unavailable`)로, `GET /api/v1/home/fixtures/1557474/document`에서 `complete=false`로 일치하는지 확인한다.
 5. `section_players` 확보 및 승인 여부는 운영자가 관리자 프리뷰 탭에서 수집·생성·승인 절차로 결정한다.
+
+## 6. PA-LIVE 서버 전환 근거 및 미실행 범위
+
+실행 시각. 2026-11-18 KST (`antigravity / gemini-4-hydrogen-high`, 하위 워커 0회, 적용 커밋 `4f896a8450834c1a4dd55aaefc971709c7430323`)
+
+### 서버 전환 내역 및 프로세스·터미널 확인
+
+- 선행 정리. `preview-test-integration` 소유 확인 후 기존 `38000` (`PID 65959`, `term_ab926669-3957-4b05-a33b-32de6c7daa08`)과 `5173` (`PID 67311`/`67280`, `term_53af07d5-67be-4ee9-b27a-eb8ffe38de52`)만 정상 종료했다.
+- 보존 대상. 수집 전용 `38003` (`PID 68684`, `term_74737883-30f9-48c9-8d92-e361ddb5fa6a`, `cwd=/Users/woolee/orca/workspaces/benchmark/preview-test-integration`)과 기타 포트(`5174/38001`, `5175/38002`, `8000`)·브라우저 탭은 변경하지 않았다.
+- 새 백엔드(`38000`). Orca 터미널 `term_1c294f9c-feb2-4a6a-a547-918bc8e8d9c5` (`PID 38299`, `cwd=/Users/woolee/orca/workspaces/benchmark/preview-api-migration`, `PREVIEW_CREDENTIALS_FILE=$HOME/.config/match-preview/preview-dev-restricted.env`, `BENCHMARK_PORT=38000`, `BENCHMARK_PYTHON=/Users/woolee/benchmark/.venv/bin/python`, `AUTH_COOKIE_NAME=benchmark_refresh_local`, `LOCAL_DEV_AUTH_ENABLED=true`, `scripts/run_benchmark_dev.sh`).
+- 새 프론트엔드(`5173`). Orca 터미널 `term_08a95d29-cd3b-4099-bb48-ec4a546e712f` (`PID 38395`, `cwd=/Users/woolee/orca/workspaces/benchmark/preview-api-migration/frontend`, `BENCHMARK_BACKEND_URL=http://127.0.0.1:38000`, `BENCHMARK_COLLECTION_BACKEND_URL=http://127.0.0.1:38003`, `npm run dev`).
+
+### 읽기 전용 HTTP 확인 결과
+
+- `GET http://127.0.0.1:38000/health` → `200` (`{"status":"ok"}`)
+- `GET http://127.0.0.1:5173/` → `200` (`text/html`)
+- `GET http://127.0.0.1:38000/api/v1/home/recommendations` (`Origin: http://localhost:5173`) → `200`, `Access-Control-Allow-Origin: http://localhost:5173`, `Vary: Origin`
+- `GET http://127.0.0.1:5173/api/v1/admin/preview/fixtures` (무인증) → `401`
+- `GET http://127.0.0.1:5173/api/v1/admin/management/preview-test/candidates` (무인증, `38003` 프록시) → `401` (`503`/`404` 아님)
+- `GET http://127.0.0.1:5173/api/v1/home/recommendations` → `200` (`display_date=2026-11-21`, `items=1`), 경기 `1557474` `preview`: `state="partial"`, `served="current"`, `generated_at="2026-11-17T15:09:57.717101+00:00"`, `as_of="2026-11-17T15:09:57.717101+00:00"`
+- `GET http://127.0.0.1:5173/api/v1/home/fixtures/1557474/document` → `200` (`status="available"`, `reason=null`, `run_id="4f90e50b-ce55-4beb-8a17-20ef6e9192fb"`, `complete=false`, 섹션 `section_outlook` `c56b69a0-12a5-4baa-873a-6ce09ff6e91f`, `section_odds` `08be87ce-a2db-438f-9479-509e49448981`, `section_ai_forecast` `34174dd6-9291-45f6-878b-c10fabbfe1dc`)
+
+### 미실행 범위 (PA-LIVE 서버 전환 제외 항목)
+
+- 제품 코드 변경, 단위/전체 테스트 재실행, DB 마이그레이션 및 권한 변경 미실시.
+- 수집 `POST`, 실제 AI/모델 호출, 공개 승인 행 변경, 계정 변경, 브라우저 조작 미실시(실제 수집→생성→홈 확인은 후속 조정자 브라우저 단계로 인계; `38000`/`5173`/`38003` 서버는 사용자 확인용으로 유지).
