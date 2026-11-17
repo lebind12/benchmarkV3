@@ -955,3 +955,236 @@ def test_fixture_that_leaves_the_period_is_skipped_with_its_own_reason(monkeypat
     reasons = {row["fixture_id"]: row["reason"] for row in skipped}
     assert reasons[9001] == "outside_requested_period"
     assert 9002 not in reasons
+
+
+# --------------------------------------------------------------------------
+# 수집만 실행(generate_after_collection=false) — 생성 0회 보장
+# --------------------------------------------------------------------------
+
+
+def _collection_only_scope():
+    """수집만 실행을 뜻하는 시험 범위."""
+    from app.services.collection_test_scope import PreviewTestScope
+
+    return PreviewTestScope(
+        fixture_from=NOW,
+        fixture_to=NOW + timedelta(hours=48),
+        preview_fixture_ids=(9001, 9002),
+        run_id="run-collection-only",
+        generate_after_collection=False,
+    )
+
+
+def test_collection_only_scope_skips_the_hook_on_the_normal_path(monkeypatch):
+    """수집만 실행은 정상 종료 경로에서 생성 훅을 **부르지 않는다**.
+
+    검사 이유(실패 시 사용자 영향): 사용자가 "수집만"을 요청했는데 자동 생성이 돌면
+    실제 모델 호출이 나가고, 결과 확인 전에 프리뷰가 만들어진다.
+
+    `execute_run`을 실제로 호출하고 외부 경계(설정·클라이언트·수집 계획·세션·훅)만
+    대역으로 바꾼다. 전역 `HOME_PREVIEW_ENABLED`가 켜져 있어도 생성하지 않아야 한다.
+    """
+    from app.services import management_runs as mr
+
+    calls: list[dict] = []
+
+    class _Settings:
+        home_preview_enabled = True  # 전역 플래그가 켜져 있어도 이 요청은 생성 0회다.
+        api_football_key = "test-key"
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+        api_football_concurrency = 1
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    class _Client:
+        def __init__(self, api_key=None, **kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    class _Plan:
+        def unit_count(self, **kwargs):
+            return 0
+
+    class _Result:
+        seasons: list = []
+
+    class _Store:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def get(self, *args, **kwargs):
+            return None
+
+        def commit(self):
+            return None
+
+        def rollback(self):
+            return None
+
+    class _SessionLocal:
+        def __call__(self):
+            return _Store()
+
+    item = {
+        "target_id": 1,
+        "name": "프리미어리그",
+        "league_id": 39,
+        "season": 2026,
+        "status": "pending",
+        "total": 0,
+        "saved": 0,
+        "failed": 0,
+        "pending": 0,
+        "stored_rows": 0,
+        "options": {
+            "include_details": False,
+            "include_players": False,
+            "include_standings": False,
+            "fixture_limit": None,
+        },
+    }
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(mr, "ApiFootballClient", _Client)
+    monkeypatch.setattr(mr, "measure_league_sync_plan", lambda *a, **k: _Plan())
+    monkeypatch.setattr(mr, "backfill_measured_league", lambda *a, **k: _Result())
+    monkeypatch.setattr(mr.db, "SessionLocal", _SessionLocal())
+    monkeypatch.setattr(
+        mr,
+        "run_home_preview_after_sync",
+        lambda **kwargs: calls.append(kwargs) or {"state": "finished"},
+    )
+
+    payload = _payload()
+    payload["items"] = [item]
+    payload["test_scope"] = _collection_only_scope().to_dict()
+    mr.execute_run(payload, _Guard())
+
+    # 정상 종료했고, 생성 훅은 한 번도 불리지 않았으며, 생성 결과 키도 없다.
+    assert payload["status"] == "succeeded"
+    assert calls == []
+    assert "home_preview" not in payload
+
+
+def test_collection_only_scope_skips_the_hook_on_the_exception_path(monkeypatch):
+    """수집만 실행은 **상위 예외** 경로에서도 생성 훅을 부르지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 예외 경로가 유일한 생성 진입로가 되면, API 키
+    미설정 같은 흔한 실패에서 오히려 모델 호출이 나간다.
+    """
+    from app.services import management_runs as mr
+
+    calls: list[dict] = []
+
+    class _Settings:
+        home_preview_enabled = True
+        api_football_key = None  # 이 값 때문에 상위 예외로 끝난다.
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(
+        mr,
+        "run_home_preview_after_sync",
+        lambda **kwargs: calls.append(kwargs) or {"state": "finished"},
+    )
+
+    payload = _payload()
+    payload["test_scope"] = _collection_only_scope().to_dict()
+    mr.execute_run(payload, _Guard())
+
+    # 수집 실패는 그대로 보존되고, 생성 시도는 0회다.
+    assert payload["status"] == "failed"
+    assert calls == []
+    assert "home_preview" not in payload
+
+
+def test_default_scope_still_generates_after_collection(monkeypatch):
+    """`generate_after_collection`을 지정하지 않은 범위는 **기존 동작**을 유지한다.
+
+    검사 이유(실패 시 사용자 영향): 기본값이 뒤집히면 기존 자동 수집 경로가 조용히
+    생성을 멈춘다.
+    """
+    from app.services import management_runs as mr
+    from app.services.collection_test_scope import PreviewTestScope
+
+    calls: list[dict] = []
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = None
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(
+        mr,
+        "run_home_preview_after_sync",
+        lambda **kwargs: calls.append(kwargs) or {"state": "finished"},
+    )
+
+    scope = PreviewTestScope(
+        fixture_from=NOW,
+        fixture_to=NOW + timedelta(hours=48),
+        preview_fixture_ids=(9001, 9002),
+        run_id="run-default",
+    )
+    assert scope.generate_after_collection is True
+
+    payload = _payload()
+    payload["test_scope"] = scope.to_dict()
+    mr.execute_run(payload, _Guard())
+
+    # 전역 플래그가 꺼져 있어도 시험 범위는 이 요청에 한해 훅을 한 번 부른다(기존 계약).
+    assert len(calls) == 1
+    assert payload["home_preview"] == {"state": "finished"}
+
+
+def test_collection_only_flag_survives_the_stored_roundtrip():
+    """저장된 범위를 복원해도 수집만 실행 여부가 보존된다.
+
+    검사 이유(실패 시 사용자 영향): 실행기는 payload에 저장된 범위를 다시 읽는다.
+    복원에서 이 값이 사라지면 수집만 실행이 생성까지 시작한다.
+    """
+    from app.services.collection_test_scope import PreviewTestScope
+
+    scope = _collection_only_scope()
+    restored = PreviewTestScope.from_dict(scope.with_run_id("run-9").to_dict())
+
+    assert restored is not None
+    assert restored.generate_after_collection is False
+    assert restored.run_id == "run-9"
+
+
+def test_stored_scope_without_the_flag_keeps_generating():
+    """이 키가 없는 옛 저장 값은 **생성함**으로 복원된다(이미 접수된 실행의 의미 보존)."""
+    from app.services.collection_test_scope import PreviewTestScope
+
+    restored = PreviewTestScope.from_dict(
+        {
+            "fixture_from": NOW.isoformat(),
+            "fixture_to": (NOW + timedelta(hours=48)).isoformat(),
+            "preview_fixture_ids": [9001, 9002],
+            "run_id": "run-legacy",
+        }
+    )
+
+    assert restored is not None
+    assert restored.generate_after_collection is True

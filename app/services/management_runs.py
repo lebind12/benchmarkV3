@@ -147,6 +147,15 @@ def _payload(row):
     return result
 
 
+def payload_view(row):
+    """저장된 실행 행 하나를 응답 모양으로 만든다. **부작용이 없다.**
+
+    `_payload`와 같은 변환을 그대로 쓰되, `run_list`처럼 오래된 기록을 지우거나 중단
+    실행을 복구하지 않는다. 시험 UI의 목록·단건 조회는 정리 동작을 하지 않아야 한다.
+    """
+    return _payload(row)
+
+
 def get_run(session, run_id):
     _recover_orphans(session)
     row = session.get(ManagementRun, run_id)
@@ -430,6 +439,7 @@ def start_preview_test_run(
     fixture_from,
     fixture_to,
     preview_fixture_ids,
+    generate_after_collection=True,
     user=None,
 ):
     """기간 지정 프리뷰 시험 실행을 만든다(기존 실행 구조 재사용).
@@ -439,6 +449,10 @@ def start_preview_test_run(
     예외를 받으며 일반 수집·정기 실행에는 범위가 전달되지 않는다.
 
     정기 실행과의 차이는 `test_scope` 하나뿐이다. 새 실행 엔진·모델·테이블을 만들지 않는다.
+
+    `generate_after_collection=False`는 **수집만** 실행하는 요청이다. 범위 값에 그대로
+    저장되어 실행기·종료 훅이 복원하며, 어느 종료 경로에서도 생성 호출은 0회다.
+    기존 호출부는 이 인자를 넘기지 않으므로 기본값 `True`(기존 동작)가 유지된다.
     """
     from app.services.collection_test_scope import PREVIEW_TEST_MAX_FIXTURES, PreviewTestScope
 
@@ -463,6 +477,7 @@ def start_preview_test_run(
         fixture_from=fixture_from,
         fixture_to=fixture_to,
         preview_fixture_ids=tuple(preview_fixture_ids),
+        generate_after_collection=bool(generate_after_collection),
     )
     # mode는 refresh 고정. 기존 start_run이 대상/시즌 검증·잠금·409를 그대로 처리한다.
     return start_run(session, target_ids, "refresh", user, None, test_scope=scope)
@@ -540,6 +555,17 @@ def _require_preview_fixtures_in_scope(
                 f"경기 {external_id}는 예정(NS) 경기가 아닙니다(현재 {fixture.status_short}).",
                 422,
             )
+
+
+def _wants_home_preview(settings, test_scope) -> bool:
+    """이 수집 종료 뒤 프리뷰 생성을 시작할지 판정한다.
+
+    시험 범위가 **수집만 실행**을 뜻하면(`generate_after_collection=False`) 정기 플래그와
+    무관하게 생성하지 않는다. 일반 수집과 기존 시험 실행은 원래 규칙 그대로다.
+    """
+    if test_scope is not None and not test_scope.generate_after_collection:
+        return False
+    return bool(getattr(settings, "home_preview_enabled", False)) or test_scope is not None
 
 
 def execute_run(payload, guard):
@@ -701,7 +727,8 @@ def execute_run(payload, guard):
         # 성공한 리그만으로 후보를 제한하지 않는다.
         # 정기 경로는 전역 플래그를 존중하고, 명시적 시험 요청(검증된 test_scope)은
         # 플래그가 꺼져 있어도 이 요청에 한해 훅을 한 번 호출한다. 전역 설정은 켜지 않는다.
-        if settings.home_preview_enabled or test_scope is not None:
+        # 수집만 실행을 뜻하는 test_scope는 어느 경로에서도 훅을 부르지 않는다.
+        if _wants_home_preview(settings, test_scope):
             preview_started = True
             tracker.check_cancelled()
             payload["stage"] = "메인 프리뷰 생성"
@@ -739,9 +766,8 @@ def execute_run(payload, guard):
         # API 키 미설정·클라이언트 생성 실패처럼 **수집 자체가 예외로 끝난** 경우에도
         # DB에 대상 경기가 남아 있으면 생성을 시도한다(Q6). 정상 경로에서 이미 돌았으면
         # 다시 호출하지 않는다. 훅은 자체 예외를 흡수하므로 수집 실패 기록을 덮지 않는다.
-        if not preview_started and (
-            getattr(get_settings(), "home_preview_enabled", False) or test_scope is not None
-        ):
+        # 수집만 실행 요청은 이 경로에서도 생성하지 않는다(생성 0회 보장).
+        if not preview_started and _wants_home_preview(get_settings(), test_scope):
             try:
                 payload["home_preview"] = run_home_preview_after_sync(
                     collection_status="failed",

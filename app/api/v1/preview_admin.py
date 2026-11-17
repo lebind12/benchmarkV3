@@ -1987,6 +1987,9 @@ class BundlePreviewRunRequest(BaseModel):
     과거의 전체 식별자 입력(리그·시즌·팀·킥오프)은 **호환을 위해 계속 받는다.**
     값이 저장된 경기와 다르면 다른 경기를 만들지 않고 422로 거부한다. 값이 없으면
     저장된 값을 쓴다. `mode`는 live만 허용하며, 설정이 없으면 422다(모의 대체 없음).
+
+    `request_id`는 **선택**이다. 있으면 요청 한 건의 식별자로 쓰여, 같은 값의 재전달은
+    새 실행·모델 호출 없이 기존 실행을 돌려준다. 없으면 기존 동작 그대로다.
     """
 
     fixture_id: int
@@ -1999,6 +2002,8 @@ class BundlePreviewRunRequest(BaseModel):
     kickoff_at: datetime | None = None
     mode: str = RunMode.MOCK.value
     label: str | None = Field(default=None, max_length=200)
+    # 화면이 만든 요청 식별자(UUID). 같은 값의 재전달은 중복 실행을 만들지 않는다.
+    request_id: UUID | None = None
 
 
 class BundlePreviewRunResponse(BaseModel):
@@ -2038,7 +2043,59 @@ def create_bundle_preview_run(
     - 응답은 기존 `BundlePreviewRunResponse`이며 `run_id`로 저장 결과를 다시 읽는다.
       본문·근거는 `/runs/{run_id}/section-results`, 묶음은
       `/runs/{run_id}/information-bundle`에서 **DB만** 조회한다.
+    - `request_id`가 있으면 **요청 한 건**의 식별자다. 같은 값의 재전달은 이미 저장된
+      실행을 그대로 돌려주며 모델 전송은 0회다. 같은 값을 다른 경기에 쓰면 409다.
     """
+    if payload.request_id is not None:
+        return _run_with_request_id(payload, session=session, principal=principal)
+    return _run_bundle_generation(payload, session=session, principal=principal)
+
+
+def _run_with_request_id(
+    payload: BundlePreviewRunRequest,
+    *,
+    session: Session,
+    principal: PreviewPrincipal,
+) -> BundlePreviewRunResponse:
+    """같은 `request_id`의 중복 실행을 기존 실행으로 흡수한다.
+
+    순서가 중요하다. 먼저 **저장된 실행**을 찾고, 없을 때만 잠금을 잡고 생성한다.
+    그래야 응답이 유실된 뒤의 재전달도 모델을 다시 부르지 않는다.
+    """
+    from app.preview import preview_test_requests as requests
+
+    try:
+        # 잠금은 **생성 전체**를 감싼다. 같은 요청의 두 번째 전달이 생성 도중에 들어오면
+        # 기다리지 않고 409로 끝나므로, 모델 호출이 두 번 나가지 않는다.
+        with requests.request_lock(payload.request_id):
+            existing = requests.find_requested_run(session, payload.request_id)
+            if existing is not None:
+                requests.ensure_same_fixture(existing, fixture_id=int(payload.fixture_id))
+                replay = requests.replay_response(session, existing.id)
+                if replay is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            "같은 request_id로 접수된 실행의 저장 행을 찾지 못했습니다."
+                            " 새 실행을 만들려면 새 request_id를 쓰세요."
+                        ),
+                    )
+                return BundlePreviewRunResponse(**replay)
+            return _run_bundle_generation(payload, session=session, principal=principal)
+    except requests.RequestConflict as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
+    except requests.RequestInFlight as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
+
+
+def _run_bundle_generation(
+    payload: BundlePreviewRunRequest,
+    *,
+    session: Session,
+    principal: PreviewPrincipal,
+) -> BundlePreviewRunResponse:
+    """실제 생성 경로. 요청 식별자가 있을 때는 실행 label에 그 표기를 남긴다."""
+    from app.preview import preview_test_requests as requests
     from app.services import match_preview as service
 
     try:
@@ -2078,6 +2135,16 @@ def create_bundle_preview_run(
     # 완전 식별자 입력은 **저장된 경기와 대조**한다. 다르면 다른 경기를 만들지 않는다.
     _refuse_conflicting_fixture_identifiers(payload, reader=reader)
 
+    label = payload.label
+    if payload.request_id is not None:
+        # 요청 표기는 실행 행과 같은 트랜잭션에 저장된다. 그래서 "실행은 있는데 요청
+        # 장부는 없는" 창이 생기지 않는다.
+        label = requests.label_with_request(
+            payload.label,
+            payload.request_id,
+            default=f"정보 원문 프리뷰 · {mode.value}",
+        )
+
     try:
         outcome = service.generate_match_preview(
             fixture_id=int(payload.fixture_id),
@@ -2086,7 +2153,7 @@ def create_bundle_preview_run(
             session=session,
             transport=transport,
             reader=reader,
-            label=payload.label,
+            label=label,
             mode=mode,
         )
     except service.FixtureResolutionError as exc:
