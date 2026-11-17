@@ -177,7 +177,12 @@ fixture 적용 경로를 확인하지 않았다. 보유 pytest 표준출력 로�
 
 - 그 실행에 포함된 `tests/preview/test_preview_test_requests.py`(당시 19건) 중 **6건이
   `engine`·`session_factory`·`client` 픽스처를 직접 요구**한다
-  (`test_test_run_list_does_not_delete_or_recover_anything` 등 4건, `client` 계열 2건).
+  (`test_test_run_list_does_not_delete_or_recover_anything`,
+  `test_test_run_detail_returns_404_for_a_non_test_run`,
+  `test_test_run_list_uses_the_existing_envelope_and_reports_the_active_run` 3건과
+  `client`를 쓰는 `test_streamer_is_rejected_on_the_collection_test_routes`,
+  `test_anonymous_is_rejected_on_the_collection_test_routes`,
+  `test_admin_gets_the_documented_candidate_contract` 3건).
 - `tests/preview/conftest.py`의 `schema` 픽스처는 `engine`에 의존하고, 실행 시
   `SET lock_timeout='10s'` 뒤 **`DROP SCHEMA IF EXISTS preview_dev CASCADE`와
   `DROP SCHEMA IF EXISTS public CASCADE`를 실행한 다음 두 스키마를 다시 만든다.**
