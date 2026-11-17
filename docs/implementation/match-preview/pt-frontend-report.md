@@ -72,9 +72,16 @@ B 소유 파일만 수정했다.
 |---|---|
 | `vue-tsc -p tsconfig.app.json --noEmit` | exit 2, 오류 5건 — **전부 기존** `bundlePanelAdapters.ts` (기준 워크트리와 동일) |
 | `vue-tsc -p tsconfig.node.json --noEmit` | exit 0, 오류 0 |
-| `vitest run src/components/management/ src/lib/api/` | 42 통과 (PreviewTestPanel 13, PreviewPanel 25, collectionProxy 4) |
-| `vitest run src/components/home-preview/MatchPreviewBody.test.ts src/features/match-preview/PlayerSectionStorage.test.ts` | 14 통과 |
-| `vitest run` (전체) | 65 파일 중 13 실패 / 452 중 58 실패 |
+| `vitest run src/components/management/ src/lib/api/` | 50 통과 (PreviewTestPanel 21, PreviewPanel 25, collectionProxy 4) |
+| `vitest run src/components/home-preview/MatchPreviewBody.test.ts src/features/match-preview/PlayerSectionStorage.test.ts` | 14 통과 (MatchPreviewBody 10 + PlayerSectionStorage 4) |
+| 위 네 파일 합계(영향 검사) | **64 통과** |
+| `vitest run` (전체) | 13 파일 / 58 실패 — 기준 워크트리와 동일 |
+
+**건수 정정(로그 근거).** 앞선 보고에는 영향 검사가 `14`와 `54`로, 다른 곳에는 `15`와
+`55`로 적혀 서로 맞지 않았다. 실제 로그로 확정한 값은 위 표다. 차이는 **명령 범위**였다.
+`BundlePanelAdapters.test.ts`(1 사례)를 포함한 명령은 15가 되고, 빼면 14가 된다. 두 수는
+각자 자기 명령에서는 맞았지만 표에 함께 적혀 오해를 만들었다. 현재 값은
+`src/components/management/` + `src/lib/api/` = 50, 위 두 파일 = 14, 합계 64다.
 
 **주의(정정).** 이 패키지의 `tsconfig.json`은 `files: []` + 프로젝트 참조만 있어서
 `vue-tsc --noEmit`(프로젝트 미지정)은 **아무 파일도 검사하지 않고 exit 0을 낸다.** 실제
@@ -83,7 +90,7 @@ B 소유 파일만 수정했다.
 
 전체 회귀 실패 13 파일·58 사례는 **기준 워크트리
 `player-section-integration`에서 같은 명령으로 동일하게 재현**됐다(13 파일 / 58 사례).
-내가 추가한 21 사례는 그 안에서 전부 통과한다. 이 실패들은 `FixtureSelector`,
+내가 추가한 사례는 그 안에서 전부 통과한다. 이 실패들은 `FixtureSelector`,
 `PreviewMetricsView`, `RunInspector`, `R4PanelAndBody` 등 인증·네트워크 mock 미연결
 계열이며 이번 변경과 무관하다.
 
@@ -202,3 +209,63 @@ A는 `fixture_to = max(kickoffs) if kickoffs else None`이며, 킥오프 시각�
 | `vitest run` (전체) | 13 파일 / 58 실패 — 기준 워크트리와 동일 |
 
 여전히 실제 수집·생성·모델 호출은 0회이며, 위 통과는 모의 대역 근거다.
+
+## 9. 후속 수정 — 생성 선택 상한 해제와 collection_evidence 연결
+
+조정자 지시(2026-11-17 20:40 KST)에 따라 두 가지를 고쳤다. 지시의 핵심은 **수집의
+정확히2개 제약과 다경기 생성 선택은 별개**라는 점이었다.
+
+### 9.1 생성 선택에서 기존 선택 자동 제거를 없앴다
+
+이전 구현은 세 번째 경기를 고르면 가장 오래된 선택을 자동으로 뺐다(`slice(-2)`). 이는
+확정 설계가 아니었고, 사용자가 고른 경기가 소리 없이 사라지는 동작이었다.
+
+수정: 선택은 **고른 것을 그대로 유지**하고 개수 제한이 없다. 제약은 선택을 깎는 대신
+수집 버튼에만 적용한다.
+
+- `hasSelection`(1개 이상) → 생성 버튼 조건. 선택 전체를 순서대로 실행한다.
+- `collectionScopeReady`(정확히 2개) → 수집 버튼 조건과 계획 조회 조건.
+- 선택이 2개가 아니면 `ptp-collection-scope-hint`가 "기간 수집은 정확히 두 경기가
+  필요합니다(현재 N경기)"를 보여 주고, 생성은 N경기 전체로 계속 쓸 수 있음을 함께 적는다.
+- 계획 조회는 2개일 때만 보낸다(서버가 3개 이상을 422로 거부하는 요청을 보내지 않는다).
+
+기본 선택 2개는 유지한다.
+
+### 9.2 `collection_evidence` 연결
+
+A 커밋 `a62545c`의 `collection_evidence`를 경계에서 해석해 화면에 표시한다.
+
+| 필드 | 화면 처리 |
+|---|---|
+| `scope_fixture_ids` | "생성 대상"으로 따로 표시. 아래 수집 목록과 **합치지 않는다** |
+| `planned_fixture_ids` | 계획(기간 내). 저장 성공으로 읽지 않는다 |
+| `stored_fixture_ids` | 저장 확인(커밋 근거) |
+| `detail_stored_fixture_ids` | 상세 응답 저장. 정상 빈 응답 포함이라 자료 확보와 다름을 함께 적는다 |
+| `unverified_fixture_ids` | 저장 미확인. **실패로 단정하지 않는다**는 문장을 함께 표시 |
+| `partial` | 확인 범위가 전체가 아님을 경고로 표시 |
+| `counts` | 접힌 요약 줄의 건수. 서버 값을 우선하고, 없으면 목록 길이로 계산 |
+| `notes` | 접힌 영역의 서버 문장 그대로 |
+| 객체 없음 | "아직 근거가 기록되지 않았습니다(0건으로 추정하지 않습니다)" |
+
+목록은 기본 접힘이고 요약 줄에 네 건수를 보여 준다. 건수는 목록 길이에서 계산할 수 있는
+경우에만 채우고, 목록도 counts도 없으면 `—`로 두어 0과 구분한다. `/injuries` 미포함 안내는
+그대로 유지한다.
+
+### 9.3 이번 후속의 검사
+
+| 명령 | 결과 |
+|---|---|
+| `vue-tsc -p tsconfig.app.json --noEmit` | 오류 5건 전부 기존 `bundlePanelAdapters.ts` |
+| `vitest run src/components/management/ src/lib/api/` | **50 통과** (PreviewTestPanel 21) |
+| 영향 검사 4파일 합계 | **64 통과** |
+
+추가한 대표 사례:
+
+- 세 경기 선택 유지 + 세 경기 순차 생성(첫 경기 실패 후 둘째·셋째 진행·저장 확인) 1건.
+- 선택이 2개가 아닐 때 수집 버튼 안내 + 계획 미조회 1건.
+- 근거 3/2/1/1 표시, 근거 부재, 부분 확인 각 1건.
+- 경계 정규화: `target_not_found` 사유의 message·code 보존, `fixture_to=null` 확정,
+  근거 네 목록·건수 이관과 부재 시 `null` 각 1건.
+
+전체 회귀는 지시대로 반복하지 않았고 기존 유효 증거를 재사용했다. 실제 수집·생성·모델
+호출은 여전히 0회다.
