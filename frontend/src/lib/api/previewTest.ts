@@ -47,17 +47,31 @@ export type TestPlanTarget = {
   include_details: boolean
 }
 
+/**
+ * 수집 불가 사유 한 건.
+ *
+ * 서버는 `{code, message}` 객체를 준다. 화면은 `message`를 그대로 보여주고 `code`는
+ * 진단용으로만 남긴다(서버 문장을 새로 만들지 않는다).
+ */
+export type TestBlockingReason = {
+  code: string | null
+  message: string
+}
+
 /** 기간 수집 계획. 서버가 활성 대상·기간을 해석한 결과다. */
 export type TestPlan = {
   fixture_ids: number[]
   /** 수집 시작(KST 당일 00:00). 시간대 포함 ISO 문자열. */
   fixture_from: string
-  /** 수집 끝(두 경기 중 마지막 킥오프). 시간대 포함 ISO 문자열. */
-  fixture_to: string
+  /**
+   * 수집 끝(두 경기 중 마지막 킥오프). 킥오프를 확인하지 못하면 `null`이며, 그때 서버는
+   * `can_collect=false`를 함께 준다. 없는 시각을 만들어 채우지 않는다.
+   */
+  fixture_to: string | null
   target_ids: number[]
   targets: TestPlanTarget[]
   can_collect: boolean
-  blocking_reasons: string[]
+  blocking_reasons: TestBlockingReason[]
   scope_notes: string[]
 }
 
@@ -184,14 +198,36 @@ export function parseCandidates(payload: unknown): Parsed<TestCandidates> {
   }
 }
 
+/**
+ * 수집 불가 사유 목록. 서버는 `{code, message}` 객체를 주지만, 문자열만 주는 구현도
+ * 받아 둔다(사유를 잃어버리면 화면이 "이유 없이 실행 불가"로 보인다).
+ */
+function blockingReasons(value: unknown): TestBlockingReason[] {
+  const out: TestBlockingReason[] = []
+  for (const entry of list(value)) {
+    if (typeof entry === 'string') {
+      const message = entry.trim()
+      if (message) out.push({ code: null, message })
+      continue
+    }
+    const row = record(entry)
+    if (!row) continue
+    const message = text(row.message)
+    if (message === null) continue
+    out.push({ code: text(row.code), message })
+  }
+  return out
+}
+
 export function parsePlan(payload: unknown): Parsed<TestPlan> {
   const root = record(payload)
   if (!root) return bad('수집 계획 응답이 객체가 아닙니다.')
   const fixtureFrom = text(root.fixture_from)
-  const fixtureTo = text(root.fixture_to)
-  if (fixtureFrom === null || fixtureTo === null) {
-    return bad('수집 계획 응답에 기간(fixture_from/fixture_to)이 없습니다.')
+  if (fixtureFrom === null) {
+    return bad('수집 계획 응답에 수집 시작(fixture_from)이 없습니다.')
   }
+  // 끝 시각은 서버가 모를 수 있다(킥오프 미확인). 그때도 계획은 유효하며 실행만 막힌다.
+  const fixtureTo = text(root.fixture_to)
   const targets: TestPlanTarget[] = []
   for (const raw of list(root.targets)) {
     const row = record(raw)
@@ -219,8 +255,9 @@ export function parsePlan(payload: unknown): Parsed<TestPlan> {
         .filter((entry): entry is number => entry !== null),
       targets,
       // 실행 가능 여부를 주지 않으면 실행 불가로 읽는다(없는 허가를 만들지 않는다).
-      can_collect: root.can_collect === true,
-      blocking_reasons: textList(root.blocking_reasons),
+      // 끝 시각을 모르면 그 자체가 실행 불가 사유다.
+      can_collect: root.can_collect === true && fixtureTo !== null,
+      blocking_reasons: blockingReasons(root.blocking_reasons),
       scope_notes: textList(root.scope_notes),
     },
   }

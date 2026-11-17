@@ -352,6 +352,12 @@ async function refreshCollection(runId: string) {
 async function startCollection() {
   const current = plan.value
   if (!canStartCollection.value || !current) return
+  // 끝 시각이 없으면 수집 기간이 성립하지 않는다. 서버도 실행 불가로 표시했으므로
+  // 값을 만들어 보내지 않고 사유를 그대로 보여준다.
+  if (current.fixture_to === null) {
+    collectionError.value = '수집 끝 시각을 확인하지 못해 실행할 수 없습니다. 다른 경기를 선택하세요.'
+    return
+  }
   collecting.value = true
   collectionError.value = null
   collectionNotice.value = null
@@ -702,7 +708,9 @@ onBeforeUnmount(() => {
         <li v-for="note in plan.scope_notes" :key="note">{{ note }}</li>
       </ul>
       <ul v-if="planBlocked" class="ptp__blocked" data-testid="ptp-blocked">
-        <li v-for="reason in planBlocked" :key="reason">{{ reason }}</li>
+        <li v-for="(reason, index) in planBlocked" :key="`${reason.code ?? 'reason'}-${index}`">
+          {{ reason.message }}
+        </li>
       </ul>
     </div>
 
