@@ -542,3 +542,96 @@ integration 4건에 `@pytest.mark.integration`이 함께 붙어 있으므로 **`
 - a324e6e의 합성 DB 정정 문구와 §10.4의 정정은 유지한다.
 - frontend(고정 `77aec56`), 기존 사용자 서버, 실DB 쓰기, 실수집, 실AI 호출, 서버 전환:
   이번에도 **미실행**이다.
+
+## 13. PT-LIVE 서버 전환과 연결 확인 (2026-11-17 23:2x KST)
+
+제품 코드는 `1b2e2cc`이고 이 절의 커밋은 보고서만 바꾼다. 코드 수정·테스트 재실행·
+migration·GRANT·스키마 초기화는 하지 않았다.
+
+### 13.1 전환 전 확인한 소유
+
+| 포트 | 전환 전 소유 | cwd | 판단 |
+|---|---|---|---|
+| 5173 | `node .../player-section-integration/frontend/node_modules/.bin/vite` (PID 36646, Orca `term_9796803e…`) | `player-section-integration/frontend` | 사용자 확인용 **이 대상만** 종료 |
+| 38000 | `benchmark/.venv/bin/python -m uvicorn app.main:app --port 38000` (PID 36569, Orca `term_a61aadfe…`) | `player-section-integration` | 사용자 확인용 **이 대상만** 종료 |
+| 38003 | (없음) | — | 수집 프로세스 신규 기동 |
+| 5175/38002, 5174/38001, 8000 | 그대로 | — | **유지** |
+
+보고서의 과거 PID는 종료에 쓰지 않았다. 위 PID는 전환 직전 `lsof`/`ps`로 다시 확인한 값이고,
+Orca terminal handle로 해당 탭에 `Ctrl-C`를 보내 정상 종료했다. 종료 후 두 포트가 비었음을
+확인한 뒤 새로 기동했다.
+
+### 13.2 새로 기동한 프로세스
+
+| 대상 | 명령 | cwd | PID | Orca terminal |
+|---|---|---|---|---|
+| 프리뷰 38000 | `BENCHMARK_PYTHON=/Users/woolee/benchmark/.venv/bin/python BENCHMARK_PORT=38000 PREVIEW_CREDENTIALS_FILE=…/preview-dev-restricted.env PREVIEW_MODEL_CREDENTIALS_FILE=…/model-live.env ./scripts/run_benchmark_dev.sh` | `preview-test-integration` | 65959 | `term_ab926669-3957-4b05-a33b-32de6c7daa08` |
+| 프론트 5173 | `BENCHMARK_BACKEND_URL=http://127.0.0.1:38000 BENCHMARK_COLLECTION_BACKEND_URL=http://127.0.0.1:38003 npm run dev` | `preview-test-integration/frontend` | 67311 | `term_53af07d5-67be-4ee9-b27a-eb8ffe38de52` |
+| 수집 38003 | `BENCHMARK_PYTHON=… PREVIEW_TEST_COLLECTION_CREDENTIALS=…/preview-dev.env PREVIEW_TEST_COLLECTION_PORT=38003 ./scripts/run_preview_test_collection.sh` | `preview-test-integration` | 68684 | `term_74737883-30f9-48c9-8d92-e361ddb5fa6a` |
+
+세 프로세스의 cwd가 모두 새 통합 워크트리다. 기동 시점의 워크트리 HEAD는 `b04387e`였고
+(제품 코드 `1b2e2cc`에 §12.4 문서 정정만 더한 상태), 서버를 띄운 뒤 이 절을 추가했으므로
+현재 HEAD는 이 커밋이다. 두 커밋 사이에 제품 코드 변경은 없다(`git diff 1b2e2cc -- app/`가
+비어 있음). 프론트는 새 워크트리에 이미 있던 `frontend/node_modules`(vite 6.4.2)를
+재사용했고 잠금 파일·빌드 설정을 새로 만들거나 고치지 않았다.
+
+### 13.3 환경 계약 확인 (값 비노출)
+
+프리뷰 38000 프로세스에서 읽은 값:
+
+```
+LOCAL_DEV_AUTH_ENABLED=true   AUTH_COOKIE_NAME=benchmark_refresh_local
+AUTH_COOKIE_SECURE=false      AUTH_COOKIE_SAMESITE=lax
+CORS_ALLOW_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+WORKER_SCHEDULER_ENABLED=false   HOME_PREVIEW_ENABLED=false
+PREVIEW_CREDENTIALS_FILE=…/preview-dev-restricted.env
+PREVIEW_MODEL_PROVIDER=vertex  PREVIEW_MODEL_NAME=gemini-3.5-flash  PREVIEW_MODEL_LOCATION=global
+DATABASE_URL 사용자 = preview_dev_runtime.xhsqnjezvqzzfebshsvl
+```
+
+- 제한 자격이 실제 프로세스에 적용됐다(사용자 이름만 확인, 비밀번호 미출력). public 쓰기
+  없음은 §7.2의 기존 읽기 전용 검증 근거를 재사용하며, 이번에 권한을 다시 조회하거나
+  GRANT하지 않았다.
+- 제품 모델 설정(vertex/gemini-3.5-flash/global)은 기존 값 그대로다. 바꾸지 않았다.
+
+수집 38003 프로세스에서 읽은 값:
+
+```
+WORKER_SCHEDULER_ENABLED=false   HOME_PREVIEW_ENABLED=false
+AUTH_COOKIE_NAME=benchmark_refresh_local   LOCAL_DEV_AUTH_ENABLED=true
+DATABASE_URL 사용자 = postgres.xhsqnjezvqzzfebshsvl   (수집 자격, 이 프로세스에만)
+모델 키(PREVIEW_MODEL_*) 개수 = 0
+JWT_SECRET_KEY 해시 앞 12자 = 4b0d7fae76f9 (프리뷰 38000과 동일 → 서명 호환)
+```
+
+즉 두 프로세스가 **같은 DB·같은 서명키**를 쓰되 자격은 분리돼 있고, 수집 프로세스에는 모델
+설정이 없어 수집만 실행이 모델을 부를 수 없다. 프리뷰 프로세스의 DATABASE_URL을 광권한으로
+바꾸지 않았다.
+
+### 13.4 연결·경계 확인 (읽기 전용 GET/무인증 요청만)
+
+| 확인 | 결과 |
+|---|---|
+| `GET 127.0.0.1:38000/health` | 200 |
+| `GET 127.0.0.1:38003/health` | 200 |
+| `GET 127.0.0.1:5173/` | 200 |
+| `GET 5173 /api/v1/home/recommendations` (프록시→38000) | **200** |
+| `GET 5173 /api/v1/admin/preview/fixtures` (무인증) | 401 |
+| `GET 5173 /api/v1/admin/management/preview-test/candidates` (수집 접두사→38003, 무인증) | **401** (503/404 아님) |
+| `GET 127.0.0.1:38003 …/preview-test/candidates` 직접, 무인증 | 401 |
+| `POST 127.0.0.1:38003 /api/v1/admin/preview/bundle-runs` 무인증 | 401 |
+| `GET 127.0.0.1:38000 …/preview-test/candidates` 직접, 무인증 | 401 |
+
+수집 접두사가 **38003으로 실제 연결**됐고(503·404가 아니라 401), 보호 API는 인증 없이
+차단된다. 토큰·쿠키를 추출하거나 인증을 우회하지 않았다. 수집 POST·프리뷰 생성·공개 승인·
+DB 쓰기는 **하지 않았다**(위 POST 요청은 빈 본문이며 인증 단계에서 401로 끝나 핸들러에
+도달하지 않는다).
+
+### 13.5 남은 사용자 확인 (조정자 후속)
+
+1. 브라우저에서 `http://127.0.0.1:5173` 정상 ADMIN 로그인.
+2. `/admin?tab=preview`에서 현재 날짜 기준 추천 후보와 수집 기간 확인.
+3. '기간 지정 수집' 1회 실행 → 실제 공급자 응답·저장 범위 확인(수집은 아직 실행하지 않았다).
+4. 수집 결과 확인 후 사용자가 직접 두 경기 생성을 시작.
+
+실제 수집·실제 생성·모델 호출은 이 배정에서 0회다.
