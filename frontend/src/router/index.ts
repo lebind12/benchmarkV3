@@ -95,6 +95,24 @@ async function requireAdminPreviewRoute(to: { fullPath: string }) {
   return auth.isAdmin ? true : { name: 'not-found' }
 }
 
+function buildAdminPreviewTabTarget(query: Record<string, unknown>) {
+  const rawRun = queryValues(query.run)[0]
+  const rest: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(query)) {
+    if (key === 'run' || key === 'tab') continue
+    rest[key] = value
+  }
+  return {
+    name: 'admin' as const,
+    query: {
+      ...rest,
+      tab: 'preview',
+      ...(rawRun && rawRun.trim() ? { previewRun: rawRun.trim() } : {}),
+    },
+    replace: true,
+  }
+}
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -175,8 +193,12 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'admin/runs',
         name: 'preview-runs',
-        beforeEnter: requireAdminPreviewRoute,
-        component: () => import('@/features/match-preview/PreviewRunsView.vue'),
+        beforeEnter: async (to) => {
+          const guard = await requireAdminPreviewRoute(to)
+          if (guard !== true) return guard
+          return buildAdminPreviewTabTarget(to.query)
+        },
+        component: NotFound,
       },
       { path: 'broadcast', name: 'broadcast', beforeEnter: openBroadcast, component: PlaceholderView, props: { title: '방송' } },
       {

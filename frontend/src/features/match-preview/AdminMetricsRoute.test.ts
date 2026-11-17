@@ -40,12 +40,12 @@ async function mountRoute(payload?: { runId: string; filters: unknown }) {
   const { default: AdminMetricsRoute } = await import(
     '@/features/match-preview/AdminMetricsRoute.vue'
   )
-  const RunsStub = { template: '<div data-testid="runs-stub">runs</div>' }
+  const AdminStub = { template: '<div data-testid="admin-stub">admin</div>' }
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
       { path: '/admin/metrics', name: 'preview-metrics', component: AdminMetricsRoute },
-      { path: '/admin/runs', name: 'preview-runs', component: RunsStub },
+      { path: '/admin', name: 'admin', component: AdminStub },
     ],
   })
   await router.push('/admin/metrics')
@@ -79,9 +79,10 @@ describe('AdminMetricsRoute', () => {
     await wrapper.get('[data-testid="stub-select-run"]').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.name).toBe('preview-runs')
+    expect(router.currentRoute.value.name).toBe('admin')
     const query = router.currentRoute.value.query
-    expect(query.run).toBe(RUN_ID)
+    expect(query.tab).toBe('preview')
+    expect(query.previewRun).toBe(RUN_ID)
     expect(query.from).toBe('metrics')
     // 같은 조건이 실행 화면의 질의에 그대로 남는다(값을 잃거나 지어내지 않는다).
     expect(query.environment).toBe('dev')
@@ -101,8 +102,8 @@ describe('AdminMetricsRoute', () => {
     await wrapper.get('[data-testid="stub-select-run"]').trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.name).toBe('preview-runs')
-    // 필터가 비어 있으면 실행 ID와 출처만 남는다(기본 조회를 조건으로 꾸미지 않는다).
-    expect(Object.keys(router.currentRoute.value.query).sort()).toEqual(['from', 'run'])
+    expect(router.currentRoute.value.name).toBe('admin')
+    // 필터가 비어 있으면 관리 탭·실행 ID·출처만 남는다(기본 조회를 조건으로 꾸미지 않는다).
+    expect(Object.keys(router.currentRoute.value.query).sort()).toEqual(['from', 'previewRun', 'tab'])
   })
 })

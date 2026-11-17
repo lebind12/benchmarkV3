@@ -21,7 +21,7 @@ const runId = computed<string>(() => {
 })
 
 const inspectorHref = computed<string>(() =>
-  runId.value ? `/admin/runs?run=${encodeURIComponent(runId.value)}` : '/admin/runs',
+  runId.value ? `/admin?tab=preview&previewRun=${encodeURIComponent(runId.value)}` : '/admin?tab=preview',
 )
 </script>
 

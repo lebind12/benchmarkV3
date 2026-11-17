@@ -105,14 +105,14 @@ async function generate() {
     </button>
     <p v-if="running" role="status">{{ resultFixture?.label }} 프리뷰를 생성하고 저장하는 중입니다.</p>
     <p v-if="message" role="alert" class="generation__error">{{ message }}</p>
-    <RouterLink to="/admin/runs">저장된 실행 목록</RouterLink>
+    <RouterLink to="/admin?tab=preview">저장된 실행 목록</RouterLink>
 
     <section v-if="result" class="generation__result" aria-label="저장된 생성 결과" data-testid="bundle-saved-result">
       <h3>{{ resultFixture?.label }} · 저장된 결과</h3>
       <nav class="generation__links" aria-label="생성 결과 조회">
         <button type="button" @click="readVersion++">저장 결과 다시 읽기</button>
         <RouterLink :to="`/admin/preview/${result.run_id}`">프리뷰 별도 열기</RouterLink>
-        <RouterLink :to="`/admin/runs?run=${encodeURIComponent(result.run_id)}`">요청·원문·섹션 재실행</RouterLink>
+        <RouterLink :to="`/admin?tab=preview&previewRun=${encodeURIComponent(result.run_id)}`">요청·원문·섹션 재실행</RouterLink>
       </nav>
       <MatchPreview :key="`${result.run_id}:${readVersion}`" :run-id="result.run_id" />
       <details class="generation__diagnostics">

@@ -19,11 +19,11 @@ const router = useRouter()
 
 async function openRun(payload: { runId: string; filters: MetricsFilterContext }) {
   const filters = metricsFilterRouteQuery(payload.filters)
-  // 실행 목록 화면이 `run` 질의를 보고 해당 실행의 검사 화면을 연다. 필터는 같은
+  // 관리 프리뷰 탭이 `previewRun` 질의를 보고 해당 실행을 연다. 필터는 같은
   // 질의에 그대로 실어, 실행을 보고 지표로 돌아갈 때 조건이 남아 있게 한다.
   await router.push({
-    name: 'preview-runs',
-    query: { run: payload.runId, from: 'metrics', ...filters },
+    name: 'admin',
+    query: { tab: 'preview', previewRun: payload.runId, from: 'metrics', ...filters },
   })
 }
 </script>

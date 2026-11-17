@@ -29,9 +29,13 @@ import {
 import { structuredFromSectionResult } from './sectionStructured'
 import type { RunDetail, SectionResultView, UndoReport } from './types'
 
-const props = defineProps<{
-  runId: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    runId: string
+    hideApproval?: boolean
+  }>(),
+  { hideApproval: false },
+)
 
 const emit = defineEmits<{ (event: 'closed'): void; (event: 'cancelled'): void }>()
 
@@ -509,7 +513,7 @@ function formatTime(value: string | null): string {
         :module-execution-id="activeModule.module_execution_id"
       />
 
-      <section class="approval" data-testid="inspector-approval">
+      <section v-if="!hideApproval" class="approval" data-testid="inspector-approval">
         <h3 class="undo__title">섹션 워크플로우 승인</h3>
         <p class="inspector__note">{{ detail.approval_note }}</p>
 

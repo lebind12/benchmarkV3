@@ -313,7 +313,7 @@ async function approve() {
 
 function openInspector() {
   if (!runResult.value) return
-  router.push({ name: 'preview-runs', query: { run: runResult.value.run_id } })
+  router.push({ name: 'admin', query: { tab: 'preview', previewRun: runResult.value.run_id } })
 }
 
 /** 종합 섹션 결과는 독자용 프리뷰 화면에서 연다(진단은 그 화면의 접힌 영역). */

@@ -37,6 +37,8 @@ const previewApi = vi.hoisted(() => ({
   saveComposition: vi.fn(),
   regenerateSection: vi.fn(),
   replayResult: vi.fn(),
+  approvals: vi.fn(),
+  approveSection: vi.fn(),
 }))
 
 /** 관리 화면은 라우터 쿼리로 탭을 고른다. 검사에서는 쿼리만 고정한다. */
@@ -62,7 +64,12 @@ vi.mock('@/features/match-preview/InformationBundlePanel.vue', () => ({
   default: { name: 'InformationBundlePanel', props: ['runId'], template: '<p data-testid="bundle-stub">bundle</p>' },
 }))
 vi.mock('@/features/match-preview/RunInspector.vue', () => ({
-  default: { name: 'RunInspector', props: ['runId'], template: '<p data-testid="inspector-stub">inspector</p>' },
+  default: {
+    name: 'RunInspector',
+    props: { runId: String, hideApproval: Boolean },
+    template:
+      '<p data-testid="inspector-stub" :data-hide-approval="String(Boolean(hideApproval))">inspector</p>',
+  },
 }))
 vi.mock('@/features/match-preview/CompositionPanel.vue', () => ({
   default: { name: 'CompositionPanel', props: ['runId', 'results', 'fixtureId'], template: '<p data-testid="composition-stub">composition</p>' },
@@ -313,6 +320,15 @@ beforeEach(() => {
   currentQuery.value = { tab: 'preview' }
   previewApi.composition.mockResolvedValue(ok({ run_id: 'run-1557474-a', available: false, reason: '구성본 없음', composition: null }))
   previewApi.readerPreviewDiagnostics.mockResolvedValue(fail(404))
+  previewApi.approvals.mockResolvedValue(
+    ok({
+      contract_version: 'c',
+      workflows: {},
+      approved: [],
+      unapproved: [],
+      scope_note: '',
+    }),
+  )
   homePreviewApi.getHomePreviewDocument.mockRejectedValue(new Error('not mocked'))
   homePreviewApi.getHomeRecommendations.mockRejectedValue(new Error('not mocked'))
 })
@@ -340,6 +356,9 @@ describe('프리뷰 탭 — 생성 요청 횟수', () => {
 
   it('확인한 그 경기 하나만 생성하고, 더블클릭해도 POST는 한 번이다', async () => {
     previewApi.fixture.mockResolvedValue(ok(FIESTA()))
+    previewApi.readerPreview.mockResolvedValue(ok(readerPreview()))
+    previewApi.sectionResults.mockResolvedValue(ok(savedSections()))
+    previewApi.detail.mockResolvedValue(ok(runDetail()))
     let finish: (value: ApiResult<BundlePreviewRunResponse>) => void = () => undefined
     previewApi.runBundle.mockImplementation(
       () => new Promise<ApiResult<BundlePreviewRunResponse>>((resolve) => { finish = resolve }),
@@ -361,6 +380,10 @@ describe('프리뷰 탭 — 생성 요청 횟수', () => {
   })
 
   it('번호를 바꾸면 이전 조회 응답으로 생성하지 않고, 늦은 응답을 화면에 붙이지 않는다', async () => {
+    previewApi.readerPreview.mockResolvedValue(ok(readerPreview()))
+    previewApi.sectionResults.mockResolvedValue(ok(savedSections()))
+    previewApi.detail.mockResolvedValue(ok(runDetail()))
+    previewApi.runBundle.mockResolvedValue(ok({ ...SAVED_RUN, fixture_id: 1557475 }))
     let finishFirst: (value: ApiResult<FixtureCandidate>) => void = () => undefined
     previewApi.fixture
       .mockImplementationOnce(
@@ -1801,5 +1824,201 @@ describe('프리뷰 탭 — 실행 전환 비움 및 홈 반영 상태', () => {
     resolveDelayedComp(ok({ run_id: 'run-1557474-c', available: false, reason: '이전 응답', composition: null }))
     await flushPromises()
     expect(wrapper.get('[data-testid="preview-home-document-status"]').text()).toContain('대조 미확인')
+  })
+})
+
+describe('프리뷰 탭 — 섹션 워크플로우 승인 연동 및 중복 UI 차단', () => {
+  // 이유: 프리뷰 탭에서 바로 승인 시 detail/홈 반영 GET이 함께 갱신되고 RunInspector 승인은 숨겨져야 한다.
+  // 실패 시 사용자 결과: 승인 직후 홈 반영 여부를 알 수 없거나 한 화면에 승인 UI가 두 번 떠 다른 버전을 누를 수 있다.
+  it('승인 성공 후 detail·홈 반영 GET을 함께 갱신하고 중첩 RunInspector 승인은 숨긴다', async () => {
+    previewApi.readerPreview.mockResolvedValue(
+      ok(
+        readerPreview({
+          sections: [
+            {
+              section_id: 'section_players',
+              title: '주목 선수',
+              body: '저장된 주목 선수 본문',
+              sources: [],
+              quality: 'ready',
+              partial: false,
+              version: 1,
+            },
+          ],
+        }),
+      ),
+    )
+    previewApi.sectionResults.mockResolvedValue(
+      ok({
+        run_id: 'run-1557474-a',
+        section_results: [
+          sectionResult({
+            section_result_id: 'sr-players-live',
+            workflow_id: 'section_players',
+            workflow_version: 'wfv-players-2',
+            version: 1,
+            title: '주목 선수',
+            body: '저장된 주목 선수 본문',
+            mode: 'live',
+            approvable: true,
+          }),
+        ],
+      }),
+    )
+    previewApi.detail
+      .mockResolvedValueOnce(
+        ok({
+          ...runDetail(),
+          fixture: {
+            fixture_id: 1557474,
+            kickoff_at: '2026-11-21T12:30:00Z',
+            season: 2026,
+            league_id: 39,
+            home_team_id: 13,
+            away_team_id: 4,
+          },
+          section_approvals: [
+            {
+              workflow_id: 'section_players',
+              display_name: '주목 선수',
+              description: '',
+              module_ids: ['bundle_section_players'],
+              implemented: true,
+              unrunnable_reason: null,
+              state: 'none',
+              label: '미승인',
+              detail: null,
+              current_version: 'wfv-players-2',
+              active_approval: null,
+              pinned_approval: null,
+              can_approve: true,
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        ok({
+          ...runDetail(),
+          fixture: {
+            fixture_id: 1557474,
+            kickoff_at: '2026-11-21T12:30:00Z',
+            season: 2026,
+            league_id: 39,
+            home_team_id: 13,
+            away_team_id: 4,
+          },
+          section_approvals: [
+            {
+              workflow_id: 'section_players',
+              display_name: '주목 선수',
+              description: '',
+              module_ids: ['bundle_section_players'],
+              implemented: true,
+              unrunnable_reason: null,
+              state: 'approved',
+              label: '승인됨',
+              detail: null,
+              current_version: 'wfv-players-2',
+              active_approval: {
+                approval_id: 'apr-1',
+                workflow_id: 'section_players',
+                workflow_version: 'wfv-players-2',
+                constituents: [],
+                evidence: {
+                  run_id: 'run-1557474-a',
+                  section_result_id: 'sr-players-live',
+                  reviewed_at: '2026-11-18T03:20:00Z',
+                },
+                approved_by_actor_id: '1',
+                approved_at: '2026-11-18T03:20:00Z',
+                reviewed_note: '검토 완료',
+                supersedes_approval_id: null,
+              },
+              pinned_approval: null,
+              can_approve: true,
+            },
+          ],
+        }),
+      )
+    previewApi.approveSection.mockResolvedValue(
+      ok({
+        approval_id: 'apr-1',
+        workflow_id: 'section_players',
+        workflow_version: 'wfv-players-2',
+        constituents: [],
+        evidence: {
+          run_id: 'run-1557474-a',
+          section_result_id: 'sr-players-live',
+          reviewed_at: '2026-11-18T03:20:00Z',
+        },
+        approved_by_actor_id: '1',
+        approved_at: '2026-11-18T03:20:00Z',
+        reviewed_note: '검토 완료',
+        supersedes_approval_id: null,
+      }),
+    )
+    homePreviewApi.getHomePreviewDocument
+      .mockResolvedValueOnce({ status: 'none', fixture_id: 1557474, reason: 'no_approved_version', reason_text: null, run_id: null, generated_at: null, data_as_of: null, complete: false, sections: [] })
+      .mockResolvedValueOnce({
+        schema_version: '1.0',
+        status: 'available',
+        fixture_id: 1557474,
+        reason: null,
+        reason_text: null,
+        saved_at: '2026-11-18T03:20:00Z',
+        run_id: 'run-1557474-a',
+        complete: false,
+        fixture: { external_id: 1557474 },
+        headline: '전망',
+        sections: [
+          {
+            section_result_id: 'sr-players-live',
+            run_id: 'run-1557474-a',
+            workflow_id: 'section_players',
+            workflow_version: 'wfv-players-2',
+            version: 1,
+            title: '주목 선수',
+            body: '저장된 주목 선수 본문',
+            sources: [],
+            quality: 'ready',
+            partial: false,
+            created_at: '2026-11-18T03:20:00Z',
+          },
+        ],
+      })
+    homePreviewApi.getHomeRecommendations.mockResolvedValue({ as_of: null, items: [] })
+
+    const wrapper = mount(PreviewPanel, mountOptions())
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-a')
+    await submitOpenRun(wrapper)
+
+    expect(wrapper.get('[data-testid="preview-home-document-status"]').text()).toContain('no_approved_version')
+    expect(wrapper.get('[data-testid="preview-approval"]').text()).toContain('미승인')
+
+    await wrapper.get('[data-testid="preview-approval-note"]').setValue('검토 완료')
+    await wrapper.get('[data-testid="preview-approval-submit"]').trigger('click')
+    await flushPromises()
+
+    expectCalledOnceWith(previewApi.approveSection, 'section_players', {
+      run_id: 'run-1557474-a',
+      section_result_id: 'sr-players-live',
+      note: '검토 완료',
+    })
+    expect(previewApi.runBundle).not.toHaveBeenCalled()
+    expect(previewApi.detail).toHaveBeenCalledTimes(2)
+    expect(homePreviewApi.getHomePreviewDocument).toHaveBeenCalledTimes(2)
+    expect(wrapper.get('[data-testid="preview-approval-active-version"]').text()).toContain('wfv-players-2')
+    expect(wrapper.get('[data-testid="preview-home-section-diff-section_players"]').text()).toContain('일치')
+
+    // 진단의 RunInspector에는 hideApproval=true가 전달되어 중복 승인 UI를 숨긴다.
+    const diag = wrapper.get('[data-testid="preview-diagnostics"]').element as HTMLDetailsElement
+    diag.open = true
+    await wrapper.get('[data-testid="preview-diagnostics"]').trigger('toggle')
+    await flushPromises()
+    const insp = wrapper.get('[data-testid="preview-inspector"]').element as HTMLDetailsElement
+    insp.open = true
+    await wrapper.get('[data-testid="preview-inspector"]').trigger('toggle')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="inspector-stub"]').attributes('data-hide-approval')).toBe('true')
   })
 })

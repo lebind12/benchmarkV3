@@ -55,9 +55,9 @@ describe('관리자 프리뷰 라우팅·인증 스모크', () => {
     expect(router.currentRoute.value.name).toBe('login')
     expect(router.currentRoute.value.query.next).toBe('/admin/sections')
 
-    await router.push('/admin/runs')
+    await router.push('/admin/runs?run=run-123')
     expect(router.currentRoute.value.name).toBe('login')
-    expect(router.currentRoute.value.query.next).toBe('/admin/runs')
+    expect(router.currentRoute.value.query.next).toBe('/admin/runs?run=run-123')
 
     expect(calledUrls.some((url) => url.includes('/api/v1/auth/session'))).toBe(false)
     expect(calledUrls.some((url) => url.includes('/api/v1/auth/refresh'))).toBe(true)
@@ -172,7 +172,7 @@ describe('관리자 프리뷰 라우팅·인증 스모크', () => {
     const sectionsLink = panel.get('[data-testid="preview-open-sections"]')
     const runsLink = panel.get('[data-testid="preview-open-runs"]')
     expect(sectionsLink.attributes('href')).toBe('/admin/sections')
-    expect(runsLink.attributes('href')).toBe('/admin/runs')
+    expect(runsLink.attributes('href')).toBe('/admin?tab=preview')
 
     await sectionsLink.trigger('click')
     await vi.waitFor(() => {
@@ -187,17 +187,16 @@ describe('관리자 프리뷰 라우팅·인증 스모크', () => {
     await flushPromises()
     expect(sectionWrapper.find('[data-testid="workspace-sections"]').exists()).toBe(true)
 
-    await router.push({ name: 'preview-runs' })
+    // 이유: 기존 /admin/runs 직접 진입은 깨진 별도 화면 대신 관리 프리뷰 탭(/admin?tab=preview&previewRun=...)으로 리다이렉트되어야 한다.
+    // 실패 시 사용자 결과: 사용자가 기존 URL 또는 북마크로 진입하면 승인 UI가 없는 분리 화면에 갇힌다.
+    await router.push('/admin/runs?run=run-123')
     await flushPromises()
-    expect(router.currentRoute.value.name).toBe('preview-runs')
-    expect(router.currentRoute.value.path).toBe('/admin/runs')
-
-    const PreviewRunsView = (await import('@/features/match-preview/PreviewRunsView.vue')).default
-    const runsWrapper = mount(PreviewRunsView, {
-      global: { plugins: [router] },
+    expect(router.currentRoute.value.name).toBe('admin')
+    expect(router.currentRoute.value.path).toBe('/admin')
+    expect(router.currentRoute.value.query).toEqual({
+      tab: 'preview',
+      previewRun: 'run-123',
     })
-    await flushPromises()
-    expect(runsWrapper.find('[data-testid="runs-empty"]').exists()).toBe(true)
 
     expect(calls.some((call) => call.url.includes('/api/v1/auth/session'))).toBe(false)
     expect(
@@ -209,7 +208,94 @@ describe('관리자 프리뷰 라우팅·인증 스모크', () => {
     ).toBe(false)
 
     await sectionWrapper.unmount()
-    await runsWrapper.unmount()
     await panel.unmount()
+  })
+
+  // 이유: PreviewPanel 내부에 중첩된 RunInspector는 hideApproval=true일 때 자체 승인 UI를 숨기고 단독 실행에서는 유지해야 한다.
+  // 실패 시 사용자 결과: 프리뷰 탭의 진단 아코디언을 열었을 때 승인 UI가 2중으로 렌더링된다.
+  it('hides inspector-approval only when RunInspector receives hideApproval=true', async () => {
+    setAccessToken('admin-token')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.endsWith('/api/v1/admin/preview/runs/run-1')) {
+          return json({
+            summary: {
+              run_id: 'run-1',
+              operation_kind: 'preview',
+              environment: 'dev',
+              mode: 'live',
+              status: 'succeeded',
+              quality: 'ready',
+              fixture_label: '경기',
+              requested_at: '2026-11-18T00:00:00Z',
+              finished_at: '2026-11-18T00:01:00Z',
+              module_count: 0,
+              attempt_count: 0,
+              retry_count: 0,
+              failure_code: null,
+              label: null,
+              cancelled_at: null,
+            },
+            actor_id: '1',
+            config_version: 'c',
+            limits: {},
+            fixture: null,
+            modules: [],
+            results: [],
+            sources: [],
+            attempts: [],
+            artifacts: [],
+            contract_versions: {
+              contract: 'c',
+              provider: 'p',
+              module_input: 'm',
+              preview_document: 'd',
+              inspector: 'i',
+            },
+            inspector_version: 'i',
+            mode_detail: { mode: 'live', label: '실호출', note: '' },
+            inspector_modules: [],
+            registry: {
+              registry_version: 'r',
+              contract_version: 'c',
+              inspector_version: 'i',
+              modules: [],
+              implemented: [],
+              unavailable: [],
+            },
+            approvals: null,
+            section_result_id: null,
+            section_results: [],
+            section_approvals: [],
+            section_workflows: null,
+            approval_note: '',
+            mock_demo_module_id: '',
+            availability_note: '',
+            undo: {
+              state: 'blocked',
+              cancelled_at: null,
+              cancelled_by_actor_id: null,
+              reason: null,
+              can_cancel: false,
+              blocked_reason: null,
+            },
+          })
+        }
+        return json({ run_id: 'run-1', section_results: [] })
+      }),
+    )
+
+    const RunInspector = (await import('@/features/match-preview/RunInspector.vue')).default
+    const standalone = mount(RunInspector, { props: { runId: 'run-1' } })
+    await flushPromises()
+    expect(standalone.find('[data-testid="inspector-approval"]').exists()).toBe(true)
+    await standalone.unmount()
+
+    const embedded = mount(RunInspector, { props: { runId: 'run-1', hideApproval: true } })
+    await flushPromises()
+    expect(embedded.find('[data-testid="inspector-approval"]').exists()).toBe(false)
+    await embedded.unmount()
   })
 })
