@@ -284,19 +284,25 @@ def _test_run_rows(session: Session, *, run_id: str | None = None, limit: int):
 
 
 def list_test_runs(session: Session, *, limit: int = RUN_LIST_LIMIT) -> dict[str, Any]:
-    """수집 시험 실행 목록(부작용 없음).
+    """수집 시험 실행 목록(부작용 없음). envelope는 기존 관리 목록과 같다.
 
-    envelope는 기존 관리 목록과 같다(`active`/`items`/`limit`). `active`는 지금 진행 중인
-    시험 실행 하나이며, 없으면 `None`이다. 저장된 `status`·`cancel_requested_at`만 읽으므로
-    조회가 상태를 바꾸지 않는다.
+    `active`와 `items`는 **서로 다른 집합**이다(기존 `run_list`와 같은 의미).
+
+    - `active`: 진행 중인 시험 실행 **한 건** 또는 `null`.
+    - `items`: 진행 중이 **아닌** 실행만. 같은 실행이 양쪽에 중복되지 않는다.
+
+    판정은 저장된 `status`·`cancel_requested_at`만 읽으므로 조회가 상태를 바꾸지 않는다.
+    `_recover_orphans`처럼 중단 실행을 복구하거나 `run_list`처럼 오래된 기록을 지우지
+    않는다.
     """
     from app.services.management_runs import ACTIVE, payload_view
 
-    rows = _test_run_rows(session, limit=limit)
-    items = [payload_view(row) for row in sorted(rows, key=_created_at, reverse=True)]
+    rows = sorted(_test_run_rows(session, limit=limit), key=_created_at, reverse=True)
+    views = [payload_view(row) for row in rows]
+    active = next((run for run in views if run.get("status") in ACTIVE), None)
     return {
-        "active": next((run for run in items if run.get("status") in ACTIVE), None),
-        "items": items,
+        "active": active,
+        "items": [run for run in views if run is not active],
         "limit": limit,
     }
 

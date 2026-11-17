@@ -17,7 +17,7 @@
 | `GET /preview-test/candidates` | `as_of`, `timezone="Asia/Seoul"`, `candidates[]`, `reason` |
 | `GET /preview-test/plan?fixture_ids=&fixture_ids=` | `fixture_ids`, `fixture_from`, `fixture_to`, `target_ids`, `targets[]`, `can_collect`, `blocking_reasons`, `scope_notes` |
 | `POST /preview-test/runs` | 기존 management run payload(`generate_after_collection=false` 고정) |
-| `GET /preview-test/runs` | `{active, items: [run payload], limit}` (기존 관리 목록과 같은 envelope) |
+| `GET /preview-test/runs` | `{active, items, limit}`. `active`는 진행 중 **한 건 또는 null**, `items`는 **종료 실행만**(같은 실행이 양쪽에 중복되지 않음) |
 | `GET /preview-test/runs/{run_id}` | run payload 한 건 |
 
 `candidates[]`는 `fixture_id`, `kickoff_at`(시간대 포함), `home_name`, `away_name`, `league_name`, `season`, `priority`다. 정렬은 킥오프→추천 순위→외부 경기 ID다. 기존 `eligible_rows`·`priority`를 그대로 쓰므로 홈 추천 정책은 바뀌지 않는다.
@@ -74,13 +74,16 @@ $ git rev-parse HEAD
 07e6cdc0f9c174b08337fcded81fb6f90f03bc42
 $ git status --porcelain        # 착수 시 공백
 
-$ .venv/bin/python -m pytest tests/unit/test_management_preview_test.py \
-    tests/unit/test_home_preview_collection.py tests/preview/test_preview_test_requests.py -q
-78 passed
+$ PREVIEW_TEST_DATABASE_URL=...preview_mp01_test .venv/bin/python -m pytest \
+    tests/unit/test_management_preview_test.py \
+    tests/unit/test_home_preview_collection.py \
+    tests/preview/test_preview_test_requests.py -q
+81 passed          # 커밋 f9bc34c 시점 74, a62545c 시점 78, 이번 보완 후 81
 
-$ .venv/bin/python -m pytest tests/unit tests/preview/test_preview_test_requests.py \
+$ PREVIEW_TEST_DATABASE_URL=...preview_mp01_test .venv/bin/python -m pytest \
+    tests/unit tests/preview/test_preview_test_requests.py \
     tests/preview/test_admin_access.py -q
-158 passed
+161 passed         # 커밋 a62545c 시점 158. 136은 tests/unit 전체 실행 결과다
 
 $ sh -n scripts/run_preview_test_collection.sh
 syntax ok
@@ -115,12 +118,19 @@ missing credentials file: /nonexistent/env   (exit 1)
 | `scope_fixture_ids` | 사용자가 선택한 생성 대상 2개(다른 축) |
 | `fixture_from`/`fixture_to` | 요청 기간(시간대 포함) |
 | `planned_fixture_ids` | 계획 단계가 기간 안에서 대상으로 삼은 경기. **저장 성공 아님** |
-| `stored_fixture_ids` | 백필이 **실제로 upsert한** 경기. 저장 성공의 근거 |
-| `detail_stored_fixture_ids` | 상세 4종까지 저장된 경기(`/injuries` 제외) |
+| `stored_fixture_ids` | 백필이 **upsert하고 커밋까지 끝낸** 경기. 저장 성공 판정의 유일한 근거 |
+| `detail_stored_fixture_ids` | 상세 4종 **응답을 저장한** 경기(`/injuries` 제외) |
 | `unverified_fixture_ids` | 계획에 있었지만 저장이 확인되지 않은 경기. **실패로 단정하지 않음** |
-| `partial` | 수집 단계 오류 유무. true면 확인된 범위만 신뢰 |
+| `partial` | 확인된 범위를 전체로 믿을 수 없는 상태. 백필 결과의 오류 + run 대상 실패(`items[].status`) + 실행 status(failed/partial_failed/cancelled/interrupted) + "계획은 있는데 커밋된 결과 없음"을 모두 반영 |
 | `counts` | `planned`/`stored`/`detail_stored`/`unverified` 건수 |
 | `notes` | 위 구분을 문장으로 남긴 설명 |
+
+**보수적 판정 규칙(문서 명시).**
+
+- `stored_fixture_ids`의 근거는 **커밋까지 끝난** 백필 결과뿐이다. 커밋 전에 결과를 근거에 넣으면 롤백된 경기 ID가 "저장됨"으로 남는다.
+- 예외·취소로 커밋을 확인할 수 없는 범위는 `stored`가 아니라 `unverified`다. **실패로 단정하지 않는다**(미확인과 실패는 다르다).
+- `detail_stored`는 상세 응답 **저장 확인**이다. 정상 빈 응답도 저장으로 세므로, 이 값이 있다고 상세 자료가 채워졌다는 뜻은 아니다.
+- 근거는 정상 종료·취소·상위 예외 세 경로에서 모두 남긴다. 예외로 끝나 저장을 확인할 수 없으면 `partial=true`이고 `stored`는 비어 있다.
 
 **구현 방식.** 새 수집기·추가 외부 호출·새 표를 만들지 않았다. `app/workers/daily_sync/runner.py`의 `SeasonBackfillResult`에 `fixture_external_ids_stored`·`detail_fixture_external_ids_stored`를 추가하고, 이미 upsert하는 루프에서 ID만 기록한다(API 호출 증가 없음). 접기는 `management_runs._collection_evidence`가 한다.
 

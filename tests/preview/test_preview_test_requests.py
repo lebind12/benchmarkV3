@@ -594,11 +594,13 @@ def test_test_run_list_does_not_delete_or_recover_anything(engine, session_facto
     ids = [item["id"] for item in listed["items"]]
     # 시험 범위가 있는 실행만 나온다(일반 수집 실행은 섞이지 않는다).
     assert "unrelated-run" not in ids
-    assert set(ids) == {"old-finished-run", "stale-running-run"}
+    # 종료 실행만 items에 있고, 진행 중 실행은 active에 따로 있다(중복 표시 없음).
+    assert set(ids) == {"old-finished-run"}
+    assert listed["active"]["id"] == "stale-running-run"
 
     with session_factory() as session:
         rows = {row.id: row for row in session.query(ManagementRun).filter(
-            ManagementRun.id.in_(ids)
+            ManagementRun.id.in_(ids + ["stale-running-run"])
         )}
         # 오래된 종료 실행은 삭제되지 않았고, 미완료 실행은 복구되지 않았다.
         assert set(rows) == {"old-finished-run", "stale-running-run"}
@@ -716,8 +718,9 @@ def test_test_run_list_uses_the_existing_envelope_and_reports_the_active_run(eng
     """목록 envelope는 기존 관리 목록과 같은 `active`/`items`/`limit`이다.
 
     검사 이유(실패 시 사용자 영향): envelope가 다르면 재사용하는 화면·클라이언트가
-    진행 중 실행을 찾지 못해 "수집 중" 표시가 사라진다. 진행 중 판정도 저장된 상태만
-    읽어야 하며, 조회가 상태를 바꾸면 안 된다.
+    진행 중 실행을 찾지 못해 "수집 중" 표시가 사라진다. 기존 목록 의미대로 진행 중
+    실행은 `active`에만 두고 `items`에는 넣지 않아야 같은 실행이 두 번 표시되지 않는다.
+    진행 중 판정도 저장된 상태만 읽어야 하며, 조회가 상태를 바꾸면 안 된다.
     """
     from datetime import datetime, timezone
 
@@ -781,8 +784,8 @@ def test_test_run_list_uses_the_existing_envelope_and_reports_the_active_run(eng
     assert listed["limit"] == preview_test.RUN_LIST_LIMIT
     assert listed["active"] is not None
     assert listed["active"]["id"] == "active-test-run"
-    # 진행 중 실행은 items에도 그대로 남는다(숨기지 않는다).
-    assert {item["id"] for item in listed["items"]} == {"finished-test-run", "active-test-run"}
+    # active와 items는 서로 다른 집합이다(기존 목록 의미). 진행 중 실행은 active에만 있다.
+    assert {item["id"] for item in listed["items"]} == {"finished-test-run"}
 
     with session_factory() as session:
         # 조회가 진행 중 실행의 상태를 바꾸지 않았다(복구·중단 표시 없음).

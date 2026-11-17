@@ -1246,6 +1246,12 @@ def _run_with_evidence(monkeypatch, *, plan_ids, result):
         def close(self):
             pass
 
+    class _Target:
+        """저장 단계가 읽는 대상 행. 커밋 경로를 실제로 지나가게 한다."""
+
+        last_sync = None
+        initial_status = None
+
     class _Store:
         def __enter__(self):
             return self
@@ -1254,7 +1260,9 @@ def _run_with_evidence(monkeypatch, *, plan_ids, result):
             return False
 
         def get(self, *args, **kwargs):
-            return None
+            # 대상 행이 없으면 `execute_run`이 커밋하지 않는다. 실제 수집에서는 대상 행이
+            # 있으므로 여기서도 있다고 둔다(커밋 확인 규칙을 검사하기 위해서다).
+            return _Target()
 
         def commit(self):
             return None
@@ -1391,3 +1399,207 @@ def test_evidence_is_absent_for_a_normal_collection_run(monkeypatch):
     monkeypatch.setattr(mr, "run_home_preview_after_sync", lambda **k: {"state": "finished"})
     mr.execute_run(plain, _Guard())
     assert "collection_evidence" not in plain
+
+
+def test_evidence_marks_partial_when_collection_fails_before_any_result(monkeypatch):
+    """백필 결과가 하나도 없어도 **대상 실패/예외가 partial로 반영**된다.
+
+    검사 이유(실패 시 사용자 영향): 백필이 예외로 끝나 결과가 없으면, 결과만 보는 판정은
+    `partial=false`가 되어 실패한 수집이 정상으로 보인다. 사용자는 확인된 저장이 0건인
+    실행을 "이상 없음"으로 읽는다.
+    """
+    from app.services import management_runs as mr
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = "test-key"
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+        api_football_concurrency = 1
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    class _Client:
+        def __init__(self, api_key=None, **kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    class _Store:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def rollback(self):
+            return None
+
+    class _SessionLocal:
+        def __call__(self):
+            return _Store()
+
+    item = {
+        "target_id": 1,
+        "name": "프리미어리그",
+        "league_id": 39,
+        "season": 2026,
+        "status": "pending",
+        "total": 0,
+        "saved": 0,
+        "failed": 0,
+        "pending": 0,
+        "stored_rows": 0,
+        "options": {
+            "include_details": True,
+            "include_players": False,
+            "include_standings": False,
+            "fixture_limit": None,
+        },
+    }
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(mr, "ApiFootballClient", _Client)
+    monkeypatch.setattr(mr, "measure_league_sync_plan", lambda *a, **k: _PlanStub([9001, 9002]))
+    monkeypatch.setattr(mr.db, "SessionLocal", _SessionLocal())
+    # 백필이 예외로 끝난다(결과 객체 없음).
+    monkeypatch.setattr(
+        mr,
+        "backfill_measured_league",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("store exploded")),
+    )
+    monkeypatch.setattr(mr, "run_home_preview_after_sync", lambda **k: {"state": "finished"})
+
+    payload = _payload()
+    payload["items"] = [item]
+    payload["test_scope"] = {
+        "fixture_from": NOW.isoformat(),
+        "fixture_to": (NOW + timedelta(hours=48)).isoformat(),
+        "preview_fixture_ids": [9001, 9002],
+        "run_id": "run-failed",
+        "generate_after_collection": False,
+    }
+    mr.execute_run(payload, _Guard())
+
+    evidence = payload["collection_evidence"]
+    # 결과가 없어도 partial이고, 계획 경기는 저장 성공으로 표시되지 않는다.
+    assert evidence["partial"] is True
+    assert evidence["stored_fixture_ids"] == []
+    assert evidence["unverified_fixture_ids"] == [9001, 9002]
+    assert evidence["counts"]["stored"] == 0
+    assert payload["items"][0]["status"] == "failed"
+
+
+def test_evidence_marks_partial_when_the_target_failed_during_measurement(monkeypatch):
+    """수집 범위 확인 단계에서 대상이 실패하면 partial이다(계획이 없어도).
+
+    검사 이유(실패 시 사용자 영향): 계획조차 없으면 근거가 비어 보이는데, 그 상태를
+    정상으로 표시하면 실패한 수집이 "대상 없음"처럼 보인다.
+    """
+    from app.services import management_runs as mr
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = "test-key"
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+        api_football_concurrency = 1
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    class _Client:
+        def __init__(self, api_key=None, **kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    item = {
+        "target_id": 1,
+        "name": "프리미어리그",
+        "league_id": 39,
+        "season": 2026,
+        "status": "pending",
+        "total": 0,
+        "saved": 0,
+        "failed": 0,
+        "pending": 0,
+        "stored_rows": 0,
+        "options": {
+            "include_details": True,
+            "include_players": False,
+            "include_standings": False,
+            "fixture_limit": None,
+        },
+    }
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(mr, "ApiFootballClient", _Client)
+    monkeypatch.setattr(
+        mr,
+        "measure_league_sync_plan",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("API-Football returned no league")),
+    )
+    monkeypatch.setattr(mr, "run_home_preview_after_sync", lambda **k: {"state": "finished"})
+
+    payload = _payload()
+    payload["items"] = [item]
+    payload["test_scope"] = {
+        "fixture_from": NOW.isoformat(),
+        "fixture_to": (NOW + timedelta(hours=48)).isoformat(),
+        "preview_fixture_ids": [9001, 9002],
+        "run_id": "run-measure-failed",
+        "generate_after_collection": False,
+    }
+    mr.execute_run(payload, _Guard())
+
+    evidence = payload["collection_evidence"]
+    assert evidence["partial"] is True
+    assert evidence["planned_fixture_ids"] == []
+    assert evidence["stored_fixture_ids"] == []
+    assert payload["status"] == "failed"
+
+
+def test_evidence_is_written_on_the_top_level_exception_path(monkeypatch):
+    """상위 예외로 끝난 시험 실행도 근거를 남기고 `partial`이 true다.
+
+    검사 이유(실패 시 사용자 영향): 예외 경로에 근거 키가 없으면 화면이 "저장 0건"과
+    "근거 없음"을 구분하지 못하고, 실패한 실행을 정상 모양으로 표시한다.
+    """
+    from app.services import management_runs as mr
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = None  # 이 값 때문에 상위 예외로 끝난다.
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+
+    payload = _payload()
+    payload["test_scope"] = {
+        "fixture_from": NOW.isoformat(),
+        "fixture_to": (NOW + timedelta(hours=48)).isoformat(),
+        "preview_fixture_ids": [9001, 9002],
+        "run_id": "run-exc",
+        "generate_after_collection": False,
+    }
+    mr.execute_run(payload, _Guard())
+
+    evidence = payload["collection_evidence"]
+    assert payload["status"] == "failed"
+    assert evidence["partial"] is True
+    assert evidence["stored_fixture_ids"] == []
+    assert evidence["planned_fixture_ids"] == []

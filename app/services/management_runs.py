@@ -579,16 +579,21 @@ def _collection_evidence(payload, test_scope, plans, results) -> dict:
 
     - `planned_fixture_ids`: 계획 단계가 **기간 안에서** 대상으로 삼은 외부 경기 ID다.
       아직 저장 성공이 아니다(조회 단계의 계획).
-    - `stored_fixture_ids`: 백필이 **실제로 upsert한** 외부 경기 ID다. 저장 성공의 근거다.
-    - `detail_stored_fixture_ids`: 상세 4종(events/statistics/lineups/players)까지 저장된
-      경기다. `planned`에 있어도 상세가 실패하면 여기 없다.
+    - `stored_fixture_ids`: 백필이 **실제로 upsert하고 커밋까지 끝낸** 외부 경기 ID다.
+      저장 성공 판정의 유일한 근거다.
+    - `detail_stored_fixture_ids`: 상세 4종(events/statistics/lineups/players) **응답을
+      저장한** 경기다. 정상 빈 응답도 저장으로 세므로 이 값이 있다고 상세 자료가 채워졌다는
+      뜻은 아니다. `planned`에 있어도 상세가 실패하면 여기 없다.
     - `unverified`: 계획에는 있었지만 저장이 확인되지 않은 경기 ID다. **실패로 단정하지
       않는다**(경기 단계가 실패했거나 저장 단계가 예외로 끝났을 수 있다). 추정으로 채우지
       않고 "확인되지 않음"으로 남긴다.
-    - `partial`: 경기/상세 단계에서 오류가 있었는지다. 오류가 있으면 확인된 범위만
-      신뢰해야 한다.
+    - `partial`: 확인된 범위를 전체로 믿을 수 없는 상태인지다. 백필 결과의 경기/상세 오류뿐
+      아니라 **run payload의 대상 실패**(`items[].status`가 failed/partial_failed)와
+      **백필 결과가 없는 대상**(예외로 끝나 저장을 확인할 수 없음)도 포함한다. 그래야
+      백필 예외로 결과가 하나도 없을 때 `partial`이 false로 남지 않는다.
 
-    새 외부 호출·새 표를 만들지 않는다. 이미 계산된 계획과 백필 결과만 접는다.
+    새 외부 호출·새 표를 만들지 않는다. 이미 계산된 계획과 **커밋이 확인된** 백필 결과만
+    접는다.
     """
     evidence: dict = {
         "scope_fixture_ids": list(test_scope.preview_fixture_ids) if test_scope else [],
@@ -628,6 +633,24 @@ def _collection_evidence(payload, test_scope, plans, results) -> dict:
                 if int(external_id) not in detail_stored:
                     detail_stored.append(int(external_id))
 
+    # 실제 수집 실패는 백필 결과 안의 오류만으로 드러나지 않는다. 계획 단계 실패나 저장
+    # 단계 예외는 `items[].status`로만 남으므로 여기서 함께 본다.
+    failed_items = [
+        item
+        for item in payload.get("items") or []
+        if str(item.get("status")) in {"failed", "partial_failed", "cancelled", "interrupted"}
+    ]
+    if failed_items:
+        evidence["partial"] = True
+    # 실행 자체가 실패·취소로 끝났으면 대상 행 상태가 아직 pending이어도 확인된 범위를
+    # 전체로 믿을 수 없다. 예외가 루프에 닿기 전에 끝난 경우(설정 누락 등)가 그렇다.
+    if str(payload.get("status")) in {"failed", "partial_failed", "cancelled", "interrupted"}:
+        evidence["partial"] = True
+    # 계획이 있는데 커밋된 결과가 없는 대상은 "저장 확인 불가"다. 실패로 단정하지 않되
+    # 전체로 신뢰할 수는 없으므로 partial로 남긴다.
+    if plans and not results:
+        evidence["partial"] = True
+
     evidence["planned_fixture_ids"] = planned
     evidence["stored_fixture_ids"] = stored
     evidence["detail_stored_fixture_ids"] = detail_stored
@@ -648,12 +671,28 @@ def _collection_evidence(payload, test_scope, plans, results) -> dict:
         evidence["notes"].append(
             "경기 저장이 확인되지 않았습니다. 처리 단위 카운터와 저장 경기 수는 다릅니다."
         )
+    if plans and not results:
+        evidence["notes"].append(
+            "백필 결과가 저장되지 않아 저장 범위를 확인할 수 없습니다(예외 또는 미실행)."
+        )
     if evidence["unverified_fixture_ids"]:
         evidence["notes"].append(
             "계획에는 있었지만 저장이 확인되지 않은 경기가 있습니다(실패로 단정하지 않음)."
         )
     evidence["notes"].append(
         "계획 경기와 저장 경기를 구별합니다. 선택한 생성 대상 두 경기는 이 목록과 다릅니다."
+    )
+    # 저장 판정의 근거는 **커밋이 끝난 백필 결과**뿐이다. 예외·취소로 커밋을 확인할 수
+    # 없는 범위는 stored가 아니라 unverified로 남으며, 실패로 단정하지 않는다.
+    evidence["notes"].append(
+        "저장 성공은 커밋이 확인된 결과만 근거로 삼습니다. 확인할 수 없는 범위는 실패가"
+        " 아니라 미확인으로 남깁니다."
+    )
+    # 상세 저장은 **응답 저장 확인**이다. 정상 빈 응답도 저장으로 세므로, 이 값이 있다고
+    # 상세 자료가 채워졌다는 뜻은 아니다.
+    evidence["notes"].append(
+        "detail_stored는 상세 응답 저장 확인이며 정상 빈 응답도 포함합니다."
+        " 자료가 채워졌다는 뜻은 아닙니다."
     )
     return evidence
 
@@ -677,6 +716,11 @@ def execute_run(payload, guard):
     test_scope = PreviewTestScope.from_dict(payload.get("test_scope"))
     # 정상 경로에서 프리뷰 훅이 이미 돌았는지. 상위 예외 경로가 **중복 호출하지 않게** 한다.
     preview_started = False
+    # 시험 범위 실행의 실제 수집 근거. 계획과 **커밋이 확인된** 백필 결과를 접어 payload에
+    # 남긴다. 예외·취소 경로에서도 같은 근거를 남겨야 화면이 "확인된 범위"를 구분할 수
+    # 있으므로 try 밖에서 초기화한다.
+    measured_plans = []
+    backfill_results = []
     try:
         settings = get_settings()
         if not settings.api_football_key:
@@ -691,10 +735,6 @@ def execute_run(payload, guard):
         payload["status"] = "running"
         tracker.log("수집을 시작했습니다.", code="RUN_STARTED")
         measured = []
-        # 시험 범위 실행의 실제 수집 근거. 계획과 백필 결과를 접어 payload에 남긴다.
-        # 일반 수집에는 이 값을 만들지 않는다(기존 응답 모양 보존).
-        measured_plans = []
-        backfill_results = []
         for item in payload["items"]:
             tracker.item = item
             tracker.check_cancelled()
@@ -732,6 +772,8 @@ def execute_run(payload, guard):
             options = item["options"]
             for attempt in range(1, 4):
                 tracker.stored_base = item["stored_rows"]
+                # 이 시도에서 저장이 **커밋으로 확정**됐는지. 확정 전에는 근거로 쓰지 않는다.
+                stored_committed = False
                 with db.SessionLocal() as store:
                     try:
                         result = backfill_measured_league(
@@ -747,7 +789,6 @@ def execute_run(payload, guard):
                             if any(s.errors for s in result.seasons)
                             else "succeeded"
                         )
-                        backfill_results.append(result)
                         target = store.get(LeagueSyncTarget, item["target_id"])
                         if target:
                             target.last_sync = now()
@@ -771,6 +812,13 @@ def execute_run(payload, guard):
                                 prune_league_seasons(store, target.league_id, plan.detected_seasons)
                             tracker.check_cancelled(session=store)
                             store.commit()
+                            stored_committed = True
+                        # 커밋이 끝난 시도만 저장 근거로 삼는다. 커밋 전에 넣으면 롤백된
+                        # 결과의 경기 ID가 "저장됨"으로 남고, 커밋하지 못한 실행(대상 행
+                        # 없음 포함)도 저장 성공처럼 보인다. 미확정 시도는 근거에 넣지
+                        # 않으므로 그 경기들은 unverified로 남는다.
+                        if stored_committed:
+                            backfill_results.append(result)
                     except SyncCancelled:
                         store.rollback()
                         raise
@@ -856,6 +904,11 @@ def execute_run(payload, guard):
             "현재 처리 단위를 중단했습니다. 이미 저장한 데이터는 유지되며 선택 대상 전체를 안전하게 재실행할 수 있습니다.",
             code="RUN_CANCELLED",
         )
+        if test_scope is not None:
+            # 취소도 확인된 범위만 남긴다(저장이 확인되지 않은 대상은 unverified).
+            payload["collection_evidence"] = _collection_evidence(
+                payload, test_scope, measured_plans, backfill_results
+            )
     except Exception as exc:
         payload.update(status="failed", stage="수집 실행 실패")
         for item in payload["items"]:
@@ -863,6 +916,12 @@ def execute_run(payload, guard):
                 item["status"] = "failed"
                 item["failed"] += 1
         tracker.log(str(exc), code="RUN_FAILED", level="error")
+        if test_scope is not None:
+            # 상위 예외도 근거를 남긴다. 백필 결과가 하나도 없으면 "확인된 저장 없음"이며
+            # partial이 true다(예외를 정상으로 감추지 않는다).
+            payload["collection_evidence"] = _collection_evidence(
+                payload, test_scope, measured_plans, backfill_results
+            )
         # API 키 미설정·클라이언트 생성 실패처럼 **수집 자체가 예외로 끝난** 경우에도
         # DB에 대상 경기가 남아 있으면 생성을 시도한다(Q6). 정상 경로에서 이미 돌았으면
         # 다시 호출하지 않는다. 훅은 자체 예외를 흡수하므로 수집 실패 기록을 덮지 않는다.
