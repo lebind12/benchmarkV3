@@ -28,7 +28,7 @@ import {
   listPreviewRuns,
   type PreviewRunData,
 } from '@/lib/api/preview'
-import { toMatchPreviewView } from '@/lib/api/previewView'
+import { toMatchPreviewView, storageMismatchSections, withoutBlockedSections } from '@/lib/api/previewView'
 import type { FixtureCandidate } from '@/features/match-preview/fixtures'
 import { previewRunsApi } from '@/features/match-preview/api'
 import { parseInformationBundle } from '@/features/match-preview/informationBundle'
@@ -42,6 +42,7 @@ import InformationBundlePanel from '@/features/match-preview/InformationBundlePa
 import CompositionPanel from '@/features/match-preview/CompositionPanel.vue'
 import SectionRegenerationPanel from '@/features/match-preview/SectionRegenerationPanel.vue'
 import RunInspector from '@/features/match-preview/RunInspector.vue'
+import PreviewTestPanel from '@/components/management/PreviewTestPanel.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -131,10 +132,40 @@ const canGenerateNow = computed(
 const previewView = computed(() => {
   const data = runData.value
   if (!data) return null
-  return toMatchPreviewView({
+  const view = toMatchPreviewView({
     ...data,
     fixture: data.run_id === openRunId.value ? startedFixture.value : null,
   })
+  // 정본 저장 불일치 섹션은 정상 카드·본문을 그리지 않는다(아래 경고와 접힌 진단으로만 확인).
+  const blocked = data.run_id === openRunId.value ? blockedSections.value : []
+  return withoutBlockedSections(view, blocked)
+})
+
+/**
+ * 이 실행에서 **정본 저장 행을 찾지 못한** 섹션. 저장 결과를 다시 읽은 값에서만 판정한다.
+ *
+ * `storage_mismatch`는 "생성 응답은 왔지만 정본 표에 행이 없다"는 뜻이다. 이 값을 정상
+ * 문서로 그리면 사용자가 저장되지 않은 결과를 저장된 것으로 읽으므로, 위 `previewView`가
+ * 해당 섹션을 비우고 아래 경고가 그 사실을 알린다.
+ */
+const blockedSections = computed(() =>
+  runData.value ? storageMismatchSections(runData.value.sections) : [],
+)
+
+/** 불일치 섹션의 저장된 행. 원문 참고 진단에만 쓰고 본문에는 넣지 않는다. */
+const blockedRows = computed(() => {
+  const blocked = new Set(blockedSections.value)
+  return (runData.value?.sections.section_results ?? []).filter((row) =>
+    blocked.has(row.workflow_id),
+  )
+})
+
+const blockedReason = computed(() => {
+  const reasons = blockedRows.value
+    .map((row) => (typeof row.storage_error === 'string' ? row.storage_error.trim() : ''))
+    .filter((row) => row.length > 0)
+  // 서버가 저장 오류 문장을 주지 않으면 섹션 이름만 알리고 사유를 지어내지 않는다.
+  return reasons.length > 0 ? reasons.join(' / ') : null
 })
 
 const runFixtureLabel = computed(
@@ -454,6 +485,15 @@ function openRunFromHistory(run: RunSummary) {
   void openStoredRun(run.run_id, null)
 }
 
+/**
+ * 다경기 시험 표에서 "저장된 문서 보기". 이미 저장 판정을 마친 실행 ID를 그대로 열어
+ * 같은 실행의 본문을 읽는다(GET만). 생성 요청을 다시 보내지 않는다.
+ */
+function openDocumentFromTest(payload: { runId: string }) {
+  directRunId.value = payload.runId
+  void openStoredRun(payload.runId, null)
+}
+
 function formatMoment(value: string | null): string {
   if (!value) return '—'
   return value.slice(0, 16).replace('T', ' ')
@@ -512,6 +552,20 @@ onBeforeUnmount(() => {
       </nav>
     </header>
 
+    <!--
+      기간 수집 → 다경기 생성 → 저장 문서 확인. 기존 단일 경기 흐름 **위**에 두어, 사용자가
+      추천 경기에서 시작해 수집 결과를 먼저 보고 생성으로 넘어가는 순서를 그대로 따른다.
+      수집·생성 모두 사용자가 누른 버튼으로만 시작한다.
+    -->
+    <PreviewTestPanel
+      v-if="canGenerate"
+      :can-generate="canGenerate"
+      @open-document="openDocumentFromTest"
+    />
+
+    <h3 class="preview-tab__block-title" data-testid="preview-single-heading">
+      경기 번호로 직접 확인
+    </h3>
     <form class="preview-tab__form" data-testid="preview-fixture-form" @submit.prevent="checkFixture">
       <label for="preview-fixture-number">경기 번호</label>
       <div class="preview-tab__controls">
@@ -653,6 +707,17 @@ onBeforeUnmount(() => {
       </p>
 
       <!-- 본문 우선. 진단은 아래 접힌 영역에서 사용자가 펼칠 때만 연다. -->
+      <p
+        v-if="blockedSections.length"
+        class="preview-tab__alert"
+        role="alert"
+        data-testid="preview-storage-blocked"
+      >
+        정본 저장 행을 찾지 못한 섹션이 있어 정상 문서로 그리지 않았습니다:
+        {{ blockedSections.join(', ') }}.
+        {{ blockedReason ?? '저장 불일치 사유는 서버 응답에 기록되지 않았습니다.' }}
+        아래 접힌 진단의 원문 참고 응답에서 응답 본문을 확인할 수 있습니다.
+      </p>
       <div class="preview-tab__body" data-testid="preview-body">
         <MatchPreviewBody :key="`${openRunId}:${readVersion}`" :preview="previewView" />
       </div>
@@ -721,6 +786,30 @@ onBeforeUnmount(() => {
             실행 상세를 읽지 못했습니다. {{ runData.detail_error }}
           </p>
 
+          <!--
+            저장 불일치 섹션의 생성 응답 원문. **접힌 참고 진단으로만** 둔다. 문서 위 본문에는
+            넣지 않는다(저장된 정본으로 오인되지 않게).
+          -->
+          <details
+            v-if="blockedSections.length"
+            class="preview-tab__nested"
+            data-testid="preview-blocked-raw"
+          >
+            <summary>저장 불일치 섹션의 원문 참고 응답</summary>
+            <p class="preview-tab__hint">
+              아래 본문은 생성 응답에 담긴 값이며 정본 DB에서 확인한 내용이 아닙니다. 위 문서에는
+              표시하지 않았습니다.
+            </p>
+            <div
+              v-for="row in blockedRows"
+              :key="`blocked-${row.section_result_id}`"
+              class="preview-tab__blocked"
+            >
+              <h5>{{ row.title }} ({{ row.workflow_id }})</h5>
+              <p v-if="row.storage_error" class="preview-tab__hint">{{ row.storage_error }}</p>
+              <pre>{{ row.body || '(본문 없음)' }}</pre>
+            </div>
+          </details>
 
           <details class="preview-tab__nested" data-testid="preview-bundle" @toggle="bundleOpen = ($event.target as HTMLDetailsElement).open">
             <summary>정보 원문·검색·전달 기록</summary>
@@ -1126,6 +1215,36 @@ onBeforeUnmount(() => {
 .preview-tab__section-title {
   font-weight: 700;
   font-size: 13px;
+}
+
+.preview-tab__block-title {
+  margin: 8px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.preview-tab__blocked {
+  display: grid;
+  gap: 4px;
+}
+
+.preview-tab__blocked h5 {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.preview-tab__blocked pre {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 16rem;
+  overflow-y: auto;
 }
 
 .preview-tab__nested {

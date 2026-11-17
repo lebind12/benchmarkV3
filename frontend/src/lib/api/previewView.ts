@@ -681,6 +681,58 @@ function withComposedRows(
   return merged
 }
 
+/**
+ * 저장된 행이 **정본 저장 불일치**를 표시한 섹션 ID.
+ *
+ * 신계약(선수·부상 정본 표)을 쓰는 섹션 결과 행이 정본 행을 찾지 못하면 서버는
+ * `storage_mismatch=true`(또는 `storage_status='storage_mismatch'`)를 준다. 그때 본문은
+ * "응답에서 만든 값"이고 저장된 정본은 없다. 이 값을 화면에서 정상 문서로 그리면 사용자가
+ * 저장되지 않은 결과를 저장된 것으로 읽는다.
+ *
+ * 구계약 행에는 이 키가 없으므로 빈 배열이며, 새 표를 강제하지 않는다.
+ */
+export function storageMismatchSections(response: SectionResultsResponse): string[] {
+  const found = new Set<string>()
+  for (const row of response.section_results ?? []) {
+    if (row.storage_mismatch === true || row.storage_status === 'storage_mismatch') {
+      if (row.workflow_id) found.add(row.workflow_id)
+    }
+  }
+  return [...found]
+}
+
+/**
+ * 불일치 섹션의 **정상 카드·본문을 걷어낸** 표시 모델.
+ *
+ * 공용 `MatchPreviewBody`는 그대로 두고, 이 화면이 넘기는 투영 입력에서만 해당 섹션을 뺀다.
+ * 본문(`sections`)과 그 섹션이 그리던 카드(선수·부상·매체·배당·전망)를 함께 비운다. 그래야
+ * "저장되지 않은 본문이 정상 문서처럼" 보이지 않는다. 다른 정상 섹션은 그대로 남으므로
+ * 사용자는 부분 문서를 계속 확인할 수 있다.
+ */
+export function withoutBlockedSections(
+  view: MatchPreviewView,
+  blocked: readonly string[],
+): MatchPreviewView {
+  if (blocked.length === 0) return view
+  const drop = new Set(blocked)
+  const sections = Object.fromEntries(
+    Object.entries(view.sections).filter(([sectionId]) => !drop.has(sectionId)),
+  )
+  const blockedAny = (...ids: string[]) => ids.some((id) => drop.has(id))
+  return {
+    ...view,
+    sections,
+    players: blockedAny('section_players') ? [] : view.players,
+    playerIntro: blockedAny('section_players') ? [] : view.playerIntro,
+    injuries: blockedAny('section_availability') ? [] : view.injuries,
+    media: blockedAny('section_outlook') ? [] : view.media,
+    odds: blockedAny('section_odds') ? [] : view.odds,
+    forecast: blockedAny('section_ai_forecast')
+      ? { forecastLines: [], reasoning: [], lean: null, lean_label: null, score: null }
+      : view.forecast,
+  }
+}
+
 /** 저장 결과를 확정 목업이 읽는 표시 모델로 옮긴다. 값은 만들지 않고 고르기만 한다. */
 export function toMatchPreviewView(
   input: PreviewRunData & { fixture?: FixtureCandidate | null },
