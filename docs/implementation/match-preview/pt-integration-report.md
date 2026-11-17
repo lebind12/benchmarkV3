@@ -507,8 +507,18 @@ label·소유·경기·접미사 판정과 409 동작, `request_id` 없는 기�
 
 | 명령 | 결과 |
 |---|---|
-| `pytest tests/preview/test_preview_test_requests.py -q` | **31 passed** |
-| `--collect-only -m "integration and not unit"` 등 표시 확인 | integration 4 / `unit and not integration` 27 (§10.4 표) |
+| `pytest tests/preview/test_preview_test_requests.py -q` (실행) | **31 passed** |
+| `--collect-only -m "unit and not integration"` (선택 수) | 27 selected / 4 deselected |
+| `--collect-only -m "integration"` (선택 수) | 4 selected / 27 deselected |
+| `--collect-only -m "unit"` (선택 수) | 31 selected |
+| `--collect-only -m "integration and not unit"` (선택 수) | **0** selected / 31 deselected |
+
+**정정(2026-11-17 23:16).** 앞 판본은 `--collect-only -m "integration and not unit"`을 표시
+확인 명령으로 적고 그 옆에 "integration 4"를 붙였는데 틀렸다. 모듈 표시가 `unit`이고
+integration 4건에 `@pytest.mark.integration`이 함께 붙어 있으므로 **`integration and not unit`
+은 0건**이다. 위 표처럼 선택 수를 내는 명령과 실제 실행(31 passed)을 구분해 적는다. 선택 수는
+`--collect-only`로 센 값이고, 추가 4건 외 기존 27건의 통과 결과를 이번에 다시 실행해 대체한
+것은 아니다(기존 근거 재사용).
 
 추가한 대표 사례 4건과 그 검사가 잡는 실패:
 
