@@ -87,6 +87,32 @@ export function generatePreview(
 }
 
 /**
+ * 원시 `/section-results` 행에는 `approvable`·`mode_label` 투영이 없을 수 있다.
+ * 같은 `(run_id, section_result_id)`에 해당하는 `detail.section_results` 판정만
+ * 엄격히 결합하고, 일치 행이 없거나 boolean이 아니면 임의로 `true`로 채우지 않는다.
+ */
+function mergeServerApprovalRows(
+  rows: SectionResultView[],
+  detailRows: SectionResultView[] | null | undefined,
+): SectionResultView[] {
+  if (!detailRows?.length) return rows
+  const byKey = new Map<string, SectionResultView>()
+  for (const detailRow of detailRows) {
+    byKey.set(`${detailRow.run_id}:${detailRow.section_result_id}`, detailRow)
+  }
+  return rows.map((row) => {
+    if (typeof row.approvable === 'boolean') return row
+    const detailRow = byKey.get(`${row.run_id}:${row.section_result_id}`)
+    if (!detailRow || typeof detailRow.approvable !== 'boolean') return row
+    return {
+      ...row,
+      approvable: detailRow.approvable,
+      mode_label: row.mode_label || detailRow.mode_label,
+    }
+  })
+}
+
+/**
  * 저장된 실행 결과를 읽는다(GET만).
  *
  * 독자용 본문과 섹션 결과, 실행 상세를 함께 연다. 본문이 없어도 섹션 결과는 그대로
@@ -98,16 +124,24 @@ export async function getPreviewRun(runId: string): Promise<PreviewRunData> {
     previewRunsApi.sectionResults(runId),
     previewRunsApi.detail(runId),
   ])
+  const detailData = detail.ok ? detail.data : null
+  const sectionsData = sections.ok
+    ? {
+        ...sections.data,
+        section_results: mergeServerApprovalRows(
+          sections.data.section_results ?? [],
+          detailData?.section_results,
+        ),
+      }
+    : { run_id: runId, section_results: [] }
   const data: PreviewRunData = {
     run_id: runId,
     preview: preview.ok ? preview.data : null,
     preview_error: preview.ok ? null : preview.message,
-    sections: sections.ok
-      ? sections.data
-      : { run_id: runId, section_results: [] },
+    sections: sectionsData,
     // 실패를 빈 목록으로 바꿔 두더라도 사유는 보존한다(화면이 자료 없음과 구분한다).
     sections_error: sections.ok ? null : sections.message,
-    detail: detail.ok ? detail.data : null,
+    detail: detailData,
     detail_error: detail.ok ? null : detail.message,
     composed_sections: [],
     composed_error: null,
@@ -169,12 +203,19 @@ async function loadComposedSections(
   await Promise.all(
     runIds.map(async (sourceRunId) => {
       if (sourceRunId === runId) return
-      const response = await previewRunsApi.sectionResults(sourceRunId)
+      const [response, detailResponse] = await Promise.all([
+        previewRunsApi.sectionResults(sourceRunId),
+        previewRunsApi.detail(sourceRunId),
+      ])
       if (!response.ok) {
         failure ??= response.message
         return
       }
-      byRun.set(sourceRunId, response.data.section_results ?? [])
+      const detailRows = detailResponse.ok ? detailResponse.data.section_results : null
+      byRun.set(
+        sourceRunId,
+        mergeServerApprovalRows(response.data.section_results ?? [], detailRows),
+      )
     }),
   )
 

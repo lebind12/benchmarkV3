@@ -226,6 +226,32 @@ function resolveBoundResult(workflowId: string): {
   return { row: null, resolutionError: '이 실행에 저장된 섹션 결과가 없습니다.' }
 }
 
+function findExactDetailRow(boundRow: SectionResultView): SectionResultView | null {
+  return (
+    (props.runData.detail?.section_results ?? []).find(
+      (row) =>
+        row.section_result_id === boundRow.section_result_id &&
+        row.run_id === boundRow.run_id,
+    ) ?? null
+  )
+}
+
+/**
+ * 선택한 결과 행의 승인 가능 여부를 판정한다.
+ * 원시 `/section-results` 행에 `approvable`이 비어 있으면 같은 `(run_id, section_result_id)`의
+ * `detail.section_results` 판정만 결합하고, 일치 행이 없으면 미확인(`undefined`)으로 둔다.
+ */
+function resolveApprovableFlag(boundRow: SectionResultView): boolean | undefined {
+  if (typeof boundRow.approvable === 'boolean') return boundRow.approvable
+  const exactDetail = findExactDetailRow(boundRow)
+  return typeof exactDetail?.approvable === 'boolean' ? exactDetail.approvable : undefined
+}
+
+function resolveModeLabel(boundRow: SectionResultView): string {
+  if (boundRow.mode_label) return boundRow.mode_label
+  return findExactDetailRow(boundRow)?.mode_label || boundRow.mode
+}
+
 function buildBlockReason(
   workflowId: string,
   approvalRow: SectionApprovalRow | null,
@@ -256,8 +282,11 @@ function buildBlockReason(
   if (boundRow.unavailable || typeof boundRow.body !== 'string' || !boundRow.body.trim()) {
     return '본문이 비어 있거나 사용할 수 없는(unavailable) 섹션 결과는 승인할 수 없습니다.'
   }
-  if (boundRow.approvable !== true) {
-    return '서버가 승인 가능(approvable=true)으로 확인한 결과만 승인할 수 있습니다.'
+  const effectiveApprovable = resolveApprovableFlag(boundRow)
+  if (effectiveApprovable !== true) {
+    return effectiveApprovable === false
+      ? '서버가 승인 불가(approvable=false)로 판정한 결과는 승인할 수 없습니다.'
+      : '서버 상세에서 이 결과 행의 승인 가능 여부(approvable=true)를 확인하지 못했습니다.'
   }
   return null
 }
@@ -465,7 +494,7 @@ async function submitApproval() {
         </div>
         <div class="preview-approval__item-meta">
           <template v-if="item.boundRow">
-            <span>{{ item.boundRow.mode_label || item.boundRow.mode }}</span>
+            <span>{{ resolveModeLabel(item.boundRow) }}</span>
             <span>{{ item.boundRow.workflow_version }} (v{{ item.boundRow.version }})</span>
             <span v-if="item.boundRow.run_id !== openRunId">
               구성본 원본 실행 {{ item.boundRow.run_id }}
@@ -515,7 +544,7 @@ async function submitApproval() {
           <template v-if="selectedItem.boundRow">
             {{ selectedItem.boundRow.section_result_id }} ·
             {{ selectedItem.boundRow.workflow_version }} (v{{ selectedItem.boundRow.version }}) ·
-            {{ selectedItem.boundRow.mode_label || selectedItem.boundRow.mode }} ·
+            {{ resolveModeLabel(selectedItem.boundRow) }} ·
             {{ selectedItem.boundRow.quality }}
           </template>
           <template v-else>미확정</template>

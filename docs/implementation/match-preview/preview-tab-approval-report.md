@@ -77,3 +77,39 @@ cd frontend && npx vue-tsc -p tsconfig.app.json --noEmit && npx vitest run src/c
 - **실제 로그인 ADMIN 세션에서 `http://localhost:5173/admin?tab=preview&previewRun=00d34c23-a1d6-43d0-b8e2-fe9962184f3b` 화면 실측 및 스크롤 도달 확인**: Orca 기본 브라우저 프로필에 활성 ADMIN 세션이 없고 토큰·비밀번호 추출이 금지되어 미실행 상태다(코디네이터/사용자 환경의 로그인 세션에서 GET 확인 필요).
 - **실제 `POST /api/v1/admin/preview/sections/{workflow_id}/approvals` 호출**: 사용자/코디네이터 지시에 따라 라이브 승인 쓰기는 실행하지 않았다.
 - **레거시 뷰 일괄 삭제(`PreviewRunsView.vue`, `SectionRunView.vue` 등), 백엔드 코드·DB·`Plans.md` 수정**: 제외 범위에 따라 변경하지 않았다.
+
+## 5. 라이브 실측 후속 수정 (`approvable` 계약 불일치 해결)
+
+### 관측된 결함과 근본 원인
+- **증상**: 실제 로그인된 ADMIN 브라우저 탭(`http://localhost:5173/admin?tab=preview&previewRun=00d34c23-a1d6-43d0-b8e2-fe9962184f3b`)에서 `section_players`와 `section_availability` 모두 `실제 생성 · ready` 및 비어 있지 않은 본문/근거를 가졌음에도, 승인 패널 버튼(`preview-approval-submit`)이 `disabled=true`로 잠기고 `"서버가 승인 가능(approvable=true)으로 확인한 결과만 승인할 수 있습니다."` 사유가 표시됐다.
+- **원인**: 백엔드 `GET /api/v1/admin/preview/runs/{run_id}/section-results` (`app/api/v1/preview_admin.py`의 `get_section_results`)는 `store.list_section_results(...)` 결과에 canonical/structured 보강만 수행하고 `app/preview/inspection.py`의 `section_result_rows`를 거치지 않아 `approvable`·`mode_label` 필드를 내려주지 않는다(`undefined`). 반면 같은 실행의 `GET /api/v1/admin/preview/runs/{run_id}` (`detail`) 응답에는 `inspection.section_result_rows`가 계산한 `approvable`과 `mode_label`이 포함된다(`RunInspector.vue`도 동일 `detail.section_results` 경로를 사용).
+
+### 수정 경계 및 변경 파일
+- `frontend/src/lib/api/preview.ts`:
+  - `mergeServerApprovalRows` 헬퍼를 추가해 `getPreviewRun`에서 raw `section-results` 행과 `detail.section_results`를 `(run_id, section_result_id)` 완전 일치로 조인해 서버 판정 `approvable`·`mode_label`을 병합했다(raw 행에 명시적 불리언 `approvable`이 이미 있으면 유지).
+  - `loadComposedSections`에서도 cross-run 원 실행(`sourceRunId`)별로 `sectionResults(sourceRunId)`와 `detail(sourceRunId)`를 병렬 GET 조회해 동일 `(run_id, section_result_id)` 기준으로만 병합했다.
+  - `workflow_id`만으로 매칭하거나 `approvable` 누락을 `true`로 보정하지 않는다.
+- `frontend/src/components/management/PreviewApprovalPanel.vue`:
+  - `findExactDetailRow`, `resolveApprovableFlag`, `resolveModeLabel`을 추가해 raw `sectionResults` 행에 `approvable`/`mode_label`이 비어 있을 때도 `runData.detail?.section_results`의 `(run_id, section_result_id)` 일치 항목에서 서버 판정을 읽도록 방어했다.
+  - 서버가 `approvable=false`로 명시 거부한 경우와 서버 상세에서 승인 가능 여부를 확인하지 못한 경우(`undefined`)를 구분해 차단 사유를 유지한다.
+- 추가 테스트 및 사용자 영향:
+  1. `PreviewPanel.test.ts` — `'실서버처럼 raw section-results에 approvable이 없어도 detail.section_results와 cross-run 원 실행 판정으로 정확히 승인 가능 여부를 결정한다'`: raw `/section-results`에 `approvable`이 누락된 실서버 응답에서도 `detail.section_results`와 cross-run 원 실행 `detail` 판정만으로 합법 결과는 승인 가능, `mock`/`unavailable` 결과는 차단되어야 한다. 실패 시 모든 live 섹션의 승인 버튼이 영구 비활성화되거나 반대로 `mock`/불가 결과가 잘못 활성화된다.
+  2. `PreviewApprovalPanel.test.ts` — `'resolves omitted approvable strictly by (run_id, section_result_id) from detail.section_results and blocks false or mismatched rows'`: 패널이 raw 행의 누락된 `approvable`을 `detail.section_results`에서 `(run_id, section_result_id)`가 모두 일치할 때만 채우고, 불일치 행이나 `approvable=false`는 엄격히 차단해야 한다. 실패 시 다른 실행·다른 결과 ID의 `approvable=true`가 섞여 잘못된 결과를 승인할 수 있다.
+
+### 후속 검증 결과 (최종 편집 이후 재실행)
+1. **정적 검사 및 Vitest (`exit code 0`)**:
+   ```sh
+   cd frontend && npx vue-tsc -p tsconfig.app.json --noEmit && npx vitest run src/components/management/PreviewPanel.test.ts src/components/management/PreviewApprovalPanel.test.ts
+   ```
+   - `vue-tsc -p tsconfig.app.json --noEmit`: 0 errors
+   - `src/components/management/PreviewPanel.test.ts`: 31 passed
+   - `src/components/management/PreviewApprovalPanel.test.ts`: 5 passed
+   - 합계: 2 files passed, 36 tests passed
+2. **라이브 브라우저 GET 실측 (`page 4da356ba-d3b4-45c0-abfa-3fde913234f1`, `http://localhost:5173/admin?tab=preview&previewRun=00d34c23-a1d6-43d0-b8e2-fe9962184f3b`)**:
+   - `저장 결과 다시 읽기`(GET) 후 두 미승인 섹션 모두 승인 버튼 활성화(`disabled=false`, 차단 사유 `null`) 확인:
+     - `section_players` (`preview-approval-item-section_players`): `submitDisabled=false`, `targetRun="00d34c23-a1d6-43d0-b8e2-fe9962184f3b"`, `resultText="8aa0ffaf-a4ad-4d63-8a9d-5e256872e956 · section_players@75313897ac9b749e (v1) · 실제 생성 · ready"`
+     - `section_availability` (`preview-approval-item-section_availability`): `submitDisabled=false`, `targetRun="00d34c23-a1d6-43d0-b8e2-fe9962184f3b"`, `resultText="c8a19c2f-4a0e-4ec8-81b0-5281f7f26b4d · section_availability@81c30e5bb989e7fe (v1) · 실제 생성 · ready"`
+   - 확인 후 원래 선택(`section_players`)과 탭 상태를 그대로 유지했다.
+3. **미실행/커밋**:
+   - 라이브 `POST /api/v1/admin/preview/sections/{workflow_id}/approvals`는 지시에 따라 실행하지 않았다.
+   - 기준 커밋 `19c2113` 이후 후속 수정 커밋으로 반영했다(커밋 SHA는 완료 보고 참조).

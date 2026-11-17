@@ -448,7 +448,7 @@ describe('PreviewApprovalPanel', () => {
     await assertBlocked('section_players', 'mock')
     await assertBlocked('section_availability', 'storage_mismatch')
     await assertBlocked('section_odds', '본문이 비어')
-    await assertBlocked('section_outlook', 'approvable=true')
+    await assertBlocked('section_outlook', 'approvable=false')
 
     // 유효한 섹션이라도 구성본/상세 조회 오류 또는 비ADMIN이면 막힌다.
     await wrapper.get('[data-testid="preview-approval-item-section_ai_forecast"]').trigger('click')
@@ -551,5 +551,110 @@ describe('PreviewApprovalPanel', () => {
 
     expect(wrapper.find('[data-testid="preview-approval-success"]').exists()).toBe(false)
     expect(wrapper.emitted('approved')).toBeUndefined()
+  })
+
+  // 이유: raw section-results에 approvable이 없을 때 detail.section_results의 동일 (run_id, section_result_id) 판정만 결합하고 false·불일치·타 실행 행은 차단해야 한다.
+  // 실패 시 사용자 결과: 정상 라이브 결과가 부당하게 차단되거나, 반대로 detail에서 거부된(false)/다른 결과의 판정이 잘못 적용된다.
+  it('resolves omitted approvable strictly by (run_id, section_result_id) from detail.section_results and blocks false or mismatched rows', async () => {
+    const rawPlayers = {
+      ...makeResult({
+        section_result_id: 'sr-p-raw',
+        run_id: 'run-open',
+        workflow_id: 'section_players',
+        mode: 'live',
+      }),
+      approvable: undefined,
+      mode_label: undefined,
+    } as unknown as SectionResultView
+
+    const rawAvail = {
+      ...makeResult({
+        section_result_id: 'sr-a-raw',
+        run_id: 'run-open',
+        workflow_id: 'section_availability',
+        mode: 'live',
+      }),
+      approvable: undefined,
+      mode_label: undefined,
+    } as unknown as SectionResultView
+
+    const rawOddsMismatchId = {
+      ...makeResult({
+        section_result_id: 'sr-o-raw',
+        run_id: 'run-open',
+        workflow_id: 'section_odds',
+        mode: 'live',
+      }),
+      approvable: undefined,
+      mode_label: undefined,
+    } as unknown as SectionResultView
+
+    const detail = makeDetail([
+      makeApprovalRow({ workflow_id: 'section_players', display_name: '주목 선수' }),
+      makeApprovalRow({ workflow_id: 'section_availability', display_name: '출전 변수' }),
+      makeApprovalRow({ workflow_id: 'section_odds', display_name: '배당 흐름' }),
+    ])
+    detail.section_results = [
+      makeResult({
+        section_result_id: 'sr-p-raw',
+        run_id: 'run-open',
+        workflow_id: 'section_players',
+        mode_label: '실제 생성',
+        approvable: true,
+      }),
+      makeResult({
+        section_result_id: 'sr-a-raw',
+        run_id: 'run-open',
+        workflow_id: 'section_availability',
+        mode_label: '실제 생성',
+        approvable: false,
+      }),
+      // workflow_id만 같고 section_result_id가 다른 행 — 오결합 금지
+      makeResult({
+        section_result_id: 'sr-o-other-id',
+        run_id: 'run-open',
+        workflow_id: 'section_odds',
+        mode_label: '실제 생성',
+        approvable: true,
+      }),
+    ]
+
+    const runData: PreviewRunData = {
+      run_id: 'run-open',
+      preview: null,
+      preview_error: null,
+      sections: { run_id: 'run-open', section_results: [rawPlayers, rawAvail, rawOddsMismatchId] },
+      sections_error: null,
+      detail,
+      detail_error: null,
+    }
+
+    const wrapper = mount(PreviewApprovalPanel, {
+      props: {
+        openRunId: 'run-open',
+        runData,
+        previewView: null,
+        composition: null,
+        compositionLoaded: true,
+        compositionError: null,
+        blockedSections: [],
+        canApproveRole: true,
+        fixtureId: 1557474,
+      },
+    })
+
+    // 1) exact match approvable=true -> enabled + mode_label fallback
+    expect((wrapper.get('[data-testid="preview-approval-submit"]').element as HTMLButtonElement).disabled).toBe(false)
+    expect(wrapper.get('[data-testid="preview-approval-target-result"]').text()).toContain('실제 생성')
+
+    // 2) exact match approvable=false -> blocked with approvable=false message
+    await wrapper.get('[data-testid="preview-approval-item-section_availability"]').trigger('click')
+    expect((wrapper.get('[data-testid="preview-approval-submit"]').element as HTMLButtonElement).disabled).toBe(true)
+    expect(wrapper.get('[data-testid="preview-approval-blocked-reason"]').text()).toContain('approvable=false')
+
+    // 3) workflow_id만 일치하고 section_result_id가 다른 detail 행은 오결합하지 않고 차단
+    await wrapper.get('[data-testid="preview-approval-item-section_odds"]').trigger('click')
+    expect((wrapper.get('[data-testid="preview-approval-submit"]').element as HTMLButtonElement).disabled).toBe(true)
+    expect(wrapper.get('[data-testid="preview-approval-blocked-reason"]').text()).toContain('확인하지 못했습니다')
   })
 })

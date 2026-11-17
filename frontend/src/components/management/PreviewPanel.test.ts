@@ -2021,4 +2021,254 @@ describe('프리뷰 탭 — 섹션 워크플로우 승인 연동 및 중복 UI �
     await flushPromises()
     expect(wrapper.get('[data-testid="inspector-stub"]').attributes('data-hide-approval')).toBe('true')
   })
+
+  // 이유: 실서버 /section-results 응답에 approvable·mode_label이 빠져도 detail.section_results 및 cross-run 원 실행 detail에서 같은 (run_id, section_result_id)의 서버 판정을 정확히 결합해야 한다.
+  // 실패 시 사용자 결과: 정상 ADMIN이 live/ready 본문을 보고도 승인 버튼이 잠겨 승인할 수 없거나, 원 실행에서 불가 판정한 cross-run 결과를 잘못 승인할 수 있다.
+  it('실서버처럼 raw section-results에 approvable이 없어도 detail.section_results와 cross-run 원 실행 판정으로 정확히 승인 가능 여부를 결정한다', async () => {
+    const rawPlayers = {
+      ...sectionResult({
+        section_result_id: 'sr-live-players',
+        run_id: 'run-1557474-a',
+        workflow_id: 'section_players',
+        workflow_version: 'wfv-players-live',
+        version: 1,
+        title: '주목 선수',
+        body: '실호출 주목 선수 본문',
+        mode: 'live',
+      }),
+      approvable: undefined,
+      mode_label: undefined,
+    } as unknown as SectionResultView
+
+    const rawParentAvail = {
+      ...sectionResult({
+        section_result_id: 'sr-parent-avail',
+        run_id: 'run-parent-1',
+        workflow_id: 'section_availability',
+        workflow_version: 'wfv-avail-parent',
+        version: 1,
+        title: '출전 불가·부상 변수',
+        body: '원 실행 출전 변수 본문',
+        mode: 'live',
+      }),
+      approvable: undefined,
+      mode_label: undefined,
+    } as unknown as SectionResultView
+
+    const rawParentUnconfirmed = {
+      ...sectionResult({
+        section_result_id: 'sr-parent-odds',
+        run_id: 'run-parent-2',
+        workflow_id: 'section_odds',
+        workflow_version: 'wfv-odds-parent',
+        version: 1,
+        title: '배당 흐름',
+        body: '미확인 원 실행 본문',
+        mode: 'live',
+      }),
+      approvable: undefined,
+      mode_label: undefined,
+    } as unknown as SectionResultView
+
+    previewApi.readerPreview.mockResolvedValue(
+      ok(
+        readerPreview({
+          sections: [
+            { section_id: 'section_players', title: '주목 선수', body: '실호출 주목 선수 본문', sources: [], quality: 'ready', partial: false, version: 1 },
+            { section_id: 'section_availability', title: '출전 불가·부상 변수', body: '원 실행 출전 변수 본문', sources: [], quality: 'ready', partial: false, version: 1 },
+            { section_id: 'section_odds', title: '배당 흐름', body: '미확인 원 실행 본문', sources: [], quality: 'ready', partial: false, version: 1 },
+          ],
+        }),
+      ),
+    )
+
+    previewApi.sectionResults.mockImplementation((rid: string) => {
+      if (rid === 'run-parent-1') {
+        return Promise.resolve(ok({ run_id: 'run-parent-1', section_results: [rawParentAvail] }))
+      }
+      if (rid === 'run-parent-2') {
+        return Promise.resolve(ok({ run_id: 'run-parent-2', section_results: [rawParentUnconfirmed] }))
+      }
+      return Promise.resolve(ok({ run_id: 'run-1557474-a', section_results: [rawPlayers] }))
+    })
+
+    previewApi.detail.mockImplementation((rid: string) => {
+      if (rid === 'run-parent-1') {
+        return Promise.resolve(
+          ok({
+            ...runDetail(),
+            summary: { ...runDetail().summary, run_id: 'run-parent-1' },
+            section_results: [
+              sectionResult({
+                section_result_id: 'sr-parent-avail',
+                run_id: 'run-parent-1',
+                workflow_id: 'section_availability',
+                mode: 'live',
+                mode_label: '실제 생성',
+                approvable: true,
+              }),
+            ],
+          }),
+        )
+      }
+      if (rid === 'run-parent-2') {
+        // 원 실행 detail에는 section_odds 행이 없으므로(같은 workflow_id가 openRun에 있더라도) 승인 불가여야 한다.
+        return Promise.resolve(
+          ok({
+            ...runDetail(),
+            summary: { ...runDetail().summary, run_id: 'run-parent-2' },
+            section_results: [],
+          }),
+        )
+      }
+      return Promise.resolve(
+        ok({
+          ...runDetail(),
+          section_results: [
+            sectionResult({
+              section_result_id: 'sr-live-players',
+              run_id: 'run-1557474-a',
+              workflow_id: 'section_players',
+              mode: 'live',
+              mode_label: '실제 생성',
+              approvable: true,
+            }),
+            // cross-run section_odds와 workflow_id만 같고 result_id/run_id가 다른 행 — 절대 차용하면 안 된다.
+            sectionResult({
+              section_result_id: 'sr-other-odds-in-open-run',
+              run_id: 'run-1557474-a',
+              workflow_id: 'section_odds',
+              mode: 'live',
+              mode_label: '실제 생성',
+              approvable: true,
+            }),
+          ],
+          section_approvals: [
+            {
+              workflow_id: 'section_players',
+              display_name: '주목 선수',
+              description: '',
+              module_ids: ['bundle_section_players'],
+              implemented: true,
+              unrunnable_reason: null,
+              state: 'none',
+              label: '미승인',
+              detail: null,
+              current_version: 'wfv-players-live',
+              active_approval: null,
+              pinned_approval: null,
+              can_approve: true,
+            },
+            {
+              workflow_id: 'section_availability',
+              display_name: '출전 불가·부상 변수',
+              description: '',
+              module_ids: ['bundle_section_availability'],
+              implemented: true,
+              unrunnable_reason: null,
+              state: 'none',
+              label: '미승인',
+              detail: null,
+              current_version: 'wfv-avail-parent',
+              active_approval: null,
+              pinned_approval: null,
+              can_approve: true,
+            },
+            {
+              workflow_id: 'section_odds',
+              display_name: '배당 흐름',
+              description: '',
+              module_ids: ['bundle_section_odds'],
+              implemented: true,
+              unrunnable_reason: null,
+              state: 'none',
+              label: '미승인',
+              detail: null,
+              current_version: 'wfv-odds-parent',
+              active_approval: null,
+              pinned_approval: null,
+              can_approve: true,
+            },
+          ],
+        }),
+      )
+    })
+
+    previewApi.composition.mockResolvedValue(
+      ok({
+        run_id: 'run-1557474-a',
+        available: true,
+        reason: null,
+        composition: {
+          composition_id: 'comp-live-check',
+          fixture_id: 1557474,
+          items: [
+            {
+              section_id: 'section_players',
+              result_id: 'sr-live-players',
+              run_id: 'run-1557474-a',
+              fixture_id: 1557474,
+              version: 1,
+              workflow_version: 'wfv-players-live',
+              quality: 'ready',
+              unavailable: false,
+              unavailable_reason: null,
+              body_chars: 12,
+              mode: 'live',
+              created_at: null,
+            },
+            {
+              section_id: 'section_availability',
+              result_id: 'sr-parent-avail',
+              run_id: 'run-parent-1',
+              fixture_id: 1557474,
+              version: 1,
+              workflow_version: 'wfv-avail-parent',
+              quality: 'ready',
+              unavailable: false,
+              unavailable_reason: null,
+              body_chars: 12,
+              mode: 'live',
+              created_at: null,
+            },
+            {
+              section_id: 'section_odds',
+              result_id: 'sr-parent-odds',
+              run_id: 'run-parent-2',
+              fixture_id: 1557474,
+              version: 1,
+              workflow_version: 'wfv-odds-parent',
+              quality: 'ready',
+              unavailable: false,
+              unavailable_reason: null,
+              body_chars: 12,
+              mode: 'live',
+              created_at: null,
+            },
+          ],
+          refused: [],
+          diagnostics: [],
+          section_result_ids: ['sr-live-players', 'sr-parent-avail', 'sr-parent-odds'],
+        },
+      }),
+    )
+
+    const wrapper = mount(PreviewPanel, mountOptions())
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-a')
+    await submitOpenRun(wrapper)
+
+    // 1) openRunId의 raw section_players + detail.section_results 일치 -> 승인 가능 + mode_label 결합
+    expect(wrapper.get('[data-testid="preview-approval-target-result"]').text()).toContain('실제 생성')
+    expect((wrapper.get('[data-testid="preview-approval-submit"]').element as HTMLButtonElement).disabled).toBe(false)
+
+    // 2) cross-run section_availability + run-parent-1 detail 일치 -> 승인 가능
+    await wrapper.get('[data-testid="preview-approval-item-section_availability"]').trigger('click')
+    expect(wrapper.get('[data-testid="preview-approval-target-run"]').text()).toContain('run-parent-1')
+    expect((wrapper.get('[data-testid="preview-approval-submit"]').element as HTMLButtonElement).disabled).toBe(false)
+
+    // 3) cross-run section_odds의 원 실행 detail(run-parent-2)에 해당 결과 없음 -> openRunId의 같은 workflow_id 판정을 빌려오지 않고 차단
+    await wrapper.get('[data-testid="preview-approval-item-section_odds"]').trigger('click')
+    expect((wrapper.get('[data-testid="preview-approval-submit"]').element as HTMLButtonElement).disabled).toBe(true)
+    expect(wrapper.get('[data-testid="preview-approval-blocked-reason"]').text()).toContain('approvable=true')
+  })
 })
