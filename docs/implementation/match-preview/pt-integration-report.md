@@ -170,9 +170,32 @@ exit 2
 | `pytest tests/unit/test_home_preview_collection.py tests/preview/test_preview_test_requests.py` | **54 passed** |
 | 앱 임포트·라우트 확인(`app.main`) | preview-test 4경로 + `bundle-runs` 등록 확인, 총 100 라우트 |
 
-합성 DB 초기화는 **하지 않았다**. 위 pytest는 합성 DB를 요구하지 않았고(0.8s/2.5s, 외부
-연결 없음), 55432의 공유 `preview_mp01_test`를 건드리지 않았다. 실제 DB에는 테스트 fixture를
-연결하지 않았다.
+**정정(2026-11-17 22:2x, 독립 검토 `ctx_452666fe3332` 지적 반영).** 앞 판본은 "합성 DB
+초기화는 하지 않았다"고 적었는데 **틀렸다**. 테스트 수나 소스만 보고 추정한 문장이었고,
+fixture 적용 경로를 확인하지 않았다. 보유 pytest 표준출력 로그는 남아 있지 않지만(보관한
+것은 `vue-tsc`·`build` 로그뿐), fixture 경로는 결정적이므로 다음과 같이 정정한다.
+
+- 그 실행에 포함된 `tests/preview/test_preview_test_requests.py`(당시 19건) 중 **6건이
+  `engine`·`session_factory`·`client` 픽스처를 직접 요구**한다
+  (`test_test_run_list_does_not_delete_or_recover_anything` 등 4건, `client` 계열 2건).
+- `tests/preview/conftest.py`의 `schema` 픽스처는 `engine`에 의존하고, 실행 시
+  `SET lock_timeout='10s'` 뒤 **`DROP SCHEMA IF EXISTS preview_dev CASCADE`와
+  `DROP SCHEMA IF EXISTS public CASCADE`를 실행한 다음 두 스키마를 다시 만든다.**
+- 대상은 `TEST_DATABASE_URL`이며 미설정 시 기본값이
+  `postgresql+psycopg://preview:preview_local_dev@127.0.0.1:55432/preview_mp01_test`다.
+  현재 세션 환경에 `PREVIEW_TEST_DATABASE_URL`은 없고, 설령 설정됐더라도 `_dbguard`가
+  루프백 + `_test` 이름이 아니면 연결 전에 실패하므로 대상은 로컬 테스트 DB로 한정된다.
+- `pyproject`의 `addopts = "-m 'not live'"`이고 그 파일의 표시는 `unit`이므로 위 6건은
+  제외되지 않고 실행됐다. 54 = 35 + 19 이므로 두 파일이 모두 수집·통과했다.
+
+따라서 그 실행은 **로컬 테스트 전용 DB `127.0.0.1:55432/preview_mp01_test`의 `preview_dev`·
+`public` 스키마를 테스트 픽스처로 초기화했다**. 이는 이 저장소가 테스트에 쓰도록 정한 로컬
+합성 DB이고, 운영 DB·기존 사용자 서버(38000 등)·A/B 워크트리와는 무관하다. 실행 전
+`ps`로 다른 pytest가 없음을 확인했으므로(그 시점 관측: uvicorn 3건만 존재) 공유 DB를 쓰는
+다른 pytest 묶음과 겹치지 않았다. 다만 **실행 전에 그 초기화를 명시적으로 판단·기록하지
+않은 것은 이 보고의 누락**이다. 실제 DB(운영)에는 어떤 테스트 fixture도 연결하지 않았다.
+
+이 정정을 위해 테스트를 다시 실행하지 않았다(fixture 경로와 수집 조건만 대조).
 
 ## 7. 서버 전환 전제 조사 (읽기 전용)
 
@@ -343,7 +366,10 @@ label에 요청 표기를 적으면 그 실행이 정상 재전달처럼 채택�
   **재수정·재검사하지 않았다**.
 - 실제 수집·실제 AI 호출·실DB 쓰기·서버 기동/전환·프론트 변경: **0회**. 프론트는 손대지
   않았다(고정 SHA `c5f129c` 검토 대상).
-- 합성 DB는 로컬 55432 `preview_mp01_test`만 썼고, 검사 시점에 다른 pytest가 없음을 확인한
-  뒤 실행했다(잠금·해제만 하고 행을 쓰지 않는다). 운영 URL로는 실행하지 않았다.
+- 합성 DB는 로컬 55432 `preview_mp01_test`만 썼다. 이 파일 전체 실행(27 passed)에는
+  `engine`·`session_factory`·`client` 픽스처를 요구하는 기존 6건이 포함되므로, `schema`
+  픽스처가 그 로컬 테스트 DB의 `preview_dev`·`public` 스키마를 초기화한다(§6 정정과 같은
+  경로). 새로 추가한 잠금 검사 자체는 `engine`만 받아 **잠금·해제만 하고 행을 쓰지 않는다**.
+  검사 시점에 다른 pytest가 없음을 확인한 뒤 실행했다. 운영 URL로는 실행하지 않았다.
 - POST 기간 선택, 지나간 NS 경기, 전체 logs 목록 같은 검토 참고사항은 이번 범위로 넓히지
   않았다.
