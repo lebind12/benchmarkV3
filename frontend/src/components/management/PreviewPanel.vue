@@ -29,6 +29,9 @@ import {
   type PreviewRunData,
 } from '@/lib/api/preview'
 import { toMatchPreviewView, storageMismatchSections, withoutBlockedSections } from '@/lib/api/previewView'
+import { getHomePreviewDocument, getHomeRecommendations } from '@/lib/api/homePreview'
+import type { HomePreviewDocument } from '@/lib/api/homePreviewDocument'
+import type { HomeRecommendations } from '@/lib/api/homeRecommendationsSchema'
 import type { FixtureCandidate } from '@/features/match-preview/fixtures'
 import { previewRunsApi } from '@/features/match-preview/api'
 import { parseInformationBundle } from '@/features/match-preview/informationBundle'
@@ -71,10 +74,21 @@ const generateError = ref<string | null>(null)
 const startedFixture = ref<FixtureCandidate | null>(null)
 
 const openRunId = ref<string | null>(null)
+const openedFixtureId = ref<number | null>(null)
+const openedKickoffAt = ref<string | null>(null)
 const runData = ref<PreviewRunData | null>(null)
 const runLoading = ref(false)
 const runError = ref<string | null>(null)
 const readVersion = ref(0)
+
+const homeReflectionLoading = ref(false)
+const homeReflectionFixtureId = ref<number | null>(null)
+const homeReflectionKickoffAt = ref<string | null>(null)
+const homeDoc = ref<HomePreviewDocument | null>(null)
+const homeDocError = ref<string | null>(null)
+const homeRec = ref<HomeRecommendations | null>(null)
+const homeRecError = ref<string | null>(null)
+let homeReflectionSequence = 0
 
 const directRunId = ref('')
 const directRunError = ref<string | null>(null)
@@ -183,8 +197,83 @@ const storedSections = computed(() => {
 })
 
 const openRunFixtureId = computed<number | null>(
-  () => runData.value?.preview?.fixture.fixture_id ?? startedFixture.value?.fixture_id ?? null,
+  () =>
+    runData.value?.preview?.fixture.fixture_id ??
+    runData.value?.detail?.fixture?.fixture_id ??
+    startedFixture.value?.fixture_id ??
+    openedFixtureId.value ??
+    null,
 )
+
+const homeRecMatch = computed(() => {
+  const fid = homeReflectionFixtureId.value
+  if (fid === null || !homeRec.value) return null
+  return homeRec.value.items.find((item) => item.fixture_id === fid) ?? null
+})
+
+const homeDocumentReflectionText = computed(() => {
+  if (homeReflectionLoading.value) return '홈 공개 문서를 확인하는 중…'
+  if (homeDocError.value) {
+    return `홈 공개 문서를 읽지 못했습니다: ${homeDocError.value} (문서 없음이 아닙니다)`
+  }
+  const doc = homeDoc.value
+  if (!doc) return '홈 공개 문서를 아직 확인하지 않았습니다.'
+  if (doc.status === 'none') {
+    const reasonMap: Record<string, string> = {
+      no_approved_version: '승인된 섹션 버전이 없어 홈에 미반영 상태입니다(no_approved_version).',
+      no_stored_run: '저장된 실행이 없어 홈에 미반영 상태입니다(no_stored_run).',
+      no_displayable_section: '표시 가능한 섹션 본문이 없어 홈에 미반영 상태입니다(no_displayable_section).',
+    }
+    return (
+      reasonMap[doc.reason ?? ''] ??
+      doc.reason_text ??
+      doc.reason ??
+      '홈에 표시되는 문서가 없습니다.'
+    )
+  }
+  const completeness = doc.complete
+    ? `완전 반영(섹션 ${doc.sections.length}개)`
+    : `부분 반영(complete=false, 필수 섹션 누락 가능 · 섹션 ${doc.sections.length}개)`
+  if (openRunId.value && doc.run_id === openRunId.value) {
+    return `현재 연 실행(${doc.run_id})과 동일 결과가 홈에 반영되었습니다 · ${completeness}`
+  }
+  if (openRunId.value && doc.run_id && doc.run_id !== openRunId.value) {
+    return `홈에는 다른 저장 실행(${doc.run_id})이 반영되어 있습니다 · ${completeness}`
+  }
+  return `홈에 저장 실행(${doc.run_id ?? '미상'})이 반영되어 있습니다 · ${completeness}`
+})
+
+const hasUnresolvedPlayers = computed(() => {
+  const viewPlayers = previewView.value?.players ?? []
+  const viewInjuries = previewView.value?.injuries ?? []
+  if (
+    viewPlayers.some((row) => !row.photo_url) ||
+    viewInjuries.some((row) => !row.photo_url)
+  ) {
+    return true
+  }
+  for (const section of homeDoc.value?.sections ?? []) {
+    const structured = section.structured as Record<string, unknown> | null | undefined
+    if (!structured) continue
+    for (const key of ['players', 'injuries'] as const) {
+      const items = structured[key]
+      if (!Array.isArray(items)) continue
+      for (const raw of items) {
+        if (!raw || typeof raw !== 'object') continue
+        const item = raw as Record<string, unknown>
+        if (
+          item.unresolved === true ||
+          item.external_player_id === null ||
+          item.external_player_id === undefined ||
+          !item.photo_url
+        ) {
+          return true
+        }
+      }
+    }
+  }
+  return false
+})
 
 const sectionChoices = computed(() =>
   SECTION_ORDER.filter((id) => storedSections.value.some((row) => row.workflow_id === id)),
@@ -325,10 +414,60 @@ const completeLabel = computed(() => {
   return value ? '모두 있음' : '일부 없음(부분 결과)'
 })
 
+function kstDateOf(value: string | null): string | undefined {
+  if (!value) return undefined
+  const ms = Date.parse(value)
+  if (!Number.isFinite(ms)) return undefined
+  return new Date(ms + 9 * 3600000).toISOString().slice(0, 10)
+}
+
+function clearHomeReflection() {
+  homeReflectionSequence += 1
+  homeReflectionLoading.value = false
+  homeReflectionFixtureId.value = null
+  homeReflectionKickoffAt.value = null
+  homeDoc.value = null
+  homeDocError.value = null
+  homeRec.value = null
+  homeRecError.value = null
+}
+
+async function refreshHomeReflection(fixtureIdValue: number, kickoffAtValue: string | null) {
+  const sequence = ++homeReflectionSequence
+  homeReflectionFixtureId.value = fixtureIdValue
+  homeReflectionKickoffAt.value = kickoffAtValue
+  homeReflectionLoading.value = true
+  homeDoc.value = null
+  homeDocError.value = null
+  homeRec.value = null
+  homeRecError.value = null
+  const dateParam = kstDateOf(kickoffAtValue)
+  const [docRes, recRes] = await Promise.allSettled([
+    getHomePreviewDocument(fixtureIdValue),
+    getHomeRecommendations(undefined, dateParam),
+  ])
+  if (disposed || sequence !== homeReflectionSequence) return
+  homeReflectionLoading.value = false
+  if (docRes.status === 'fulfilled') {
+    homeDoc.value = docRes.value
+  } else {
+    homeDocError.value =
+      docRes.reason instanceof Error ? docRes.reason.message : '홈 공개 문서 조회 실패'
+  }
+  if (recRes.status === 'fulfilled') {
+    homeRec.value = recRes.value
+  } else {
+    homeRecError.value =
+      recRes.reason instanceof Error ? recRes.reason.message : '홈 추천 상태 조회 실패'
+  }
+}
+
 function clearResultState() {
   runData.value = null
   runError.value = null
   openRunId.value = null
+  openedFixtureId.value = null
+  openedKickoffAt.value = null
   composition.value = null
   compositionNote.value = null
   diagnosticsOpen.value = false
@@ -341,6 +480,7 @@ function clearResultState() {
   bundleId.value = null
   bundleError.value = null
   regeneratedRunId.value = null
+  clearHomeReflection()
 }
 
 async function checkFixture() {
@@ -372,9 +512,14 @@ async function checkFixture() {
   // 응답이 오는 사이 사용자가 번호를 바꿨다면 이 응답은 현재 입력의 것이 아니다.
   if (fixtureId.value !== requested) return
   checkedFixture.value = response.data
+  void refreshHomeReflection(response.data.fixture_id, response.data.kickoff_at)
 }
 
-async function openStoredRun(runId: string, sourceFixture: FixtureCandidate | null) {
+async function openStoredRun(
+  runId: string,
+  sourceFixture: FixtureCandidate | null,
+  explicitFixture: { fixtureId?: number; kickoffAt?: string | null } = {},
+) {
   const trimmed = runId.trim()
   if (!trimmed) {
     directRunError.value = '실행 ID를 입력하세요.'
@@ -386,6 +531,8 @@ async function openStoredRun(runId: string, sourceFixture: FixtureCandidate | nu
     void router.replace({ query: { ...route.query, [PREVIEW_RUN_QUERY]: trimmed } })
   }
   const sequence = ++openSequence
+  // 실행 전환 시 이전 실행의 본문과 홈 반영 상태를 즉시 비워 새 실행 ID 아래 잔상이 남지 않게 한다.
+  runData.value = null
   runError.value = null
   directRunError.value = null
   runLoading.value = true
@@ -402,10 +549,15 @@ async function openStoredRun(runId: string, sourceFixture: FixtureCandidate | nu
   bundleId.value = null
   bundleError.value = null
   regeneratedRunId.value = null
+  clearHomeReflection()
   startedFixture.value = sourceFixture
+  openedFixtureId.value = explicitFixture.fixtureId ?? sourceFixture?.fixture_id ?? null
+  openedKickoffAt.value = explicitFixture.kickoffAt ?? sourceFixture?.kickoff_at ?? null
   openRunId.value = trimmed
   const data = await getPreviewRun(trimmed)
-  if (disposed || sequence !== openSequence) return
+  if (disposed || sequence !== openSequence || openRunId.value !== trimmed || data.run_id !== trimmed) {
+    return
+  }
   runLoading.value = false
   if (data.preview === null && data.sections.section_results.length === 0) {
     // 읽힌 본문이 하나도 없을 때만 실행 전체를 오류로 표시한다. 이때 섹션 결과 조회가
@@ -421,6 +573,15 @@ async function openStoredRun(runId: string, sourceFixture: FixtureCandidate | nu
   }
   runData.value = data
   readVersion.value += 1
+  const resolvedFixtureId = openRunFixtureId.value
+  const resolvedKickoffAt =
+    data.detail?.fixture?.kickoff_at ??
+    startedFixture.value?.kickoff_at ??
+    openedKickoffAt.value ??
+    null
+  if (resolvedFixtureId !== null) {
+    void refreshHomeReflection(resolvedFixtureId, resolvedKickoffAt)
+  }
 }
 
 /** 생성 버튼. 사용자가 직접 눌러야만 POST가 한 번 나간다. */
@@ -489,9 +650,12 @@ function openRunFromHistory(run: RunSummary) {
  * 다경기 시험 표에서 "저장된 문서 보기". 이미 저장 판정을 마친 실행 ID를 그대로 열어
  * 같은 실행의 본문을 읽는다(GET만). 생성 요청을 다시 보내지 않는다.
  */
-function openDocumentFromTest(payload: { runId: string }) {
+function openDocumentFromTest(payload: { runId: string; fixtureId?: number; kickoffAt?: string | null }) {
   directRunId.value = payload.runId
-  void openStoredRun(payload.runId, null)
+  void openStoredRun(payload.runId, null, {
+    fixtureId: payload.fixtureId,
+    kickoffAt: payload.kickoffAt ?? null,
+  })
 }
 
 function formatMoment(value: string | null): string {
@@ -674,6 +838,70 @@ onBeforeUnmount(() => {
             </button>
           </li>
         </ul>
+      </div>
+    </section>
+
+    <section
+      v-if="homeReflectionFixtureId !== null"
+      class="preview-tab__home"
+      data-testid="preview-home-reflection"
+    >
+      <div class="preview-tab__bar">
+        <div>
+          <strong>홈 반영 상태 (경기 {{ homeReflectionFixtureId }})</strong>
+          <p class="preview-tab__hint" data-testid="preview-home-document-status">
+            {{ homeDocumentReflectionText }}
+          </p>
+          <p
+            v-if="homeRecError"
+            class="preview-tab__alert"
+            role="alert"
+            data-testid="preview-home-recommendations-error"
+          >
+            공개 추천 목록을 읽지 못했습니다: {{ homeRecError }}
+          </p>
+          <p
+            v-else-if="homeRecMatch"
+            class="preview-tab__hint"
+            data-testid="preview-home-recommendation-status"
+          >
+            공개 추천 상태: {{ homeRecMatch.preview.state }} · 제공:
+            {{ homeRecMatch.preview.served ?? '없음' }} · 기준:
+            {{ formatMoment(homeRecMatch.preview.as_of) }}
+          </p>
+          <p
+            v-else-if="homeRec"
+            class="preview-tab__hint"
+            data-testid="preview-home-recommendation-status"
+          >
+            해당 날짜 공개 추천 목록에는 이 경기가 없습니다(직접 문서 조회 기준 사용).
+          </p>
+          <p
+            v-if="hasUnresolvedPlayers"
+            class="preview-tab__hint"
+            data-testid="preview-home-unresolved-note"
+          >
+            선수 DB 연결·사진 미확인 항목은 NULL/미확인 상태로 유지되며 저장 오류가 아닙니다.
+          </p>
+        </div>
+        <div class="preview-tab__home-actions">
+          <button
+            type="button"
+            class="mm-button mm-button--quiet"
+            data-testid="preview-home-reflection-refresh"
+            :disabled="homeReflectionLoading"
+            @click="refreshHomeReflection(homeReflectionFixtureId, homeReflectionKickoffAt)"
+          >
+            홈 반영 새로고침
+          </button>
+          <RouterLink
+            :to="{ path: '/', query: { fixtureId: String(homeReflectionFixtureId) } }"
+            class="mm-button mm-button--quiet"
+            data-testid="preview-home-link"
+          >
+            홈에서 확인
+          </RouterLink>
+        </div>
       </div>
     </section>
 

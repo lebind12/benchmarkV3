@@ -308,7 +308,7 @@ def read_preview(session: Session, external_id: int, *, now=None):
     ).root
 
 
-def recommendations(session, requested_date=None, *, now=None):
+def recommendations(session, requested_date=None, *, now=None, stored_session=None):
     now = now or utcnow()
     day = requested_date or now.astimezone(KST).date()
     start = datetime.combine(day, datetime.min.time(), tzinfo=KST)
@@ -350,15 +350,44 @@ def recommendations(session, requested_date=None, *, now=None):
             "away": team_ref(a, tr),
         }
 
+    approved = None
+    evidence = None
+    if stored_session is not None and selected:
+        from app.services import home_preview_document
+
+        try:
+            approval_rows = home_preview_document._read_approvals(stored_session)
+        except SQLAlchemyError as exc:
+            raise home_preview_document.PreviewDocumentUnavailable(str(exc)) from exc
+        approved = home_preview_document.approved_versions(approval_rows)
+        evidence = home_preview_document.approved_evidence(approval_rows)
+
     items = []
     for row in selected:
         value = item(row)
-        pub = read_preview(session, row[0].external_id, now=now)["publication"]
+        fixture_row = row[0]
+        if stored_session is not None:
+            from app.services import home_preview_document
+
+            preview_summary = home_preview_document.recommendation_preview_status(
+                stored_session,
+                fixture_row.external_id,
+                kickoff_at=fixture_row.kickoff_at,
+                status_short=fixture_row.status_short,
+                now=now,
+                approved=approved,
+                evidence=evidence,
+            )
+        else:
+            pub = read_preview(session, fixture_row.external_id, now=now)["publication"]
+            preview_summary = {
+                key: pub[key] for key in ("state", "served", "generated_at", "as_of")
+            }
         value.update(
-            state="ongoing" if row[0].status_short in ONGOING else "scheduled",
+            state="ongoing" if fixture_row.status_short in ONGOING else "scheduled",
             priority=row[4],
             reason=REASONS[row[4]],
-            preview={key: pub[key] for key in ("state", "served", "generated_at", "as_of")},
+            preview=preview_summary,
         )
         items.append(value)
     results = []

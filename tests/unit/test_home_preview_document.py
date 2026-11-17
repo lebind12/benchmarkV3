@@ -574,3 +574,31 @@ def test_photo_and_logo_ids_survive_when_the_resolver_is_connected(monkeypatch):
     assert injury["photo_url"] == "https://media.api-sports.io/football/players/1100.png"
     # 이름만 있는 부상은 이 경기 두 팀 범위에서만 확인한다.
     assert resolver.name_calls and all(scope == (13, 36) for _name, scope in resolver.name_calls)
+
+
+def test_missing_players_section_never_reports_complete_true():
+    """필수 선수 섹션(`section_players`)이 없으면 complete=False여야 한다.
+
+    검사 이유(실패 시 사용자 영향): outlook/odds/ai_forecast 3섹션만 있어도 complete=true로
+    내려보내면 소비자가 선수 섹션까지 모두 완료된 프리뷰로 오인한다(1557474 실측 사례).
+    """
+    rows = [
+        section("section_outlook", result_id="r-outlook", body="전망 요약", run_id="4f90e50b-ce55-4beb-8a17-20ef6e9192fb"),
+        section("section_odds", result_id="r-odds", body="배당 요약", run_id="4f90e50b-ce55-4beb-8a17-20ef6e9192fb"),
+        section("section_ai_forecast", result_id="r-forecast", body="AI 전망 본문", run_id="4f90e50b-ce55-4beb-8a17-20ef6e9192fb"),
+    ]
+    document = pinned.project_document(
+        {
+            "run_id": "4f90e50b-ce55-4beb-8a17-20ef6e9192fb",
+            "rows": rows,
+            "saved_at": BASE.isoformat(),
+        },
+        external_id=1557474,
+    )
+    assert document["status"] == "available"
+    assert [item["workflow_id"] for item in document["sections"]] == [
+        "section_outlook",
+        "section_odds",
+        "section_ai_forecast",
+    ]
+    assert document["complete"] is False

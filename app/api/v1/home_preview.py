@@ -17,10 +17,14 @@ StoredDb = Annotated[Session, Depends(preview_db.get_db)]
 
 
 @router.get("/recommendations")
-def recommendations(session: Db, date_: Annotated[date | None, Query(alias="date")] = None):
+def recommendations(
+    session: Db,
+    stored: StoredDb,
+    date_: Annotated[date | None, Query(alias="date")] = None,
+):
     try:
-        return home_preview.recommendations(session, date_)
-    except (SQLAlchemyError, ValueError):
+        return home_preview.recommendations(session, date_, stored_session=stored)
+    except (SQLAlchemyError, ValueError, home_preview_document.PreviewDocumentUnavailable):
         raise HTTPException(503, "home_preview_storage_unavailable") from None
 
 

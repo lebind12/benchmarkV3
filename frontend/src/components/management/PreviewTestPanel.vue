@@ -44,7 +44,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   /** 저장된 문서를 열어 달라는 요청(부모가 GET으로 연다). */
-  openDocument: [payload: { runId: string }]
+  openDocument: [payload: { runId: string; fixtureId?: number; kickoffAt?: string | null }]
 }>()
 
 /** 저장 판정. 생성 응답과 별개이며, 정본 재조회 결과만 담는다. */
@@ -583,7 +583,12 @@ async function retryNewRequest(fixtureId: number) {
 function openDocument(fixtureId: number) {
   const current = stateOf(fixtureId)
   if (current.phase !== 'saved') return
-  emit('openDocument', { runId: current.runId })
+  const row = candidateOf(fixtureId)
+  emit('openDocument', {
+    runId: current.runId,
+    fixtureId,
+    kickoffAt: row?.kickoff_at ?? null,
+  })
 }
 
 /**

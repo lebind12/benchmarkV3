@@ -2318,6 +2318,25 @@ def create_preview_run(
     return _admission_response(outcome)
 
 
+def _require_legacy_whole_preview_run(session: Session, run_id: UUID) -> dict:
+    """구 MP-10 전체 프리뷰 실행만 legacy resume/module-reruns/synthesis-runs를 허용한다."""
+    detail = _detail_or_404(session, run_id)
+    summary = detail.get("summary") or {}
+    op_kind = str(summary.get("operation_kind") or "")
+    run = session.get(PreviewRun, run_id) if hasattr(session, "get") else None
+    cfg = str(getattr(run, "config_version", "") or "").strip() if run is not None else ""
+    if (op_kind and op_kind != "preview") or (cfg and not cfg.startswith("mp10-")):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "현재 bundle/section 실행은 구 전체 파이프라인 엔드포인트(resume, module-reruns, "
+                "synthesis-runs)를 지원하지 않습니다. /api/v1/admin/preview/bundle-runs 또는 "
+                "/api/v1/admin/preview/section-runs를 사용하세요."
+            ),
+        )
+    return detail
+
+
 @router.post("/runs/{run_id}/resume", response_model=PreviewRunResponse)
 def resume_preview_run(
     run_id: UUID,
@@ -2327,7 +2346,7 @@ def resume_preview_run(
     """멈춘 전체 프리뷰를 남은 예산으로 이어서 돈다. 성공한 조사는 다시 부르지 않는다."""
     from app.preview import pipeline as pipeline_module
 
-    detail = _detail_or_404(session, run_id)
+    detail = _require_legacy_whole_preview_run(session, run_id)
     mode = RunMode(detail["summary"]["mode"])
     transport = _pipeline_transport(mode)
     try:
@@ -2364,6 +2383,7 @@ def rerun_preview_module(
     """조사 모듈 하나를 새 결과 버전으로 다시 돈다. 다른 결과는 지우지 않는다."""
     from app.preview import pipeline as pipeline_module
 
+    _require_legacy_whole_preview_run(session, run_id)
     try:
         mode = RunMode(payload.mode)
     except ValueError:
@@ -2406,6 +2426,7 @@ def rerun_preview_synthesis(
     """관리자가 고른 결과 버전으로 종합만 다시 한다. 선택 없이는 실행하지 않는다."""
     from app.preview import pipeline as pipeline_module
 
+    _require_legacy_whole_preview_run(session, run_id)
     try:
         mode = RunMode(payload.mode)
     except ValueError:

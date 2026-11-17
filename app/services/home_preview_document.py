@@ -22,7 +22,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Sequence
 
 from sqlalchemy import select
@@ -43,10 +43,14 @@ from app.preview.section_structured import structured_row_from_section_result
 __all__ = [
     "DOCUMENT_REASONS",
     "PreviewDocumentUnavailable",
+    "REQUIRED_READER_SECTIONS",
     "project_document",
     "read_document",
+    "recommendation_preview_status",
     "select_document",
 ]
+
+REQUIRED_READER_SECTIONS = ("section_players", "section_ai_forecast")
 
 # 공개 응답이 쓰는 사유. 문서 없음과 읽기 실패를 같은 문구로 뭉개지 않는다.
 DOCUMENT_REASONS = {
@@ -387,6 +391,12 @@ def project_document(
                 "structured": structured_by_result.get(result_id),
             }
         )
+    present_workflows = {str(item.get("workflow_id") or "") for item in sections}
+    for required_workflow in REQUIRED_READER_SECTIONS:
+        if required_workflow not in present_workflows:
+            msg = f"{required_workflow}: 표시할 수 있는 승인 본문이 없어 필수 섹션이 누락되었습니다."
+            if msg not in problems:
+                problems.append(msg)
     fixture = dict(fixtures or {})
     return {
         "schema_version": "1.0",
@@ -482,15 +492,46 @@ def _section_row_view(row: PreviewSectionResult) -> dict[str, Any]:
     }
 
 
+def _is_eligible_document_run(run: Any) -> bool:
+    """공개 문서 후보로 쓸 수 있는 실행만 남긴다.
+
+    구 MP-10(`mp10-*`)·모의·카탈로그·단일 모듈 실행은 현재 canonical 저장 계약을
+    쓰지 않으므로 제외한다. 속성 없는 단위 대역(`_StubRun`)과 test-cfg는 유지한다.
+    """
+    if getattr(run, "status", None) == "cancelled":
+        return False
+    if getattr(run, "mode", None) == _MOCK_MODE:
+        return False
+    op_kind = getattr(run, "operation_kind", None)
+    if op_kind is not None and str(op_kind) not in ("preview", "section"):
+        return False
+    cfg = getattr(run, "config_version", None)
+    if cfg is not None:
+        cfg_str = str(cfg).strip()
+        if (
+            cfg_str.startswith("mp10-")
+            or cfg_str.startswith("mp02-demo")
+            or cfg_str.startswith("mp04-fixture-catalog")
+        ):
+            return False
+    return True
+
+
 def _read_runs(session: Session, external_id: int, *, limit: int = 50):
     """이 외부 경기 ID의 저장 실행들. 저장된 행만 읽는다."""
     statement = (
         select(PreviewRun)
-        .where(PreviewRun.fixture_id == external_id, PreviewRun.status != "cancelled")
+        .where(
+            PreviewRun.fixture_id == external_id,
+            PreviewRun.status != "cancelled",
+            PreviewRun.mode != _MOCK_MODE,
+            PreviewRun.operation_kind.in_(("preview", "section")),
+            ~PreviewRun.config_version.startswith("mp10-"),
+        )
         .order_by(PreviewRun.requested_at.desc())
         .limit(limit)
     )
-    return list(session.scalars(statement))
+    return [run for run in session.scalars(statement) if _is_eligible_document_run(run)]
 
 
 def _read_approvals(session: Session) -> list[dict[str, Any]]:
@@ -627,6 +668,88 @@ def _id_context(session: Session, run: Any):
         return None, bridge
 
 
+def _parse_utc(value: Any) -> datetime | None:
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+    if not isinstance(value, datetime):
+        return None
+    return value.astimezone(timezone.utc) if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
+def _decorate_rows(
+    session: Session,
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    id_context: Any = None,
+    home_name: str | None = None,
+    away_name: str | None = None,
+) -> list[dict[str, Any]]:
+    from app.preview import player_section_read
+
+    payloads = _result_payloads(session, rows)
+    decorated: list[dict[str, Any]] = []
+    for row in rows:
+        if player_section_read.is_new_player_section_contract(row.get("output_contract_version")):
+            canonical = player_section_read.read_canonical_player_section(
+                session,
+                row,
+                id_context=id_context,
+                home_team_name=home_name,
+                away_team_name=away_name,
+            )
+            if canonical.storage_mismatch:
+                row = {
+                    **row,
+                    "body": "",
+                    "unavailable_reason": canonical.storage_error,
+                    **canonical.structured_result_fields(),
+                }
+            else:
+                row = {**row, **canonical.structured_result_fields()}
+        else:
+            payload = _latest_payload(payloads, row)
+            row = {
+                **row,
+                **structured_row_from_section_result(
+                    row, payload=payload, id_context=id_context
+                ),
+            }
+        decorated.append(row)
+    return decorated
+
+
+def _load_selection_context(
+    session: Session,
+    external_id: int,
+    *,
+    approved: Mapping[str, frozenset[str]] | None = None,
+    evidence: frozenset[tuple[str, str, str]] | None = None,
+):
+    runs = _read_runs(session, external_id)
+    if not runs:
+        return [], [], None
+    if approved is None or evidence is None:
+        approval_rows = _read_approvals(session)
+        approved = approved_versions(approval_rows)
+        evidence = approved_evidence(approval_rows)
+    cache: dict[str, PreviewSectionResult] = {}
+    candidates = []
+    for run in runs:
+        rows, composition_ids = _rows_for(session, run, cache)
+        candidates.append(
+            {
+                "run_id": run.id,
+                "sections": rows,
+                "composition_result_ids": composition_ids,
+            }
+        )
+    chosen = select_document(candidates, approved, evidence)
+    return runs, candidates, chosen
+
+
 def read_document(
     session: Session,
     external_id: int,
@@ -640,73 +763,32 @@ def read_document(
     """
     try:
         moment = now or utcnow()
-        runs = _read_runs(session, external_id)
+        runs, candidates, chosen = _load_selection_context(session, external_id)
         if not runs:
             return empty_document(
                 "no_stored_run", external_id=external_id, fixtures=fixtures, now=moment
             )
-        approval_rows = _read_approvals(session)
-        approved = approved_versions(approval_rows)
-        evidence = approved_evidence(approval_rows)
-        cache: dict[str, PreviewSectionResult] = {}
-        candidates = []
-        for run in runs:
-            rows, composition_ids = _rows_for(session, run, cache)
-            candidates.append(
-                {
-                    "run_id": run.id,
-                    "sections": rows,
-                    "composition_result_ids": composition_ids,
-                }
-            )
-        chosen = select_document(candidates, approved, evidence)
         if chosen is None:
             return empty_document(
                 _reason_key(candidates), external_id=external_id, fixtures=fixtures, now=moment
             )
         rows = list(chosen.get("rows") or ())
-        payloads = _result_payloads(session, rows)
         chosen_run = next(
             (run for run in runs if str(run.id) == str(chosen.get("run_id"))), None
         )
         id_context, bridge = (None, None)
         if chosen_run is not None:
             id_context, bridge = _id_context(session, chosen_run)
-        from app.preview import player_section_read
-
         home_name = _text((fixtures or {}).get("home", {}).get("name")) if isinstance(fixtures, Mapping) else None
         away_name = _text((fixtures or {}).get("away", {}).get("name")) if isinstance(fixtures, Mapping) else None
-        decorated = []
         try:
-            for row in rows:
-                if player_section_read.is_new_player_section_contract(
-                    row.get("output_contract_version")
-                ):
-                    canonical = player_section_read.read_canonical_player_section(
-                        session,
-                        row,
-                        id_context=id_context,
-                        home_team_name=home_name,
-                        away_team_name=away_name,
-                    )
-                    if canonical.storage_mismatch:
-                        row = {
-                            **row,
-                            "body": "",
-                            "unavailable_reason": canonical.storage_error,
-                            **canonical.structured_result_fields(),
-                        }
-                    else:
-                        row = {**row, **canonical.structured_result_fields()}
-                else:
-                    payload = _latest_payload(payloads, row)
-                    row = {
-                        **row,
-                        **structured_row_from_section_result(
-                            row, payload=payload, id_context=id_context
-                        ),
-                    }
-                decorated.append(row)
+            decorated = _decorate_rows(
+                session,
+                rows,
+                id_context=id_context,
+                home_name=home_name,
+                away_name=away_name,
+            )
         finally:
             # 파사드가 연 읽기 전용 연결을 요청 단위로 닫는다.
             close = getattr(bridge, "close", None)
@@ -715,5 +797,70 @@ def read_document(
         return project_document(
             {**chosen, "rows": decorated}, external_id=external_id, fixtures=fixtures
         )
+    except SQLAlchemyError as exc:
+        raise PreviewDocumentUnavailable(str(exc)) from exc
+
+
+def recommendation_preview_status(
+    session: Session,
+    external_id: int,
+    *,
+    kickoff_at: Any = None,
+    status_short: str | None = None,
+    now: datetime | None = None,
+    approved: Mapping[str, frozenset[str]] | None = None,
+    evidence: frozenset[tuple[str, str, str]] | None = None,
+) -> dict[str, Any]:
+    """홈 추천 카드 `preview` 요약. `/document`와 같은 저장 선택·완전성 기준을 쓴다."""
+    try:
+        moment = now or utcnow()
+        runs, candidates, chosen = _load_selection_context(
+            session, external_id, approved=approved, evidence=evidence
+        )
+        if chosen is not None:
+            decorated = _decorate_rows(session, list(chosen.get("rows") or ()))
+            projected = project_document(
+                {**chosen, "rows": decorated}, external_id=external_id
+            )
+            if projected.get("sections"):
+                saved_at = projected.get("saved_at")
+                saved_dt = _parse_utc(saved_at)
+                kickoff_dt = _parse_utc(kickoff_at)
+                # 추천 스키마는 generated_at < kickoff_at를 강제한다. 킥오프 이후 저장분은
+                # 시각을 지어내지 않고 generated_at=None으로 남긴다.
+                generated_at = (
+                    saved_at
+                    if saved_dt is not None
+                    and (kickoff_dt is None or saved_dt < kickoff_dt)
+                    else None
+                )
+                return {
+                    "state": "ready" if projected.get("complete") else "partial",
+                    "served": "current",
+                    "generated_at": generated_at,
+                    "as_of": saved_at,
+                }
+        if any(getattr(run, "status", None) in ("queued", "running", "retry_wait") for run in runs):
+            state = "pending"
+        elif runs and _reason_key(candidates) == "no_approved_version":
+            state = "unavailable"
+        elif runs and getattr(runs[0], "status", None) == "failed":
+            state = "failed"
+        elif chosen is not None:
+            # 선택된 문서가 저장 불일치로 표시 불가인 경우
+            state = "failed"
+        else:
+            kickoff_dt = _parse_utc(kickoff_at)
+            kickoff_passed = (status_short is not None and status_short != "NS") or (
+                kickoff_dt is not None and kickoff_dt <= moment
+            )
+            before_window = kickoff_dt is not None and kickoff_dt > moment + timedelta(hours=6)
+            state = "unavailable" if (before_window or kickoff_passed) else "pending"
+        return {
+            "state": state,
+            "served": None,
+            "generated_at": None,
+            "as_of": None,
+        }
     except SQLAlchemyError as exc:
         raise PreviewDocumentUnavailable(str(exc)) from exc

@@ -50,6 +50,13 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@/features/match-preview/api', () => ({ previewRunsApi: previewApi }))
 
+const homePreviewApi = vi.hoisted(() => ({
+  getHomePreviewDocument: vi.fn(),
+  getHomeRecommendations: vi.fn(),
+}))
+
+vi.mock('@/lib/api/homePreview', () => homePreviewApi)
+
 /** 진단 하위 패널은 열릴 때만 마운트된다. 열리지 않는 기본 경로에서는 호출이 없어야 한다. */
 vi.mock('@/features/match-preview/InformationBundlePanel.vue', () => ({
   default: { name: 'InformationBundlePanel', props: ['runId'], template: '<p data-testid="bundle-stub">bundle</p>' },
@@ -306,6 +313,8 @@ beforeEach(() => {
   currentQuery.value = { tab: 'preview' }
   previewApi.composition.mockResolvedValue(ok({ run_id: 'run-1557474-a', available: false, reason: '구성본 없음', composition: null }))
   previewApi.readerPreviewDiagnostics.mockResolvedValue(fail(404))
+  homePreviewApi.getHomePreviewDocument.mockRejectedValue(new Error('not mocked'))
+  homePreviewApi.getHomeRecommendations.mockRejectedValue(new Error('not mocked'))
 })
 
 describe('프리뷰 탭 — 생성 요청 횟수', () => {
@@ -1311,5 +1320,176 @@ describe('프리뷰 탭 — 관리 화면 경계', () => {
 
     expect(wrapper.find('[data-testid="management-tab-preview"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="preview-panel"]').exists()).toBe(false)
+  })
+})
+
+describe('프리뷰 탭 — 실행 전환 비움 및 홈 반영 상태', () => {
+  it('실행을 전환할 때 새 응답 전까지 이전 실행 본문을 비우고 늦은 이전 응답을 무시한다', async () => {
+    previewApi.readerPreview.mockImplementation((runId: string) => {
+      if (runId === 'run-1557474-a') {
+        return Promise.resolve(
+          ok(
+            readerPreview({
+              headline: '첫 실행 제목',
+              sections: [
+                {
+                  section_id: 'section_ai_forecast',
+                  title: 'AI 경기 전망',
+                  body: '첫 실행 고유 본문',
+                  sources: [],
+                  quality: 'ready',
+                  partial: false,
+                  version: 1,
+                },
+              ],
+            }),
+          ),
+        )
+      }
+      return new Promise(() => undefined)
+    })
+    previewApi.sectionResults.mockResolvedValue(ok({ run_id: 'run-1557474-a', section_results: [] }))
+    previewApi.detail.mockResolvedValue(ok(runDetail()))
+
+    const wrapper = mount(PreviewPanel, mountOptions())
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-a')
+    await submitOpenRun(wrapper)
+    expect(wrapper.get('[data-testid="preview-body"]').text()).toContain('첫 실행 고유 본문')
+
+    // 두 번째 실행을 열면 응답 도착 전 즉시 이전 본문과 홈 반영 박스가 비워져야 한다.
+    let resolveSecond: (value: ApiResult<ReaderPreview>) => void = () => undefined
+    previewApi.readerPreview.mockImplementationOnce(
+      () => new Promise<ApiResult<ReaderPreview>>((resolve) => { resolveSecond = resolve }),
+    )
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-b')
+    await wrapper.get('[data-testid="preview-run-form"]').trigger('submit')
+
+    expect(wrapper.find('[data-testid="preview-body"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="preview-run-loading"]').exists()).toBe(true)
+
+    resolveSecond(
+      ok(
+        readerPreview({
+          headline: '둘째 실행 제목',
+          sections: [
+            {
+              section_id: 'section_ai_forecast',
+              title: 'AI 경기 전망',
+              body: '둘째 실행 본문',
+              sources: [],
+              quality: 'ready',
+              partial: false,
+              version: 1,
+            },
+          ],
+        }),
+      ),
+    )
+    await flushPromises()
+    expect(wrapper.get('[data-testid="preview-body"]').text()).toContain('둘째 실행 본문')
+    expect(wrapper.get('[data-testid="preview-body"]').text()).not.toContain('첫 실행 고유 본문')
+  })
+
+  it('같은 관리자 화면에서 홈 반영 상태(부분 반영·미승인·오류·선수 NULL 안내)를 구분해 보여준다', async () => {
+    previewApi.readerPreview.mockResolvedValue(ok(readerPreview()))
+    previewApi.sectionResults.mockResolvedValue(ok(savedSections()))
+    previewApi.detail.mockResolvedValue(ok(runDetail()))
+    homePreviewApi.getHomePreviewDocument.mockResolvedValue({
+      schema_version: '1.0',
+      fixture_id: 1557474,
+      status: 'available',
+      reason: null,
+      reason_text: null,
+      saved_at: '2026-11-18T00:00:00Z',
+      run_id: 'run-1557474-a',
+      complete: false,
+      fixture: { external_id: 1557474 },
+      headline: '전망',
+      sections: [
+        {
+          section_result_id: 'sr-1',
+          run_id: 'run-1557474-a',
+          workflow_id: 'section_ai_forecast',
+          workflow_version: 'v1',
+          version: 1,
+          title: 'AI 경기 전망',
+          body: '본문',
+          sources: [],
+          quality: 'ready',
+          partial: false,
+          created_at: '2026-11-18T00:00:00Z',
+          structured: {
+            structured_version: 'mp11-structured-2',
+            workflow_id: 'section_players',
+            players: [{ player: '조슈아 킹', reason: '복귀', unresolved: true, external_player_id: null, photo_url: null }],
+            injuries: [],
+            media: [],
+            odds: [],
+            forecast: null,
+          },
+        },
+      ],
+    })
+    homePreviewApi.getHomeRecommendations.mockResolvedValue({
+      schema_version: '1.0',
+      requested_date: '2026-11-21',
+      display_date: '2026-11-21',
+      timezone: 'Asia/Seoul',
+      as_of: '2026-11-18T00:00:00Z',
+      policy_version: 'home-priority-2026-10-25',
+      fallback_reason: null,
+      items: [
+        {
+          fixture_id: 1557474,
+          kickoff_at: '2026-11-21T12:30:00Z',
+          status_as_of: '2026-11-18T00:00:00Z',
+          competition: { external_id: 39, name: 'Premier League', category: 'epl', round: '12' },
+          home: { external_id: 50, name: '맨체스터 시티' },
+          away: { external_id: 36, name: '풀럼' },
+          state: 'scheduled',
+          priority: 1,
+          reason: '빅식스',
+          preview: {
+            state: 'partial',
+            served: 'current',
+            generated_at: '2026-11-18T00:00:00Z',
+            as_of: '2026-11-18T00:00:00Z',
+          },
+        },
+      ],
+      today_results: [],
+    })
+
+    const wrapper = mount(PreviewPanel, mountOptions())
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-a')
+    await submitOpenRun(wrapper)
+
+    const panel = wrapper.get('[data-testid="preview-home-reflection"]')
+    expect(panel.get('[data-testid="preview-home-document-status"]').text()).toContain('부분 반영(complete=false')
+    expect(panel.get('[data-testid="preview-home-recommendation-status"]').text()).toContain('partial')
+    expect(panel.find('[data-testid="preview-home-unresolved-note"]').exists()).toBe(true)
+    expect(panel.find('[data-testid="preview-home-link"]').exists()).toBe(true)
+
+    // 미승인 상태 새로고침
+    homePreviewApi.getHomePreviewDocument.mockResolvedValueOnce({
+      schema_version: '1.0',
+      fixture_id: 1557474,
+      status: 'none',
+      reason: 'no_approved_version',
+      reason_text: '승인된 워크플로우 버전의 저장 문서가 없습니다.',
+      absence: { state: 'upcoming', remaining_seconds: 86400 },
+      saved_at: null,
+      run_id: null,
+      complete: null,
+      fixture: { external_id: 1557474 },
+      headline: null,
+      sections: [],
+    })
+    homePreviewApi.getHomeRecommendations.mockRejectedValueOnce(new Error('home_preview_http_503'))
+    await wrapper.get('[data-testid="preview-home-reflection-refresh"]').trigger('click')
+    await flushPromises()
+
+    expect(panel.get('[data-testid="preview-home-document-status"]').text()).toContain('no_approved_version')
+    expect(panel.get('[data-testid="preview-home-recommendations-error"]').text()).toContain('home_preview_http_503')
   })
 })

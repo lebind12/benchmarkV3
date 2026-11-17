@@ -247,4 +247,23 @@ describe('home recommended section stored document states', () => {
     expect(body.text()).not.toContain('첫 경기 본문')
     expect(wrapper.find('[data-testid="selected-preview"]').attributes('data-fixture-id')).toBe('90002')
   })
+
+  it('shows a partial-document notice when required sections are missing (complete=false)', async () => {
+    getHomePreviewDocument.mockResolvedValue({
+      ...storedDocument,
+      fixture_id: 90001,
+      run_id: '4f90e50b-ce55-4beb-8a17-20ef6e9192fb',
+      complete: false,
+      sections: [
+        { ...storedDocument.sections[0]!, workflow_id: 'section_outlook', title: '경기 흐름 전망' },
+      ],
+    })
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="stored-preview-document"]').exists()).toBe(true)
+    const notice = wrapper.find('[data-testid="stored-document-partial"]')
+    expect(notice.exists()).toBe(true)
+    expect(notice.text()).toContain('부분 표시')
+  })
 })

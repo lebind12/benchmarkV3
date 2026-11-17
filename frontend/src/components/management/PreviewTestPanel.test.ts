@@ -1014,6 +1014,18 @@ describe('기간 수집 시험 — 요청 식별자', () => {
     await flushPromises()
     expect(bundleCalls().length).toBe(4)
     expect(requestIds()[3]).not.toBe(firstId)
+
+    // 저장 완료 후 "저장된 문서 보기"는 runId와 경기 식별자(fixtureId, kickoffAt)를 함께 전달한다.
+    await wrapper.get(`[data-testid="ptp-open-${CITY_FULHAM}"]`).trigger('click')
+    const emitted = wrapper.emitted('openDocument')
+    expect(emitted).toBeTruthy()
+    expect(emitted![0]).toEqual([
+      {
+        runId: 'run-new',
+        fixtureId: CITY_FULHAM,
+        kickoffAt: '2026-11-21T12:30:00+00:00',
+      },
+    ])
   })
 })
 

@@ -199,6 +199,9 @@ watch([() => selectedRow.value?.fixture_id, storedView], async () => { await nex
           <template v-if="documentState === 'ready'">
             <p class="hp-freshness">경기 시작 전 6시간 이내의 마지막 정기 수집에서 한 번 생성됩니다.</p>
             <p v-if="storedDocument?.saved_at" class="hp-generation-time" data-testid="preview-generation-time"><Clock3 :size="14" />저장 프리뷰 {{ formatTime(storedDocument.saved_at) }} KST 저장</p>
+            <p v-if="storedDocument?.complete === false" class="hp-freshness" data-testid="stored-document-partial" role="status">
+              필수 섹션(주목 선수·AI 경기 전망) 중 미생성 또는 미승인 항목이 있어 승인된 섹션만 부분 표시합니다.
+            </p>
           </template>
 
           <div v-if="documentState === 'loading'" class="hp-preview-empty" role="status" data-testid="stored-document-loading">
