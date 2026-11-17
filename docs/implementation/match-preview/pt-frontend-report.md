@@ -269,3 +269,55 @@ A 커밋 `a62545c`의 `collection_evidence`를 경계에서 해석해 화면에 
 
 전체 회귀는 지시대로 반복하지 않았고 기존 유효 증거를 재사용했다. 실제 수집·생성·모델
 호출은 여전히 0회다.
+
+## 10. B 배정 종료 확인과 C 인계용 진단 원문
+
+조정자 메시지 `msg_f1bd601f2f07`는 남은 B 작업이 `msg_709ebdd8353a`(수집2개/생성3개이상
+선택 분리)와 `msg_dbc6a758442c`(collection_evidence 연결)뿐이며 소스에 아직 `slice(-2)`,
+`selectionReady=2`, evidence 미연결이 남아 있다고 보았습니다. 그 메시지는 **이전 커밋
+`27846bf` 시점의 소스**를 본 것입니다. 아래처럼 이미 `f2ebce4`/`855b03d`에서 처리됐고,
+지시의 추가 범위도 없습니다.
+
+| 지적 | 현재 소스 | 커밋 |
+|---|---|---|
+| `slice(-2)` 자동 제거 | 없음. 선택은 그대로 유지되고 개수 제한 없음 | `f2ebce4` |
+| 생성 `selectionReady=2` | 없음. `hasSelection`(1개 이상)이 생성 조건 | `f2ebce4` |
+| evidence 미연결 | `collection_evidence` 7회 참조, scope/planned/stored/detail_stored/unverified 분리 표시 | `855b03d`, `f2ebce4` |
+
+```
+$ grep -n "slice(-2)" frontend/src/components/management/PreviewTestPanel.vue   → 없음
+$ grep -n "selectionReady" frontend/src/components/management/PreviewTestPanel.vue → 없음
+$ grep -c "collection_evidence" frontend/src/components/management/PreviewTestPanel.vue → 7
+$ grep -n "hasSelection\|collectionScopeReady" …/PreviewTestPanel.vue
+182: const hasSelection = computed(() => selectedIds.value.length > 0)
+185: const collectionScopeReady = computed(() => selectedIds.value.length === 2)
+```
+
+### 10.1 대표 직접검사(재실행 근거)
+
+```
+$ vitest run src/components/management/PreviewTestPanel.test.ts -t "세 경기를 골라도 선택이 유지되고"
+→ 1 passed | 20 skipped
+$ vitest run src/components/management/PreviewTestPanel.test.ts -t "계획·저장 확인·상세 저장·미확인을 각각"
+→ 1 passed | 20 skipped
+```
+
+전체 Vitest와 기준선 재실행은 지시대로 하지 않았습니다.
+
+### 10.2 C가 통합 빌드에서 처리할 기존 오류 5건(정확한 진단 문구)
+
+`vue-tsc -p tsconfig.app.json --noEmit`은 exit 2이며, 오류는 **전부 이번 소유 밖**
+`src/features/match-preview/bundlePanelAdapters.ts`입니다. 기준 워크트리
+`player-section-integration`에서 같은 명령으로 동일하게 재현됩니다. B는 이 파일을 고치지
+않았습니다.
+
+```
+src/features/match-preview/bundlePanelAdapters.ts(345,21): error TS2339: Property 'source_url' does not exist on type 'ClaimView'.
+src/features/match-preview/bundlePanelAdapters.ts(345,43): error TS2339: Property 'source_url' does not exist on type 'ClaimView'.
+src/features/match-preview/bundlePanelAdapters.ts(384,9): error TS2322: Type '{ fixture_id: number; league_id: number; season: number; home_team_id: number | null; away_team_id: number | null; kickoff_at: string; league_name: string; home_team_name: null; away_team_name: null; label: string; } | null' is not assignable to type 'FixtureCandidate | null'.
+src/features/match-preview/bundlePanelAdapters.ts(399,29): error TS2345: Argument of type '{ run_id: string; preview: null; sections: { run_id: string; section_results: SectionResultView[]; }; fixture: FixtureCandidate | null; }' is not assignable to parameter of type 'PreviewRunData & { fixture?: FixtureCandidate | null | undefined; }'.
+src/features/match-preview/bundlePanelAdapters.ts(416,29): error TS2345: (399,29)와 같은 문구.
+```
+
+내 소유 파일(`PreviewTestPanel.vue`, `previewTest.ts`, `PreviewPanel.vue`, `previewView.ts`,
+`collectionProxy.ts`, `api.ts`, `preview.ts`, `vite.config.ts`)에서는 오류가 0건입니다.
