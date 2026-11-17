@@ -103,7 +103,20 @@ const generateNotice = ref<string | null>(null)
 let disposed = false
 /** 늦은 응답을 버리기 위한 경기별 순번. 값을 바꾸면 이전 순번의 응답은 화면에 닿지 않는다. */
 const tokens = new Map<number, number>()
+/**
+ * 새 실행 재생성 요청이 **아직 끝나지 않은** 경기.
+ *
+ * 진행 중인 요청이 있어도 사용자가 새 실행을 열 수 있어야 하므로(설계), `generating`
+ * 하나로 버튼을 막으면 그 정상 동작이 사라진다. 대신 **재생성 요청이 응답을 기다리는
+ * 동안**만 이 목록에 넣어, 그 사이 같은 버튼을 다시 눌러도 POST를 더 만들지 않는다.
+ * 더블클릭·연속 클릭이 서로 다른 UUID로 실행을 두 벌 만드는 것을 막는 지점이다.
+ */
+const retryingNew = ref<number[]>([])
 let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function isRetryingNew(fixtureId: number): boolean {
+  return retryingNew.value.includes(fixtureId)
+}
 
 function nextToken(fixtureId: number): number {
   const token = (tokens.get(fixtureId) ?? 0) + 1
@@ -547,10 +560,21 @@ async function retrySameRequest(fixtureId: number) {
   syncQuery(selectedIds.value, persistedRunIds(), collectionRun.value?.run_id ?? null)
 }
 
-/** 사용자가 **새 실행**을 명시한 재시도. 새 식별자로 보낸다. */
+/** 사용자가 **새 실행**을 명시한 재시도. 새 식별자로 보낸다.
+ *
+ * 요청이 끝나기 전의 두 번째 클릭은 무시한다. 그대로 두면 클릭마다 새 UUID가 만들어져
+ * 같은 경기에 실행이 두 벌 생기고 모델 호출도 두 번 나간다.
+ */
 async function retryNewRequest(fixtureId: number) {
+  if (isRetryingNew(fixtureId)) return
+  retryingNew.value = [...retryingNew.value, fixtureId]
   generating.value = true
-  await generateOne(fixtureId, newRequestId())
+  try {
+    await generateOne(fixtureId, newRequestId())
+  } finally {
+    // 화면이 이미 사라졌어도 목록은 정리한다(다음 진입을 막지 않는다).
+    retryingNew.value = retryingNew.value.filter((id) => id !== fixtureId)
+  }
   if (disposed) return
   generating.value = false
   syncQuery(selectedIds.value, persistedRunIds(), collectionRun.value?.run_id ?? null)
@@ -1013,9 +1037,10 @@ onBeforeUnmount(() => {
                 type="button"
                 class="mm-button mm-button--quiet"
                 :data-testid="`ptp-retry-new-${row.fixture_id}`"
+                :disabled="isRetryingNew(row.fixture_id)"
                 @click="retryNewRequest(row.fixture_id)"
               >
-                새 실행으로 다시 생성
+                {{ isRetryingNew(row.fixture_id) ? '재생성 중…' : '새 실행으로 다시 생성' }}
               </button>
             </template>
             <span v-else class="ptp__meta">—</span>

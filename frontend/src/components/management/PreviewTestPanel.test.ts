@@ -885,6 +885,64 @@ describe('기간 수집 시험 — 새로고침과 늦은 응답', () => {
     ).toBe(false)
   })
 
+  it('새 실행으로 다시 생성 버튼을 연속 클릭하면 두 번째 클릭은 POST를 만들지 않는다', async () => {
+    // 사용자 영향: 재생성 요청이 아직 진행 중인데 같은 버튼을 또 누르면 서로 다른 UUID로
+    // POST가 한 건 더 나가 실행과 모델 호출이 두 벌 생긴다. 사용자는 한 경기에 실행 두 개를
+    // 보게 되고, 어느 것이 자기 요청의 결과인지 알 수 없다.
+    queueBase()
+    let releaseHeld: () => void = () => undefined
+    const heldGate = new Promise<void>((resolve) => {
+      releaseHeld = resolve
+    })
+    let releaseRetry: () => void = () => undefined
+    const retryGate = new Promise<void>((resolve) => {
+      releaseRetry = resolve
+    })
+    // 첫 생성은 붙잡아 두어 사용자가 그 사이에 재생성을 누르는 상황을 만든다.
+    queueFor('POST', `${PV}/bundle-runs`, CITY_FULHAM, {
+      kind: 'held',
+      gate: heldGate,
+      then: { kind: 'json', status: 500, body: { detail: '원래 요청의 늦은 실패' } },
+    })
+    // 재생성 요청도 붙잡아 둔다. 그 사이의 두 번째 클릭이 새 POST를 만들면 안 된다.
+    queueFor('POST', `${PV}/bundle-runs`, CITY_FULHAM, {
+      kind: 'held',
+      gate: retryGate,
+      then: { kind: 'json', status: 500, body: { detail: '재생성 실패' } },
+    })
+    queueGeneratedRun(CITY_FULHAM, 'run-new', '맨체스터 시티 vs 풀럼')
+
+    const wrapper = await mountPanel()
+    await wrapper.get('[data-testid="ptp-generate"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get(`[data-testid="ptp-generation-${CITY_FULHAM}"]`).text()).toContain('생성 중')
+
+    // 첫 재생성은 정상 동작이다(설계상 진행 중에도 새 실행을 열 수 있다).
+    await wrapper.get(`[data-testid="ptp-retry-new-${CITY_FULHAM}"]`).trigger('click')
+    await flushPromises()
+    const afterFirst = bundleCalls().filter(
+      (call) => (call.body as { fixture_id?: number }).fixture_id === CITY_FULHAM,
+    ).length
+    expect(afterFirst).toBe(2)
+
+    // 재생성이 아직 진행 중이다. 버튼이 비활성이고, 연속 클릭이 POST를 더 만들지 않는다.
+    const retryNew = wrapper.get(`[data-testid="ptp-retry-new-${CITY_FULHAM}"]`)
+    expect(retryNew.attributes('disabled')).toBeDefined()
+    await retryNew.trigger('click')
+    await retryNew.trigger('click')
+    await flushPromises()
+
+    releaseHeld()
+    releaseRetry()
+    await flushPromises()
+
+    expect(
+      bundleCalls().filter(
+        (call) => (call.body as { fixture_id?: number }).fixture_id === CITY_FULHAM,
+      ).length,
+    ).toBe(2)
+  })
+
   it('붙잡힌 이전 요청의 응답이 늦게 도착해도 새 실행의 표시를 덮지 않는다', async () => {
     queueBase()
     let releaseLate: () => void = () => undefined
