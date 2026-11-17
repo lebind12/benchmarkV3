@@ -568,6 +568,96 @@ def _wants_home_preview(settings, test_scope) -> bool:
     return bool(getattr(settings, "home_preview_enabled", False)) or test_scope is not None
 
 
+def _collection_evidence(payload, test_scope, plans, results) -> dict:
+    """이 시험 실행이 **기간 안에서 실제로 어떤 경기를 저장했는지** 남긴다.
+
+    왜 필요한가: 기존 run payload에는 계획(`items[].total`)과 처리 단위 카운터만 있고,
+    "기간 안 어느 경기가 실제로 갱신됐는지"가 없다. 그래서 화면은 선택한 두 경기(생성
+    대상)와 실제 수집 범위를 구별해 보여줄 수 없었다.
+
+    이 값이 말하는 것과 말하지 않는 것:
+
+    - `planned_fixture_ids`: 계획 단계가 **기간 안에서** 대상으로 삼은 외부 경기 ID다.
+      아직 저장 성공이 아니다(조회 단계의 계획).
+    - `stored_fixture_ids`: 백필이 **실제로 upsert한** 외부 경기 ID다. 저장 성공의 근거다.
+    - `detail_stored_fixture_ids`: 상세 4종(events/statistics/lineups/players)까지 저장된
+      경기다. `planned`에 있어도 상세가 실패하면 여기 없다.
+    - `unverified`: 계획에는 있었지만 저장이 확인되지 않은 경기 ID다. **실패로 단정하지
+      않는다**(경기 단계가 실패했거나 저장 단계가 예외로 끝났을 수 있다). 추정으로 채우지
+      않고 "확인되지 않음"으로 남긴다.
+    - `partial`: 경기/상세 단계에서 오류가 있었는지다. 오류가 있으면 확인된 범위만
+      신뢰해야 한다.
+
+    새 외부 호출·새 표를 만들지 않는다. 이미 계산된 계획과 백필 결과만 접는다.
+    """
+    evidence: dict = {
+        "scope_fixture_ids": list(test_scope.preview_fixture_ids) if test_scope else [],
+        "fixture_from": test_scope.fixture_from.isoformat() if test_scope else None,
+        "fixture_to": test_scope.fixture_to.isoformat() if test_scope else None,
+        "planned_fixture_ids": [],
+        "stored_fixture_ids": [],
+        "detail_stored_fixture_ids": [],
+        "unverified_fixture_ids": [],
+        "partial": False,
+        "counts": {
+            "planned": 0,
+            "stored": 0,
+            "detail_stored": 0,
+            "unverified": 0,
+        },
+        "notes": [],
+    }
+    planned: list[int] = []
+    stored: list[int] = []
+    detail_stored: list[int] = []
+    for plan in plans:
+        for season_plan in getattr(plan, "seasons", []) or []:
+            for external_id in getattr(season_plan, "fixture_external_ids", []) or []:
+                if int(external_id) not in planned:
+                    planned.append(int(external_id))
+    for result in results:
+        for season_result in getattr(result, "seasons", []) or []:
+            if getattr(season_result, "errors", None):
+                evidence["partial"] = True
+            for external_id in getattr(season_result, "fixture_external_ids_stored", []) or []:
+                if int(external_id) not in stored:
+                    stored.append(int(external_id))
+            for external_id in (
+                getattr(season_result, "detail_fixture_external_ids_stored", []) or []
+            ):
+                if int(external_id) not in detail_stored:
+                    detail_stored.append(int(external_id))
+
+    evidence["planned_fixture_ids"] = planned
+    evidence["stored_fixture_ids"] = stored
+    evidence["detail_stored_fixture_ids"] = detail_stored
+    evidence["unverified_fixture_ids"] = [
+        external_id for external_id in planned if external_id not in stored
+    ]
+    evidence["counts"] = {
+        "planned": len(planned),
+        "stored": len(stored),
+        "detail_stored": len(detail_stored),
+        "unverified": len(evidence["unverified_fixture_ids"]),
+    }
+    if not plans:
+        evidence["notes"].append(
+            "수집 범위 확인 단계에서 끝나 실제 수집 대상이 확정되지 않았습니다."
+        )
+    elif not stored and results:
+        evidence["notes"].append(
+            "경기 저장이 확인되지 않았습니다. 처리 단위 카운터와 저장 경기 수는 다릅니다."
+        )
+    if evidence["unverified_fixture_ids"]:
+        evidence["notes"].append(
+            "계획에는 있었지만 저장이 확인되지 않은 경기가 있습니다(실패로 단정하지 않음)."
+        )
+    evidence["notes"].append(
+        "계획 경기와 저장 경기를 구별합니다. 선택한 생성 대상 두 경기는 이 목록과 다릅니다."
+    )
+    return evidence
+
+
 def execute_run(payload, guard):
     tracker = RunTracker(payload)
     done = threading.Event()
@@ -601,6 +691,10 @@ def execute_run(payload, guard):
         payload["status"] = "running"
         tracker.log("수집을 시작했습니다.", code="RUN_STARTED")
         measured = []
+        # 시험 범위 실행의 실제 수집 근거. 계획과 백필 결과를 접어 payload에 남긴다.
+        # 일반 수집에는 이 값을 만들지 않는다(기존 응답 모양 보존).
+        measured_plans = []
+        backfill_results = []
         for item in payload["items"]:
             tracker.item = item
             tracker.check_cancelled()
@@ -624,6 +718,7 @@ def execute_run(payload, guard):
                 )
                 item["total_known"] = True
                 measured.append((item, plan))
+                measured_plans.append(plan)
             except SyncCancelled:
                 raise
             except Exception as exc:
@@ -652,6 +747,7 @@ def execute_run(payload, guard):
                             if any(s.errors for s in result.seasons)
                             else "succeeded"
                         )
+                        backfill_results.append(result)
                         target = store.get(LeagueSyncTarget, item["target_id"])
                         if target:
                             target.last_sync = now()
@@ -711,6 +807,10 @@ def execute_run(payload, guard):
                         )
                 break
             tracker.flush(force=True)
+        if test_scope is not None:
+            payload["collection_evidence"] = _collection_evidence(
+                payload, test_scope, measured_plans, backfill_results
+            )
         failed = any(i["status"] in {"failed", "partial_failed"} for i in payload["items"])
         payload["status"] = (
             (

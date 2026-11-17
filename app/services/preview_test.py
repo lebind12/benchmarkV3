@@ -284,12 +284,21 @@ def _test_run_rows(session: Session, *, run_id: str | None = None, limit: int):
 
 
 def list_test_runs(session: Session, *, limit: int = RUN_LIST_LIMIT) -> dict[str, Any]:
-    """수집 시험 실행 목록(부작용 없음)."""
-    from app.services.management_runs import payload_view
+    """수집 시험 실행 목록(부작용 없음).
+
+    envelope는 기존 관리 목록과 같다(`active`/`items`/`limit`). `active`는 지금 진행 중인
+    시험 실행 하나이며, 없으면 `None`이다. 저장된 `status`·`cancel_requested_at`만 읽으므로
+    조회가 상태를 바꾸지 않는다.
+    """
+    from app.services.management_runs import ACTIVE, payload_view
 
     rows = _test_run_rows(session, limit=limit)
     items = [payload_view(row) for row in sorted(rows, key=_created_at, reverse=True)]
-    return {"items": items, "limit": limit}
+    return {
+        "active": next((run for run in items if run.get("status") in ACTIVE), None),
+        "items": items,
+        "limit": limit,
+    }
 
 
 def test_run(session: Session, run_id: str) -> dict[str, Any]:

@@ -1188,3 +1188,206 @@ def test_stored_scope_without_the_flag_keeps_generating():
 
     assert restored is not None
     assert restored.generate_after_collection is True
+
+
+# --------------------------------------------------------------------------
+# 실제 수집 경기 근거(collection_evidence) — 계획과 저장의 구별
+# --------------------------------------------------------------------------
+
+
+class _SeasonPlanStub:
+    def __init__(self, fixture_ids):
+        self.fixture_external_ids = list(fixture_ids)
+
+
+class _PlanStub:
+    def __init__(self, fixture_ids):
+        self.seasons = [_SeasonPlanStub(fixture_ids)]
+
+    def unit_count(self, **kwargs):
+        return len(self.seasons[0].fixture_external_ids) * 4
+
+
+class _SeasonResultStub:
+    def __init__(self, errors=None, stored=(), details=()):
+        self.errors = list(errors or [])
+        self.fixture_external_ids_stored = list(stored)
+        self.detail_fixture_external_ids_stored = list(details)
+
+
+class _ResultStub:
+    def __init__(self, seasons):
+        self.seasons = list(seasons)
+
+
+def _run_with_evidence(monkeypatch, *, plan_ids, result):
+    """`execute_run`을 실제로 돌려 payload의 collection_evidence를 돌려준다.
+
+    외부 경계(설정·클라이언트·계획·백필·세션·훅)만 대역으로 바꾼다. 근거 접기는
+    실제 코드가 한다.
+    """
+    from app.services import management_runs as mr
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = "test-key"
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+        api_football_concurrency = 1
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    class _Client:
+        def __init__(self, api_key=None, **kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    class _Store:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def get(self, *args, **kwargs):
+            return None
+
+        def commit(self):
+            return None
+
+        def rollback(self):
+            return None
+
+    class _SessionLocal:
+        def __call__(self):
+            return _Store()
+
+    item = {
+        "target_id": 1,
+        "name": "프리미어리그",
+        "league_id": 39,
+        "season": 2026,
+        "status": "pending",
+        "total": 0,
+        "saved": 0,
+        "failed": 0,
+        "pending": 0,
+        "stored_rows": 0,
+        "options": {
+            "include_details": True,
+            "include_players": False,
+            "include_standings": False,
+            "fixture_limit": None,
+        },
+    }
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(mr, "ApiFootballClient", _Client)
+    monkeypatch.setattr(mr, "measure_league_sync_plan", lambda *a, **k: _PlanStub(plan_ids))
+    monkeypatch.setattr(mr, "backfill_measured_league", lambda *a, **k: result)
+    monkeypatch.setattr(mr.db, "SessionLocal", _SessionLocal())
+    monkeypatch.setattr(mr, "run_home_preview_after_sync", lambda **k: {"state": "finished"})
+
+    payload = _payload()
+    payload["items"] = [item]
+    payload["test_scope"] = {
+        "fixture_from": NOW.isoformat(),
+        "fixture_to": (NOW + timedelta(hours=48)).isoformat(),
+        "preview_fixture_ids": [9001, 9002],
+        "run_id": "run-evidence",
+        "generate_after_collection": False,
+    }
+    mr.execute_run(payload, _Guard())
+    return payload
+
+
+def test_evidence_separates_planned_fixtures_from_actually_stored_ones(monkeypatch):
+    """계획에 있던 경기와 **실제로 저장된** 경기를 구별하고, 확인 불가는 따로 남긴다.
+
+    검사 이유(실패 시 사용자 영향): 처리 단위 카운터만 보이면 사용자는 기간 안 어느
+    경기가 갱신됐는지 알 수 없고, 계획 목록을 저장 성공으로 오해한다.
+
+    선택한 생성 대상 두 경기는 이 목록과 다르므로 함께 표시하지 않는다.
+    """
+    result = _ResultStub(
+        [
+            _SeasonResultStub(
+                errors=[], stored=[9001, 9003], details=[9001]
+            )
+        ]
+    )
+    payload = _run_with_evidence(monkeypatch, plan_ids=[9001, 9003, 9004], result=result)
+
+    evidence = payload["collection_evidence"]
+    # 계획 3건, 저장 2건, 상세 저장 1건, 확인되지 않음 1건.
+    assert evidence["planned_fixture_ids"] == [9001, 9003, 9004]
+    assert evidence["stored_fixture_ids"] == [9001, 9003]
+    assert evidence["detail_stored_fixture_ids"] == [9001]
+    assert evidence["unverified_fixture_ids"] == [9004]
+    assert evidence["counts"] == {
+        "planned": 3,
+        "stored": 2,
+        "detail_stored": 1,
+        "unverified": 1,
+    }
+    # 확인되지 않은 경기를 실패로 단정하지 않고, 그 사실을 문장으로 남긴다.
+    assert evidence["partial"] is False
+    assert any("확인되지 않은" in note for note in evidence["notes"])
+    # 생성 대상 두 경기는 근거 목록이 아니라 별도 필드에 있다.
+    assert evidence["scope_fixture_ids"] == [9001, 9002]
+
+
+def test_evidence_marks_partial_when_a_collection_step_reported_errors(monkeypatch):
+    """수집 단계 오류가 있으면 `partial`로 표시한다(확인된 범위만 신뢰).
+
+    검사 이유(실패 시 사용자 영향): 부분 실패를 정상 수집으로 보여 주면 사용자가
+    확인 범위를 전체로 오해한다.
+    """
+    result = _ResultStub(
+        [_SeasonResultStub(errors=["details:9002:timeout"], stored=[9001], details=[])]
+    )
+    payload = _run_with_evidence(monkeypatch, plan_ids=[9001, 9002], result=result)
+
+    evidence = payload["collection_evidence"]
+    assert evidence["partial"] is True
+    assert evidence["stored_fixture_ids"] == [9001]
+    assert evidence["detail_stored_fixture_ids"] == []
+    assert evidence["unverified_fixture_ids"] == [9002]
+
+
+def test_evidence_is_absent_for_a_normal_collection_run(monkeypatch):
+    """일반 수집 실행에는 이 키를 만들지 않는다(기존 응답 모양 보존).
+
+    검사 이유(실패 시 사용자 영향): 모든 실행에 새 키가 붙으면 기존 소비자가 바뀐
+    응답 모양을 처리해야 한다.
+    """
+    result = _ResultStub([_SeasonResultStub(errors=[], stored=[9001])])
+    payload = _run_with_evidence(monkeypatch, plan_ids=[9001], result=result)
+
+    # 시험 범위 실행에서는 있다.
+    assert "collection_evidence" in payload
+
+    # 시험 범위가 없으면 없다.
+    from app.services import management_runs as mr
+
+    plain = _payload()
+    plain["items"] = payload["items"]
+    plain.pop("test_scope", None)
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = None
+
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(mr, "run_home_preview_after_sync", lambda **k: {"state": "finished"})
+    mr.execute_run(plain, _Guard())
+    assert "collection_evidence" not in plain

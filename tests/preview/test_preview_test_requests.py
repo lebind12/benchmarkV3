@@ -710,3 +710,80 @@ def test_admin_gets_the_documented_candidate_contract(client, make_user):
     assert body["candidates"] == []
     # 후보가 없으면 실행을 막는 사유가 문장으로 온다(빈 목록만 오지 않는다).
     assert body["reason"]
+
+
+def test_test_run_list_uses_the_existing_envelope_and_reports_the_active_run(engine, session_factory):
+    """목록 envelope는 기존 관리 목록과 같은 `active`/`items`/`limit`이다.
+
+    검사 이유(실패 시 사용자 영향): envelope가 다르면 재사용하는 화면·클라이언트가
+    진행 중 실행을 찾지 못해 "수집 중" 표시가 사라진다. 진행 중 판정도 저장된 상태만
+    읽어야 하며, 조회가 상태를 바꾸면 안 된다.
+    """
+    from datetime import datetime, timezone
+
+    from app.models.management import ManagementRun
+    from app.services import preview_test
+
+    _create_management_run_table(engine)
+    now = datetime.now(timezone.utc)
+
+    def _payload(run_id, status):
+        return {
+            "id": run_id,
+            "mode": "refresh",
+            "status": status,
+            "created_at": now.isoformat(),
+            "started_at": now.isoformat(),
+            "finished_at": None,
+            "cancel_requested_at": None,
+            "actor": "시험",
+            "parent_run_id": None,
+            "items": [],
+            "logs": [],
+            "progress": 0,
+            "stage": "실행 준비",
+            "log_statistics": {},
+            "counts_kind": "processing_units",
+            "test_scope": {
+                "fixture_from": now.isoformat(),
+                "fixture_to": now.isoformat(),
+                "preview_fixture_ids": [1557474, 1557470],
+                "run_id": run_id,
+                "generate_after_collection": False,
+            },
+        }
+
+    with session_factory() as session:
+        session.add(
+            ManagementRun(
+                id="finished-test-run",
+                status="succeeded",
+                payload=_payload("finished-test-run", "succeeded"),
+                created_at=now,
+                heartbeat_at=now,
+            )
+        )
+        session.add(
+            ManagementRun(
+                id="active-test-run",
+                status="running",
+                payload=_payload("active-test-run", "running"),
+                created_at=now,
+                heartbeat_at=now,
+            )
+        )
+        session.commit()
+
+    with session_factory() as session:
+        listed = preview_test.list_test_runs(session)
+
+    assert set(listed) == {"active", "items", "limit"}
+    assert listed["limit"] == preview_test.RUN_LIST_LIMIT
+    assert listed["active"] is not None
+    assert listed["active"]["id"] == "active-test-run"
+    # 진행 중 실행은 items에도 그대로 남는다(숨기지 않는다).
+    assert {item["id"] for item in listed["items"]} == {"finished-test-run", "active-test-run"}
+
+    with session_factory() as session:
+        # 조회가 진행 중 실행의 상태를 바꾸지 않았다(복구·중단 표시 없음).
+        assert session.get(ManagementRun, "active-test-run").status == "running"

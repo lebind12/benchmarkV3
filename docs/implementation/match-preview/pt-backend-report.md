@@ -17,7 +17,7 @@
 | `GET /preview-test/candidates` | `as_of`, `timezone="Asia/Seoul"`, `candidates[]`, `reason` |
 | `GET /preview-test/plan?fixture_ids=&fixture_ids=` | `fixture_ids`, `fixture_from`, `fixture_to`, `target_ids`, `targets[]`, `can_collect`, `blocking_reasons`, `scope_notes` |
 | `POST /preview-test/runs` | 기존 management run payload(`generate_after_collection=false` 고정) |
-| `GET /preview-test/runs` | `{items: [run payload], limit}` |
+| `GET /preview-test/runs` | `{active, items: [run payload], limit}` (기존 관리 목록과 같은 envelope) |
 | `GET /preview-test/runs/{run_id}` | run payload 한 건 |
 
 `candidates[]`는 `fixture_id`, `kickoff_at`(시간대 포함), `home_name`, `away_name`, `league_name`, `season`, `priority`다. 정렬은 킥오프→추천 순위→외부 경기 ID다. 기존 `eligible_rows`·`priority`를 그대로 쓰므로 홈 추천 정책은 바뀌지 않는다.
@@ -76,10 +76,11 @@ $ git status --porcelain        # 착수 시 공백
 
 $ .venv/bin/python -m pytest tests/unit/test_management_preview_test.py \
     tests/unit/test_home_preview_collection.py tests/preview/test_preview_test_requests.py -q
-74 passed
+78 passed
 
-$ .venv/bin/python -m pytest tests/preview/test_admin_access.py tests/unit -q
-136 passed
+$ .venv/bin/python -m pytest tests/unit tests/preview/test_preview_test_requests.py \
+    tests/preview/test_admin_access.py -q
+158 passed
 
 $ sh -n scripts/run_preview_test_collection.sh
 syntax ok
@@ -102,6 +103,30 @@ missing credentials file: /nonexistent/env   (exit 1)
 - 기간: `test_scope.fixture_from`/`fixture_to`
 - **주의.** `counts_kind="processing_units"`면 `items[].saved`·`total`·`stored_rows`는 처리 단위이고 경기 건수가 아니다. `legacy_unknown`이면 대상별 수가 없다. 기간 내 실제 수집 경기 목록은 run payload에 없으므로 선택 두 경기와 같은 것으로 표시하면 안 된다.
 - 생성 결과: `home_preview`는 `generate_after_collection=true`일 때만 있는 선택 키다. 부재를 생성 실패로 표시하면 안 된다.
+
+## 실제 수집 경기 근거(`collection_evidence`)
+
+승인 설계는 기간 안에서 **실제로 수집된 경기 목록/건수**를 선택한 생성 대상 2개 및 처리 단위 카운터와 구별해 보여주기를 요구한다. 기존 run payload에는 그 정보가 없었으므로, 이미 계산된 계획과 백필 결과를 접어 `collection_evidence`를 남긴다.
+
+**위치.** 시험 범위(`test_scope`)가 있는 실행의 payload에만 있다. 일반 수집 실행에는 키가 없어 기존 응답 모양이 바뀌지 않는다(검사로 고정).
+
+| 필드 | 의미 |
+|---|---|
+| `scope_fixture_ids` | 사용자가 선택한 생성 대상 2개(다른 축) |
+| `fixture_from`/`fixture_to` | 요청 기간(시간대 포함) |
+| `planned_fixture_ids` | 계획 단계가 기간 안에서 대상으로 삼은 경기. **저장 성공 아님** |
+| `stored_fixture_ids` | 백필이 **실제로 upsert한** 경기. 저장 성공의 근거 |
+| `detail_stored_fixture_ids` | 상세 4종까지 저장된 경기(`/injuries` 제외) |
+| `unverified_fixture_ids` | 계획에 있었지만 저장이 확인되지 않은 경기. **실패로 단정하지 않음** |
+| `partial` | 수집 단계 오류 유무. true면 확인된 범위만 신뢰 |
+| `counts` | `planned`/`stored`/`detail_stored`/`unverified` 건수 |
+| `notes` | 위 구분을 문장으로 남긴 설명 |
+
+**구현 방식.** 새 수집기·추가 외부 호출·새 표를 만들지 않았다. `app/workers/daily_sync/runner.py`의 `SeasonBackfillResult`에 `fixture_external_ids_stored`·`detail_fixture_external_ids_stored`를 추가하고, 이미 upsert하는 루프에서 ID만 기록한다(API 호출 증가 없음). 접기는 `management_runs._collection_evidence`가 한다.
+
+## 단건 GET 무쓰기 확인
+
+`GET /preview-test/runs/{run_id}`는 integration `management_runs.get_run`(첫 줄에서 `_recover_orphans` 호출)을 쓰지 않는다. `preview_test.test_run` → `_test_run_rows`(SELECT) → `payload_view`(`_payload` 별칭) 경로다. 기존 `get_run`·`run_list`는 변경하지 않았다.
 
 ## 남은 일
 
