@@ -41,6 +41,23 @@
 
 - 이 모듈은 `request_id`가 있을 때만 쓰인다. 없으면 기존 호출 경로가 그대로 동작한다.
 - 재전달 응답은 **저장된 행만** 읽어 만든다. 재전송은 모델 호출 0회다.
+
+실행 종류 경계(2026-11-17 2차 정정):
+
+- 이 표기는 **label에 있다는 것만으로는** bundle 요청의 소유 증거가 아니다. SECTION 실행도
+  클라이언트 label을 받아 저장하고(`/section-runs`의 `label`), bundle 파이프라인의 재생성
+  경로도 SECTION 실행을 만든다. 그래서 같은 관리자·경기·request_id인 SECTION 행이 bundle
+  재전달로 채택될 수 있었다. 사용자에게는 섹션 하나만 만든 실행이 "전체 프리뷰" 응답으로
+  돌아가고, 모델 재호출 없이 **부분 결과를 전체 실행처럼** 보여 준다.
+- `operation_kind` 하나로는 부족하다. `bundle_pipeline.py`의 전체 실행과 legacy
+  `pipeline.py`의 실행이 **둘 다** `OperationKind.PREVIEW`를 쓴다. 그래서 저장된 값으로
+  두 가지를 함께 본다.
+  1. `operation_kind == 'preview'` (SECTION·module·catalog·mock_demo 제외)
+  2. `config_version`이 bundle 파이프라인 버전(`BUNDLE_PIPELINE_VERSION`)이다. 전체
+     bundle 실행만 이 값을 쓰고 legacy 전체 실행은 `PIPELINE_CONFIG_VERSION`을 쓴다.
+- 즉 이 경계가 재전달로 인정하는 것은 **이 요청 경로가 만든 전체 bundle 실행**이다. 이 값이
+  없는 과거 실행은 재전달 후보가 아니다(그 실행을 만들어 준 경로가 이 API가 아니므로 새로
+  만드는 편이 사용자 의도와 맞는다). 다른 실행 경로를 전면 감사하지 않는다.
 """
 
 from __future__ import annotations
@@ -53,6 +70,8 @@ from typing import Any
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.preview.bundle_pipeline import BUNDLE_PIPELINE_VERSION
+from app.preview.contracts import OperationKind
 from app.preview.models import PreviewRun
 
 __all__ = [
@@ -143,12 +162,18 @@ def label_with_request(label: str | None, request_id: Any, *, default: str) -> s
 def find_requested_run(
     session: Session, request_id: Any, *, actor_id: int | None = None
 ) -> PreviewRun | None:
-    """이 request_id로 **같은 관리자가** 만든 실행. 없으면 `None`.
+    """이 request_id로 **같은 관리자가 만든 전체 bundle 실행**. 없으면 `None`.
 
     조회는 표기로 시작하는 label을 좁힌 뒤, **label 끝의 표기가 정확히 이 요청**인 행만
     채택한다. 부분 일치(`request=<uuid>`가 다른 문자열의 앞부분인 경우)를 재전달로 읽지
     않는다. `actor_id`가 주어지면 그 관리자의 실행만 후보다(다른 관리자의 실행을 내 요청의
     결과로 돌려주지 않는다).
+
+    실행 종류도 함께 본다. SECTION 실행은 같은 관리자·경기·표기를 가질 수 있고(클라이언트
+    label과 재생성 경로), legacy 전체 실행도 `operation_kind`가 `preview`다. 그래서
+    `operation_kind='preview'` **그리고** 이 경로가 쓰는 bundle 파이프라인
+    `config_version`인 행만 채택한다. 그러지 않으면 섹션 하나만 만든 실행이 전체 프리뷰
+    재전달로 돌아간다.
 
     `request_id`가 없는 과거 실행은 이 조회 대상이 아니다(기존 동작 보존).
     """
@@ -156,6 +181,8 @@ def find_requested_run(
     statement = (
         select(PreviewRun)
         .where(PreviewRun.label.contains(marker, autoescape=True))
+        .where(PreviewRun.operation_kind == OperationKind.PREVIEW.value)
+        .where(PreviewRun.config_version == BUNDLE_PIPELINE_VERSION)
         .order_by(PreviewRun.requested_at.desc())
         .limit(20)
     )

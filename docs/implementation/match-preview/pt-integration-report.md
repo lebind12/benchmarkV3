@@ -344,11 +344,28 @@ label에 요청 표기를 적으면 그 실행이 정상 재전달처럼 채택�
 
 ### 10.4 직접 검사 (이 테스트 파일만)
 
+당시(6983502) 이 파일은 27건이었고, 그 기준의 선택 수는 다음과 같다.
+
 | 검사 | 결과 |
 |---|---|
 | `pytest tests/preview/test_preview_test_requests.py -q` | **27 passed** |
-| 위 중 `-m integration` (실제 로컬 DB 잠금 4건) | 4 passed |
-| 위 중 `-m unit` | 23 passed |
+| `-m integration` 선택 | 4건 (그중 실제 engine 연결 **2건**, 나머지 2건은 오류 대역) |
+| `-m unit` 선택 | 27건 (모듈 `pytestmark=unit` 때문에 integration 4건도 함께 선택된다) |
+| `-m "unit and not integration"` | 23건 |
+
+**정정(2026-11-17 22:47, 명세 지시).** 앞 판본의 "`-m integration` (실제 로컬 DB 잠금 4건)"
+과 "`-m unit` 23건"은 정확하지 않았다. 모듈에 `pytestmark = pytest.mark.unit`이 있고
+integration 4건에도 `@pytest.mark.integration`이 붙어 **표시가 중첩**된다. 그래서 `-m unit`은
+integration 4건까지 포함해 27건을 선택하고, 23건은 `unit and not integration` 선택의 수다.
+또 integration 4건 중 실제 DB 연결은 `engine` 픽스처를 쓰는 2건(`..._blocks_a_second_connection_and_unlocks`,
+`..._key_is_one_bigint_beyond_int32`)뿐이고, 나머지 2건(`..._sql_failure_stops_before_generating`,
+`..._connection_failure_stops_before_generating`)은 실패를 흉내 내는 대역이다. 위 표는 이
+파일에서 `--collect-only`로 센 값이며, 과거 개별 실행의 표준출력은 보관되어 있지 않으므로
+당시 실행을 이 수치로 소급 단정하지 않는다.
+
+§12에서 대표 4건을 더해 이 파일은 **31건**이 되었고, 현재 기준 선택 수는
+`-m "unit and not integration"` 27건, `-m integration` 4건, `-m unit` 31건이다(같은 중첩
+때문). 다시 센 값이며 기존 27건의 통과 결과를 재실행해 대체한 것이 아니다.
 
 추가·강화한 대표 사례와 그 검사가 실제로 잡는 실패:
 
@@ -435,3 +452,83 @@ B/C 독립 검토 `ctx_7e37578e3b1c`가 `PreviewTestPanel.vue`의 `retryNewReque
   확대하지 않았다.
 - 실제 수집·AI 호출·서버 전환·브라우저 확인은 여전히 **미실행**이다. 이 검사는 모의
   HTTP 대역 근거다.
+
+## 12. 후속 수정 — 재전달 후보의 실행 종류 경계
+
+작성: 2026-11-17 22:50 KST. 시작 HEAD `77aec56`(frontend 고정 SHA, 손대지 않았다).
+6983502의 단일 bigint 잠금·실패 503·관리자 소유·접미사 판정은 수용된 상태로 보존했다.
+
+### 12.1 원인 — 표기는 있지만 "누가 쓴 실행인지"를 보지 않았다
+
+`find_requested_run`은 label의 요청 표기·소유자·경기만 확인했다. 그런데 표기가 붙은
+label을 만드는 경로가 이 API 하나가 아니다.
+
+- `/section-runs`는 클라이언트 `label`을 그대로 받아 SECTION 실행으로 저장한다
+  (`SectionRunRequest.label`, `preview_admin.py:157`).
+- bundle 파이프라인도 재생성 경로에서 SECTION 실행을 만든다
+  (`bundle_pipeline.py:1896`, `:2505`).
+- legacy `POST /runs`도 별도 경로로 PREVIEW 실행을 만든다.
+
+그래서 같은 관리자·같은 경기·같은 request_id 표기를 가진 **SECTION 실행**이 bundle 재전달로
+채택될 수 있었다. 사용자에게는 섹션 하나만 만든 실행이 "전체 프리뷰" 응답으로 돌아가고,
+모델 재호출 없이 부분 결과를 전체 실행처럼 열게 된다.
+
+### 12.2 `operation_kind` 하나로는 부족한 이유 (확인한 저장 정보)
+
+`OperationKind` 값은 실제로 이렇게 갈린다.
+
+| 경로 | `operation_kind` | `config_version` |
+|---|---|---|
+| bundle 전체 실행(`bundle_pipeline.py:1603`) | `preview` | `mp11-bundle-pipeline-3` (`BUNDLE_PIPELINE_VERSION`) |
+| legacy 전체 실행(`pipeline.py:1188`) | **`preview`** | `mp10-pipeline-1` (`PIPELINE_CONFIG_VERSION`) |
+| 섹션 실행(`runner.py:661`, `bundle_pipeline.py:1896/2505`) | `section` | 워크플로우·bundle 버전 |
+
+즉 조정자가 확인한 대로 legacy `/runs`도 `PREVIEW`이므로 **종류 조건 하나로는 이 경계가
+닫히지 않는다.** 두 경로를 가르는 기존 저장 값은 `config_version`이다(전체 bundle 실행만
+bundle 파이프라인 버전을 쓴다). 새 열·새 표가 필요하지 않았다.
+
+### 12.3 수정 (최소)
+
+`find_requested_run`의 후보 조건에 두 가지를 더했다.
+
+1. `operation_kind == 'preview'`
+2. `config_version == BUNDLE_PIPELINE_VERSION`
+
+이 조회에만 적용했고 다른 경로·스키마·마이그레이션은 건드리지 않았다. `preview_admin.py`는
+수정하지 않았다(핸들러가 이미 `principal.user_id`를 넘기고, 재전달 응답 모양은 그대로다).
+label·소유·경기·접미사 판정과 409 동작, `request_id` 없는 기존 호출은 그대로다.
+
+### 12.4 직접 검사
+
+`tests/preview/test_preview_test_requests.py`만 실행했다. 이 파일에는 `schema` 픽스처를 쓰는
+기존 검사가 있어 실행 전에 다음을 확인했다: 대상은 로컬 전용
+`127.0.0.1:55432/preview_mp01_test`(conftest 기본값 + `_dbguard`의 루프백·`_test` 강제),
+다른 pytest 프로세스 없음(0건), 운영 URL 미사용.
+
+| 명령 | 결과 |
+|---|---|
+| `pytest tests/preview/test_preview_test_requests.py -q` | **31 passed** |
+| `--collect-only -m "integration and not unit"` 등 표시 확인 | integration 4 / `unit and not integration` 27 (§10.4 표) |
+
+추가한 대표 사례 4건과 그 검사가 잡는 실패:
+
+1. 같은 관리자·경기·표기의 **SECTION 실행**은 재전달로 채택되지 않는다.
+2. **legacy PREVIEW 실행**(다른 `config_version`)은 재전달로 채택되지 않는다.
+3. **실제 bundle 실행**은 여전히 찾는다(정상 재전달·모델 0회 보존).
+4. SECTION 행이 더 최신이어도 **bundle 실행을 고른다**.
+
+각 조건이 실제로 필요한지 따로 확인했다(임시로 조건을 빼고 실행).
+
+- 두 조건을 모두 빼면 1·2·4가 실패한다.
+- `operation_kind`만 남기면 2가 실패한다(legacy 실행이 다시 채택된다).
+- `config_version`만 남기면 1이 실패한다(SECTION 실행이 다시 채택된다).
+
+대역은 SQL이 하는 일(부분 일치·소유·종류·버전)만 하고, 접미사 판정은 제품 코드에 남겼다.
+이 경계의 후속이므로 다른 경로 전체 감사는 하지 않았다.
+
+### 12.5 보존·미검증
+
+- 잠금·소유·다른 경기 409·`request_id` 없는 호출: 기존 검사 27건이 그대로 통과한다.
+- a324e6e의 합성 DB 정정 문구와 §10.4의 정정은 유지한다.
+- frontend(고정 `77aec56`), 기존 사용자 서버, 실DB 쓰기, 실수집, 실AI 호출, 서버 전환:
+  이번에도 **미실행**이다.

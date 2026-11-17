@@ -27,13 +27,24 @@ class _Run:
     """`PreviewRun` 중 이 검사가 읽는 값만 가진 행 대역."""
 
     def __init__(
-        self, *, fixture_id=FIXTURE_IN_SCOPE, run_id=None, label=None, actor_id=7, requested_at=0
+        self,
+        *,
+        fixture_id=FIXTURE_IN_SCOPE,
+        run_id=None,
+        label=None,
+        actor_id=7,
+        requested_at=0,
+        operation_kind="preview",
+        config_version="mp11-bundle-pipeline-3",
     ):
         self.id = run_id or uuid.uuid4()
         self.fixture_id = fixture_id
         self.label = label
         self.actor_id = actor_id
         self.requested_at = requested_at
+        # 실행 종류 경계의 입력. 실제 저장 열과 같은 이름을 쓴다.
+        self.operation_kind = operation_kind
+        self.config_version = config_version
         self.mode = "live"
         self.status = "succeeded"
         self.quality = "ready"
@@ -98,12 +109,31 @@ class _Session:
             ),
             None,
         )
+        # SQL이 거는 동등 조건을 그대로 적용한다(실행 종류 경계).
+        kind = next(
+            (
+                str(value)
+                for key, value in params.items()
+                if "operation_kind" in str(key) and value is not None
+            ),
+            None,
+        )
+        version = next(
+            (
+                str(value)
+                for key, value in params.items()
+                if "config_version" in str(key) and value is not None
+            ),
+            None,
+        )
         found = [
             row
             for row in self.rows
             if row.label
             and marker in row.label
             and (owner is None or int(getattr(row, "actor_id", 0)) == owner)
+            and (kind is None or str(getattr(row, "operation_kind", "")) == kind)
+            and (version is None or str(getattr(row, "config_version", "")) == version)
         ]
         return sorted(found, key=lambda row: row.requested_at, reverse=True)
 
@@ -426,6 +456,82 @@ def test_request_id_is_optional_in_the_existing_request_contract():
     assert isinstance(with_id.request_id, uuid.UUID)
 
 
+def test_a_section_run_with_the_same_marker_is_not_a_bundle_replay():
+    """같은 관리자·경기·request_id라도 **SECTION 실행**은 bundle 재전달로 채택하지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 섹션 워크플로우 실행은 클라이언트 label을 받아 저장되고
+    같은 표기를 가질 수 있다. 그 실행이 전체 프리뷰 재전달로 돌아가면, 사용자는 섹션 하나만
+    만든 실행을 "전체 프리뷰 응답"으로 받고 모델을 다시 부르지 않는다. 화면은 부분 결과를
+    완성된 실행처럼 열게 된다.
+    """
+    from app.preview import preview_test_requests as requests
+
+    request_id = uuid.uuid4()
+    label = f"섹션 실행 · {requests.request_marker(request_id)}"
+    section_run = _Run(label=label, actor_id=7, operation_kind="section")
+    session = _Session([section_run])
+
+    assert requests.find_requested_run(session, request_id, actor_id=7) is None
+
+
+def test_a_legacy_preview_run_is_not_a_bundle_replay():
+    """legacy `/runs`가 만든 PREVIEW 실행도 bundle 재전달로 채택하지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 두 경로가 같은 `operation_kind='preview'`를 쓰므로
+    종류 하나만 보면 legacy 실행이 bundle 응답으로 돌아간다. 그 실행은 다른 파이프라인
+    (다른 config_version)이 만든 결과라 응답 모양과 저장 결과가 이 요청의 계약과 다르다.
+    """
+    from app.preview import preview_test_requests as requests
+
+    request_id = uuid.uuid4()
+    label = f"legacy 실행 · {requests.request_marker(request_id)}"
+    legacy_run = _Run(
+        label=label, actor_id=7, operation_kind="preview", config_version="mp10-pipeline-1"
+    )
+    session = _Session([legacy_run])
+
+    assert requests.find_requested_run(session, request_id, actor_id=7) is None
+
+
+def test_a_real_bundle_run_is_still_found_for_the_same_request():
+    """이 경로가 만든 실제 bundle 실행은 여전히 재전달로 찾는다(모델 재호출 없음).
+
+    검사 이유(실패 시 사용자 영향): 종류 조건을 잘못 넓히면 정상 재전달까지 막혀,
+    응답 유실 뒤 재시도가 곧 중복 과금이 된다.
+    """
+    from app.preview import preview_test_requests as requests
+
+    request_id = uuid.uuid4()
+    label = f"정보 원문 프리뷰 · live · {requests.request_marker(request_id)}"
+    bundle_run = _Run(
+        label=label, actor_id=7, operation_kind="preview", config_version="mp11-bundle-pipeline-3"
+    )
+
+    found = requests.find_requested_run(_Session([bundle_run]), request_id, actor_id=7)
+
+    assert found is bundle_run
+
+
+def test_a_bundle_run_is_preferred_over_newer_section_rows_of_the_same_request():
+    """같은 표기의 SECTION 행이 더 최신이어도 bundle 실행을 고른다.
+
+    검사 이유(실패 시 사용자 영향): 최신순으로 먼저 나오는 SECTION 행을 그대로 채택하면
+    정상 bundle 실행이 있는데도 부분 결과가 전체 프리뷰 응답으로 돌아간다.
+    """
+    from app.preview import preview_test_requests as requests
+
+    request_id = uuid.uuid4()
+    label = f"정보 원문 프리뷰 · live · {requests.request_marker(request_id)}"
+    bundle_run = _Run(label=label, actor_id=7, requested_at=1, operation_kind="preview")
+    section_run = _Run(
+        label=label, actor_id=7, requested_at=9, operation_kind="section"
+    )
+
+    found = requests.find_requested_run(_Session([section_run, bundle_run]), request_id, actor_id=7)
+
+    assert found is bundle_run
+
+
 class _NullLock:
     """잠금이 성립하는 상태만 흉내 내는 대역. 실제 잠금 검사는 integration 검사가 한다."""
 
@@ -439,12 +545,24 @@ class _NullLock:
 class _StoredRun:
     """저장된 실행 행 대역. 핸들러가 쓰는 열만 있다."""
 
-    def __init__(self, *, run_id, fixture_id, label, actor_id=7, requested_at=0):
+    def __init__(
+        self,
+        *,
+        run_id,
+        fixture_id,
+        label,
+        actor_id=7,
+        requested_at=0,
+        operation_kind="preview",
+        config_version="mp11-bundle-pipeline-3",
+    ):
         self.id = run_id
         self.fixture_id = fixture_id
         self.label = label
         self.actor_id = actor_id
         self.requested_at = requested_at
+        self.operation_kind = operation_kind
+        self.config_version = config_version
         self.mode = "live"
         self.status = "succeeded"
         self.quality = "ready"
@@ -478,12 +596,31 @@ class _StoringSession:
             ),
             None,
         )
+        # SQL이 거는 동등 조건을 그대로 적용한다(실행 종류 경계).
+        kind = next(
+            (
+                str(value)
+                for key, value in params.items()
+                if "operation_kind" in str(key) and value is not None
+            ),
+            None,
+        )
+        version = next(
+            (
+                str(value)
+                for key, value in params.items()
+                if "config_version" in str(key) and value is not None
+            ),
+            None,
+        )
         found = [
             run
             for run in self.runs
             if run.label
             and marker in run.label
             and (owner is None or int(getattr(run, "actor_id", 0)) == owner)
+            and (kind is None or str(getattr(run, "operation_kind", "")) == kind)
+            and (version is None or str(getattr(run, "config_version", "")) == version)
         ]
         return sorted(found, key=lambda run: run.requested_at, reverse=True)
 
