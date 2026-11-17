@@ -955,3 +955,651 @@ def test_fixture_that_leaves_the_period_is_skipped_with_its_own_reason(monkeypat
     reasons = {row["fixture_id"]: row["reason"] for row in skipped}
     assert reasons[9001] == "outside_requested_period"
     assert 9002 not in reasons
+
+
+# --------------------------------------------------------------------------
+# 수집만 실행(generate_after_collection=false) — 생성 0회 보장
+# --------------------------------------------------------------------------
+
+
+def _collection_only_scope():
+    """수집만 실행을 뜻하는 시험 범위."""
+    from app.services.collection_test_scope import PreviewTestScope
+
+    return PreviewTestScope(
+        fixture_from=NOW,
+        fixture_to=NOW + timedelta(hours=48),
+        preview_fixture_ids=(9001, 9002),
+        run_id="run-collection-only",
+        generate_after_collection=False,
+    )
+
+
+def test_collection_only_scope_skips_the_hook_on_the_normal_path(monkeypatch):
+    """수집만 실행은 정상 종료 경로에서 생성 훅을 **부르지 않는다**.
+
+    검사 이유(실패 시 사용자 영향): 사용자가 "수집만"을 요청했는데 자동 생성이 돌면
+    실제 모델 호출이 나가고, 결과 확인 전에 프리뷰가 만들어진다.
+
+    `execute_run`을 실제로 호출하고 외부 경계(설정·클라이언트·수집 계획·세션·훅)만
+    대역으로 바꾼다. 전역 `HOME_PREVIEW_ENABLED`가 켜져 있어도 생성하지 않아야 한다.
+    """
+    from app.services import management_runs as mr
+
+    calls: list[dict] = []
+
+    class _Settings:
+        home_preview_enabled = True  # 전역 플래그가 켜져 있어도 이 요청은 생성 0회다.
+        api_football_key = "test-key"
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+        api_football_concurrency = 1
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    class _Client:
+        def __init__(self, api_key=None, **kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    class _Plan:
+        def unit_count(self, **kwargs):
+            return 0
+
+    class _Result:
+        seasons: list = []
+
+    class _Store:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def get(self, *args, **kwargs):
+            return None
+
+        def commit(self):
+            return None
+
+        def rollback(self):
+            return None
+
+    class _SessionLocal:
+        def __call__(self):
+            return _Store()
+
+    item = {
+        "target_id": 1,
+        "name": "프리미어리그",
+        "league_id": 39,
+        "season": 2026,
+        "status": "pending",
+        "total": 0,
+        "saved": 0,
+        "failed": 0,
+        "pending": 0,
+        "stored_rows": 0,
+        "options": {
+            "include_details": False,
+            "include_players": False,
+            "include_standings": False,
+            "fixture_limit": None,
+        },
+    }
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(mr, "ApiFootballClient", _Client)
+    monkeypatch.setattr(mr, "measure_league_sync_plan", lambda *a, **k: _Plan())
+    monkeypatch.setattr(mr, "backfill_measured_league", lambda *a, **k: _Result())
+    monkeypatch.setattr(mr.db, "SessionLocal", _SessionLocal())
+    monkeypatch.setattr(
+        mr,
+        "run_home_preview_after_sync",
+        lambda **kwargs: calls.append(kwargs) or {"state": "finished"},
+    )
+
+    payload = _payload()
+    payload["items"] = [item]
+    payload["test_scope"] = _collection_only_scope().to_dict()
+    mr.execute_run(payload, _Guard())
+
+    # 정상 종료했고, 생성 훅은 한 번도 불리지 않았으며, 생성 결과 키도 없다.
+    assert payload["status"] == "succeeded"
+    assert calls == []
+    assert "home_preview" not in payload
+
+
+def test_collection_only_scope_skips_the_hook_on_the_exception_path(monkeypatch):
+    """수집만 실행은 **상위 예외** 경로에서도 생성 훅을 부르지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 예외 경로가 유일한 생성 진입로가 되면, API 키
+    미설정 같은 흔한 실패에서 오히려 모델 호출이 나간다.
+    """
+    from app.services import management_runs as mr
+
+    calls: list[dict] = []
+
+    class _Settings:
+        home_preview_enabled = True
+        api_football_key = None  # 이 값 때문에 상위 예외로 끝난다.
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(
+        mr,
+        "run_home_preview_after_sync",
+        lambda **kwargs: calls.append(kwargs) or {"state": "finished"},
+    )
+
+    payload = _payload()
+    payload["test_scope"] = _collection_only_scope().to_dict()
+    mr.execute_run(payload, _Guard())
+
+    # 수집 실패는 그대로 보존되고, 생성 시도는 0회다.
+    assert payload["status"] == "failed"
+    assert calls == []
+    assert "home_preview" not in payload
+
+
+def test_default_scope_still_generates_after_collection(monkeypatch):
+    """`generate_after_collection`을 지정하지 않은 범위는 **기존 동작**을 유지한다.
+
+    검사 이유(실패 시 사용자 영향): 기본값이 뒤집히면 기존 자동 수집 경로가 조용히
+    생성을 멈춘다.
+    """
+    from app.services import management_runs as mr
+    from app.services.collection_test_scope import PreviewTestScope
+
+    calls: list[dict] = []
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = None
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(
+        mr,
+        "run_home_preview_after_sync",
+        lambda **kwargs: calls.append(kwargs) or {"state": "finished"},
+    )
+
+    scope = PreviewTestScope(
+        fixture_from=NOW,
+        fixture_to=NOW + timedelta(hours=48),
+        preview_fixture_ids=(9001, 9002),
+        run_id="run-default",
+    )
+    assert scope.generate_after_collection is True
+
+    payload = _payload()
+    payload["test_scope"] = scope.to_dict()
+    mr.execute_run(payload, _Guard())
+
+    # 전역 플래그가 꺼져 있어도 시험 범위는 이 요청에 한해 훅을 한 번 부른다(기존 계약).
+    assert len(calls) == 1
+    assert payload["home_preview"] == {"state": "finished"}
+
+
+def test_collection_only_flag_survives_the_stored_roundtrip():
+    """저장된 범위를 복원해도 수집만 실행 여부가 보존된다.
+
+    검사 이유(실패 시 사용자 영향): 실행기는 payload에 저장된 범위를 다시 읽는다.
+    복원에서 이 값이 사라지면 수집만 실행이 생성까지 시작한다.
+    """
+    from app.services.collection_test_scope import PreviewTestScope
+
+    scope = _collection_only_scope()
+    restored = PreviewTestScope.from_dict(scope.with_run_id("run-9").to_dict())
+
+    assert restored is not None
+    assert restored.generate_after_collection is False
+    assert restored.run_id == "run-9"
+
+
+def test_stored_scope_without_the_flag_keeps_generating():
+    """이 키가 없는 옛 저장 값은 **생성함**으로 복원된다(이미 접수된 실행의 의미 보존)."""
+    from app.services.collection_test_scope import PreviewTestScope
+
+    restored = PreviewTestScope.from_dict(
+        {
+            "fixture_from": NOW.isoformat(),
+            "fixture_to": (NOW + timedelta(hours=48)).isoformat(),
+            "preview_fixture_ids": [9001, 9002],
+            "run_id": "run-legacy",
+        }
+    )
+
+    assert restored is not None
+    assert restored.generate_after_collection is True
+
+
+# --------------------------------------------------------------------------
+# 실제 수집 경기 근거(collection_evidence) — 계획과 저장의 구별
+# --------------------------------------------------------------------------
+
+
+class _SeasonPlanStub:
+    def __init__(self, fixture_ids):
+        self.fixture_external_ids = list(fixture_ids)
+
+
+class _PlanStub:
+    def __init__(self, fixture_ids):
+        self.seasons = [_SeasonPlanStub(fixture_ids)]
+
+    def unit_count(self, **kwargs):
+        return len(self.seasons[0].fixture_external_ids) * 4
+
+
+class _SeasonResultStub:
+    def __init__(self, errors=None, stored=(), details=()):
+        self.errors = list(errors or [])
+        self.fixture_external_ids_stored = list(stored)
+        self.detail_fixture_external_ids_stored = list(details)
+
+
+class _ResultStub:
+    def __init__(self, seasons):
+        self.seasons = list(seasons)
+
+
+def _run_with_evidence(monkeypatch, *, plan_ids, result):
+    """`execute_run`을 실제로 돌려 payload의 collection_evidence를 돌려준다.
+
+    외부 경계(설정·클라이언트·계획·백필·세션·훅)만 대역으로 바꾼다. 근거 접기는
+    실제 코드가 한다.
+    """
+    from app.services import management_runs as mr
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = "test-key"
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+        api_football_concurrency = 1
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    class _Client:
+        def __init__(self, api_key=None, **kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    class _Target:
+        """저장 단계가 읽는 대상 행. 커밋 경로를 실제로 지나가게 한다."""
+
+        last_sync = None
+        initial_status = None
+
+    class _Store:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def get(self, *args, **kwargs):
+            # 대상 행이 없으면 `execute_run`이 커밋하지 않는다. 실제 수집에서는 대상 행이
+            # 있으므로 여기서도 있다고 둔다(커밋 확인 규칙을 검사하기 위해서다).
+            return _Target()
+
+        def commit(self):
+            return None
+
+        def rollback(self):
+            return None
+
+    class _SessionLocal:
+        def __call__(self):
+            return _Store()
+
+    item = {
+        "target_id": 1,
+        "name": "프리미어리그",
+        "league_id": 39,
+        "season": 2026,
+        "status": "pending",
+        "total": 0,
+        "saved": 0,
+        "failed": 0,
+        "pending": 0,
+        "stored_rows": 0,
+        "options": {
+            "include_details": True,
+            "include_players": False,
+            "include_standings": False,
+            "fixture_limit": None,
+        },
+    }
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(mr, "ApiFootballClient", _Client)
+    monkeypatch.setattr(mr, "measure_league_sync_plan", lambda *a, **k: _PlanStub(plan_ids))
+    monkeypatch.setattr(mr, "backfill_measured_league", lambda *a, **k: result)
+    monkeypatch.setattr(mr.db, "SessionLocal", _SessionLocal())
+    monkeypatch.setattr(mr, "run_home_preview_after_sync", lambda **k: {"state": "finished"})
+
+    payload = _payload()
+    payload["items"] = [item]
+    payload["test_scope"] = {
+        "fixture_from": NOW.isoformat(),
+        "fixture_to": (NOW + timedelta(hours=48)).isoformat(),
+        "preview_fixture_ids": [9001, 9002],
+        "run_id": "run-evidence",
+        "generate_after_collection": False,
+    }
+    mr.execute_run(payload, _Guard())
+    return payload
+
+
+def test_evidence_separates_planned_fixtures_from_actually_stored_ones(monkeypatch):
+    """계획에 있던 경기와 **실제로 저장된** 경기를 구별하고, 확인 불가는 따로 남긴다.
+
+    검사 이유(실패 시 사용자 영향): 처리 단위 카운터만 보이면 사용자는 기간 안 어느
+    경기가 갱신됐는지 알 수 없고, 계획 목록을 저장 성공으로 오해한다.
+
+    선택한 생성 대상 두 경기는 이 목록과 다르므로 함께 표시하지 않는다.
+    """
+    result = _ResultStub(
+        [
+            _SeasonResultStub(
+                errors=[], stored=[9001, 9003], details=[9001]
+            )
+        ]
+    )
+    payload = _run_with_evidence(monkeypatch, plan_ids=[9001, 9003, 9004], result=result)
+
+    evidence = payload["collection_evidence"]
+    # 계획 3건, 저장 2건, 상세 저장 1건, 확인되지 않음 1건.
+    assert evidence["planned_fixture_ids"] == [9001, 9003, 9004]
+    assert evidence["stored_fixture_ids"] == [9001, 9003]
+    assert evidence["detail_stored_fixture_ids"] == [9001]
+    assert evidence["unverified_fixture_ids"] == [9004]
+    assert evidence["counts"] == {
+        "planned": 3,
+        "stored": 2,
+        "detail_stored": 1,
+        "unverified": 1,
+    }
+    # 확인되지 않은 경기를 실패로 단정하지 않고, 그 사실을 문장으로 남긴다.
+    assert evidence["partial"] is False
+    assert any("확인되지 않은" in note for note in evidence["notes"])
+    # 생성 대상 두 경기는 근거 목록이 아니라 별도 필드에 있다.
+    assert evidence["scope_fixture_ids"] == [9001, 9002]
+
+
+def test_evidence_marks_partial_when_a_collection_step_reported_errors(monkeypatch):
+    """수집 단계 오류가 있으면 `partial`로 표시한다(확인된 범위만 신뢰).
+
+    검사 이유(실패 시 사용자 영향): 부분 실패를 정상 수집으로 보여 주면 사용자가
+    확인 범위를 전체로 오해한다.
+    """
+    result = _ResultStub(
+        [_SeasonResultStub(errors=["details:9002:timeout"], stored=[9001], details=[])]
+    )
+    payload = _run_with_evidence(monkeypatch, plan_ids=[9001, 9002], result=result)
+
+    evidence = payload["collection_evidence"]
+    assert evidence["partial"] is True
+    assert evidence["stored_fixture_ids"] == [9001]
+    assert evidence["detail_stored_fixture_ids"] == []
+    assert evidence["unverified_fixture_ids"] == [9002]
+
+
+def test_evidence_is_absent_for_a_normal_collection_run(monkeypatch):
+    """일반 수집 실행에는 이 키를 만들지 않는다(기존 응답 모양 보존).
+
+    검사 이유(실패 시 사용자 영향): 모든 실행에 새 키가 붙으면 기존 소비자가 바뀐
+    응답 모양을 처리해야 한다.
+    """
+    result = _ResultStub([_SeasonResultStub(errors=[], stored=[9001])])
+    payload = _run_with_evidence(monkeypatch, plan_ids=[9001], result=result)
+
+    # 시험 범위 실행에서는 있다.
+    assert "collection_evidence" in payload
+
+    # 시험 범위가 없으면 없다.
+    from app.services import management_runs as mr
+
+    plain = _payload()
+    plain["items"] = payload["items"]
+    plain.pop("test_scope", None)
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = None
+
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(mr, "run_home_preview_after_sync", lambda **k: {"state": "finished"})
+    mr.execute_run(plain, _Guard())
+    assert "collection_evidence" not in plain
+
+
+def test_evidence_marks_partial_when_collection_fails_before_any_result(monkeypatch):
+    """백필 결과가 하나도 없어도 **대상 실패/예외가 partial로 반영**된다.
+
+    검사 이유(실패 시 사용자 영향): 백필이 예외로 끝나 결과가 없으면, 결과만 보는 판정은
+    `partial=false`가 되어 실패한 수집이 정상으로 보인다. 사용자는 확인된 저장이 0건인
+    실행을 "이상 없음"으로 읽는다.
+    """
+    from app.services import management_runs as mr
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = "test-key"
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+        api_football_concurrency = 1
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    class _Client:
+        def __init__(self, api_key=None, **kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    class _Store:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def rollback(self):
+            return None
+
+    class _SessionLocal:
+        def __call__(self):
+            return _Store()
+
+    item = {
+        "target_id": 1,
+        "name": "프리미어리그",
+        "league_id": 39,
+        "season": 2026,
+        "status": "pending",
+        "total": 0,
+        "saved": 0,
+        "failed": 0,
+        "pending": 0,
+        "stored_rows": 0,
+        "options": {
+            "include_details": True,
+            "include_players": False,
+            "include_standings": False,
+            "fixture_limit": None,
+        },
+    }
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(mr, "ApiFootballClient", _Client)
+    monkeypatch.setattr(mr, "measure_league_sync_plan", lambda *a, **k: _PlanStub([9001, 9002]))
+    monkeypatch.setattr(mr.db, "SessionLocal", _SessionLocal())
+    # 백필이 예외로 끝난다(결과 객체 없음).
+    monkeypatch.setattr(
+        mr,
+        "backfill_measured_league",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("store exploded")),
+    )
+    monkeypatch.setattr(mr, "run_home_preview_after_sync", lambda **k: {"state": "finished"})
+
+    payload = _payload()
+    payload["items"] = [item]
+    payload["test_scope"] = {
+        "fixture_from": NOW.isoformat(),
+        "fixture_to": (NOW + timedelta(hours=48)).isoformat(),
+        "preview_fixture_ids": [9001, 9002],
+        "run_id": "run-failed",
+        "generate_after_collection": False,
+    }
+    mr.execute_run(payload, _Guard())
+
+    evidence = payload["collection_evidence"]
+    # 결과가 없어도 partial이고, 계획 경기는 저장 성공으로 표시되지 않는다.
+    assert evidence["partial"] is True
+    assert evidence["stored_fixture_ids"] == []
+    assert evidence["unverified_fixture_ids"] == [9001, 9002]
+    assert evidence["counts"]["stored"] == 0
+    assert payload["items"][0]["status"] == "failed"
+
+
+def test_evidence_marks_partial_when_the_target_failed_during_measurement(monkeypatch):
+    """수집 범위 확인 단계에서 대상이 실패하면 partial이다(계획이 없어도).
+
+    검사 이유(실패 시 사용자 영향): 계획조차 없으면 근거가 비어 보이는데, 그 상태를
+    정상으로 표시하면 실패한 수집이 "대상 없음"처럼 보인다.
+    """
+    from app.services import management_runs as mr
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = "test-key"
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+        api_football_concurrency = 1
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    class _Client:
+        def __init__(self, api_key=None, **kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    item = {
+        "target_id": 1,
+        "name": "프리미어리그",
+        "league_id": 39,
+        "season": 2026,
+        "status": "pending",
+        "total": 0,
+        "saved": 0,
+        "failed": 0,
+        "pending": 0,
+        "stored_rows": 0,
+        "options": {
+            "include_details": True,
+            "include_players": False,
+            "include_standings": False,
+            "fixture_limit": None,
+        },
+    }
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+    monkeypatch.setattr(mr, "ApiFootballClient", _Client)
+    monkeypatch.setattr(
+        mr,
+        "measure_league_sync_plan",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("API-Football returned no league")),
+    )
+    monkeypatch.setattr(mr, "run_home_preview_after_sync", lambda **k: {"state": "finished"})
+
+    payload = _payload()
+    payload["items"] = [item]
+    payload["test_scope"] = {
+        "fixture_from": NOW.isoformat(),
+        "fixture_to": (NOW + timedelta(hours=48)).isoformat(),
+        "preview_fixture_ids": [9001, 9002],
+        "run_id": "run-measure-failed",
+        "generate_after_collection": False,
+    }
+    mr.execute_run(payload, _Guard())
+
+    evidence = payload["collection_evidence"]
+    assert evidence["partial"] is True
+    assert evidence["planned_fixture_ids"] == []
+    assert evidence["stored_fixture_ids"] == []
+    assert payload["status"] == "failed"
+
+
+def test_evidence_is_written_on_the_top_level_exception_path(monkeypatch):
+    """상위 예외로 끝난 시험 실행도 근거를 남기고 `partial`이 true다.
+
+    검사 이유(실패 시 사용자 영향): 예외 경로에 근거 키가 없으면 화면이 "저장 0건"과
+    "근거 없음"을 구분하지 못하고, 실패한 실행을 정상 모양으로 표시한다.
+    """
+    from app.services import management_runs as mr
+
+    class _Settings:
+        home_preview_enabled = False
+        api_football_key = None  # 이 값 때문에 상위 예외로 끝난다.
+        api_football_host = "https://example.test"
+        api_football_requests_per_minute = 60
+
+    class _Guard:
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(mr, "RunTracker", _NoDbTracker)
+    monkeypatch.setattr(mr, "get_settings", lambda: _Settings())
+
+    payload = _payload()
+    payload["test_scope"] = {
+        "fixture_from": NOW.isoformat(),
+        "fixture_to": (NOW + timedelta(hours=48)).isoformat(),
+        "preview_fixture_ids": [9001, 9002],
+        "run_id": "run-exc",
+        "generate_after_collection": False,
+    }
+    mr.execute_run(payload, _Guard())
+
+    evidence = payload["collection_evidence"]
+    assert payload["status"] == "failed"
+    assert evidence["partial"] is True
+    assert evidence["stored_fixture_ids"] == []
+    assert evidence["planned_fixture_ids"] == []

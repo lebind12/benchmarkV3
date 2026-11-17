@@ -40,6 +40,12 @@ class PreviewTestScope:
     preview_fixture_ids: tuple[int, int]
     # 이 시험이 붙을 수집 실행 ID. 같은 시험의 중복 생성을 막는 키의 일부다.
     run_id: str = ""
+    # 수집이 끝난 뒤 프리뷰 생성을 시작할지. 기본값은 기존 동작(생성함)이다.
+    #
+    # `False`는 **수집만** 실행하는 요청이다. 종료 훅이 정상·부분 실패·상위 예외 어느
+    # 경로로 끝나도 생성 호출 0회여야 하며, 생성 결과 키(`home_preview`)도 만들지 않는다
+    # (없는 결과를 "생성 실패"로 읽히게 하지 않기 위해서다).
+    generate_after_collection: bool = True
 
     def in_window(self, kickoff_at: Any) -> bool:
         """이 시각이 수집 기간 안인지(양 끝 포함). 시간대 없는 값은 포함하지 않는다."""
@@ -64,6 +70,7 @@ class PreviewTestScope:
             "fixture_to": self.fixture_to.isoformat(),
             "preview_fixture_ids": list(self.preview_fixture_ids),
             "run_id": self.run_id,
+            "generate_after_collection": self.generate_after_collection,
         }
 
     @classmethod
@@ -81,11 +88,17 @@ class PreviewTestScope:
             return None
         if start > end:
             return None
+        # 저장된 키가 없는 옛 기록은 **기존 동작(생성함)** 으로 복원한다. 이 키가 없다고
+        # 자동 생성을 끄면, 이미 접수된 실행의 의미가 복원 과정에서 바뀐다.
+        generate = value.get("generate_after_collection", True)
+        if not isinstance(generate, bool):
+            return None
         return cls(
             fixture_from=start,
             fixture_to=end,
             preview_fixture_ids=(ids[0], ids[1]),  # type: ignore[arg-type]
             run_id=str(value.get("run_id") or ""),
+            generate_after_collection=generate,
         )
 
     def with_run_id(self, run_id: str) -> "PreviewTestScope":
@@ -95,4 +108,5 @@ class PreviewTestScope:
             fixture_to=self.fixture_to,
             preview_fixture_ids=self.preview_fixture_ids,
             run_id=str(run_id),
+            generate_after_collection=self.generate_after_collection,
         )

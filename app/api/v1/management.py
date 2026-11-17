@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app import db
-from app.core.sessions import manager_user
+from app.core.sessions import current_user, manager_user
 from app.models import AppUser, ApiFootballLeagueCatalog
 from app.services import admin, management as service, management_runs as runs
 
@@ -70,6 +70,12 @@ class PreviewTestRunCreate(BaseModel):
     fixture_to: datetime
     # 외부 경기 ID 정확히 두 개(중복 불가).
     preview_fixture_ids: list[int] = Field(min_length=2, max_length=2)
+    # 수집이 끝난 뒤 프리뷰 생성을 시작할지. **기본값은 기존 동작(생성함)** 이며,
+    # 이 필드를 보내지 않는 기존 호출부의 의미는 바뀌지 않는다.
+    #
+    # `false`는 수집만 실행하는 요청이다. 그래도 자동 생성은 실제 모델을 부르므로
+    # **ADMIN만** 받는다(라우터 기본 의존성은 STREAMER도 통과시킨다).
+    generate_after_collection: bool = True
 
     @model_validator(mode="after")
     def valid_scope(self):
@@ -100,6 +106,18 @@ def call(action):
         return JSONResponse(
             {"message": str(exc), "code": exc.code, "current": exc.current}, status_code=exc.status
         )
+
+
+def require_admin(user: AppUser = Depends(current_user)) -> AppUser:
+    """이 시험 경로 전용 ADMIN 검사.
+
+    라우터의 `manager_user`는 STREAMER도 통과시킨다. 수집 시험은 실제 공급자 호출과
+    public 자료 갱신을 일으키므로 **ADMIN만** 받는다. 기존 일반 관리 API의 STREAMER
+    정책은 이 의존성을 쓰지 않으므로 그대로다.
+    """
+    if user.role != "ADMIN":
+        raise HTTPException(403, "이 시험 기능은 관리자 권한이 필요합니다.")
+    return user
 
 
 @router.get("/catalog")
@@ -185,7 +203,12 @@ def create_preview_test_run(payload: PreviewTestRunCreate, session: Db, user: Ma
 
     기존 관리 인증·실행/취소/조회 구조를 그대로 쓴다. `mode`는 refresh로 고정이며
     정기 6시간 정책은 이 요청 범위 밖에서 바뀌지 않는다.
+
+    `generate_after_collection=false`(수집만 실행)는 자동 생성을 끄는 값이므로
+    **ADMIN**을 추가로 요구한다. 기본값 `true`의 권한 계약은 기존 그대로다.
     """
+    if payload.generate_after_collection is False and user.role != "ADMIN":
+        raise HTTPException(403, "수집만 실행은 관리자 권한이 필요합니다.")
     return call(
         lambda: runs.start_preview_test_run(
             session,
@@ -193,9 +216,145 @@ def create_preview_test_run(payload: PreviewTestRunCreate, session: Db, user: Ma
             fixture_from=payload.fixture_from,
             fixture_to=payload.fixture_to,
             preview_fixture_ids=payload.preview_fixture_ids,
+            generate_after_collection=payload.generate_after_collection,
             user=user,
         )
     )
+
+
+class PreviewTestCollectionRunCreate(BaseModel):
+    """수집만 실행하는 시험 요청(새 전용 POST).
+
+    `generate_after_collection`을 받지 않는다. 이 경로는 **수집만** 하며, 생성은
+    사용자가 화면에서 명시적으로 시작한다. 필드 이름·의미를 두 경로에서 다르게
+    만들지 않으려고 요청 모델을 분리했다.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    fixture_ids: list[int] = Field(min_length=2, max_length=2)
+    fixture_from: datetime
+    fixture_to: datetime
+
+    @model_validator(mode="after")
+    def valid_scope(self):
+        if self.fixture_from.tzinfo is None or self.fixture_to.tzinfo is None:
+            raise ValueError("fixture_from/fixture_to에는 시간대가 필요합니다.")
+        if self.fixture_from > self.fixture_to:
+            raise ValueError("fixture_from은 fixture_to보다 늦을 수 없습니다.")
+        if len(set(self.fixture_ids)) != 2:
+            raise ValueError("fixture_ids는 서로 다른 두 경기여야 합니다.")
+        if any(value <= 0 for value in self.fixture_ids):
+            raise ValueError("fixture_ids는 양의 외부 경기 ID여야 합니다.")
+        return self
+
+
+def _preview_test_plan(session, fixture_ids):
+    from app.services import preview_test
+
+    return preview_test.build_plan(session, fixture_ids)
+
+
+@router.get("/preview-test/candidates")
+def preview_test_candidates(session: Db, user: Annotated[AppUser, Depends(require_admin)]):
+    """기간 수집 시험의 후보 경기. **읽기만** 하며 모델·공급자를 호출하지 않는다."""
+    from app.services import preview_test
+
+    return preview_test.candidates(session)
+
+
+@router.get("/preview-test/plan")
+def preview_test_plan(
+    session: Db,
+    user: Annotated[AppUser, Depends(require_admin)],
+    fixture_ids: Annotated[list[int], Query()] = (),
+):
+    """선택한 두 경기의 수집 기간·활성 대상을 해석한다(쓰기 없음).
+
+    `fixture_ids`는 반복 query다(`?fixture_ids=1&fixture_ids=2`). 정확히 두 개가
+    아니면 422이며, 개수는 서비스가 판정한다.
+    """
+    return call(lambda: _preview_test_plan(session, list(fixture_ids)))
+
+
+@router.post("/preview-test/runs")
+def create_preview_test_collection_run(
+    payload: PreviewTestCollectionRunCreate,
+    session: Db,
+    user: Annotated[AppUser, Depends(require_admin)],
+):
+    """**수집만** 실행한다(ADMIN 전용). 생성은 이 요청에서 시작하지 않는다.
+
+    대상 재검증은 기존 `start_preview_test_run`이 한다(경계 검증 단일 지점). 기존
+    수집 잠금이 중복 실행을 409로 거부하며, 응답은 기존 management run 형식이다.
+    """
+    return call(
+        lambda: runs.start_preview_test_run(
+            session,
+            target_ids=_targets_for_fixtures(session, payload.fixture_ids),
+            fixture_from=payload.fixture_from,
+            fixture_to=payload.fixture_to,
+            preview_fixture_ids=payload.fixture_ids,
+            generate_after_collection=False,
+            user=user,
+        )
+    )
+
+
+def _targets_for_fixtures(session, fixture_ids):
+    """두 경기의 리그/시즌에서 **활성 수집 대상**을 서버가 해석한다.
+
+    화면이 내부 target_id를 만들거나 입력하지 않게 하려면 서버가 정해야 한다. 대상이
+    없으면 기존 `start_run` 검증이 422로 거부하므로 여기서 임의 값을 만들지 않는다.
+    """
+    from app.models import Fixture, LeagueSyncTarget
+
+    fixtures = list(
+        session.scalars(select(Fixture).where(Fixture.external_id.in_(list(fixture_ids))))
+    )
+    if len(fixtures) != len(set(fixture_ids)):
+        missing = sorted(set(fixture_ids) - {int(row.external_id) for row in fixtures})
+        raise service.ManagementError(
+            f"경기 {', '.join(str(value) for value in missing)}를 저장된 경기에서"
+            " 찾지 못했습니다. 수집된 경기만 시험 대상으로 지정할 수 있습니다.",
+            422,
+        )
+    ids: list[int] = []
+    for fixture in fixtures:
+        target = session.scalar(
+            select(LeagueSyncTarget).where(
+                LeagueSyncTarget.league_id == fixture.league_id,
+                LeagueSyncTarget.season_year == fixture.season_year,
+            )
+        )
+        if target is None:
+            raise service.ManagementError(
+                f"경기 {fixture.external_id}의 리그/시즌"
+                f"({fixture.league_id}/{fixture.season_year})에 수집 대상이 없습니다.",
+                422,
+            )
+        if target.id not in ids:
+            ids.append(target.id)
+    return ids
+
+
+@router.get("/preview-test/runs")
+def list_preview_test_runs(
+    session: Db, user: Annotated[AppUser, Depends(require_admin)]
+):
+    """수집 시험 실행 목록. **부작용이 없다**(기존 run_list의 삭제·복구 미호출)."""
+    from app.services import preview_test
+
+    return preview_test.list_test_runs(session)
+
+
+@router.get("/preview-test/runs/{run_id}")
+def get_preview_test_run(
+    run_id: str, session: Db, user: Annotated[AppUser, Depends(require_admin)]
+):
+    """수집 시험 실행 하나. 없는 실행·다른 실행의 내용을 돌려주지 않는다."""
+    from app.services import preview_test
+
+    return call(lambda: preview_test.test_run(session, run_id))
 
 
 @router.post("/runs/{run_id}/cancel")

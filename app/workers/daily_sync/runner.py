@@ -197,6 +197,16 @@ class SeasonBackfillResult:
     player_rows_seen: int = 0
     standings_seen: int = 0
     errors: list[str] = field(default_factory=list)
+    # 실제로 저장한 외부 경기 ID. `fixtures_seen`은 **건수**이며 어느 경기인지 말하지
+    # 않는다. 수집 시험 화면은 "기간 안에서 실제로 어떤 경기가 갱신됐는지"를 보여야
+    # 하므로 ID를 남긴다. 새 외부 호출을 만들지 않고 이미 upsert한 항목에서 기록한다.
+    #
+    # 값이 비어 있다고 "대상 경기가 없었다"는 뜻은 아니다(경기 단계가 실패했거나
+    # 계획 단계에서 끝난 실행). 그래서 상태는 호출부가 `errors`와 함께 판정한다.
+    fixture_external_ids_stored: list[int] = field(default_factory=list)
+    # 상세(events/statistics/lineups/players)까지 저장한 외부 경기 ID. 계획에 있었다는
+    # 사실과 상세가 저장됐다는 사실은 다르다. 부분 실패에서 그 차이를 보여줘야 한다.
+    detail_fixture_external_ids_stored: list[int] = field(default_factory=list)
 
 
 @dataclass
@@ -468,6 +478,12 @@ def backfill_measured_league(
             for index, entry in enumerate(fixture_entries, start=1):
                 upsert_fixture_entry(session, entry, counts)
                 season_result.fixtures_seen += 1
+                stored_id = parse_int((entry.get("fixture") or {}).get("id"))
+                if (
+                    stored_id is not None
+                    and stored_id not in season_result.fixture_external_ids_stored
+                ):
+                    season_result.fixture_external_ids_stored.append(stored_id)
                 if index % commit_every == 0:
                     _commit_progress(session, progress, counts)
             _commit_progress(session, progress, counts)
@@ -598,6 +614,12 @@ def backfill_measured_league(
                     counts=counts,
                 )
                 season_result.fixture_details_seen += 1
+                if (
+                    fixture_external_id not in season_result.detail_fixture_external_ids_stored
+                ):
+                    season_result.detail_fixture_external_ids_stored.append(
+                        int(fixture_external_id)
+                    )
                 if index % commit_every == 0:
                     _commit_progress(session, progress, counts)
                 _progress_log(progress, f"{season_label}: details fixture={fixture_external_id}")
