@@ -83,6 +83,40 @@ export type TestPlan = {
  * N개"로 읽으면 사용자는 실제보다 많은 경기가 수집됐다고 오해한다. 그래서 단위 표기를 함께
  * 보관하고, 모르는 값은 `null`로 둔다(0으로 채우지 않는다).
  */
+/**
+ * 이 수집 실행이 **기간 안에서 실제로 어떤 경기를 저장했는지**에 대한 서버 근거.
+ *
+ * 서버(A)가 `collection_evidence`로 준다. 이 화면이 특히 구분해야 하는 것:
+ *
+ * - `scope_fixture_ids`는 **생성 대상** 두 경기이고, 아래 목록들은 **기간 안 수집 범위**다.
+ *   두 개를 합쳐 "수집한 경기 2개"처럼 보이면 안 된다.
+ * - `stored_fixture_ids`는 커밋이 확인된 저장 성공이다. `planned_fixture_ids`는 계획일
+ *   뿐이므로 저장 성공으로 읽지 않는다.
+ * - `detail_stored_fixture_ids`는 상세 응답이 저장된 경기이며 **정상 빈 응답도 포함**한다.
+ *   자료가 채워졌다는 뜻이 아니다.
+ * - `unverified_fixture_ids`는 계획에 있었지만 저장이 확인되지 않은 경기다. **실패로
+ *   단정하지 않는다.**
+ * - 객체나 키가 아예 없으면 "아직 근거가 기록되지 않음"이고, 0으로 추정하지 않는다.
+ */
+export type TestCollectionEvidence = {
+  scope_fixture_ids: number[]
+  fixture_from: string | null
+  fixture_to: string | null
+  planned_fixture_ids: number[]
+  stored_fixture_ids: number[]
+  detail_stored_fixture_ids: number[]
+  unverified_fixture_ids: number[]
+  /** 확인된 범위를 전체로 믿을 수 없는 상태인지(서버 판정). */
+  partial: boolean
+  counts: {
+    planned: number | null
+    stored: number | null
+    detail_stored: number | null
+    unverified: number | null
+  }
+  notes: string[]
+}
+
 export type TestRunItem = {
   target_id: number | null
   name: string
@@ -111,6 +145,11 @@ export type TestRun = {
    * 경기 건수로 표시하면 안 되는 값을 화면이 구분하는 근거다.
    */
   counts_kind: string | null
+  /**
+   * 실제 수집 근거. 서버가 아직 이 값을 주지 않으면 `null`이며, 화면은 "근거 미기록"으로
+   * 표시한다(0건 수집으로 읽지 않는다).
+   */
+  collection_evidence: TestCollectionEvidence | null
   items: TestRunItem[]
   /** 로그에서 뽑은 오류 문장(최대 5개). 없으면 빈 배열. */
   errors: string[]
@@ -263,6 +302,62 @@ export function parsePlan(payload: unknown): Parsed<TestPlan> {
   }
 }
 
+function idList(value: unknown): number[] {
+  const out: number[] = []
+  for (const entry of list(value)) {
+    const id = intOf(entry)
+    if (id !== null && !out.includes(id)) out.push(id)
+  }
+  return out
+}
+
+/**
+ * `collection_evidence` 해석. 객체가 없으면 `null`이다(근거 미기록).
+ *
+ * `counts`는 서버 값을 우선하되, 없으면 **목록 길이에서 계산**한다. 목록은 서버가 준
+ * 그대로이므로 길이는 추정이 아니다. 반대로 목록도 counts도 없으면 `null`로 두어 0과
+ * 구분한다.
+ */
+function collectionEvidence(value: unknown): TestCollectionEvidence | null {
+  const root = record(value)
+  if (!root) return null
+  const counts = record(root.counts)
+  const planned = idList(root.planned_fixture_ids)
+  const stored = idList(root.stored_fixture_ids)
+  const detailStored = idList(root.detail_stored_fixture_ids)
+  const unverified = idList(root.unverified_fixture_ids)
+  const countOf = (key: string, fallback: number[], hasList: boolean): number | null => {
+    const explicit = counts ? intOf(counts[key]) : null
+    if (explicit !== null) return explicit
+    return hasList ? fallback.length : null
+  }
+  return {
+    scope_fixture_ids: idList(root.scope_fixture_ids),
+    fixture_from: text(root.fixture_from),
+    fixture_to: text(root.fixture_to),
+    planned_fixture_ids: planned,
+    stored_fixture_ids: stored,
+    detail_stored_fixture_ids: detailStored,
+    unverified_fixture_ids: unverified,
+    partial: root.partial === true,
+    counts: {
+      planned: countOf('planned', planned, Array.isArray(root.planned_fixture_ids)),
+      stored: countOf('stored', stored, Array.isArray(root.stored_fixture_ids)),
+      detail_stored: countOf(
+        'detail_stored',
+        detailStored,
+        Array.isArray(root.detail_stored_fixture_ids),
+      ),
+      unverified: countOf(
+        'unverified',
+        unverified,
+        Array.isArray(root.unverified_fixture_ids),
+      ),
+    },
+    notes: textList(root.notes),
+  }
+}
+
 export function parseRun(payload: unknown): Parsed<TestRun> {
   const root = record(payload)
   if (!root) return bad('수집 실행 응답이 객체가 아닙니다.')
@@ -311,6 +406,7 @@ export function parseRun(payload: unknown): Parsed<TestRun> {
       progress: intOf(root.progress),
       stage: text(root.stage),
       counts_kind: text(root.counts_kind),
+      collection_evidence: collectionEvidence(root.collection_evidence),
       items,
       errors,
       warning_count: warningCount,
