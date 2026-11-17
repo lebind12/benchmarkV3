@@ -4,9 +4,11 @@
 뒤 재전달, 새로고침 뒤 재시도) 실제 모델 호출이 두 번 결제되고 결과가 두 벌 저장된다.
 사용자는 한 번 눌렀는데 실행이 두 개 생기는 것을 보게 된다.
 
-**합성·단위 검사다.** 실제 모델·실제 공급자를 호출하지 않는다. 저장된 실행 행과 요청
-표기 계산만 확인한다. PostgreSQL 동시 잠금은 단위 검사 대상이 아니며(연결 필요),
-잠금을 잡지 못한 경우의 판정만 대역으로 확인한다.
+**실제 모델·실제 공급자를 호출하지 않는다.** 대부분은 합성 세션·행 대역으로 저장된 실행과
+요청 표기 계산을 확인한다. 다만 **잠금 함수 서명과 동시 진입**은 대역으로 검증할 수 없다
+(이전 구현이 대역에서 통과하고 실제 PostgreSQL에서 `UndefinedFunction`을 냈다). 그래서 그
+검사만 `integration` 표시로 로컬 전용 테스트 DB(`conftest`가 루프백·`_test` 이름을 강제)에
+붙는다. 운영 URL·기존 사용자 서버·실수집 자료는 쓰지 않는다.
 """
 
 from __future__ import annotations
@@ -24,10 +26,14 @@ FIXTURE_IN_SCOPE = 1557474
 class _Run:
     """`PreviewRun` 중 이 검사가 읽는 값만 가진 행 대역."""
 
-    def __init__(self, *, fixture_id=FIXTURE_IN_SCOPE, run_id=None, label=None):
+    def __init__(
+        self, *, fixture_id=FIXTURE_IN_SCOPE, run_id=None, label=None, actor_id=7, requested_at=0
+    ):
         self.id = run_id or uuid.uuid4()
         self.fixture_id = fixture_id
         self.label = label
+        self.actor_id = actor_id
+        self.requested_at = requested_at
         self.mode = "live"
         self.status = "succeeded"
         self.quality = "ready"
@@ -67,26 +73,39 @@ def test_label_without_a_user_label_uses_the_default_then_marks_the_request():
 class _Session:
     """`find_requested_run`이 쓰는 조회만 흉내 내는 세션.
 
-    실제 저장소는 `label LIKE '%request=<id>%'`로 찾는다. 여기서도 **문장에 바인딩된
-    요청 표기**로 걸러야 한다. 저장된 행에서 표기를 꺼내 쓰면 어떤 요청 ID를 넣어도
-    같은 행을 돌려주는 대역이 되어, 다른 UUID가 기존 실행에 붙는지 판별하지 못한다.
+    대역은 **SQL이 하는 일만** 한다: `label LIKE '%request=<id>%'`로 후보를 좁히고
+    `actor_id`가 있으면 같은 관리자 행만 남긴다. **label 끝의 표기**를 확인하는 일은
+    제품 코드(`find_requested_run`의 접미사 판정)가 하므로 여기서 대신 하지 않는다.
+    대역이 그 판정까지 하면 판정이 사라지는 회귀를 검사가 잡지 못한다.
     """
 
     def __init__(self, rows):
         self.rows = list(rows)
 
-    def scalar(self, statement):
+    def scalars(self, statement):
         params = dict(statement.compile().params)
         marker = next(
             (str(value) for value in params.values() if str(value).startswith("request=")),
             None,
         )
         if marker is None:
-            return None
-        return next(
-            (row for row in self.rows if row.label and marker in row.label),
+            return []
+        owner = next(
+            (
+                int(value)
+                for key, value in params.items()
+                if "actor_id" in str(key) and value is not None
+            ),
             None,
         )
+        found = [
+            row
+            for row in self.rows
+            if row.label
+            and marker in row.label
+            and (owner is None or int(getattr(row, "actor_id", 0)) == owner)
+        ]
+        return sorted(found, key=lambda row: row.requested_at, reverse=True)
 
 
 def test_same_request_id_finds_the_stored_run_instead_of_a_new_one():
@@ -166,6 +185,163 @@ def test_losing_the_request_lock_raises_instead_of_generating_twice(monkeypatch)
     with pytest.raises(requests.RequestInFlight):
         with requests.request_lock(uuid.uuid4()):
             pytest.fail("잠금을 잡지 못했으면 본문이 실행되면 안 된다")
+
+
+@pytest.mark.integration
+def test_real_postgres_lock_blocks_a_second_connection_and_unlocks(engine):
+    """실제 PostgreSQL 두 연결에서 잠금 성립·동시 진입 거부·해제 뒤 재획득을 확인한다.
+
+    검사 이유(실패 시 사용자 영향): 이전 구현은 `(integer, bigint)` 형태를 호출해
+    실제 PostgreSQL에서 `UndefinedFunction`을 냈고, 예외를 삼켜 **잠금 없이 생성**했다.
+    그러면 같은 요청 두 개가 동시에 모델을 불러 과금과 저장이 두 배가 된다. 대역
+    연결로는 함수 서명을 검증할 수 없으므로 여기서만 실제 로컬 테스트 DB를 쓴다.
+
+    대상은 로컬 전용 테스트 DB(conftest가 루프백·`_test` 이름을 강제)이며, 행을 쓰지
+    않고 advisory lock만 잡았다 놓는다.
+    """
+    from app.preview import preview_test_requests as requests
+
+    request_id = uuid.uuid4()
+
+    with requests.request_lock(request_id) as held:
+        assert held._locked is True
+        # 두 번째 "요청"은 별도 연결에서 같은 키를 잡으려 한다.
+        with pytest.raises(requests.RequestInFlight):
+            with requests.request_lock(request_id):
+                pytest.fail("같은 요청의 두 번째 진입이 잠금을 통과하면 안 된다")
+
+    # 첫 잠금이 해제됐으므로 같은 요청을 다시 잡을 수 있다(정상 재전달 경로).
+    with requests.request_lock(request_id) as again:
+        assert again._locked is True
+
+
+@pytest.mark.integration
+def test_real_postgres_lock_key_is_one_bigint_beyond_int32(engine):
+    """잠금 키가 **단일 bigint**이며 32비트를 넘는다(두 인자 형태가 아니라는 증거).
+
+    검사 이유(실패 시 사용자 영향): 키가 int32 안에 있으면 `(integer, integer)` 형태로도
+    호출이 성립해, 서명 결함이 다시 숨어도 검사가 통과한다. 키 공간이 32비트를 넘는 것을
+    함께 고정해 두 인자 형태로 되돌아가는 변경을 잡는다.
+    """
+    from sqlalchemy import text
+
+    from app.preview import preview_test_requests as requests
+
+    key = requests.request_lock(uuid.uuid4())._key()
+    assert 0 < key < 2**63
+    assert key > 2**31 - 1
+
+    # 같은 키를 실제 DB에 단일 인자로 넘겨 잠금/해제가 성립함을 확인한다.
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT pg_try_advisory_lock(:key)"), {"key": key}
+        ).scalar() is True
+        assert connection.execute(
+            text("SELECT pg_advisory_unlock(:key)"), {"key": key}
+        ).scalar() is True
+
+
+@pytest.mark.integration
+def test_lock_sql_failure_stops_before_generating(monkeypatch):
+    """잠금 SQL이 실패하면 **생성 본문에 들어가지 않는다**(모델 0회).
+
+    검사 이유(실패 시 사용자 영향): 이전 코드는 잠금 SQL 예외를 삼키고 그대로 생성을
+    진행했다. 그래서 잠금이 성립하지 않는 환경에서 중복 모델 호출이 가능했다.
+    """
+    from app.preview import preview_test_requests as requests
+
+    class _FailingConnection:
+        def execute(self, statement, params=None):
+            raise RuntimeError("function pg_try_advisory_lock(integer, bigint) does not exist")
+
+        def close(self):
+            self.closed = True
+
+    connection = _FailingConnection()
+
+    class _Engine:
+        def connect(self):
+            return connection
+
+    monkeypatch.setattr("app.preview.db.get_engine", lambda: _Engine(), raising=True)
+
+    entered = []
+    with pytest.raises(requests.RequestLockUnavailable):
+        with requests.request_lock(uuid.uuid4()):
+            entered.append(True)
+
+    assert entered == []
+    assert getattr(connection, "closed", False) is True
+
+
+@pytest.mark.integration
+def test_lock_connection_failure_stops_before_generating(monkeypatch):
+    """연결 자체가 안 되면 생성하지 않는다(모델 0회)."""
+
+    from app.preview import preview_test_requests as requests
+
+    class _Engine:
+        def connect(self):
+            raise OSError("connection refused")
+
+    monkeypatch.setattr("app.preview.db.get_engine", lambda: _Engine(), raising=True)
+
+    entered = []
+    with pytest.raises(requests.RequestLockUnavailable):
+        with requests.request_lock(uuid.uuid4()):
+            entered.append(True)
+    assert entered == []
+
+
+def test_another_admins_run_is_not_reused_for_my_request():
+    """다른 관리자의 실행은 내 요청의 재전달 결과로 채택하지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 남의 실행 결과가 내 요청의 응답으로 돌아오면,
+    사용자는 자기 것이 아닌 프리뷰를 자기 실행 결과로 보고 그 실행 ID를 저장한다.
+    """
+    from app.preview import preview_test_requests as requests
+
+    request_id = uuid.uuid4()
+    foreign = _Run(
+        label=f"정보 원문 프리뷰 · live · {requests.request_marker(request_id)}",
+        actor_id=99,
+    )
+    session = _Session([foreign])
+
+    assert requests.find_requested_run(session, request_id, actor_id=7) is None
+    # 같은 관리자면 정상 재전달 후보로 찾는다.
+    assert (
+        requests.find_requested_run(_Session([_Run(label=foreign.label, actor_id=7)]), request_id, actor_id=7)
+        is not None
+    )
+
+
+def test_a_client_written_marker_does_not_make_a_run_look_like_my_request():
+    """클라이언트가 label에 적은 요청 표기만으로는 재전달 후보가 되지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 다른 실행의 label에 내 request_id 표기를 적어 두면
+    내 요청이 그 실행을 결과로 돌려받는다. 저장된 실행의 소유·경기가 다르면 화면은
+    엉뚱한 문서를 내 결과로 표시한다.
+
+    서버는 표기를 **직접 끝에 붙이고** 클라이언트 표기는 지운다. 그래서 클라이언트가
+    쓴 표기로 만든 label은 끝 표기가 아니며 채택되지 않는다.
+    """
+    from app.preview import preview_test_requests as requests
+
+    request_id = uuid.uuid4()
+    spoofed = requests.request_marker(request_id)
+
+    # 구분자 없이 붙은 표기도 지운다(정리 후 서버 표기만 남는다).
+    cleaned = requests.sanitize_label(f"내 프리뷰 request={request_id}")
+    assert cleaned == "내 프리뷰"
+
+    label = requests.label_with_request(f"내 프리뷰 {spoofed}", request_id, default="기본")
+    assert label.endswith(spoofed)
+    assert label.count(spoofed) == 1
+
+    # 클라이언트가 표기를 남긴 label로 저장된 행은, 그 표기가 끝이 아니면 후보가 아니다.
+    middle_only = _Run(label=f"{spoofed} · 다른 실행 설명", actor_id=7)
+    assert requests.find_requested_run(_Session([middle_only]), request_id, actor_id=7) is None
 
 
 def test_replay_response_returns_stored_status_without_calling_the_model(monkeypatch):
@@ -250,13 +426,25 @@ def test_request_id_is_optional_in_the_existing_request_contract():
     assert isinstance(with_id.request_id, uuid.UUID)
 
 
+class _NullLock:
+    """잠금이 성립하는 상태만 흉내 내는 대역. 실제 잠금 검사는 integration 검사가 한다."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+
 class _StoredRun:
     """저장된 실행 행 대역. 핸들러가 쓰는 열만 있다."""
 
-    def __init__(self, *, run_id, fixture_id, label):
+    def __init__(self, *, run_id, fixture_id, label, actor_id=7, requested_at=0):
         self.id = run_id
         self.fixture_id = fixture_id
         self.label = label
+        self.actor_id = actor_id
+        self.requested_at = requested_at
         self.mode = "live"
         self.status = "succeeded"
         self.quality = "ready"
@@ -274,15 +462,30 @@ class _StoringSession:
         self.runs = []
         self.commits = 0
 
-    def scalar(self, statement):
+    def scalars(self, statement):
         params = dict(statement.compile().params)
         marker = next(
             (str(value) for value in params.values() if str(value).startswith("request=")),
             None,
         )
         if marker is None:
-            return None
-        return next((run for run in self.runs if run.label and marker in run.label), None)
+            return []
+        owner = next(
+            (
+                int(value)
+                for key, value in params.items()
+                if "actor_id" in str(key) and value is not None
+            ),
+            None,
+        )
+        found = [
+            run
+            for run in self.runs
+            if run.label
+            and marker in run.label
+            and (owner is None or int(getattr(run, "actor_id", 0)) == owner)
+        ]
+        return sorted(found, key=lambda run: run.requested_at, reverse=True)
 
     def get(self, model, key):
         return next((run for run in self.runs if run.id == key), None)
@@ -336,7 +539,10 @@ def test_repeating_the_same_request_id_sends_the_model_once(monkeypatch):
         generated.append(kwargs)
         session.runs.append(
             _StoredRun(
-                run_id=run_id, fixture_id=kwargs["fixture_id"], label=kwargs.get("label")
+                run_id=run_id,
+                fixture_id=kwargs["fixture_id"],
+                label=kwargs.get("label"),
+                actor_id=kwargs["actor_id"],
             )
         )
         return _Outcome()
@@ -395,7 +601,10 @@ def test_a_new_request_id_creates_a_new_run(monkeypatch):
         generated.append(kwargs)
         session.runs.append(
             _StoredRun(
-                run_id=new_id, fixture_id=kwargs["fixture_id"], label=kwargs.get("label")
+                run_id=new_id,
+                fixture_id=kwargs["fixture_id"],
+                label=kwargs.get("label"),
+                actor_id=kwargs["actor_id"],
             )
         )
 
@@ -445,6 +654,137 @@ def test_a_new_request_id_creates_a_new_run(monkeypatch):
 
     assert len(generated) == 2
     assert first.run_id != second.run_id
+
+
+def test_another_admins_requested_run_is_not_replayed_to_me(monkeypatch):
+    """다른 관리자가 같은 request_id로 만든 실행은 내 응답으로 돌려주지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 남의 실행 결과가 내 요청의 응답으로 돌아오면
+    사용자는 자기 것이 아닌 프리뷰를 자기 실행 결과로 보고 그 실행 ID를 저장한다.
+    대신 **내 실행을 새로 만든다**(같은 request_id라도 소유가 다르므로 재사용 없음).
+    """
+    from app.api.v1 import preview_admin
+    from app.preview.access import PreviewPrincipal
+
+    request_id = uuid.uuid4()
+    session = _StoringSession()
+    session.runs.append(
+        _StoredRun(
+            run_id=uuid.uuid4(),
+            fixture_id=FIXTURE_IN_SCOPE,
+            label=f"정보 원문 프리뷰 · live · request={request_id}",
+            actor_id=99,
+        )
+    )
+    generated: list = []
+
+    class _Transport:
+        mode = None
+
+    def _generate(**kwargs):
+        new_id = uuid.uuid4()
+        generated.append(kwargs)
+        session.runs.append(
+            _StoredRun(
+                run_id=new_id,
+                fixture_id=kwargs["fixture_id"],
+                label=kwargs.get("label"),
+                actor_id=kwargs["actor_id"],
+            )
+        )
+        return type(
+            "O",
+            (),
+            {
+                "run_id": new_id,
+                "mode": type("M", (), {"value": "live"})(),
+                "status": type("S", (), {"value": "succeeded"})(),
+                "quality": type("Q", (), {"value": "ready"})(),
+                "bundle_id": None,
+                "bundle_hash": None,
+                "bundle_artifact_id": None,
+                "section_result_ids": {},
+                "section_quality": {},
+                "section_unavailable": {},
+                "discovery_status": {},
+                "external_calls": 1,
+                "budget": {},
+                "unavailable_reason": None,
+            },
+        )()
+
+    monkeypatch.setattr(
+        "app.api.v1.preview_admin._model_transport", lambda mode: _Transport()
+    )
+    monkeypatch.setattr("app.api.v1.preview_admin._fixture_reader", lambda: None)
+    monkeypatch.setattr(
+        "app.api.v1.preview_admin._refuse_conflicting_fixture_identifiers",
+        lambda payload, reader=None: None,
+    )
+    monkeypatch.setattr("app.services.match_preview.generate_match_preview", _generate)
+    # 잠금은 이 검사의 대상이 아니므로 실제 DB 대신 성립하는 대역을 쓴다.
+    monkeypatch.setattr(
+        "app.preview.preview_test_requests.request_lock",
+        lambda request_id: _NullLock(),
+    )
+
+    principal = PreviewPrincipal(user_id=7, email="admin@example.test", role="ADMIN")
+    payload = preview_admin.BundlePreviewRunRequest(
+        fixture_id=FIXTURE_IN_SCOPE, mode="live", request_id=request_id
+    )
+
+    response = preview_admin.create_bundle_preview_run(
+        payload, session=session, principal=principal
+    )
+
+    assert len(generated) == 1
+    assert generated[0]["actor_id"] == 7
+    assert response.run_id not in [run.id for run in session.runs if run.actor_id == 99]
+
+
+def test_a_lock_failure_returns_503_without_calling_the_model(monkeypatch):
+    """잠금을 확인하지 못하면 503이며 **생성 서비스가 호출되지 않는다**.
+
+    검사 이유(실패 시 사용자 영향): 잠금 실패를 삼키고 생성하면 같은 요청이 두 번
+    모델을 불러 과금·저장이 두 배가 된다. 사용자는 재시도 가능한 오류를 받아야 한다.
+    """
+    from fastapi import HTTPException
+
+    from app.api.v1 import preview_admin
+    from app.preview.access import PreviewPrincipal
+
+    generated: list = []
+
+    def _generate(**kwargs):
+        generated.append(kwargs)
+        raise AssertionError("잠금 실패 시 생성 서비스를 호출하면 안 됩니다")
+
+    class _BrokenConnection:
+        def execute(self, statement, params=None):
+            raise RuntimeError("function pg_try_advisory_lock(integer, bigint) does not exist")
+
+        def close(self):
+            return None
+
+    class _Engine:
+        def connect(self):
+            return _BrokenConnection()
+
+    monkeypatch.setattr("app.preview.db.get_engine", lambda: _Engine(), raising=True)
+    monkeypatch.setattr("app.services.match_preview.generate_match_preview", _generate)
+
+    principal = PreviewPrincipal(user_id=7, email="admin@example.test", role="ADMIN")
+    payload = preview_admin.BundlePreviewRunRequest(
+        fixture_id=FIXTURE_IN_SCOPE, mode="live", request_id=uuid.uuid4()
+    )
+
+    with pytest.raises(HTTPException) as excinfo:
+        preview_admin.create_bundle_preview_run(
+            payload, session=_StoringSession(), principal=principal
+        )
+
+    assert excinfo.value.status_code == 503
+    assert generated == []
 
 
 def test_reusing_a_request_id_for_another_fixture_is_409(monkeypatch):

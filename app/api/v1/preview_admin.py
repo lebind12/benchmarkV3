@@ -2043,8 +2043,10 @@ def create_bundle_preview_run(
     - 응답은 기존 `BundlePreviewRunResponse`이며 `run_id`로 저장 결과를 다시 읽는다.
       본문·근거는 `/runs/{run_id}/section-results`, 묶음은
       `/runs/{run_id}/information-bundle`에서 **DB만** 조회한다.
-    - `request_id`가 있으면 **요청 한 건**의 식별자다. 같은 값의 재전달은 이미 저장된
-      실행을 그대로 돌려주며 모델 전송은 0회다. 같은 값을 다른 경기에 쓰면 409다.
+    - `request_id`가 있으면 **요청 한 건**의 식별자다. 같은 **ADMIN·request_id·경기**의
+      재전달은 이미 저장된 실행을 그대로 돌려주며 모델 전송은 0회다. 같은 값을 다른
+      경기에 쓰면 409다. 다른 관리자의 실행이나, 클라이언트가 label에 적은 요청 표기만으로
+      만들어진 연결은 정상 재전달로 채택하지 않는다.
     """
     if payload.request_id is not None:
         return _run_with_request_id(payload, session=session, principal=principal)
@@ -2061,6 +2063,8 @@ def _run_with_request_id(
 
     순서가 중요하다. 먼저 **저장된 실행**을 찾고, 없을 때만 잠금을 잡고 생성한다.
     그래야 응답이 유실된 뒤의 재전달도 모델을 다시 부르지 않는다.
+
+    잠금을 확인하지 못하면(`RequestLockUnavailable`) 생성 본문에 들어가지 않는다.
     """
     from app.preview import preview_test_requests as requests
 
@@ -2068,7 +2072,11 @@ def _run_with_request_id(
         # 잠금은 **생성 전체**를 감싼다. 같은 요청의 두 번째 전달이 생성 도중에 들어오면
         # 기다리지 않고 409로 끝나므로, 모델 호출이 두 번 나가지 않는다.
         with requests.request_lock(payload.request_id):
-            existing = requests.find_requested_run(session, payload.request_id)
+            # 재전달 채택은 **같은 관리자의 실행**만 후보다. 다른 관리자의 실행을 내
+            # 요청의 결과로 돌려주면 사용자가 남의 실행 결과를 자기 것으로 본다.
+            existing = requests.find_requested_run(
+                session, payload.request_id, actor_id=principal.user_id
+            )
             if existing is not None:
                 requests.ensure_same_fixture(existing, fixture_id=int(payload.fixture_id))
                 replay = requests.replay_response(session, existing.id)
@@ -2086,6 +2094,11 @@ def _run_with_request_id(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
     except requests.RequestInFlight as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
+    except requests.RequestLockUnavailable as exc:
+        # 잠금이 성립하지 않았으므로 모델은 호출되지 않았다. 재시도 가능한 상태로 알린다.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from None
 
 
 def _run_bundle_generation(
