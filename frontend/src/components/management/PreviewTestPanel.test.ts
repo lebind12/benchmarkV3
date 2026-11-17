@@ -820,7 +820,7 @@ describe('기간 수집 시험 — 새로고침과 늦은 응답', () => {
     currentQuery.value = {
       tab: 'preview',
       testFixtures: `${CITY_FULHAM},${CHELSEA_LEEDS}`,
-      testRuns: 'run-a',
+      testRuns: `${CITY_FULHAM}:run-a`,
       testCollection: 'run-collect-1',
     }
     queue('GET', `${PT}/candidates`, { kind: 'json', body: candidatesPayload() })
@@ -842,6 +842,47 @@ describe('기간 수집 시험 — 새로고침과 늦은 응답', () => {
     expect(wrapper.get(`[data-testid="ptp-storage-${CITY_FULHAM}"]`).text()).toContain('저장 확인')
     expect(wrapper.get('[data-testid="ptp-collection-run"]').text()).toContain('run-collect-1')
     expect(calls.filter((call) => call.url.endsWith('/runs/run-a/preview')).length).toBe(1)
+  })
+
+  it('첫 경기가 저장되지 않은 세 경기 선택도 저장 실행을 제 경기에 붙여 복원한다', async () => {
+    // 세 경기를 고른 순서대로 생성하면 첫 경기만 실패하고 둘째·셋째가 저장될 수 있다.
+    // 주소에 남은 저장 실행을 **선택 순서대로** 짝지으면 둘째 경기의 실행이 첫 경기 것처럼
+    // 붙어, 사용자가 보지 않은 경기의 저장 문서를 열게 된다. 짝은 경기 번호로 남겨야 한다.
+    currentQuery.value = {
+      tab: 'preview',
+      testFixtures: `${CITY_FULHAM},${CHELSEA_LEEDS},${TOTTENHAM_IPSWICH}`,
+      testRuns: `${CHELSEA_LEEDS}:run-b,${TOTTENHAM_IPSWICH}:run-c`,
+    }
+    queue('GET', `${PT}/candidates`, { kind: 'json', body: candidatesPayload() })
+    for (const [runId, fixtureId, label] of [
+      ['run-b', CHELSEA_LEEDS, '첼시 vs 리즈'],
+      ['run-c', TOTTENHAM_IPSWICH, '토트넘 vs 입스위치'],
+    ] as const) {
+      queue('GET', `${PV}/runs/${runId}/preview`, {
+        kind: 'json',
+        body: readerPreview(fixtureId, label),
+      })
+      queue('GET', `${PV}/runs/${runId}/section-results`, {
+        kind: 'json',
+        body: sectionsPayload(runId),
+      })
+      queue('GET', `${PV}/runs/${runId}`, { kind: 'json', body: { summary: { run_id: runId } } })
+    }
+
+    const wrapper = await mountPanel()
+
+    // 복원은 조회다. 자동 POST를 보내지 않는다.
+    expect(posts()).toEqual([])
+    expect(wrapper.get(`[data-testid="ptp-storage-${CHELSEA_LEEDS}"]`).text()).toContain('저장 확인')
+    expect(wrapper.get(`[data-testid="ptp-storage-${TOTTENHAM_IPSWICH}"]`).text()).toContain(
+      '저장 확인',
+    )
+    // 저장 실행이 없는 첫 경기는 저장 상태를 주장하지 않는다.
+    expect(wrapper.get(`[data-testid="ptp-storage-${CITY_FULHAM}"]`).text()).toContain('—')
+    // 첫 경기의 문서를 열지 않았다(다른 경기 실행을 제 것으로 채택하지 않는다).
+    expect(
+      calls.some((call) => call.url.includes('run-b') && call.url.includes(String(CITY_FULHAM))),
+    ).toBe(false)
   })
 
   it('붙잡힌 이전 요청의 응답이 늦게 도착해도 새 실행의 표시를 덮지 않는다', async () => {

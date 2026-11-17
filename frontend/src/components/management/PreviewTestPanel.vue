@@ -291,9 +291,11 @@ function syncQuery(ids: number[], runIds: Record<number, string>, collection: st
   query.tab = 'preview'
   if (ids.length > 0) query[SELECTION_QUERY] = ids.join(',')
   else delete query[SELECTION_QUERY]
+  // 실행 ID는 **경기 번호와 함께** 남긴다. 순서만 남기면 첫 경기가 실패했을 때 둘째 경기의
+  // 실행이 첫 경기 것처럼 복원되어 다른 경기의 저장 문서가 열린다.
   const pairs = ids
-    .map((id) => runIds[id])
-    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .map((id) => (runIds[id] ? `${id}:${runIds[id]}` : ''))
+    .filter((value) => value.length > 0)
   if (pairs.length > 0) query[RUNS_QUERY] = pairs.join(',')
   else delete query[RUNS_QUERY]
   if (collection) query[COLLECTION_QUERY] = collection
@@ -645,7 +647,9 @@ async function restoreFromQuery() {
     .split(',')
     .map((token) => Number(token.trim()))
     .filter((value) => Number.isSafeInteger(value) && value > 0)
-  if (ids.length === 2) selectedIds.value = ids
+  // 생성은 두 경기로 제한되지 않으므로 선택도 개수 제한 없이 복원한다. 수집 버튼의
+  // "정확히 두 경기" 조건은 선택을 깎지 않고 버튼에서만 안내한다.
+  if (ids.length > 0) selectedIds.value = ids
 
   await loadCandidates()
   if (disposed) return
@@ -666,11 +670,20 @@ async function restoreFromQuery() {
     .split(',')
     .map((token) => token.trim())
     .filter((token) => token.length > 0)
-  // 경기 순서와 실행 순서를 짝지어 복원한다. 짝이 맞지 않으면 복원하지 않는다.
   if (runIds.length === 0) return
-  const pairs = selectedIds.value
-    .slice(0, runIds.length)
-    .map((fixtureId, index) => ({ fixtureId, runId: runIds[index] }))
+  // 실행은 `경기번호:실행ID` 짝으로 남아 있다. 짝이 없는 실행 ID는 어느 경기의 것인지
+  // 알 수 없으므로 채택하지 않는다(추측해서 다른 경기에 붙이지 않는다).
+  const pairs = runIds
+    .map((token) => {
+      const [fixtureToken, runId] = token.split(':')
+      const fixtureId = Number((fixtureToken ?? '').trim())
+      const trimmedRun = (runId ?? '').trim()
+      if (!Number.isSafeInteger(fixtureId) || fixtureId <= 0 || trimmedRun.length === 0) return null
+      if (!selectedIds.value.includes(fixtureId)) return null
+      return { fixtureId, runId: trimmedRun }
+    })
+    .filter((pair): pair is { fixtureId: number; runId: string } => pair !== null)
+  if (pairs.length === 0) return
   await Promise.all(
     pairs.map(async ({ fixtureId, runId }) => {
       const storage = await readStored(runId, fixtureId)
