@@ -42,6 +42,7 @@ def _section_obj(
     mode: str = "live",
     output_contract_version: str | None = None,
     unavailable_reason: str | None = None,
+    sources: list[dict] | None = None,
 ):
     return SimpleNamespace(
         id=uuid.uuid4(),
@@ -51,7 +52,7 @@ def _section_obj(
         version=1,
         title=workflow_id,
         body=body,
-        sources=[],
+        sources=list(sources or []),
         quality="ready",
         mode=mode,
         output_contract_version=output_contract_version,
@@ -179,6 +180,12 @@ def test_recommendations_and_document_agree_on_1557474_three_section_partial(mon
 
     monkeypatch.setattr(home_preview, "eligible_rows", lambda *_a, **_k: [_recommendation_fixture_row()])
     monkeypatch.setattr(home_preview_document.store_module, "load_composition", lambda *_a, **_k: {"available": False})
+    data_as_of = BASE - timedelta(hours=2)
+    monkeypatch.setattr(
+        home_preview_document.store_module,
+        "load_information_bundle",
+        lambda *_a, **_k: {"available": True, "bundle": {"as_of": data_as_of.isoformat()}, "summary": None},
+    )
     monkeypatch.setattr(home_preview_document, "_id_context", lambda *_a, **_k: (None, None))
 
     doc = home_preview_document.read_document(stored, 1557474, now=BASE + timedelta(hours=1))
@@ -198,7 +205,7 @@ def test_recommendations_and_document_agree_on_1557474_three_section_partial(mon
         "state": "partial",
         "served": "current",
         "generated_at": BASE.isoformat(),
-        "as_of": BASE.isoformat(),
+        "as_of": data_as_of.isoformat(),
     }
 
 
@@ -251,9 +258,9 @@ def test_recommendations_and_document_agree_on_ready_and_unapproved(monkeypatch)
 
 
 def test_recommendations_does_not_fabricate_generated_at_after_kickoff(monkeypatch):
-    """킥오프 이후 저장된 문서는 가짜 generated_at을 만들지 않고 None으로 유지해야 한다.
+    """킥오프 이후 저장되고 자료 기준 근거가 없으면 generated_at과 as_of를 저장시각으로 지어내지 않는다.
 
-    실패 시 사용자 영향: 킥오프 이전 시각을 지어내면 감사 추적 오류나 프론트 Zod 스키마 실패가 난다.
+    실패 시 사용자 영향: 저장시각을 자료 기준시각으로 오해하거나 가짜 generated_at으로 스키마 오류가 난다.
     """
     post_kickoff = KICKOFF + timedelta(minutes=15)
     sections = [_section_obj("section_players", created_at=post_kickoff), _section_obj("section_ai_forecast", created_at=post_kickoff)]
@@ -262,6 +269,11 @@ def test_recommendations_does_not_fabricate_generated_at_after_kickoff(monkeypat
 
     monkeypatch.setattr(home_preview, "eligible_rows", lambda *_a, **_k: [_recommendation_fixture_row()])
     monkeypatch.setattr(home_preview_document.store_module, "load_composition", lambda *_a, **_k: {"available": False})
+    monkeypatch.setattr(
+        home_preview_document.store_module,
+        "load_information_bundle",
+        lambda *_a, **_k: {"available": False, "bundle": None, "summary": None},
+    )
 
     rec = home_preview.recommendations(
         _public_stub(),
@@ -274,7 +286,109 @@ def test_recommendations_does_not_fabricate_generated_at_after_kickoff(monkeypat
         "state": "ready",
         "served": "current",
         "generated_at": None,
-        "as_of": post_kickoff.isoformat(),
+        "as_of": None,
+    }
+
+
+def test_recommendations_as_of_aggregates_selected_sources_and_returns_none_when_unrecorded(monkeypatch):
+    """다중 실행 구성본은 선택된 표시 섹션의 원천 자료 시각(max)만 집계하고 미선택 실행은 무시한다."""
+    run_main = RUN_ID
+    run_other = uuid.UUID("11111111-1111-1111-1111-111111111111")
+    run_ignored = uuid.UUID("22222222-2222-2222-2222-222222222222")
+
+    saved_at = BASE + timedelta(hours=5)
+    t_bundle_main = BASE - timedelta(hours=3)
+    t_source_other = BASE - timedelta(hours=1)
+    t_bundle_ignored = BASE + timedelta(hours=4)
+
+    sec_players = _section_obj("section_players", run_id=run_main, created_at=saved_at)
+    sec_ai_other = _section_obj(
+        "section_ai_forecast",
+        run_id=run_other,
+        created_at=saved_at - timedelta(minutes=30),
+        sources=[{"label": "공식 배당", "retrieved_at": t_source_other.isoformat()}],
+    )
+    sec_ai_unused = _section_obj("section_ai_forecast", run_id=run_ignored, created_at=saved_at)
+    approvals = [_approval_obj("section_players"), _approval_obj("section_ai_forecast")]
+    stored = _StoredStub(
+        [
+            _run_obj(run_id=run_main, requested_at=saved_at),
+            _run_obj(run_id=run_ignored, requested_at=BASE - timedelta(hours=1)),
+        ],
+        {run_main: [sec_players], run_ignored: [sec_ai_unused]},
+        approvals,
+    )
+
+    monkeypatch.setattr(home_preview, "eligible_rows", lambda *_a, **_k: [_recommendation_fixture_row()])
+    monkeypatch.setattr(home_preview_document, "_id_context", lambda *_a, **_k: (None, None))
+    monkeypatch.setattr(
+        home_preview_document.store_module,
+        "load_composition",
+        lambda _s, rid: (
+            {
+                "available": True,
+                "composition": {
+                    "items": [
+                        {"result_id": str(sec_players.id)},
+                        {"result_id": str(sec_ai_other.id)},
+                    ]
+                },
+            }
+            if str(rid) == str(run_main)
+            else {"available": False}
+        ),
+    )
+    monkeypatch.setattr(
+        home_preview_document.store_module,
+        "get_section_result_any_run",
+        lambda _s, rid: sec_ai_other if str(rid) == str(sec_ai_other.id) else None,
+    )
+    bundles = {
+        str(run_main): {"available": True, "bundle": {"as_of": t_bundle_main.isoformat()}, "summary": None},
+        str(run_ignored): {"available": True, "bundle": {"as_of": t_bundle_ignored.isoformat()}, "summary": None},
+    }
+    monkeypatch.setattr(
+        home_preview_document.store_module,
+        "load_information_bundle",
+        lambda _s, rid: bundles.get(str(rid), {"available": False, "bundle": None, "summary": None}),
+    )
+
+    rec = home_preview.recommendations(
+        _public_stub(),
+        requested_date=KICKOFF.astimezone(home_preview.KST).date(),
+        now=saved_at,
+        stored_session=stored,
+    )
+    structure("recommendations", rec)
+    assert rec["items"][0]["preview"] == {
+        "state": "ready",
+        "served": "current",
+        "generated_at": saved_at.isoformat(),
+        "as_of": t_source_other.isoformat(),
+    }
+
+    # 근거 시각이 전혀 없으면 generated_at만 남기고 as_of는 None으로 둔다.
+    sec_players_bare = _section_obj("section_players", run_id=run_main, created_at=saved_at)
+    sec_ai_bare = _section_obj("section_ai_forecast", run_id=run_main, created_at=saved_at)
+    bare_stored = _StoredStub([_run_obj(run_id=run_main, requested_at=saved_at)], {run_main: [sec_players_bare, sec_ai_bare]}, approvals)
+    monkeypatch.setattr(home_preview_document.store_module, "load_composition", lambda *_a, **_k: {"available": False})
+    monkeypatch.setattr(
+        home_preview_document.store_module,
+        "load_information_bundle",
+        lambda *_a, **_k: {"available": False, "bundle": None, "summary": None},
+    )
+    bare_rec = home_preview.recommendations(
+        _public_stub(),
+        requested_date=KICKOFF.astimezone(home_preview.KST).date(),
+        now=saved_at,
+        stored_session=bare_stored,
+    )
+    structure("recommendations", bare_rec)
+    assert bare_rec["items"][0]["preview"] == {
+        "state": "ready",
+        "served": "current",
+        "generated_at": saved_at.isoformat(),
+        "as_of": None,
     }
 
 

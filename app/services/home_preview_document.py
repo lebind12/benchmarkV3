@@ -801,6 +801,84 @@ def read_document(
         raise PreviewDocumentUnavailable(str(exc)) from exc
 
 
+def _bundle_data_timestamps(session: Session, run_id: str) -> list[datetime]:
+    """선택된 섹션의 원 실행이 참조한 InformationBundle의 실제 자료 기준시각."""
+    import uuid as _uuid
+
+    try:
+        record = store_module.load_information_bundle(session, _uuid.UUID(run_id))
+    except SQLAlchemyError:
+        raise
+    except Exception:  # noqa: BLE001 - 미기록·만료·단위 대역은 None으로 보존
+        return []
+    if not isinstance(record, Mapping):
+        return []
+    moments: list[datetime] = []
+    for container_key in ("bundle", "summary"):
+        container = record.get(container_key)
+        if not isinstance(container, Mapping):
+            continue
+        as_of_dt = _parse_utc(container.get("as_of"))
+        if as_of_dt is not None:
+            moments.append(as_of_dt)
+            break
+        collected_dt = _parse_utc(container.get("collected_at"))
+        if collected_dt is not None:
+            moments.append(collected_dt)
+            break
+    return moments
+
+
+def _data_as_of(
+    session: Session,
+    displayed_rows: Sequence[Mapping[str, Any]],
+    displayed_sections: Sequence[Mapping[str, Any]],
+) -> str | None:
+    """실제 표시 섹션들의 원천 자료 기준시각 요약. 저장시각(saved_at)으로 대체하지 않는다.
+
+    1) 표시 섹션이 참조하는 각 run_id의 InformationBundle.as_of (없으면 collected_at)
+    2) 표시 섹션 sources의 observed_at/observedAt/retrieved_at/collected_at
+    3) 표시 섹션 structured.odds.observedAt 및 PreviewResult.payload의 data_as_of/as_of/observed_at/collected_at
+    여러 원본 실행/자료가 섞이면 가장 최근 실제 관측 시각을 쓰고, 근거가 없으면 None을 반환한다.
+    """
+    moments: list[datetime] = []
+    seen_runs: list[str] = []
+    for row in displayed_rows:
+        run_id = _text(row.get("run_id"))
+        if run_id is not None and run_id not in seen_runs:
+            seen_runs.append(run_id)
+    for run_id in seen_runs:
+        moments.extend(_bundle_data_timestamps(session, run_id))
+    for row in displayed_rows:
+        for src in row.get("sources") or ():
+            if not isinstance(src, Mapping):
+                continue
+            for key in ("observed_at", "observedAt", "retrieved_at", "collected_at"):
+                dt = _parse_utc(src.get(key))
+                if dt is not None:
+                    moments.append(dt)
+    for section in displayed_sections:
+        structured = section.get("structured")
+        if isinstance(structured, Mapping):
+            for item in structured.get("odds") or ():
+                if not isinstance(item, Mapping):
+                    continue
+                for key in ("observedAt", "observed_at"):
+                    dt = _parse_utc(item.get(key))
+                    if dt is not None:
+                        moments.append(dt)
+    payloads = _result_payloads(session, displayed_rows)
+    for row in displayed_rows:
+        payload = _latest_payload(payloads, row)
+        if not isinstance(payload, Mapping):
+            continue
+        for key in ("data_as_of", "as_of", "observed_at", "collected_at"):
+            dt = _parse_utc(payload.get(key))
+            if dt is not None:
+                moments.append(dt)
+    return max(moments).isoformat() if moments else None
+
+
 def recommendation_preview_status(
     session: Session,
     external_id: int,
@@ -822,7 +900,8 @@ def recommendation_preview_status(
             projected = project_document(
                 {**chosen, "rows": decorated}, external_id=external_id
             )
-            if projected.get("sections"):
+            displayed_sections = projected.get("sections") or []
+            if displayed_sections:
                 saved_at = projected.get("saved_at")
                 saved_dt = _parse_utc(saved_at)
                 kickoff_dt = _parse_utc(kickoff_at)
@@ -834,11 +913,22 @@ def recommendation_preview_status(
                     and (kickoff_dt is None or saved_dt < kickoff_dt)
                     else None
                 )
+                shown_result_ids = {
+                    str(item.get("section_result_id"))
+                    for item in displayed_sections
+                    if item.get("section_result_id")
+                }
+                displayed_rows = [
+                    row
+                    for row in decorated
+                    if str(row.get("section_result_id")) in shown_result_ids
+                ]
+                data_as_of = _data_as_of(session, displayed_rows, displayed_sections)
                 return {
                     "state": "ready" if projected.get("complete") else "partial",
                     "served": "current",
                     "generated_at": generated_at,
-                    "as_of": saved_at,
+                    "as_of": data_as_of,
                 }
         if any(getattr(run, "status", None) in ("queued", "running", "retry_wait") for run in runs):
             state = "pending"

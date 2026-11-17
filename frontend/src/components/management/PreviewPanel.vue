@@ -100,6 +100,9 @@ const historyError = ref<string | null>(null)
 
 const composition = ref<CompositionView | null>(null)
 const compositionNote = ref<string | null>(null)
+const compositionLoaded = ref(false)
+const compositionError = ref<string | null>(null)
+let compositionSequence = 0
 
 const diagnosticsOpen = ref(false)
 const bundleOpen = ref(false)
@@ -211,6 +214,213 @@ const homeRecMatch = computed(() => {
   return homeRec.value.items.find((item) => item.fixture_id === fid) ?? null
 })
 
+type ExpectedSectionRef = {
+  workflow_id: string
+  section_result_id: string | null
+}
+
+type ExpectedSectionsState =
+  | { state: 'none' }
+  | { state: 'loading' }
+  | { state: 'unverified'; reason: string }
+  | { state: 'ready'; source: 'composition' | 'run'; items: ExpectedSectionRef[] }
+
+type SectionDiffStatus = 'matched' | 'missing' | 'version_mismatch' | 'extra' | 'unverified'
+
+type HomeSectionDiffItem = {
+  workflow_id: string
+  status: SectionDiffStatus
+  label: string
+  expectedId: string | null
+  actualId: string | null
+}
+
+function orderWorkflowIds(ids: Iterable<string>): string[] {
+  const unique = [...new Set(ids)]
+  const known = SECTION_ORDER.filter((id) => unique.includes(id))
+  const others = unique.filter((id) => !SECTION_ORDER.some((knownId) => knownId === id))
+  return [...known, ...others]
+}
+
+const expectedRunSections = computed<ExpectedSectionsState>(() => {
+  const runId = openRunId.value
+  const data = runData.value
+  if (!runId || !data || data.run_id !== runId) {
+    return { state: 'none' }
+  }
+  if (!compositionLoaded.value) {
+    return { state: 'loading' }
+  }
+  if (compositionError.value !== null) {
+    return {
+      state: 'unverified',
+      reason: `구성본을 확인하지 못했습니다(${compositionError.value})`,
+    }
+  }
+  const activeComposition = composition.value
+  if (activeComposition && activeComposition.items.length > 0) {
+    const byWorkflow = new Map<string, string>()
+    for (const item of activeComposition.items) {
+      if (item.unavailable || item.body_chars <= 0) continue
+      if (!byWorkflow.has(item.section_id)) {
+        byWorkflow.set(item.section_id, item.result_id)
+      }
+    }
+    const items = orderWorkflowIds(byWorkflow.keys()).map((workflow_id) => ({
+      workflow_id,
+      section_result_id: byWorkflow.get(workflow_id) ?? null,
+    }))
+    return { state: 'ready', source: 'composition', items }
+  }
+  if (data.sections_error !== null) {
+    return {
+      state: 'unverified',
+      reason: `열린 실행의 섹션 결과를 읽지 못했습니다(${data.sections_error})`,
+    }
+  }
+
+  const blocked = new Set(blockedSections.value)
+  const candidates = [
+    ...(data.sections.section_results ?? []),
+    ...(data.composed_sections ?? []),
+  ].filter(
+    (row) =>
+      !blocked.has(row.workflow_id) &&
+      !row.storage_mismatch &&
+      !row.unavailable &&
+      typeof row.body === 'string' &&
+      row.body.trim().length > 0,
+  )
+
+  const byWorkflow = new Map<string, (typeof candidates)[number][]>()
+  for (const row of candidates) {
+    const list = byWorkflow.get(row.workflow_id) ?? []
+    list.push(row)
+    byWorkflow.set(row.workflow_id, list)
+  }
+
+  const shown = previewView.value?.sections ?? {}
+  const workflowIds = orderWorkflowIds([
+    ...byWorkflow.keys(),
+    ...Object.entries(shown)
+      .filter(([, sec]) => typeof sec.body === 'string' && sec.body.trim().length > 0)
+      .map(([wf]) => wf),
+  ])
+
+  const items: ExpectedSectionRef[] = []
+  for (const workflow_id of workflowIds) {
+    const rows = byWorkflow.get(workflow_id) ?? []
+    const shownVersion = shown[workflow_id]?.version ?? null
+    let chosen =
+      shownVersion !== null ? rows.find((row) => row.version === shownVersion) : undefined
+    if (!chosen && rows.length > 0) {
+      chosen = [...rows].sort((a, b) => {
+        if (b.version !== a.version) return b.version - a.version
+        return (b.created_at ?? '').localeCompare(a.created_at ?? '')
+      })[0]
+    }
+    if (chosen) {
+      items.push({ workflow_id, section_result_id: chosen.section_result_id })
+    } else if (shown[workflow_id]) {
+      items.push({ workflow_id, section_result_id: null })
+    }
+  }
+
+  if (data.composed_error && items.some((item) => item.section_result_id === null)) {
+    return {
+      state: 'unverified',
+      reason: `구성본 선택 섹션 결과를 읽지 못했습니다(${data.composed_error})`,
+    }
+  }
+  return { state: 'ready', source: 'run', items }
+})
+
+const homeSectionComparison = computed(() => {
+  const doc = homeDoc.value
+  if (!doc || doc.status !== 'available') return null
+  const expected = expectedRunSections.value
+  if (expected.state === 'none') return null
+  if (expected.state === 'loading') {
+    return { status: 'loading' as const, reason: null, items: [] as HomeSectionDiffItem[] }
+  }
+  if (expected.state === 'unverified') {
+    return {
+      status: 'unverified' as const,
+      reason: expected.reason,
+      items: [] as HomeSectionDiffItem[],
+    }
+  }
+
+  const expectedMap = new Map(expected.items.map((item) => [item.workflow_id, item]))
+  const actualMap = new Map<string, (typeof doc.sections)[number]>()
+  for (const sec of doc.sections) {
+    if (!actualMap.has(sec.workflow_id)) {
+      actualMap.set(sec.workflow_id, sec)
+    }
+  }
+
+  const orderedWorkflows = orderWorkflowIds([...expectedMap.keys(), ...actualMap.keys()])
+  const items: HomeSectionDiffItem[] = []
+  for (const workflow_id of orderedWorkflows) {
+    const exp = expectedMap.get(workflow_id)
+    const pub = actualMap.get(workflow_id)
+    if (exp && !pub) {
+      items.push({
+        workflow_id,
+        status: 'missing',
+        label: '누락',
+        expectedId: exp.section_result_id,
+        actualId: null,
+      })
+    } else if (!exp && pub) {
+      items.push({
+        workflow_id,
+        status: 'extra',
+        label: '추가 반영',
+        expectedId: null,
+        actualId: pub.section_result_id,
+      })
+    } else if (exp && pub) {
+      if (!exp.section_result_id || !pub.section_result_id) {
+        items.push({
+          workflow_id,
+          status: 'unverified',
+          label: '확인 불가',
+          expectedId: exp.section_result_id,
+          actualId: pub.section_result_id,
+        })
+      } else if (exp.section_result_id === pub.section_result_id) {
+        items.push({
+          workflow_id,
+          status: 'matched',
+          label: '일치',
+          expectedId: exp.section_result_id,
+          actualId: pub.section_result_id,
+        })
+      } else {
+        items.push({
+          workflow_id,
+          status: 'version_mismatch',
+          label: '다른 버전',
+          expectedId: exp.section_result_id,
+          actualId: pub.section_result_id,
+        })
+      }
+    }
+  }
+
+  if (items.some((item) => item.status === 'unverified')) {
+    return { status: 'unverified' as const, reason: '섹션 결과 ID를 대조할 수 없습니다.', items }
+  }
+  if (items.some((item) => item.status === 'version_mismatch' || item.status === 'extra')) {
+    return { status: 'mismatch' as const, reason: null, items }
+  }
+  if (items.some((item) => item.status === 'missing')) {
+    return { status: 'partial_missing' as const, reason: null, items }
+  }
+  return { status: 'exact' as const, reason: null, items }
+})
+
 const homeDocumentReflectionText = computed(() => {
   if (homeReflectionLoading.value) return '홈 공개 문서를 확인하는 중…'
   if (homeDocError.value) {
@@ -231,16 +441,33 @@ const homeDocumentReflectionText = computed(() => {
       '홈에 표시되는 문서가 없습니다.'
     )
   }
-  const completeness = doc.complete
-    ? `완전 반영(섹션 ${doc.sections.length}개)`
-    : `부분 반영(complete=false, 필수 섹션 누락 가능 · 섹션 ${doc.sections.length}개)`
-  if (openRunId.value && doc.run_id === openRunId.value) {
-    return `현재 연 실행(${doc.run_id})과 동일 결과가 홈에 반영되었습니다 · ${completeness}`
+  const requiredSummary = doc.complete
+    ? `필수 섹션 완전 반영(complete=true · 홈 섹션 ${doc.sections.length}개)`
+    : `필수 섹션 부분 반영(complete=false · 홈 섹션 ${doc.sections.length}개)`
+  const comparison = homeSectionComparison.value
+  if (!comparison) {
+    return `홈에 저장 실행(${doc.run_id ?? '미상'})이 반영되어 있습니다 · ${requiredSummary}`
   }
-  if (openRunId.value && doc.run_id && doc.run_id !== openRunId.value) {
-    return `홈에는 다른 저장 실행(${doc.run_id})이 반영되어 있습니다 · ${completeness}`
+  if (comparison.status === 'loading') {
+    return `열린 실행(${openRunId.value}) 섹션·구성본과 홈(${doc.run_id ?? '미상'}) 대조 중… · ${requiredSummary}`
   }
-  return `홈에 저장 실행(${doc.run_id ?? '미상'})이 반영되어 있습니다 · ${completeness}`
+  if (comparison.status === 'unverified') {
+    return `열린 실행(${openRunId.value})과 대조 미확인(${comparison.reason}) · 홈 run: ${doc.run_id ?? '미상'} · ${requiredSummary}`
+  }
+  if (comparison.status === 'exact') {
+    if (openRunId.value && doc.run_id === openRunId.value) {
+      return `현재 연 실행(${doc.run_id})의 섹션 결과 ID까지 홈과 일치합니다 · ${requiredSummary}`
+    }
+    return `열린 구성·선택 섹션 결과가 홈(${doc.run_id ?? '미상'})에 모두 일치 반영되었습니다 · ${requiredSummary}`
+  }
+  if (comparison.status === 'partial_missing') {
+    const missingNames = comparison.items
+      .filter((item) => item.status === 'missing')
+      .map((item) => item.workflow_id)
+      .join(', ')
+    return `홈(${doc.run_id ?? '미상'})에 열린 결과의 섹션(${missingNames})이 누락되었습니다 · ${requiredSummary}`
+  }
+  return `홈(${doc.run_id ?? '미상'})에 열린 결과와 다른 버전 또는 차이가 있습니다 · ${requiredSummary}`
 })
 
 const hasUnresolvedPlayers = computed(() => {
@@ -468,8 +695,11 @@ function clearResultState() {
   openRunId.value = null
   openedFixtureId.value = null
   openedKickoffAt.value = null
+  compositionSequence += 1
   composition.value = null
   compositionNote.value = null
+  compositionLoaded.value = false
+  compositionError.value = null
   diagnosticsOpen.value = false
   bundleOpen.value = false
   inspectorOpen.value = false
@@ -536,8 +766,11 @@ async function openStoredRun(
   runError.value = null
   directRunError.value = null
   runLoading.value = true
+  compositionSequence += 1
   composition.value = null
   compositionNote.value = null
+  compositionLoaded.value = false
+  compositionError.value = null
   diagnosticsOpen.value = false
   bundleOpen.value = false
   inspectorOpen.value = false
@@ -573,6 +806,7 @@ async function openStoredRun(
   }
   runData.value = data
   readVersion.value += 1
+  void refreshOpenRunComposition(trimmed)
   const resolvedFixtureId = openRunFixtureId.value
   const resolvedKickoffAt =
     data.detail?.fixture?.kickoff_at ??
@@ -626,19 +860,29 @@ async function loadHistory() {
   history.value = response.data.runs
 }
 
-/** 진단 펼침. 저장된 구성본만 조회한다(모델 호출 없음). */
-async function toggleDiagnostics(event: Event) {
-  const open = (event.target as HTMLDetailsElement).open
-  diagnosticsOpen.value = open
-  if (!open || composition.value !== null || !openRunId.value) return
-  const response = await getPreviewComposition(openRunId.value)
-  if (disposed) return
+async function refreshOpenRunComposition(runId: string) {
+  const sequence = ++compositionSequence
+  compositionLoaded.value = false
+  compositionError.value = null
+  const response = await getPreviewComposition(runId)
+  if (disposed || sequence !== compositionSequence || openRunId.value !== runId) return
+  compositionLoaded.value = true
   if (!response.ok) {
+    compositionError.value = response.message
     compositionNote.value = response.message
     return
   }
   composition.value = response.data.composition
   compositionNote.value = response.data.available ? null : response.data.reason
+}
+
+/** 진단 펼침. 저장된 구성본만 조회한다(모델 호출 없음). */
+async function toggleDiagnostics(event: Event) {
+  const open = (event.target as HTMLDetailsElement).open
+  diagnosticsOpen.value = open
+  if (!open || !openRunId.value) return
+  if (compositionLoaded.value && compositionError.value === null) return
+  await refreshOpenRunComposition(openRunId.value)
 }
 
 function openRunFromHistory(run: RunSummary) {
@@ -853,6 +1097,33 @@ onBeforeUnmount(() => {
             {{ homeDocumentReflectionText }}
           </p>
           <p
+            v-if="homeDoc?.status === 'available' && homeSectionComparison?.status === 'unverified'"
+            class="preview-tab__hint"
+            data-testid="preview-home-section-diff"
+          >
+            섹션 대조 미확인: {{ homeSectionComparison.reason }}
+          </p>
+          <ul
+            v-else-if="
+              homeDoc?.status === 'available' &&
+              homeSectionComparison &&
+              homeSectionComparison.items.length > 0
+            "
+            class="preview-tab__section-diff"
+            data-testid="preview-home-section-diff"
+          >
+            <li
+              v-for="item in homeSectionComparison.items"
+              :key="item.workflow_id"
+              :data-testid="`preview-home-section-diff-${item.workflow_id}`"
+            >
+              <span>{{ item.workflow_id }}: {{ item.label }}</span>
+              <span class="preview-tab__muted">
+                (열린/선택 {{ item.expectedId ?? '없음' }} · 홈 {{ item.actualId ?? '없음' }})
+              </span>
+            </li>
+          </ul>
+          <p
             v-if="homeRecError"
             class="preview-tab__alert"
             role="alert"
@@ -867,7 +1138,11 @@ onBeforeUnmount(() => {
           >
             공개 추천 상태: {{ homeRecMatch.preview.state }} · 제공:
             {{ homeRecMatch.preview.served ?? '없음' }} · 기준:
-            {{ formatMoment(homeRecMatch.preview.as_of) }}
+            {{
+              homeRecMatch.preview.as_of === null
+                ? '자료 기준 미기록'
+                : formatMoment(homeRecMatch.preview.as_of)
+            }}
           </p>
           <p
             v-else-if="homeRec"
@@ -1498,6 +1773,14 @@ onBeforeUnmount(() => {
   gap: 8px;
   align-items: center;
   font-size: 13px;
+}
+
+.preview-tab__section-diff {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
 }
 
 .preview-tab__sources a {

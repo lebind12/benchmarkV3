@@ -91,6 +91,22 @@ describe('recommendation response', () => {
     const cup = { ...match, league: '추가된 국내 컵', competitionType: 'domestic_cup' as const }
     expect(rank(cup)).toBe(7)
   })
+  it('allows null as_of when served is current and unrecorded in source data', () => {
+    const value = buildMockRecommendations(sampleMatches, sampleDay).response
+    const servedIndex = value.items.findIndex(
+      (row) => row.preview.served !== null && ['ready', 'partial'].includes(row.preview.state),
+    )
+    expect(servedIndex).toBeGreaterThanOrEqual(0)
+    const nullableAsOf = structuredClone(value)
+    nullableAsOf.items[servedIndex]!.preview.as_of = null
+    expect(homeRecommendationsSchema.safeParse(nullableAsOf).success).toBe(true)
+
+    const unservedWithClock = structuredClone(value)
+    const unservedIndex = unservedWithClock.items.findIndex((row) => row.preview.served === null)
+    expect(unservedIndex).toBeGreaterThanOrEqual(0)
+    unservedWithClock.items[unservedIndex]!.preview.as_of = '2026-10-26T00:00:00Z'
+    expect(homeRecommendationsSchema.safeParse(unservedWithClock).success).toBe(false)
+  })
 })
 
 describe('cup form result policy', () => {

@@ -37,7 +37,7 @@ export const homeRecommendationsSchema = z.object({
     if (index > 0 && compare(value.items[index - 1]!, row) > 0) fail('Unstable recommendation order')
     if (value.fallback_reason && row.state !== 'scheduled') fail('Fallback can only contain scheduled fixtures')
     if (row.preview.served === null && (row.preview.generated_at !== null || row.preview.as_of !== null || ['ready', 'partial'].includes(row.preview.state))) fail('No snapshot must not claim publication clocks')
-    if (row.preview.served !== null && (!['ready', 'partial'].includes(row.preview.state) || row.preview.as_of === null)) fail('Saved snapshot requires publication state and data clock')
+    if (row.preview.served !== null && !['ready', 'partial'].includes(row.preview.state)) fail('Saved snapshot requires publication state')
     if (row.preview.generated_at && Date.parse(row.preview.generated_at) >= Date.parse(row.kickoff_at)) fail('Generation must precede kickoff')
   })
 })

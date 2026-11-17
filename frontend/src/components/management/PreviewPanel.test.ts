@@ -1492,4 +1492,314 @@ describe('프리뷰 탭 — 실행 전환 비움 및 홈 반영 상태', () => {
     expect(panel.get('[data-testid="preview-home-document-status"]').text()).toContain('no_approved_version')
     expect(panel.get('[data-testid="preview-home-recommendations-error"]').text()).toContain('home_preview_http_503')
   })
+
+  it('as_of가 null이면 자료 기준 미기록으로 표시한다', async () => {
+    previewApi.readerPreview.mockResolvedValue(ok(readerPreview()))
+    previewApi.sectionResults.mockResolvedValue(ok(savedSections()))
+    previewApi.detail.mockResolvedValue(ok(runDetail()))
+    homePreviewApi.getHomePreviewDocument.mockResolvedValue({
+      schema_version: '1.0',
+      fixture_id: 1557474,
+      status: 'available',
+      reason: null,
+      reason_text: null,
+      saved_at: '2026-11-18T00:00:00Z',
+      run_id: 'run-1557474-a',
+      complete: true,
+      fixture: { external_id: 1557474 },
+      headline: '전망',
+      sections: [],
+    })
+    homePreviewApi.getHomeRecommendations.mockResolvedValue({
+      schema_version: '1.0',
+      requested_date: '2026-11-21',
+      display_date: '2026-11-21',
+      timezone: 'Asia/Seoul',
+      as_of: '2026-11-18T00:00:00Z',
+      policy_version: 'home-priority-2026-10-25',
+      fallback_reason: null,
+      items: [
+        {
+          fixture_id: 1557474,
+          kickoff_at: '2026-11-21T12:30:00Z',
+          status_as_of: '2026-11-18T00:00:00Z',
+          competition: { external_id: 39, name: 'Premier League', category: 'epl', round: '12' },
+          home: { external_id: 50, name: '맨체스터 시티' },
+          away: { external_id: 36, name: '풀럼' },
+          state: 'scheduled',
+          priority: 1,
+          reason: '빅식스',
+          preview: {
+            state: 'ready',
+            served: 'current',
+            generated_at: '2026-11-18T00:00:00Z',
+            as_of: null,
+          },
+        },
+      ],
+      today_results: [],
+    })
+
+    const wrapper = mount(PreviewPanel, mountOptions())
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-a')
+    await submitOpenRun(wrapper)
+
+    expect(wrapper.get('[data-testid="preview-home-recommendation-status"]').text()).toContain('자료 기준 미기록')
+  })
+
+  it('같은 run_id와 complete=true여도 선택 섹션 누락·다른 section_result_id·구성본 기준·조회 실패를 구분한다', async () => {
+    const availabilityRow = sectionResult({
+      section_result_id: 'sr-availability',
+      workflow_id: 'section_availability',
+      title: '결장·부상',
+      body: '출전 의심 1명',
+      unavailable: false,
+    })
+    previewApi.readerPreview.mockResolvedValue(ok(readerPreview({ complete: true })))
+    previewApi.sectionResults.mockResolvedValue(
+      ok({
+        run_id: 'run-1557474-a',
+        section_results: [...savedSections().section_results, availabilityRow],
+      }),
+    )
+    previewApi.detail.mockResolvedValue(ok(runDetail()))
+    homePreviewApi.getHomePreviewDocument.mockResolvedValue({
+      schema_version: '1.0',
+      fixture_id: 1557474,
+      status: 'available',
+      reason: null,
+      reason_text: null,
+      saved_at: '2026-11-18T00:00:00Z',
+      run_id: 'run-1557474-a',
+      complete: true,
+      fixture: { external_id: 1557474 },
+      headline: '전망',
+      sections: [
+        {
+          section_result_id: 'sr-players',
+          run_id: 'run-1557474-a',
+          workflow_id: 'section_players',
+          workflow_version: 'v1',
+          version: 1,
+          title: '주목 선수',
+          body: '본문',
+          sources: [],
+          quality: 'ready',
+          partial: false,
+          created_at: '2026-11-18T00:00:00Z',
+        },
+        {
+          section_result_id: 'sr-forecast',
+          run_id: 'run-1557474-a',
+          workflow_id: 'section_ai_forecast',
+          workflow_version: 'v1',
+          version: 1,
+          title: 'AI 경기 전망',
+          body: '본문',
+          sources: [],
+          quality: 'ready',
+          partial: false,
+          created_at: '2026-11-18T00:00:00Z',
+        },
+      ],
+    })
+    homePreviewApi.getHomeRecommendations.mockResolvedValue({
+      schema_version: '1.0',
+      requested_date: '2026-11-21',
+      display_date: '2026-11-21',
+      timezone: 'Asia/Seoul',
+      as_of: '2026-11-18T00:00:00Z',
+      policy_version: 'home-priority-2026-10-25',
+      fallback_reason: null,
+      items: [],
+      today_results: [],
+    })
+
+    // 1) 같은 run_id + complete=true 여도 section_availability 누락을 그대로 표시
+    const wrapper = mount(PreviewPanel, mountOptions())
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-a')
+    await submitOpenRun(wrapper)
+
+    const statusText = wrapper.get('[data-testid="preview-home-document-status"]').text()
+    expect(statusText).toContain('누락')
+    expect(statusText).toContain('section_availability')
+    expect(statusText).not.toContain('일치합니다')
+    expect(wrapper.get('[data-testid="preview-home-section-diff-section_availability"]').text()).toContain('누락')
+    expect(wrapper.get('[data-testid="preview-home-section-diff-section_players"]').text()).toContain('일치')
+
+    // 2) 같은 workflow_id의 다른 section_result_id면 '다른 버전' 표시
+    homePreviewApi.getHomePreviewDocument.mockResolvedValueOnce({
+      schema_version: '1.0',
+      fixture_id: 1557474,
+      status: 'available',
+      reason: null,
+      reason_text: null,
+      saved_at: '2026-11-18T00:00:00Z',
+      run_id: 'run-1557474-a',
+      complete: true,
+      fixture: { external_id: 1557474 },
+      headline: '전망',
+      sections: [
+        {
+          section_result_id: 'sr-players',
+          run_id: 'run-1557474-a',
+          workflow_id: 'section_players',
+          workflow_version: 'v1',
+          version: 1,
+          title: '주목 선수',
+          body: '본문',
+          sources: [],
+          quality: 'ready',
+          partial: false,
+          created_at: '2026-11-18T00:00:00Z',
+        },
+        {
+          section_result_id: 'sr-availability',
+          run_id: 'run-1557474-a',
+          workflow_id: 'section_availability',
+          workflow_version: 'v1',
+          version: 1,
+          title: '결장·부상',
+          body: '출전 의심 1명',
+          sources: [],
+          quality: 'ready',
+          partial: false,
+          created_at: '2026-11-18T00:00:00Z',
+        },
+        {
+          section_result_id: 'sr-forecast-old',
+          run_id: 'run-1557474-a',
+          workflow_id: 'section_ai_forecast',
+          workflow_version: 'v1',
+          version: 1,
+          title: 'AI 경기 전망',
+          body: '구본문',
+          sources: [],
+          quality: 'ready',
+          partial: false,
+          created_at: '2026-11-18T00:00:00Z',
+        },
+      ],
+    })
+    await wrapper.get('[data-testid="preview-home-reflection-refresh"]').trigger('click')
+    await flushPromises()
+    const diffForecast = wrapper.get('[data-testid="preview-home-section-diff-section_ai_forecast"]').text()
+    expect(diffForecast).toContain('다른 버전')
+    expect(diffForecast).toContain('sr-forecast')
+    expect(diffForecast).toContain('sr-forecast-old')
+
+    // 3) 활성 구성본이 있으면 구성본 항목만 기준으로 대조하고 과거 미선택 버전은 무시한다
+    previewApi.sectionResults.mockResolvedValue(
+      ok({
+        run_id: 'run-1557474-b',
+        section_results: [
+          sectionResult({ section_result_id: 'sr-forecast-v1', workflow_id: 'section_ai_forecast', version: 1, body: '구버전' }),
+          sectionResult({ section_result_id: 'sr-forecast-v2', workflow_id: 'section_ai_forecast', version: 2, body: '신버전' }),
+        ],
+      }),
+    )
+    previewApi.readerPreview.mockResolvedValue(ok(readerPreview({ complete: false })))
+    previewApi.detail.mockResolvedValue(ok({ ...runDetail(), summary: { ...runDetail().summary, run_id: 'run-1557474-b' } }))
+    previewApi.composition.mockResolvedValue(
+      ok({
+        run_id: 'run-1557474-b',
+        available: true,
+        reason: null,
+        composition: {
+          composition_id: 'comp-1',
+          fixture_id: 1557474,
+          items: [
+            {
+              section_id: 'section_ai_forecast',
+              result_id: 'sr-forecast-v2',
+              run_id: 'run-1557474-b',
+              fixture_id: 1557474,
+              version: 2,
+              workflow_version: 'v1',
+              quality: 'ready',
+              unavailable: false,
+              unavailable_reason: null,
+              body_chars: 10,
+              mode: 'live',
+              created_at: '2026-11-18T00:00:00Z',
+            },
+          ],
+          refused: [],
+          diagnostics: [],
+          section_result_ids: ['sr-forecast-v2'],
+        },
+      }),
+    )
+    homePreviewApi.getHomePreviewDocument.mockResolvedValue({
+      schema_version: '1.0',
+      fixture_id: 1557474,
+      status: 'available',
+      reason: null,
+      reason_text: null,
+      saved_at: '2026-11-18T00:00:00Z',
+      run_id: 'run-1557474-b',
+      complete: false,
+      fixture: { external_id: 1557474 },
+      headline: '전망',
+      sections: [
+        {
+          section_result_id: 'sr-forecast-v2',
+          run_id: 'run-1557474-b',
+          workflow_id: 'section_ai_forecast',
+          workflow_version: 'v1',
+          version: 2,
+          title: 'AI 경기 전망',
+          body: '신버전',
+          sources: [],
+          quality: 'ready',
+          partial: false,
+          created_at: '2026-11-18T00:00:00Z',
+        },
+      ],
+    })
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-b')
+    await submitOpenRun(wrapper)
+    expect(wrapper.get('[data-testid="preview-home-document-status"]').text()).toContain('일치합니다')
+    expect(wrapper.get('[data-testid="preview-home-section-diff-section_ai_forecast"]').text()).toContain('일치')
+
+    // 4) 구성본 조회 실패 시 대조 미확인 표시 + 늦은 이전 실행 구성본 응답 무시
+    previewApi.readerPreview.mockResolvedValue(
+      ok(
+        readerPreview({
+          complete: false,
+          sections: [
+            { section_id: 'section_ai_forecast', title: 'AI 경기 전망', body: '신버전', sources: [], quality: 'ready', partial: false, version: 2 },
+          ],
+        }),
+      ),
+    )
+    previewApi.sectionResults.mockResolvedValue(
+      ok({
+        run_id: 'run-1557474-d',
+        section_results: [
+          sectionResult({ section_result_id: 'sr-forecast-v2', workflow_id: 'section_ai_forecast', version: 2, body: '신버전' }),
+        ],
+      }),
+    )
+    let resolveDelayedComp!: (v: unknown) => void
+    previewApi.composition.mockImplementation((rid: string) => {
+      if (rid === 'run-1557474-c') {
+        return new Promise((resolve) => {
+          resolveDelayedComp = resolve
+        })
+      }
+      if (rid === 'run-1557474-d') {
+        return Promise.resolve(fail(503, '구성본 서버 오류'))
+      }
+      return Promise.resolve(ok({ run_id: rid, available: false, reason: '구성본 없음', composition: null }))
+    })
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-c')
+    await wrapper.get('[data-testid="preview-run-form"]').trigger('submit')
+    await flushPromises()
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-d')
+    await submitOpenRun(wrapper)
+    resolveDelayedComp(ok({ run_id: 'run-1557474-c', available: false, reason: '이전 응답', composition: null }))
+    await flushPromises()
+    expect(wrapper.get('[data-testid="preview-home-document-status"]').text()).toContain('대조 미확인')
+  })
 })
