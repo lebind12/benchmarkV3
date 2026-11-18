@@ -535,3 +535,105 @@ CORS 동일, `WORKER_SCHEDULER_ENABLED=false`, `HOME_PREVIEW_ENABLED=false`,
 선수 섹션에서 막혀 새 run이 홈 문서가 되지 못했다. HTTP 200·수집 성공·이전 run 서빙을
 E2E 성공으로 표현하지 않는다. 다음 조치는 **권한 부여(GRANT)** 이며, 이는 기존 테이블의
 권한 변경이므로 이번 승인 범위(코드·검사·승인 변경 0) 밖이다. 별도 배정이 필요하다.
+
+## 13. CE-E2E3 실제 재실행 결과 (2026-11-18, **성공**)
+
+CE-ACL(권한 보완) 이후 같은 계획서 범위로 재실행했다. **이번에는 사용자가 정의한 E2E가
+끝까지 성립했다**: 기존 수집 API 1회 → 실모델 자동 생성 → 새 preview_dev 정본 커밋 →
+새 run이 공개 홈 문서·추천이 됨. 코드·검사·승인 변경은 0건이다.
+
+### 13-1. 시작 상태 (재기동 0회)
+
+- HEAD `fe3373b2a7d973093bd9edaf8bfe7f54d5f52ec4`(제품 `a4cbb71`), 워크트리 clean.
+- 38000 = PID **57643**, 38003 = PID **58185**. 둘 다 이 워크트리, `woolee` 소유.
+  두 프로세스는 11:53~11:54에 시작해 제품 커밋(`a4cbb71`, 11:45)과 진단 라벨 커밋
+  (`46baf79`, 11:47) 이후에 떴다. **권한 부여는 DB 객체이므로 재기동이 필요 없다.**
+- 공통 설정: `JWT_SECRET_KEY` 해시 동일, `AUTH_COOKIE_NAME=benchmark_refresh_local`, CORS 동일,
+  `WORKER_SCHEDULER_ENABLED=false`, `HOME_PREVIEW_ENABLED=false`,
+  `LOCAL_DEV_AUTH_ENABLED=true`, 모델 `vertex`/`gemini-3.5-flash`/`global`,
+  `PREVIEW_MODEL_LIVE_ENABLED=1`. 38003은 `API_FOOTBALL_KEY`·모델 자격 존재(비밀값 미노출).
+- 권한 확인: 선수 3표 `postgres` INSERT/UPDATE/DELETE = true(부여 결과 유지).
+- 사전 상태: 진행 중 수집 0건, admission `ready=true`, 두 경기 NS, 승인 7건
+  (최대 approved_at 2026-11-17T21:52:31Z), 계획 `can_collect=true`,
+  기간 2026-11-18T00:00:00+09:00 ~ 2026-11-21T15:00:00+00:00.
+
+### 13-2. 요청 (1회)
+
+정상 ADMIN 세션(계정 id 1, role ADMIN)으로 2026-11-18T03:24:56Z에
+`POST /api/v1/admin/management/runs/preview-test` **1회**, HTTP 200.
+수집 실행ID **`72937d21-17c7-4447-9497-9b76fc930d1d`**.
+`target_ids=[13]`, `preview_fixture_ids=[1557474,1557470]`, `generate_after_collection=true`.
+별도 bundle/section 생성 POST 0회, 승인 변경 0회, 반복 호출 0회.
+
+### 13-3. 수집 (성공)
+
+`status=succeeded`, 종료 2026-11-18T03:30:04Z, item `saved=55/55`, `failed=0`.
+`collection_evidence`: `counts={stored:6, planned:6, unverified:0, detail_stored:6}`,
+`partial=false`, `stored_fixture_ids=[1557474, 1557468, 1557476, 1557470, 1557467, 1557471]`.
+
+### 13-4. 자동 생성 (성공 — 이번이 첫 성공)
+
+`home_preview`: `state=finished`, `failed=[]`, `approval_gate={state:ready, missing:[], stale:[]}`.
+
+| 경기 | 생성 run ID | 상태 | 품질 |
+|---|---|---|---|
+| 1557474 | **`9e4e1052-d532-4397-b27d-fe4818731145`** | succeeded | ready |
+| 1557470 | **`e22339c4-4436-4163-996e-da0ddf2993bc`** | succeeded | ready |
+
+두 run 모두 모듈 실행이 `R2, R3, R4, S1, section_odds-writer` **5개**다. 이전 실패 run에서
+빠져 있던 `R2`(부상)·`R4`(주목 선수)가 이번에는 정상 실행·저장됐다. 권한 부여가 실제 원인
+판정과 일치함을 실측으로 확인한 지점이다.
+
+### 13-5. 새 정본 (섹션 5개 + 선수 정본 표)
+
+| 경기 | players | availability | outlook | odds | ai_forecast |
+|---|---|---|---|---|---|
+| 1557474 | `291fa5bf-57d7-44ce-867c-9bb044451b2f` (ready, 377자) | `71e9c47d-b9d0-41c5-840f-b0f78bbdfc10` (ready, 416자) | `8fed3e7e-4b55-4850-8abc-ef37efdafd58` (ready, 428자) | `6be04e76-12d5-43cc-9028-05291f72c7a3` (ready, 294자) | `dfc7694c-f5bd-418b-9d50-2ecbfea68d9b` (ready, 509자) |
+| 1557470 | `1c877097-1541-41ea-b927-be0318ab302a` (ready, 365자) | `d617f7dd-f2f1-44b7-8238-ae83989223d4` (ready, 289자) | `e0fb753f-4235-4ed9-81f8-cb9550b91116` (ready, 354자) | `8bb24f5c-6c5e-4194-83dc-5ee6697e4016` (ready, 294자) | `9789b4d8-d105-4f54-9ce6-90aff9de88dd` (ready, 431자) |
+
+선수 정본 표(이번 단위의 직접 목표):
+
+| run | `preview_watch_player_sections` | `preview_injury_player_sections` | `preview_player_name_candidates` |
+|---|---|---|---|
+| 9e4e1052 (1557474) | **1행** | **1행** | 0행 |
+| e22339c4 (1557470) | **1행** | **1행** | **1행** |
+
+번역 후보 0행은 정상이다. 그 run은 슬롯 이름이 모두 DB 한글명(`db_ko`)으로 확인돼
+AI 후보를 만들 필요가 없었다(후보가 필요한 슬롯이 있을 때만 생성된다).
+
+### 13-6. 홈 반영 (새 run이 실제로 서빙됨)
+
+| 표면 | 결과 |
+|---|---|
+| `GET /api/v1/home/fixtures/1557474/document` | run **`9e4e1052-d532-4397-b27d-fe4818731145`**, `complete=true`, 5섹션 전부 ready |
+| `GET /api/v1/home/recommendations` | 1557474 `state=ready`, `served=current`, generated_at 2026-11-18T03:26:42Z |
+| `GET /api/v1/home/fixtures/1557470/document` | run **`e22339c4-4436-4163-996e-da0ddf2993bc`**, `complete=true`, 5섹션 ready |
+
+문서의 `section_result_id`가 위 13-5 표의 새 ID와 **문자 단위로 일치**한다. 추천 목록에
+1557470이 없더라도 그 경기의 document가 정상이므로 불일치로 보지 않는다(계획서 6항).
+
+### 13-7. 실제 본문·사진 확인
+
+- 주목 선수 본문(1557474): 4명(엘링 홀란드 / 라얀 셰르키 / 알렉산더 츄카 이워비 / 오스카 보브)이
+  `선정 선수:`·`선정 이유:` 두 줄 형식으로 표시되고, `structured.players`에
+  `external_player_id`와 `photo_url`(예: `https://media.api-sports.io/football/players/1100.png`)이
+  실려 있다.
+- 부상·결장 본문: 팀별로 상태(결장 확정/출전 불확실)와 영향이 표시되고, `structured.injuries` 4건에
+  `photo_url`이 있다.
+- AI 경기 전망 본문: 실제 시즌 성적·결장자·상대 흐름을 근거로 서술됐다.
+- **추가 승인 없이 반영**됐다. 승인 행은 7건·최대 approved_at 2026-11-17T21:52:31Z로 **무변경**이며,
+  이번 run은 기존 승인 버전으로 자동 생성됐다(approval_gate ready).
+
+### 13-8. 보존·불변 확인
+
+- 이전 실패 run `639cb2a0`(1557474), `176271d7`(1557470)은 **그대로 보존**했다
+  (`status=failed`, `cancelled_at=null`). 이번 성공 run과 별개 행이다.
+- 승인 7건·계정·public 데이터 무변경. 코드·검사·마이그레이션 변경 0건.
+- 실패 run 대비 이번 시도만의 차이는 **선수 3표 권한 부여(CE-ACL)** 하나다.
+
+### 13-9. 판정
+
+**성공.** 근거는 수집 API 1회에서 실모델 자동 생성이 두 경기 모두 성공하고, 새 정본 섹션
+5개와 선수 정본 표가 커밋되며, 그 새 run이 홈 문서·추천으로 실제 서빙되고 본문·사진이
+표시된 것이다. HTTP 200이나 수집 성공만으로 판정하지 않았고, 이전 정상 홈(`00d34c23`)과
+다른 새 run ID임을 확인했다.
