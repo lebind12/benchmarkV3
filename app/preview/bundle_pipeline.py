@@ -1172,10 +1172,15 @@ def _section_node(section_id: str, plan: _Plan):
         except Exception as exc:  # noqa: BLE001 - 한 섹션 실패를 다른 섹션에 옮기지 않는다
             session.rollback()
             reason = f"{section_id} 작성이 실패했습니다: {exc}"
-            # 예외 **종류와 실패 단계**만 남긴다. 원문 메시지에는 SQL·DSN·비밀값이 섞일
-            # 수 있으므로 실행 기록(failure_detail)에는 옮기지 않는다. 롤백으로 이 갈래의
-            # 행이 모두 사라져도 "무엇이 어디서 났는지"는 남아야 원인을 좁힐 수 있다
-            # (2026-11-18 CE-E2E에서 이 정보가 사라져 원인 확정이 막혔다).
+            # 예외 **종류**만 남긴다. 원문 메시지에는 SQL·DSN·비밀값이 섞일 수 있으므로
+            # 실행 기록(failure_detail)에는 옮기지 않는다. 롤백으로 이 갈래의 행이 모두
+            # 사라져도 "무슨 예외였는지"는 남아야 원인을 좁힐 수 있다(2026-11-18 CE-E2E에서
+            # 이 정보가 사라져 원인 확정이 막혔다).
+            #
+            # 단계 라벨은 **중립적인 전체 섹션 실행 이름**이다. 이 `try`는 작성기 호출,
+            # 모델 전송, 응답 후처리, 정본 저장을 **모두** 감싸므로, 어느 한 단계에서
+            # 났는지 이 경계에서 알 수 없다. 그래서 저장 단계로 단정하는 이름을 쓰지
+            # 않는다(세부 단계 계측은 이번 범위가 아니다).
             return {
                 "sections": [
                     {
@@ -1436,8 +1441,9 @@ def _finalize_node(plan: _Plan):
                 else None
             )
             # 갈래가 예외로 끝나 행이 남지 않은 섹션은 **예외 종류**를 실행 기록에 남긴다.
-            # 원문 메시지·SQL·DSN은 넣지 않는다. 이 값이 없으면 "저장이 왜 비었는지"를
-            # 사후에 알 수 없다(실제로 확인이 막혔다).
+            # 원문 메시지·SQL·DSN은 넣지 않는다. 이 값이 없으면 "무슨 예외로 행이
+            # 비었는지"를 사후에 알 수 없다(실제로 확인이 막혔다). 라벨은 세부 단계를
+            # 특정하지 않는 전체 섹션 실행 이름이다.
             failed_kinds = {
                 str(entry.get("section_id")): str(entry.get("failure_kind"))
                 for entry in entries
@@ -1521,9 +1527,10 @@ _SECTION_ORDER: Mapping[str, int] = {
     bundle_contract.SECTION_AI_FORECAST: 4,
 }
 
-# 섹션 갈래가 예외로 끝났을 때 실행 기록에 남기는 실패 단계 이름. 호출(모델 전송)이
-# 아니라 **작성·저장 경계**에서 났다는 사실을 구분해 남기기 위한 고정 문자열이다.
-_SECTION_FAILURE_STAGE = "section_write"
+# 섹션 갈래가 예외로 끝났을 때 실행 기록에 남기는 **전체 섹션 실행** 라벨. 이 경계의
+# `try`는 작성기 호출·모델 전송·응답 후처리·정본 저장을 한꺼번에 감싸므로, 어느 세부
+# 단계였는지 여기서 구분할 수 없다. 그래서 특정 단계(예: 저장)로 단정하지 않는 이름을 쓴다.
+_SECTION_FAILURE_STAGE = "section_execution"
 
 # 모델을 쓰는 섹션. 자료가 없어 시작하지 않으면 예약을 반환한다.
 _MODEL_SECTIONS: frozenset[str] = frozenset(

@@ -253,16 +253,18 @@ run당 4행(`discovery_outlook`, `discovery_people`, `section_outlook`,
   `PREVIEW_DEV_/IDENTITY_/FIXTURES_/NAMES_/STATS_DATABASE_URL`을 unset해 다른 계정 분기를
   남기지 않았다. 실제 D0 스냅샷은 `readable=true`, `roster` 55행, `standings` 2행,
   `teams` 2행을 읽었고 `team_id_space=internal`이었다.
-- 재실행 준비 판정: 수집 경로는 준비됐다. 다만 **선수 섹션 저장 결함이 남아 있어** 같은
-  조건으로 다시 실행하면 동일하게 필수 섹션 누락으로 실패할 것으로 본다(추정).
-  이 결함의 원인 확정과 수정은 새 코드 변경이므로 이번 단위에서 하지 않았다.
+- 재실행 준비 판정: 수집 경로는 준비됐다(수집 자격 키 포함). 다만 players/availability의
+  첫 예외가 **미확정**이라, 같은 조건으로 다시 실행하면 같은 증상이 날 수 있다(추정).
+  그 원인 확정과 수정은 이번 단위 범위 밖이며 A로 미착수다. 이번 CE-FIX는 그 실패가
+  홈을 덮지 않게 하는 B와, 다음번에 예외 종류를 남기는 C만 다룬다.
 
 ## 9. 미검증 / 막힘
 
 - **미검증**: 5섹션 `complete=true` 홈 일치, 선수 정본 2표/번역 후보의 신규 기록,
   섹션별 result_id→홈 문서 id 대조.
-- **막힘**: 선수 섹션 저장 경로에서 어느 검사가 막았는지 저장 기록만으로 특정하지 못했다.
-  서버 stdout에 예외가 남지 않는 구조(`_section_node`가 예외를 상태로만 반환)도 확인했다.
+- **막힘**: players/availability의 커밋된 행이 왜 없는지(첫 예외의 위치)를 확정하지 못했다.
+  모델 후처리·장부·정본 저장 중 어디인지는 **미확정**이며, 서버 stdout에도 예외가 남지 않는
+  구조(`_section_node`가 예외를 상태로만 반환)였다. 조정자 결정으로 로컬 재현 추가탐색은 종료.
 - **보류**: 재수집 1회는 조정자 결정 대기다(추가 POST 미실행).
 
 ## 10. 프로세스 유지 상태와 변경 범위
@@ -272,14 +274,24 @@ run당 4행(`discovery_outlook`, `discovery_people`, `section_outlook`,
 - 38000: PID 38299 (작업 전과 동일, 손대지 않음).
 - 5173 → 38000, `/api/v1/admin/management/preview-test` → 38003 프록시 그대로.
 - 5174/38001, 5175/38002, 8000, 5176/38004는 건드리지 않았다.
-- 저장소 안 변경 파일: 이 보고서 1개. `scripts/run_preview_test_collection.sh`는 수정하지
-  않았다. 지속 설정 변경 0건(임시 런처와 프로세스 env만).
 - 임시 런처 `/tmp/run_collect_38003.sh`(0700), 로그 `/tmp/collect_38003.log`.
+
+**저장소 변경 파일은 시점별로 다르다.** "변경 파일 1개/0건"은 CE-E2E 첫 실행 시점의
+사실이고, 그 뒤 CE-FIX 단위가 제품 2파일·검사 2파일을 더 바꿨다. 합산하지 않고 나눠 적는다.
+
+| 시점 | 제품 코드 | 검사 | 문서 | 지속 설정 |
+|---|---|---|---|---|
+| CE-E2E 첫 실행(보고서 5a2b9ab까지) | 0건 | 0건 | 이 보고서 1개 | 0건(임시 런처·프로세스 env만) |
+| CE-FIX 단위(eb17f76, 55b601f) | 2파일(`home_preview_document.py`, `bundle_pipeline.py`) | 2파일(`test_home_preview_document.py`, `test_bundle_pipeline.py`) | 이 보고서 | 0건 |
+| 이번 C/D 보완(본 항목) | 1파일(`bundle_pipeline.py`, 라벨·주석) | 1파일(`test_bundle_pipeline.py`, 기대값) | 이 보고서 | 0건 |
+
+`scripts/run_preview_test_collection.sh`는 어느 시점에도 수정하지 않았다.
 
 ## 11. CE-FIX 수정 단위 결과 (2026-11-18)
 
 계획서 `docs/superpowers/plans/2026-11-18-collection-home-fix-task.md`의 A~D 중
-**A는 미재현으로 미착수**, **B·C는 수정·검증 완료**, **D는 위 5-3/6절 정정으로 완료**했다.
+**A는 미재현으로 미착수**, **B·C·D는 완료**했고, 독립검토 B 통과 뒤 C/D 지적 3건을
+**최소 보완**했다(아래 "독립검토 지적 보완").
 
 ### B. 실패 실행이 홈 공개 문서를 대체하지 않게 수정
 
@@ -296,15 +308,20 @@ run당 4행(`discovery_outlook`, `discovery_people`, `section_outlook`,
   과거 정상 선택. **수정 전 red, 수정 후 green** 확인.
 - `test_newer_successful_run_still_wins_over_older_one` — 새 정상 성공 → 새 문서 선택 유지.
 
-### C. 저장 경계 예외 종류·단계 보존
+### C. 섹션 실행 예외 종류 보존
 
 `app/preview/bundle_pipeline.py`에서 섹션 갈래 예외 시 `failure_kind`(예외 클래스 이름)와
-`failure_stage`(`section_write`)를 상태에 남기고, 마무리 단계가 이를 실행 기록의
-`failure_detail`에 덧붙인다. **원문 메시지·SQL·DSN·비밀값은 넣지 않는다**(종류와 단계만).
+`failure_stage`(`section_execution`)를 상태에 남기고, 마무리 단계가 이를 실행 기록의
+`failure_detail`에 덧붙인다. **원문 메시지·SQL·DSN·비밀값은 넣지 않는다**(종류와 라벨만).
+
+**한계(중요).** `_section_node`의 `try`는 작성기 호출·모델 전송·응답 후처리·정본 저장을
+**한꺼번에** 감싼다. 그래서 이 경계는 "어느 세부 단계에서 났는지"를 구분할 수 없다. 라벨을
+`section_write`로 두면 저장 단계로 단정하는 잘못된 신호가 되므로, 세부 단계를 특정하지 않는
+`section_execution`(전체 섹션 실행)으로 바꿨다. 세부 단계 계측 확장은 이번 범위가 아니다.
 
 검증: `test_section_save_exception_kind_survives_in_run_failure_detail` — 저장 계약 위반을
-주입하면 `ContractError@section_write`가 남고, `postgres`·원문 조각이 없음을 확인.
-**수정 전 red, 수정 후 green**.
+주입하면 `ContractError@section_execution`이 남고, `section_write` 문자열이 없으며,
+`postgres`·원문 조각이 없음을 확인. **수정 전 red, 수정 후 green**.
 
 ### A. 미재현(추정 수정 금지 준수)
 
@@ -349,8 +366,39 @@ ready, 미부착 시 insufficient지만 **행은 저장**됐다. 계획서 지�
 
 ## EDITING STOPPED
 
-코드·테스트·빌드 설정 수정 0건. 승인 행·계정·기존 테이블 변경 0건. 운영 연결에
-pytest/초기화/삭제 0건. DB 쓰기는 (a) 승인된 정상 수집 1회, (b) 자동 생성 경로가 만든
-preview_dev 행, (c) 조정자 승인으로 지원 API를 통해 취소한 이번 소유 run 기록뿐이다.
-CE-FIX 단위에서는 B·C 수정과 해당 검사만 했고 A는 미착수다. 남은 작업(선수 섹션 저장
-결함의 실제 원인 확정, 재수집 1회 여부)은 조정자 결정 대기다.
+**시점별로 구분한다.** CE-E2E 첫 실행 단위에서는 코드·테스트 수정 0건이었고, 그 뒤 CE-FIX
+단위가 제품 2파일(`home_preview_document.py`, `bundle_pipeline.py`)과 검사 2파일을 수정했으며,
+이번 C/D 보완이 `bundle_pipeline.py` 라벨·주석과 그 검사 기대값 1건을 고쳤다. 어느 시점에도
+빌드 설정 수정은 0건이다.
+
+공통으로 유지한 것: 승인 행·계정·기존 테이블 변경 0건, 운영 연결에 pytest/초기화/삭제 0건.
+DB 쓰기는 (a) 승인된 정상 수집 1회, (b) 자동 생성 경로가 만든 preview_dev 행, (c) 조정자
+승인으로 지원 API를 통해 취소한 이번 소유 run 기록뿐이다.
+
+**서버 상태 표기 정정.** 위 10절의 38003 상태(진단 라벨 포함)는 **CE-FIX 코드를 서버에
+반영한 상태가 아니다.** 38003 재기동은 0회였고, 그 프로세스는 CE-FIX 이전 코드를 그대로
+실행 중이다. 즉 새 실패가 나면 `section_execution` 라벨은 아직 찍히지 않는다. 이 보완의
+적용은 조정자가 배정할 서버 재기동 단위에서 일어난다.
+
+A는 미착수이고, 모델 후처리/장부/정본 저장 중 첫 예외는 **미확정**이다. 남은 작업(원인 확정,
+재수집 1회, 38000·38003 재기동)은 조정자 배정 대기다.
+
+### 독립검토 지적 보완 (3건)
+
+독립검토가 C/D에 남긴 3건만 최소 보완했다. B는 변경하지 않았다.
+
+1. **C 라벨이 저장 단계를 단정했다.** `_section_node`의 `try`는 작성기 호출·모델 전송·
+   응답 후처리·정본 저장을 한꺼번에 감싸므로 어느 단계인지 구분할 수 없는데 라벨이
+   `section_write`여서 저장 단계로 읽혔다. → `section_execution`(전체 섹션 실행)으로
+   바꾸고 주석·검사 기대값·이 보고서를 같은 이름으로 맞췄다. 세부 단계는 확정할 수 없다는
+   한계를 위 C절에 명시했다. 예외 종류 보존과 비밀 원문 미기록은 그대로다.
+2. **D의 변경 파일 수 표기가 시점을 뭉갰다.** 10절·EDITING STOPPED의 "변경 파일 1개/0건"은
+   CE-E2E 첫 실행 시점의 사실인데, CE-FIX가 제품 2파일·검사 2파일을 더 바꿨다. → 시점별
+   표로 분리했다.
+3. **서버 반영 오해 소지.** 38003 재기동은 0회이므로 CE-FIX 라벨은 아직 실행 중 코드에
+   없다. → EDITING STOPPED에 명시했다.
+
+검증은 기존 C 대표검사 1건만 실행했다: `1 passed`
+(`tests/preview/test_bundle_pipeline.py::test_section_save_exception_kind_survives_in_run_failure_detail`,
+로컬 `preview_mp01_test`, `_dbguard` 통과, 동시 pytest 없음). 52건 전체·변형 반복은 이번
+지시대로 하지 않았다. 서버·실 API·모델·승인 호출은 0회다.

@@ -1313,7 +1313,9 @@ def test_section_save_exception_kind_survives_in_run_failure_detail(
 
     assert outcome.status == RunStatus.FAILED
     assert "section_players" in (outcome.unavailable_reason or "")
-    assert "ContractError@section_write" in (detail or "")
+    # 단계 라벨은 세부 단계를 단정하지 않는 전체 섹션 실행 이름이다.
+    assert "ContractError@section_execution" in (detail or "")
+    assert "section_write" not in (detail or "")
     # 원문 메시지·자격 증명은 실행 기록에 남기지 않는다.
     assert "postgres" not in (detail or "").lower()
     assert "treat" not in (detail or "")
