@@ -127,16 +127,19 @@ run당 4행(`discovery_outlook`, `discovery_people`, `section_outlook`,
 
 **(가-정정) 그 4행을 "전송 기록 없음"으로 읽은 것은 틀렸다.** 같은 구간의
 `preview_write_audit`(장부)는 실행 트랜잭션과 **별도 세션**으로 커밋되므로 롤백 뒤에도
-남아 있다. 그 장부를 읽으면 두 run 모두에서 6개 논리 호출의 성공 전송이 확인된다.
+남아 있다. 그 장부를 읽으면 두 run 모두에서 6개 논리 호출의 전송·응답 수신이 확인된다.
 
-| 근거 | 무엇을 뜻하는가 |
+| 근거(테이블/시점) | 무엇을 뜻하는가 |
 |---|---|
-| `send_charged` `counted=true`, `outcome=pending`, note "전송 전 예약. 후처리·롤백과 무관하게 남는다." | 전송 **직전** 예약. players/availability 포함 12행(run당 6) |
-| `send_charged` `counted=false`, `outcome=ok`, `http_status=200`, note "응답 수신 직후 보존. 실행 트랜잭션 롤백과 무관하다." | **응답 수신 성공**. players/availability 포함 12행(run당 6) |
+| `send_charged` `counted=true`, `outcome=pending` (전송 **직전** 예약) | 전송 예약. run당 6행, players/availability 포함 |
+| `send_charged` `counted=false`, `outcome=ok`, `http_status=200` (응답 **수신 직후** 보존) | 응답 200 수신. run당 6행, players/availability 포함 |
+| `attempt_appended` run당 **4행** (실행 트랜잭션 커밋분) | 커밋된 시도만 남는다. players/availability는 여기 없다 |
 
-즉 `section_players`(`R4`)·`section_availability`(`R2`)는 **모델 응답을 정상 수신했다**
-(HTTP 200). 없는 것은 전송이 아니라 **저장 행**이다. 취소로 `preview_attempts` 8행과 원문
-아티팩트는 삭제됐지만, 이 장부 행들은 감사 기록으로 남아 있어 위 사실을 사후에 확인할 수 있다.
+즉 `section_players`(`R4`)·`section_availability`(`R2`)의 모델 응답은 **HTTP 200으로
+수신됐다**. 없는 것은 전송이 아니라 **커밋된 저장 행**(모듈 실행·섹션 결과·attempts)이다.
+이 두 사실이 모순처럼 보이는 이유는 **테이블과 시점이 다르기 때문**이며, 첫 예외가
+모델 후처리인지 장부인지 정본 저장인지는 **아직 미확정**이다(6절 2항). 취소로
+`preview_attempts` 8행과 원문 아티팩트는 삭제됐지만, 장부 행들은 감사 기록으로 남았다.
 
 - `section_odds`는 모델을 쓰지 않으며 "정규시간 1X2 값이 모두 있는 배당 줄이 없어" insufficient로
   남았다. 진단에 "API-Football 키가 설정되지 않아 배당 보충 읽기를 시작하지 않았습니다"가 있다.
@@ -166,36 +169,43 @@ run당 4행(`discovery_outlook`, `discovery_people`, `section_outlook`,
    `API_FOOTBALL_KEY`를 export하지 않았다. 기존 수집 자격 파일에는 이 키가 있으므로
    런처 한 줄 추가로 해결된다(이미 반영, 재기동 완료). 운영 코드 수정은 불필요하다.
 
-2. **두 번째 실패 경계: 선수 섹션 정본 저장 단계(호출 전 제외도, 호출 실패도 아님).**
-   조정자 지시대로 장부와 실행 기록을 대조해 세 경우를 갈랐다. 결론은 **모델 호출은
-   성공했고, 그 뒤 정본 저장(save) 단계에서 갈래가 죽었다**이다.
+2. **두 번째 실패 경계: 미확정.** players/availability의 저장 행이 커밋되지 않은 것은
+   사실이지만, **모델 후처리·장부·정본 저장 중 어디서 난 첫 예외인지는 확정하지 않았다.**
+   아래에서 관측 출처와 시점을 구분한다.
 
-   - **호출 전 제외 아님(장부 근거).** `preview_write_audit`의 `send_charged` 행에
-     `section_players`와 `section_availability`의 **counted=true 예약 4행**(run당 2:
-     players 1, availability 1)이 남아 있다. 조기 반환 경로라면 `budget.cancel_call`만
-     남고 charged 행이 생기지 않는다.
-   - **호출 실패 아님(장부 + 원문 근거).** 같은 장부에 두 섹션의 `outcome=ok`,
-     `http_status=200`, `counted=false`(응답 수신 보존) 행이 **4행** 남아 있다. 같은 실행의
-     원문 아티팩트도 원래 있었다: `1d646f07...`(players, 3247바이트, `players` 4명·
-     한글 라벨 6건), `4d645651...`(availability, 4988바이트, `injuries` 4건). 그 아티팩트와
-     `preview_attempts` 행은 이후 지원 cancel로 삭제됐지만, 장부는 롤백·삭제와 무관하게
-     남는다는 것이 그 행의 note에 명시돼 있다.
-   - **확정된 사실(장부·행 근거).** 이 실행에서 players/availability의 모듈 실행 행과
-     섹션 결과 행이 **커밋되지 않았다**(모듈 실행은 R3/S1/section_odds-writer 3개,
-     섹션 결과는 outlook/ai_forecast/odds 3개). 즉 실패 지점은 전송이 아니라 그 뒤의
-     저장 경로다.
-   - **추정(확정 아님).** 저장 경로의 어느 검사가 막았는지는 **로컬 재현에서 확정하지
-     못했다**. 후보 검사군은 ①`_validate_parent_ownership`의 소유·`output_contract_version`
-     일치, ②`save_section_candidates`의 NOT NULL, ③4개 `*_translation_candidate_id` FK
-     순서, ④`processing.attempts`가 비면 `to_contract_result()`가 `None`이 되어
-     `ContractError`로 롤백되는 경로다. ④는 현장 서명(players 모듈 실행·섹션 행 동시 부재)
-     과 일치하지만 가설일 뿐이다. 이번 CE-FIX에서 actor 0/7, 실제 응답 모양, AI 후보 경로,
-     이름 해석기 유무를 모두 시도했으나 로컬(55432 `preview_mp01_test`)에서는 실패가
-     재현되지 않았다(계획서 A의 "재현이 안 되면 추정 수정 금지"에 따라 A는 미착수).
-   - **API 키 누락과의 연결은 부정된다.** 키가 없어 영향받은 것은 `section_odds`의
-     배당 보충 읽기뿐이다(그 섹션 진단에 직접 문구가 남아 있다). players/availability는
-     저장된 DB 자료와 이미 성공한 모델 응답만 쓰므로 키와 무관하다. 따라서
-     **"키만 고치면 두 번째 실패도 해소된다"는 추정은 근거가 없다.**
+   **근거 A. 실행 트랜잭션 안의 행 (undo 이전에 읽음, 이후 삭제됨)**
+
+   - 모듈 실행: 두 run 모두 `section_odds-writer`, `R3`, `S1` **3개**. players(R4)와
+     availability(R2) 모듈 실행 행이 없다.
+   - 섹션 결과·결과: run당 3행(outlook, ai_forecast, odds). `preview_attempts` run당 4행.
+   - 이전 CE-E2E 보고에서 "모듈 실행 3개"라고 적은 것과 이번 CE-FIX 중 인용한 "R2 포함
+     4모듈"은 **같은 테이블을 서로 다르게 읽은 것이 아니다.** 4라는 숫자는 두 실행이
+     아니라 `SIGNATURE` 재현 실험(가설 주입 시 R2가 살아남은 로컬 재현)에서 나온 값이며,
+     실제 두 run의 `module_started` 감사 기록은 둘 다 3건이다. 즉 **실제 run은 3모듈**이고
+     4모듈은 로컬 실험값이다. 이전 보고의 3이 맞다.
+
+   **근거 B. 별도 세션 장부 `preview_write_audit` (롤백·undo와 무관하게 보존)**
+
+   - 두 run 모두 `send_charged` **12행**: 논리 호출 6개 × (전송 전 예약 1 + 응답 수신 보존 1).
+   - 그중 players/availability는 run당 각각 예약 1행(`counted=true`, `outcome=pending`)과
+     응답 수신 1행(`counted=false`, `outcome=ok`, `http_status=200`)이 있다.
+   - `attempt_appended`는 run당 **4건**뿐이다(outlook, ai_forecast 등). 즉 **장부의 성공
+     전송 6건과 실행 테이블의 attempts 4행은 서로 다른 테이블의 서로 다른 시점 값**이다.
+     attempts 4행은 실행 트랜잭션이 커밋한 범위이고, 장부 6건은 그와 별도 세션에서 즉시
+     커밋된 전송 사실이다. players/availability의 attempts 행이 없는 것은 "전송이 없었다"가
+     아니라 **그 갈래의 트랜잭션이 커밋되지 않았다**는 뜻이다.
+
+   **정리하면**
+   - 관측된 사실: 두 섹션의 모델 응답은 200으로 수신됐고(장부), 그 섹션들의 모듈 실행·섹션
+     결과·attempts 행은 **커밋되지 않았다**. 원문 아티팩트는 undo 이전에 존재했고 이후 삭제됐다.
+   - 미확정: 첫 예외가 **모델 후처리**(응답 파싱·처리 결과 계약)인지, **장부 경계**인지,
+     **정본 저장**인지. 로컬 재현으로도 특정하지 못했다.
+   - 가설(승인되지 않음): `processing.attempts`가 비면 `to_contract_result()`가 `None`이 되어
+     `ContractError`로 롤백된다는 경로. 현장 서명과 일치하지만 확정 증거가 없어 **수정하지
+     않았다**(조정자 결정: 방어적 수정 미승인).
+   - API 키 누락과의 연결은 부정된다. 키가 없어 영향받은 것은 `section_odds`의 배당 보충
+     읽기뿐이며 그 섹션 진단에 직접 문구가 남아 있다. players/availability는 저장된 DB 자료와
+     수신된 모델 응답만 쓰므로 키와 무관하다.
 
 3. **구조적 관찰(수정하지 않음).** 수집이 실패해도 종료 훅이 자동 생성을 시도한다
    (`collection_status="failed"`로도 호출). 이번 실행에서 그 결과로 실패한 프리뷰가
@@ -303,6 +313,26 @@ run당 4행(`discovery_outlook`, `discovery_people`, `section_outlook`,
 evidence 없음), DB가 선수를 못 찾는 AI 후보 경로, 이름 해석기 부착/미부착. 부착 시 players
 ready, 미부착 시 insufficient지만 **행은 저장**됐다. 계획서 지침대로 추정 수정을 하지 않고
 조정자 판단을 요청했다(msg_157270a040a0).
+
+조정자 결정(msg_cb527a542423): **가를 선택**했다. A는 미재현·원인미확정으로 유지하고,
+`processing.attempts`가 비었다는 가설의 방어적 수정은 **승인하지 않는다**. 로컬 재현 조합
+추가탐색과 검사 확대도 여기서 종료한다. 따라서 A는 코드 변경 0건이며, 저장 실패의 첫 예외는
+**미확정**으로 남긴다(5-3·6-2절의 확정 표현 철회 반영).
+
+### 증거 출처 정리(모순 해소)
+
+앞선 보고들에서 섞여 보이던 세 숫자의 출처를 구분한다.
+
+| 값 | 출처 | 해석 |
+|---|---|---|
+| 모듈 실행 3개(`section_odds-writer`, R3, S1) | 실제 두 run의 `preview_module_executions`·`module_started` 감사 | **실제 run 값** |
+| 모듈 4개(R2 포함) | CE-FIX 중 `SIGNATURE` 재현 실험(가설 주입) | **로컬 실험값**, 실제 run 아님 |
+| `attempts` 전부 `ok` | 취소 전 `preview_attempts` 4행(rename 전 관측) | 실행 트랜잭션 **커밋분만** |
+| "응답 장부 없음" | 같은 시점 `preview_attempts`만 본 판단 | 틀렸다. `preview_write_audit`에는 성공 행이 있다 |
+
+정리하면 **attempts 4행(커밋분)과 장부 12행(별도 세션)은 모순이 아니라 서로 다른 테이블의
+서로 다른 시점 값**이다. 장부가 사실이라면 players/availability는 전송·응답 수신이 있었고,
+커밋된 저장 행만 없다. 첫 예외의 위치(모델 후처리/장부/정본 저장)는 여전히 미확정이다.
 
 ### 직접 실행한 검사 (로컬 테스트 DB, 단일 파일)
 
