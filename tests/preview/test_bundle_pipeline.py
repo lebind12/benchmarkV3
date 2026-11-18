@@ -1271,3 +1271,49 @@ def test_resolver_is_bound_to_the_fixture_team_scope(session_factory):
     assert _resolver_player_name(533, real) == "엘링 홀란드"
     # 확인되지 않는 ID는 이름을 지어내지 않는다.
     assert _resolver_player_name(999999, real) is None
+
+
+def test_section_save_exception_kind_survives_in_run_failure_detail(
+    session_factory, monkeypatch
+):
+    """섹션 저장 경계에서 난 예외의 **종류**가 실행 기록에 남는다.
+
+    사용자 영향: 갈래가 롤백되면 모듈 실행·섹션 결과·시도 행이 모두 사라져, 홈이 왜
+    빈약해졌는지 사후에 알 수 없다(2026-11-18 CE-E2E에서 실제로 확인이 막혔다).
+    원문 메시지(비밀값·SQL 포함 가능)는 남기지 않고 종류·단계만 남긴다.
+    """
+    from app.preview import player_section_processing as psp
+
+    original = psp.place_final_candidates
+
+    def _no_attempts(**kwargs):
+        bundle = original(**kwargs)
+        object.__setattr__(bundle, "attempts", ())
+        return bundle
+
+    monkeypatch.setattr(psp, "place_final_candidates", _no_attempts)
+    transport = _transport()
+    with session_factory() as session:
+        outcome = bundle_pipeline.run_bundle_pipeline(
+            session,
+            fixture=dict(FIXTURE),
+            actor_id=0,
+            transport=transport,
+            reader=_StubReader(),
+            http=_FakeHttp(),
+            target_checker=lambda url: True,
+            limits=_limits(),
+            mode=RunMode.LIVE,
+            now=FIXED_NOW,
+        )
+        session.commit()
+        from app.preview.models import PreviewRun
+
+        detail = session.get(PreviewRun, outcome.run_id).failure_detail
+
+    assert outcome.status == RunStatus.FAILED
+    assert "section_players" in (outcome.unavailable_reason or "")
+    assert "ContractError@section_write" in (detail or "")
+    # 원문 메시지·자격 증명은 실행 기록에 남기지 않는다.
+    assert "postgres" not in (detail or "").lower()
+    assert "treat" not in (detail or "")

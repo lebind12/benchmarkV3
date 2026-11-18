@@ -116,18 +116,33 @@ export하지 않았다. 그 결과 수집기가 "API-Football 키가 설정되�
 | c8f6c36b (1557474) | section_outlook / section_ai_forecast / section_odds | ready / ready / insufficient | 386 / 379 / 0 |
 | 55e19e64 (1557470) | section_outlook / section_ai_forecast / section_odds | ready / ready / insufficient | 344 / 621 / 0 |
 
-- `section_players`와 `section_availability`는 **행 자체가 없다**. 예외로 갈래가 죽어
-  draft 저장까지 가지 못한 경우의 모양이다(두 갈래가 모두 사라졌다).
-- `preview_results` 6행, `preview_section_results` 6행, `preview_attempts` 8행이 남았다.
-- 실제 모델 전송: run당 `discovery_outlook`, `discovery_people`, `section_outlook`,
-  `section_ai_forecast` 4회, 모두 `vertex/gemini-3.5-flash/live`, HTTP 200, 오류 0.
-  **`section_players`(R4)·`section_availability`(R2) 전송 기록이 없다.**
+`section_players`와 `section_availability`는 저장 행이 없다. 아래 두 근거는 **서로 다른
+관측 창**이며, 둘을 합쳐야 실제 상태가 된다.
+
+**(가) 실행 트랜잭션 안의 기록은 롤백으로 사라졌다.** 취소 전에 읽은 `preview_attempts`는
+run당 4행(`discovery_outlook`, `discovery_people`, `section_outlook`,
+`section_ai_forecast`)뿐이었고, `preview_results`·`preview_section_results`는 run당 3행,
+모듈 실행도 R3·S1·`section_odds-writer` 3행뿐이었다. 이 실행의 선수/부상 갈래가 만든 행은
+커밋되지 않았다.
+
+**(가-정정) 그 4행을 "전송 기록 없음"으로 읽은 것은 틀렸다.** 같은 구간의
+`preview_write_audit`(장부)는 실행 트랜잭션과 **별도 세션**으로 커밋되므로 롤백 뒤에도
+남아 있다. 그 장부를 읽으면 두 run 모두에서 6개 논리 호출의 성공 전송이 확인된다.
+
+| 근거 | 무엇을 뜻하는가 |
+|---|---|
+| `send_charged` `counted=true`, `outcome=pending`, note "전송 전 예약. 후처리·롤백과 무관하게 남는다." | 전송 **직전** 예약. players/availability 포함 12행(run당 6) |
+| `send_charged` `counted=false`, `outcome=ok`, `http_status=200`, note "응답 수신 직후 보존. 실행 트랜잭션 롤백과 무관하다." | **응답 수신 성공**. players/availability 포함 12행(run당 6) |
+
+즉 `section_players`(`R4`)·`section_availability`(`R2`)는 **모델 응답을 정상 수신했다**
+(HTTP 200). 없는 것은 전송이 아니라 **저장 행**이다. 취소로 `preview_attempts` 8행과 원문
+아티팩트는 삭제됐지만, 이 장부 행들은 감사 기록으로 남아 있어 위 사실을 사후에 확인할 수 있다.
+
 - `section_odds`는 모델을 쓰지 않으며 "정규시간 1X2 값이 모두 있는 배당 줄이 없어" insufficient로
   남았다. 진단에 "API-Football 키가 설정되지 않아 배당 보충 읽기를 시작하지 않았습니다"가 있다.
 - 선수 정본 2표(`preview_injury_player_sections` 22행, `preview_watch_player_sections` 21행)와
-  번역 후보(`preview_player_name_candidates`)는 이번 run에서 새로 쓰이지 않았다.
-  두 표는 기존 행이 그대로 있으며, 이번 run에 대한 신규 행은 0이다(정상 0으로 볼 근거 없음:
-  섹션 자체가 없어 후보 단계에 도달하지 못했다).
+  번역 후보(`preview_player_name_candidates`)는 이번 run에서 신규 행이 0이다. 섹션 결과가
+  롤백되었으므로 후보 단계에 도달한 흔적도 커밋되지 않았다.
 
 ### 5-4. 홈 반영
 
@@ -152,32 +167,31 @@ export하지 않았다. 그 결과 수집기가 "API-Football 키가 설정되�
    런처 한 줄 추가로 해결된다(이미 반영, 재기동 완료). 운영 코드 수정은 불필요하다.
 
 2. **두 번째 실패 경계: 선수 섹션 정본 저장 단계(호출 전 제외도, 호출 실패도 아님).**
-   조정자 지시대로 읽기 전용 장부를 대조해 세 경우를 갈랐다. 결론은 **모델 호출은
+   조정자 지시대로 장부와 실행 기록을 대조해 세 경우를 갈랐다. 결론은 **모델 호출은
    성공했고, 그 뒤 정본 저장(save) 단계에서 갈래가 죽었다**이다.
 
    - **호출 전 제외 아님(장부 근거).** `preview_write_audit`의 `send_charged` 행에
-     `section_players`(c8f6c36b 1건, 55e19e64 2건)와 `section_availability`(55e19e64 2건,
-     c8f6c36b 1건)의 **counted=true** 전송이 남아 있다. 조기 반환 경로라면
-     `budget.cancel_call`만 남고 charged 행이 생기지 않는다.
-   - **호출 실패 아님(원문 근거).** 원문 아티팩트에 실제 응답이 보존돼 있다.
-     `1d646f07...`(section_players)는 3247바이트 응답으로 `players` 4명과 한글 라벨 6건,
-     `4d645651...`(section_availability)는 4988바이트 응답으로 `injuries` 4건이 들어 있다.
-     `preview_attempts`의 모델 시도도 전부 `outcome=ok`, HTTP 200이다.
-   - **저장 단계에서 예외.** 같은 원문을 오프라인에서 실제 처리기에 통과시키면
-     `evaluate_raw_candidates` → `detect_regeneration_reason` → `place_final_candidates`가
-     모두 정상이고 배치 슬롯 4개가 만들어지며 `to_contract_result()`도
-     `PlayerSectionProcessingResult`를 돌려준다. 그런데 이 실행의
-     `preview_watch_player_sections`·`preview_injury_player_sections`·
-     `preview_player_name_candidates` 신규 행은 **0건**이고, 모듈 실행 행도
-     R3/S1/section_odds-writer 3개뿐이다. `_save_draft`는 모듈 실행을 먼저 만들고
-     섹션 결과를 flush한 뒤 `save_player_section`을 부르므로, 이 3행이 없는 것은
-     저장 경로 진입 전 예외이거나 트랜잭션 전체 롤백이다.
-   - **남은 미확정 지점(정직하게).** 저장 경로 안에서 어느 검사가 막았는지는 저장된
-     기록만으로 특정하지 못했다. 후보 검사군은 ①`_validate_parent_ownership`의
-     `section_result` 소유·`output_contract_version` 일치, ②`save_section_candidates`의
-     NOT NULL(`original_name`, `candidate_name_ko`, `slot_key` 등), ③4개
-     `*_translation_candidate_id` FK 순서다. 오프라인 재현에서 `output_contract_version`은
-     양쪽 모두 `ns01-watch-players-1`/`ns01-injury-players-1`로 일치했다.
+     `section_players`와 `section_availability`의 **counted=true 예약 4행**(run당 2:
+     players 1, availability 1)이 남아 있다. 조기 반환 경로라면 `budget.cancel_call`만
+     남고 charged 행이 생기지 않는다.
+   - **호출 실패 아님(장부 + 원문 근거).** 같은 장부에 두 섹션의 `outcome=ok`,
+     `http_status=200`, `counted=false`(응답 수신 보존) 행이 **4행** 남아 있다. 같은 실행의
+     원문 아티팩트도 원래 있었다: `1d646f07...`(players, 3247바이트, `players` 4명·
+     한글 라벨 6건), `4d645651...`(availability, 4988바이트, `injuries` 4건). 그 아티팩트와
+     `preview_attempts` 행은 이후 지원 cancel로 삭제됐지만, 장부는 롤백·삭제와 무관하게
+     남는다는 것이 그 행의 note에 명시돼 있다.
+   - **확정된 사실(장부·행 근거).** 이 실행에서 players/availability의 모듈 실행 행과
+     섹션 결과 행이 **커밋되지 않았다**(모듈 실행은 R3/S1/section_odds-writer 3개,
+     섹션 결과는 outlook/ai_forecast/odds 3개). 즉 실패 지점은 전송이 아니라 그 뒤의
+     저장 경로다.
+   - **추정(확정 아님).** 저장 경로의 어느 검사가 막았는지는 **로컬 재현에서 확정하지
+     못했다**. 후보 검사군은 ①`_validate_parent_ownership`의 소유·`output_contract_version`
+     일치, ②`save_section_candidates`의 NOT NULL, ③4개 `*_translation_candidate_id` FK
+     순서, ④`processing.attempts`가 비면 `to_contract_result()`가 `None`이 되어
+     `ContractError`로 롤백되는 경로다. ④는 현장 서명(players 모듈 실행·섹션 행 동시 부재)
+     과 일치하지만 가설일 뿐이다. 이번 CE-FIX에서 actor 0/7, 실제 응답 모양, AI 후보 경로,
+     이름 해석기 유무를 모두 시도했으나 로컬(55432 `preview_mp01_test`)에서는 실패가
+     재현되지 않았다(계획서 A의 "재현이 안 되면 추정 수정 금지"에 따라 A는 미착수).
    - **API 키 누락과의 연결은 부정된다.** 키가 없어 영향받은 것은 `section_odds`의
      배당 보충 읽기뿐이다(그 섹션 진단에 직접 문구가 남아 있다). players/availability는
      저장된 DB 자료와 이미 성공한 모델 응답만 쓰므로 키와 무관하다. 따라서
@@ -252,9 +266,61 @@ export하지 않았다. 그 결과 수집기가 "API-Football 키가 설정되�
   않았다. 지속 설정 변경 0건(임시 런처와 프로세스 env만).
 - 임시 런처 `/tmp/run_collect_38003.sh`(0700), 로그 `/tmp/collect_38003.log`.
 
+## 11. CE-FIX 수정 단위 결과 (2026-11-18)
+
+계획서 `docs/superpowers/plans/2026-11-18-collection-home-fix-task.md`의 A~D 중
+**A는 미재현으로 미착수**, **B·C는 수정·검증 완료**, **D는 위 5-3/6절 정정으로 완료**했다.
+
+### B. 실패 실행이 홈 공개 문서를 대체하지 않게 수정
+
+`app/services/home_preview_document.py`의 공개 후보 필터 한 곳만 바꿨다.
+
+- `_NON_PUBLIC_RUN_STATUSES = frozenset({"cancelled", "failed"})` 도입.
+- `_is_eligible_document_run`과 `_read_runs` SQL이 같은 집합을 쓴다(추천 목록과 document가
+  같은 `_load_selection_context` → `select_document`를 쓰므로 두 표면의 선택은 계속 동일).
+- **바꾸지 않은 것**: 부분 성공(성공 상태인데 일부 섹션 미표시)·미승인 필터·구 기록·구성본
+  호환. 실패 실행의 기록은 관리자 진단에 그대로 남는다.
+
+검증(대표 2건, 각각 현재 사용자 실패와 연결):
+- `test_failed_run_never_replaces_the_previous_healthy_document` — 과거 정상 + 새 failed →
+  과거 정상 선택. **수정 전 red, 수정 후 green** 확인.
+- `test_newer_successful_run_still_wins_over_older_one` — 새 정상 성공 → 새 문서 선택 유지.
+
+### C. 저장 경계 예외 종류·단계 보존
+
+`app/preview/bundle_pipeline.py`에서 섹션 갈래 예외 시 `failure_kind`(예외 클래스 이름)와
+`failure_stage`(`section_write`)를 상태에 남기고, 마무리 단계가 이를 실행 기록의
+`failure_detail`에 덧붙인다. **원문 메시지·SQL·DSN·비밀값은 넣지 않는다**(종류와 단계만).
+
+검증: `test_section_save_exception_kind_survives_in_run_failure_detail` — 저장 계약 위반을
+주입하면 `ContractError@section_write`가 남고, `postgres`·원문 조각이 없음을 확인.
+**수정 전 red, 수정 후 green**.
+
+### A. 미재현(추정 수정 금지 준수)
+
+로컬 `55432/preview_mp01_test`에서 다음을 모두 시도했으나 "모듈 실행·섹션 행이 함께
+사라지는" 현장 서명을 만들지 못했다: actor_id 0/1 이상, 실제 응답 모양(한글명·player_ref·
+evidence 없음), DB가 선수를 못 찾는 AI 후보 경로, 이름 해석기 부착/미부착. 부착 시 players
+ready, 미부착 시 insufficient지만 **행은 저장**됐다. 계획서 지침대로 추정 수정을 하지 않고
+조정자 판단을 요청했다(msg_157270a040a0).
+
+### 직접 실행한 검사 (로컬 테스트 DB, 단일 파일)
+
+| 명령 | 결과 |
+|---|---|
+| `pytest tests/unit/test_home_preview_document.py -q` | 19 passed |
+| `pytest tests/preview/test_bundle_pipeline.py -q` | 17 passed, 1 skipped |
+| `pytest tests/preview/test_player_section_integration.py -q` | 9 passed |
+| `pytest tests/unit/test_preview_api_storage_migration.py -q` | 7 passed |
+
+대상은 `preview_mp01_test`(127.0.0.1:55432)이며 `_dbguard`가 루프백·`*_test` 이름을 먼저
+검사한다. 운영 URL 테스트·초기화·동시 pytest 없음. 추가 수집·모델 호출·승인 변경·서버
+재시작은 0회다.
+
 ## EDITING STOPPED
 
 코드·테스트·빌드 설정 수정 0건. 승인 행·계정·기존 테이블 변경 0건. 운영 연결에
 pytest/초기화/삭제 0건. DB 쓰기는 (a) 승인된 정상 수집 1회, (b) 자동 생성 경로가 만든
 preview_dev 행, (c) 조정자 승인으로 지원 API를 통해 취소한 이번 소유 run 기록뿐이다.
-남은 작업(선수 섹션 저장 결함 원인 확정, 재수집 1회 여부)은 조정자 결정 대기다.
+CE-FIX 단위에서는 B·C 수정과 해당 검사만 했고 A는 미착수다. 남은 작업(선수 섹션 저장
+결함의 실제 원인 확정, 재수집 1회 여부)은 조정자 결정 대기다.

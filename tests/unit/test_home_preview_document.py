@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.preview.models import PreviewRun, PreviewSectionApproval
+from app.preview.models import PreviewRun, PreviewSectionApproval, PreviewSectionResult
 from app.preview.section_structured import structured_row_from_section_result
 from app.services import home_preview_document as pinned
 
@@ -210,11 +210,11 @@ class _StubSession:
         return None
 
 
-def _stub_run(run_id, fixture_id=90001):
+def _stub_run(run_id, fixture_id=90001, status="succeeded"):
     row = type("Run", (), {})()
     row.id = run_id
     row.fixture_id = fixture_id
-    row.status = "succeeded"
+    row.status = status
     return row
 
 
@@ -242,6 +242,30 @@ def _stub_approval(workflow_id, version="v1"):
     row.workflow_version = version
     row.active = True
     return row
+
+
+
+class _RunScopedSession(_StubSession):
+    """실제 조회처럼 **실행별 섹션만** 돌려주는 대역.
+
+    공용 `_StubSession`은 모든 섹션을 한꺼번에 주므로, 실행 간 선택을 비교하는
+    검사에서는 실제 쿼리와 다르게 보인다. 이 검사들은 그 차이가 결과를 바꾸므로
+    where 절의 run_id를 여기서 흉내 낸다.
+    """
+
+    def scalars(self, statement):
+        entity = statement.column_descriptions[0].get("entity")
+        if entity is not PreviewSectionResult:
+            return super().scalars(statement)
+        wanted = None
+        for key, value in statement.compile().params.items():
+            if key.startswith("run_id"):
+                wanted = value
+                break
+        rows = list(self._sections.get("__all__", []))
+        if wanted is None:
+            return iter(rows)
+        return iter([row for row in rows if getattr(row, "run_id", None) == wanted])
 
 
 def test_read_document_reports_no_stored_run_without_reading_sections():
@@ -602,3 +626,53 @@ def test_missing_players_section_never_reports_complete_true():
         "section_ai_forecast",
     ]
     assert document["complete"] is False
+
+
+def test_failed_run_never_replaces_the_previous_healthy_document(monkeypatch):
+    """필수 섹션을 만들지 못한 failed 실행은 공개 후보에서 빠진다.
+
+    사용자 영향: 수집 뒤 자동 생성이 실패하면 그 실행이 이전 정상 문서를 덮어 홈이
+    `complete=false`로 조용히 빈약해진다(2026-11-18 CE-E2E에서 실제 관측).
+    """
+    healthy_run = uuid.uuid4()
+    failed_run = uuid.uuid4()
+    healthy = _stub_section(uuid.uuid4(), healthy_run, "section_players", "이전 정상 본문")
+    failed = _stub_section(
+        uuid.uuid4(), failed_run, "section_players", "실패 실행 본문",
+        created=BASE + timedelta(hours=3),
+    )
+    session = _RunScopedSession(
+        [_stub_run(failed_run, status="failed"), _stub_run(healthy_run)],
+        {"__all__": [failed, healthy]},
+        approvals=[_stub_approval("section_players")],
+    )
+    monkeypatch.setattr(
+        pinned.store_module, "load_composition", lambda *a, **k: {"available": False}
+    )
+    result = pinned.read_document(session, 90001)
+    assert result["status"] == "available"
+    assert result["run_id"] == str(healthy_run)
+    assert result["sections"][0]["body"] == "이전 정상 본문"
+
+
+def test_newer_successful_run_still_wins_over_older_one(monkeypatch):
+    """성공한 새 실행은 지금처럼 이전 문서를 대체한다(부분 표시 정책 유지)."""
+    old_run = uuid.uuid4()
+    new_run = uuid.uuid4()
+    old = _stub_section(uuid.uuid4(), old_run, "section_players", "오래된 본문")
+    new = _stub_section(
+        uuid.uuid4(), new_run, "section_players", "새 정상 본문",
+        created=BASE + timedelta(hours=3),
+    )
+    session = _RunScopedSession(
+        [_stub_run(new_run), _stub_run(old_run)],
+        {"__all__": [new, old]},
+        approvals=[_stub_approval("section_players")],
+    )
+    monkeypatch.setattr(
+        pinned.store_module, "load_composition", lambda *a, **k: {"available": False}
+    )
+    result = pinned.read_document(session, 90001)
+    assert result["status"] == "available"
+    assert result["run_id"] == str(new_run)
+    assert result["sections"][0]["body"] == "새 정상 본문"

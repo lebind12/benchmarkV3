@@ -1172,6 +1172,10 @@ def _section_node(section_id: str, plan: _Plan):
         except Exception as exc:  # noqa: BLE001 - 한 섹션 실패를 다른 섹션에 옮기지 않는다
             session.rollback()
             reason = f"{section_id} 작성이 실패했습니다: {exc}"
+            # 예외 **종류와 실패 단계**만 남긴다. 원문 메시지에는 SQL·DSN·비밀값이 섞일
+            # 수 있으므로 실행 기록(failure_detail)에는 옮기지 않는다. 롤백으로 이 갈래의
+            # 행이 모두 사라져도 "무엇이 어디서 났는지"는 남아야 원인을 좁힐 수 있다
+            # (2026-11-18 CE-E2E에서 이 정보가 사라져 원인 확정이 막혔다).
             return {
                 "sections": [
                     {
@@ -1182,6 +1186,8 @@ def _section_node(section_id: str, plan: _Plan):
                         "unavailable_reason": reason,
                         "delivery": None,
                         "structured": {},
+                        "failure_kind": type(exc).__name__,
+                        "failure_stage": _SECTION_FAILURE_STAGE,
                     }
                 ],
                 "diagnostics": [reason],
@@ -1429,6 +1435,24 @@ def _finalize_node(plan: _Plan):
                 if required_missing
                 else None
             )
+            # 갈래가 예외로 끝나 행이 남지 않은 섹션은 **예외 종류**를 실행 기록에 남긴다.
+            # 원문 메시지·SQL·DSN은 넣지 않는다. 이 값이 없으면 "저장이 왜 비었는지"를
+            # 사후에 알 수 없다(실제로 확인이 막혔다).
+            failed_kinds = {
+                str(entry.get("section_id")): str(entry.get("failure_kind"))
+                for entry in entries
+                if entry.get("failure_kind")
+            }
+            if failed_kinds and unavailable_reason:
+                unavailable_reason = (
+                    unavailable_reason
+                    + " (섹션 작성 예외: "
+                    + ", ".join(
+                        f"{name}={kind}@{_SECTION_FAILURE_STAGE}"
+                        for name, kind in sorted(failed_kinds.items())
+                    )
+                    + ")"
+                )
             quality = (
                 QualityStatus.INSUFFICIENT if required_missing else QualityStatus.READY
             )
@@ -1496,6 +1520,10 @@ _SECTION_ORDER: Mapping[str, int] = {
     bundle_contract.SECTION_ODDS: 3,
     bundle_contract.SECTION_AI_FORECAST: 4,
 }
+
+# 섹션 갈래가 예외로 끝났을 때 실행 기록에 남기는 실패 단계 이름. 호출(모델 전송)이
+# 아니라 **작성·저장 경계**에서 났다는 사실을 구분해 남기기 위한 고정 문자열이다.
+_SECTION_FAILURE_STAGE = "section_write"
 
 # 모델을 쓰는 섹션. 자료가 없어 시작하지 않으면 예약을 반환한다.
 _MODEL_SECTIONS: frozenset[str] = frozenset(

@@ -63,6 +63,11 @@ DOCUMENT_REASONS = {
 # 모의 실행은 UI 시연이며 게시 근거가 아니다.
 _MOCK_MODE = "mock"
 
+# 공개 문서 후보에서 **제외**하는 실행 상태. 취소는 기존 규칙이고, 실패는 필수 섹션을
+# 만들지 못한 실행이 이전 정상 문서를 덮지 않게 하려는 같은 경계다. 실행 기록과 관리자
+# 진단은 그대로 남으며, 부분 자료로 끝난 성공 실행의 부분 표시 정책은 바꾸지 않는다.
+_NON_PUBLIC_RUN_STATUSES = frozenset({"cancelled", "failed"})
+
 # 킥오프 6시간 이내인데 문서가 없는 구간. 기존 생성 일정(6시간)과 같은 값이며 새 생성
 # 규칙을 만들지 않는다. 이 경계는 화면 문구를 고르는 데만 쓴다.
 ABSENCE_DUE_SECONDS = 6 * 60 * 60
@@ -497,8 +502,13 @@ def _is_eligible_document_run(run: Any) -> bool:
 
     구 MP-10(`mp10-*`)·모의·카탈로그·단일 모듈 실행은 현재 canonical 저장 계약을
     쓰지 않으므로 제외한다. 속성 없는 단위 대역(`_StubRun`)과 test-cfg는 유지한다.
+
+    `failed` 실행도 제외한다. 부분 자료로 끝난 실행은 저장된 본문이 있으면 지금처럼
+    후보가 되지만(부분 표시 정책 유지), 필수 섹션을 만들지 못해 실패로 끝난 실행이
+    이전 정상 문서를 덮으면 홈이 조용히 빈약해진다. 실패 기록 자체는 관리자 진단에
+    그대로 남는다(이 함수는 공개 후보 선택만 좁힌다).
     """
-    if getattr(run, "status", None) == "cancelled":
+    if str(getattr(run, "status", "") or "") in _NON_PUBLIC_RUN_STATUSES:
         return False
     if getattr(run, "mode", None) == _MOCK_MODE:
         return False
@@ -523,7 +533,7 @@ def _read_runs(session: Session, external_id: int, *, limit: int = 50):
         select(PreviewRun)
         .where(
             PreviewRun.fixture_id == external_id,
-            PreviewRun.status != "cancelled",
+            PreviewRun.status.notin_(tuple(_NON_PUBLIC_RUN_STATUSES)),
             PreviewRun.mode != _MOCK_MODE,
             PreviewRun.operation_kind.in_(("preview", "section")),
             ~PreviewRun.config_version.startswith("mp10-"),
