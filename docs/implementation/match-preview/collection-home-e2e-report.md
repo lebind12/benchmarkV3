@@ -414,3 +414,124 @@ A는 미착수이고, 모델 후처리/장부/정본 저장 중 첫 예외는 **
 (`tests/preview/test_bundle_pipeline.py::test_section_save_exception_kind_survives_in_run_failure_detail`,
 로컬 `preview_mp01_test`, `_dbguard` 통과, 동시 pytest 없음). 52건 전체·변형 반복은 이번
 지시대로 하지 않았다. 서버·실 API·모델·승인 호출은 0회다.
+
+## 12. CE-E2E2 실제 재실행 결과 (2026-11-18, 실패)
+
+계획서 `docs/superpowers/plans/2026-11-18-collection-home-e2e-second.md`에 따라 재시작 후
+수집 API를 1회 실행했다. **수집은 성공했고 자동 생성은 실패**했으며, 이번에는 **첫 예외의
+성격과 위치를 확정**했다. 코드·검사·승인 변경은 0건이다.
+
+### 12-1. 서버 (소유 확인 후 재시작)
+
+| 서버 | 이전 PID | 새 PID | cwd | 역할/자격 |
+|---|---|---|---|---|
+| 38000(홈) | 38299 | **57643** | 이 워크트리 | `preview_dev_runtime`: `public.fixture` UPDATE=**false**, `preview_dev.preview_runs` INSERT=true |
+| 38003(진단·수집) | 96481 | **58185** | 이 워크트리 | `postgres`: fixture UPDATE=true, management_run INSERT=true, preview_runs INSERT=true |
+
+두 서버 모두 이전과 같은 런처·같은 설정으로 재시작했다. 5173/다른 포트/8000/뉴스 환경은
+건드리지 않았다. 공통 확인: `JWT_SECRET_KEY` 해시 동일, `AUTH_COOKIE_NAME=benchmark_refresh_local`,
+CORS 동일, `WORKER_SCHEDULER_ENABLED=false`, `HOME_PREVIEW_ENABLED=false`,
+`LOCAL_DEV_AUTH_ENABLED=true`. 제품 모델은 `vertex`/`gemini-3.5-flash`/`global`,
+`PREVIEW_MODEL_LIVE_ENABLED=1`. 38003에는 `API_FOOTBALL_KEY`와
+`PREVIEW_MODEL_CREDENTIALS_JSON`이 존재함을 비밀값 미노출로 확인했다.
+
+### 12-2. 사전 확인과 요청
+
+- 진행 중 수집 0건, admission `ready=true`(missing/stale 없음), 두 경기 모두 NS,
+  승인 행 7건·최신 approved_at 2026-11-17T21:52:31Z(작업 후에도 동일), DB now 2026-11-18T02:54:59Z.
+- 정상 ADMIN 세션(계정 id 1, role `ADMIN`)으로 2026-11-18T02:55:34Z에
+  `POST /api/v1/admin/management/runs/preview-test` **1회** 실행. HTTP 200,
+  수집 실행ID **`5cf4b3f6-affd-4fb4-80db-fe3ec8ed634a`**.
+- 요청(비밀값 없음): `target_ids=[13]`, `fixture_from=2026-11-18T00:00:00+09:00`,
+  `fixture_to=2026-11-21T15:00:00+00:00`, `preview_fixture_ids=[1557474,1557470]`,
+  `generate_after_collection=true`. 중복 POST·별도 bundle/section 생성 POST는 0회다.
+
+### 12-3. 수집 결과 (성공)
+
+- 상태 `succeeded`, stage `수집 결과 확인`, 종료 2026-11-18T03:00:19Z.
+- 대상 item: `saved=55`, `total=55`, `failed=0`.
+- `collection_evidence`: `counts={stored:6, planned:6, unverified:0, detail_stored:6}`,
+  `partial=false`, `stored_fixture_ids=[1557474, 1557468, 1557476, 1557470, 1557467, 1557471]`.
+- 즉 **수집 경로는 정상 동작**했다(API 키 누락 재발 없음).
+
+### 12-4. 자동 생성 결과 (실패)
+
+| 경기 | 생성 run ID | 상태 | 품질 | 종료 |
+|---|---|---|---|---|
+| 1557474 | `639cb2a0-1d6e-4687-a77c-85ba0b5d2de4` | failed | insufficient | 2026-11-18T02:58:42Z |
+| 1557470 | `176271d7-f79a-403d-82e1-90b38cf81590` | failed | insufficient | 2026-11-18T03:00:19Z |
+
+`home_preview`: `state=failed`, `generated=[]`, `skipped=[]`, 실패 사유 원문:
+
+```
+필수 섹션 본문을 만들지 못했습니다: section_players
+(섹션 작성 예외: section_availability=ProgrammingError@section_execution,
+ section_players=ProgrammingError@section_execution)
+```
+
+**C(진단 보존)가 실제로 작동했다.** 이전 실행에서는 이 정보가 남지 않아 원인 확정이
+막혔지만, 이번에는 예외 종류가 실행 기록에 남았다.
+
+커밋된 섹션(두 run 동일 모양): outlook·odds·ai_forecast 3개.
+`section_players`·`section_availability`는 모듈 실행·섹션 결과 행이 없다.
+장부(`preview_write_audit`)에는 두 섹션 모두 `outcome=ok`, `http_status=200` 응답 수신이
+남아 있어 **모델 호출은 성공**했고 실패는 그 뒤다.
+
+### 12-5. 첫 예외 확정 — 원인
+
+**확정된 원인: 세 선수 정본 표에 대한 INSERT 권한 부재.**
+
+| 표 | 소유자 | ACL에 `postgres=` 존재 | `postgres` INSERT |
+|---|---|---|---|
+| `preview_watch_player_sections` | `preview_dev_app` | **없음** | **false** |
+| `preview_injury_player_sections` | `preview_dev_app` | **없음** | **false** |
+| `preview_player_name_candidates` | `preview_dev_app` | **없음** | **false** |
+| `preview_section_results` | `preview_dev_app` | 있음 | true |
+| `preview_runs` | `preview_dev_app` | 있음 | true |
+| `preview_results`·`preview_attempts`·`preview_artifacts`·`preview_write_audit`·`preview_source_snapshots`·`preview_module_executions` | — | 있음 | true |
+
+- 세 선수 표의 ACL은 `{preview_dev_app=arwdDxtm/preview_dev_app, preview_dev_runtime=arwd/...}`로
+  **`postgres` 항목이 아예 없다.** 나머지 preview 표는 모두 `postgres=arwd/...`를 갖는다.
+- `postgres`의 `preview_dev_app` 멤버십은 `inherit_option=false`이고 `postgres`는
+  슈퍼유저가 아니므로(rolsuper=false, rolbypassrls=true) **멤버십으로 상속되지 않는다.**
+- 그래서 수집 프로세스가 `postgres` 자격으로 선수 표에 INSERT하는 순간
+  `permission denied for table ...`가 나고, psycopg는 이를
+  `InsufficientPrivilege`(→ `ProgrammingError`의 하위 클래스)로 올린다. 이것이 실행 기록의
+  `ProgrammingError@section_execution`과 정확히 일치한다.
+- 저장 경로 순서(`_save_draft`: 모듈 실행 → 결과 → 섹션 결과 → `save_player_section`)상
+  선수 표 INSERT에서 예외가 나면 그 세션의 **모든 행이 롤백**된다. 그래서 outlook/odds/
+  ai_forecast만 남고 선수 섹션 행은 물론 모듈 실행·시도 행도 사라진다(관측과 일치).
+- 역할별 실측: `preview_dev_runtime`(38000이 쓰는 역할) INSERT=**true**,
+  `preview_dev_app`(표 소유자) INSERT=**true**, `postgres`(38003이 쓰는 역할) INSERT=**false**.
+  즉 **표 자체는 정상이고, 자격에 따라 갈린다.** 관리자 경로로 만든 기존 성공 run
+  `00d34c23`이 선수 행을 정상 저장한 것과 모순되지 않는다. 실패는 수집 경로(`postgres`)에서만 난다.
+
+**부수 확인(확정 아님)**: 관측 창 안에서 `preview_watch_player_sections`의 마지막 INSERT는
+2026-11-17T17:52:46Z로, 이번 두 run 이후 새 행이 없다. 위 권한 진단과 일치하는 방향이다.
+
+### 12-6. 정상 홈 보호 확인 (B 동작)
+
+| 표면 | 결과 |
+|---|---|
+| `GET /api/v1/home/fixtures/1557474/document` | run **`00d34c23`**, `complete=true`, 5섹션 전부 ready(본문 444/305/398/294/443자) |
+| `GET /api/v1/home/recommendations` | `state=ready`, `served=current`, generated_at 2026-11-17T17:52:46Z |
+| `GET /api/v1/home/fixtures/1557470/document` | run `4efe5b1e`, `complete=true`, `available` |
+
+**새 실패 run(`639cb2a0`, `176271d7`)은 홈을 대체하지 못했다.** B(실패 run 공개 후보 제외)가
+실제 환경에서 의도대로 동작했다. 1557470이 추천 목록에 없더라도 document가 정상이므로
+불일치로 판정하지 않는다(계획서 6항).
+
+### 12-7. 실패 기록 보존 / 하지 않은 일
+
+- 두 실패 run에 대해 **undo·cancel을 하지 않았다**. `cancelled_at=null`, `failure_detail` 보존.
+- 원문 아티팩트(run당 raw_request 16, raw_response 16~17, normalized_transform 2),
+  attempts 4행, `preview_write_audit` 12행이 모두 남아 있다.
+- 실모델 재호출·추가 POST·코드 수정·검사 추가·승인 변경·migration·계정 변경은 **0회**.
+- 정상 홈을 보호하기 위한 직접 SQL·승인 우회는 하지 않았다.
+
+### 12-8. 성공 판정
+
+**이번 단위는 실패다.** 수집 API 1회에서 실모델 호출까지는 이뤄졌으나, 새 정본 커밋이
+선수 섹션에서 막혀 새 run이 홈 문서가 되지 못했다. HTTP 200·수집 성공·이전 run 서빙을
+E2E 성공으로 표현하지 않는다. 다음 조치는 **권한 부여(GRANT)** 이며, 이는 기존 테이블의
+권한 변경이므로 이번 승인 범위(코드·검사·승인 변경 0) 밖이다. 별도 배정이 필요하다.
