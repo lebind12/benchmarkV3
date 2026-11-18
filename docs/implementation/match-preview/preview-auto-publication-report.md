@@ -214,3 +214,144 @@
 승인 컴포넌트 자체의 기준선 실패 1건(`binds single selected section … emit`)은 이번에도
 동일하게 남아 있으며 성공으로 표현하지 않는다. 서버 재기동·실수집·실모델·승인 변경·DB 쓰기
 0회, root 문서·Plans 보존.
+
+## 6. AP-LIVE 실제 실행 결과 (2026-11-19)
+
+계획서 AP-LIVE에 따라 서버를 현재 코드로 재시작하고 기존 수집 API를 **1회** 실행했다.
+결과는 **부분 성공**이다. 승인 없이 생성·게시되는 경로는 실제로 동작했지만, 한 경기의
+부상·매체 섹션이 **모델 시도 상한** 때문에 비었다.
+
+### 6-1. 반영과 사전 확인
+
+- 서버 재기동: 38000 PID **41543**(02:05 기동), 38003 PID **44805**(02:07 기동).
+  두 프로세스 모두 제품 `7a3804a` 이후에 시작했으므로 현재 코드·설정으로 돈다.
+  `WORKER_SCHEDULER_ENABLED=false`, `HOME_PREVIEW_ENABLED=false` 유지.
+- 38003 자격: 기존 수집 자격(`API_FOOTBALL_KEY` 존재)과 모델 자격
+  (`vertex`/`gemini-3.5-flash`/`global`, `PREVIEW_MODEL_LIVE_ENABLED=1`) 전달 확인.
+  선수 3표 `postgres` INSERT=**true**(CE-ACL 유지).
+- 5173은 이 워크트리 `frontend`의 Vite(프록시 → 38000/38003)임을 확인했다.
+  8000·5174·5175·5176과 다른 워크트리는 건드리지 않았다.
+- 사전: 진행 중 수집 0건, 승인 7건(최대 approved_at 2026-11-17T21:52:31Z), 두 경기 NS,
+  계획 `can_collect=true`, 기간 **2026-11-19T00:00:00+09:00 ~ 2026-11-21T15:00:00+00:00**
+  (실제 날짜 2026-11-19 기준으로 새로 계산된 값).
+- **승인 readiness를 선행조건으로 요구하지 않았다.** 승인 행 삭제·신규 승인 POST·
+  별도 bundle 생성 POST·재생성·undo는 **0회**다.
+
+### 6-2. 요청 (1회)
+
+- 2026-11-18T17:15:13Z(2026-11-19 02:15 KST) `POST /api/v1/admin/management/runs/preview-test`
+  **1회**, HTTP 200. 수집 실행ID **`10a80162-cc37-4b78-b8a0-0bc2322ef4b4`**.
+- 요청: `target_ids=[13]`, `preview_fixture_ids=[1557474,1557470]`,
+  `generate_after_collection=true`, 기간은 위 계획 값 그대로.
+
+### 6-3. 수집 (성공)
+
+`status=succeeded`, stage `수집 결과 확인`, 종료 2026-11-18T17:21:14Z.
+대상 item 처리 단위 `saved=55/55`, `failed=0`. `home_preview.state=finished`,
+`failed=[]`.
+
+주의(지시 4항): **55는 처리 단위 수이지 fixture 저장 수가 아니다.** 실제 저장 경기는
+`collection_evidence` 기준으로 별도 확인해야 하며, 이번에는 그 값을 인용하지 않는다.
+
+### 6-4. 자동 생성 (두 run 모두 succeeded)
+
+| 경기 | 생성 run ID | 상태 | 품질 |
+|---|---|---|---|
+| 1557474 | **`4471fc0a-83f0-4e60-bef0-2b9819544ccf`** | succeeded | ready |
+| 1557470 | **`2bacdc1f-3371-41dd-b16f-ffda4c3f2244`** | succeeded | ready |
+
+### 6-5. 5섹션 상태 (핵심: 1557474는 2섹션이 비었다)
+
+**1557474 / `4471fc0a`**
+
+| 섹션 | 결과 ID | 품질 | 본문 | 사유 |
+|---|---|---|---|---|
+| players | `9a7e98fc-3691-4d5e-b636-39aacc2669fb` | ready | 402자 | — |
+| odds | `82aab273-233a-45bd-9587-cfbe798a4c6f` | ready | 294자 | — |
+| ai_forecast | `76433948-ef78-45f4-85aa-f88c6efb5b76` | ready | 433자 | — |
+| availability | `e25eb4cb-…` | **insufficient** | **0** | `논리 호출 section_availability의 시도 상한(3회)에 도달했습니다.` |
+| outlook | `c1efae45-…` | **insufficient** | **0** | `수집 기사에서 확인된 외부 매체 전망이 없어 …` |
+
+**1557470 / `2bacdc1f`**: players `f586d8eb`·availability `9beae161`·outlook `3a8546fc`·
+odds `0480346b`·forecast `4246dc36` **다섯 섹션 모두 ready**.
+
+### 6-6. 원인 — Vertex 429가 시도 상한을 소진 (승인과 무관)
+
+`preview_attempts`(읽기 전용)를 보면 **429 rate_limited**가 반복됐다.
+
+| 논리 호출 | 시도 결과 |
+|---|---|
+| discovery_outlook | 429 → 429 → **200 ok** |
+| discovery_people | 429 → **200 ok** |
+| section_players | 429 → **200 ok** |
+| section_ai_forecast | **200 ok** |
+| **section_availability** | 429 → 429 → 429 (**상한 소진**) |
+| **section_outlook** | 429 → 429 → 429 (**상한 소진**) |
+
+즉 부상·매체 섹션이 빠진 이유는 **게시 승인 부재가 아니라**, Vertex가 `Resource
+exhausted`(429)를 세 번 연속 반환해 모듈별 시도 상한(3회)에 걸렸기 때문이다. 같은 시각
+1557470은 다섯 섹션이 모두 성공했으므로 코드 경로 문제가 아니라 **공급자 레이트리밋**이다.
+
+**정직하게 남기는 불일치(확정 아님):** availability는 저장 사유가 "시도 상한 도달"인데
+outlook은 "매체 전망 없음"이다. 그런데 outlook의 시도도 3회 모두 429였다. 두 섹션의
+사유 문구가 왜 다른지는 이번 관측만으로 확정하지 않는다(추가 조사는 범위 밖).
+
+### 6-7. 홈 게시와 complete 의미
+
+| 표면 | 결과 |
+|---|---|
+| `GET /api/v1/home/fixtures/1557474/document` | run `4471fc0a`, `complete=true`, **섹션 3개**(players·odds·ai_forecast) |
+| `GET /api/v1/home/fixtures/1557470/document` | run `2bacdc1f`, `complete=true`, **섹션 5개** |
+| `GET /api/v1/home/recommendations` | 1557474 `state=ready`, `served=current`, generated_at 2026-11-18T17:17:00Z |
+
+**`complete=true`를 "5섹션 완료"로 읽으면 안 된다.** 완전성 판정은
+`REQUIRED_READER_SECTIONS = ("section_players", "section_ai_forecast")` 두 섹션만 본다.
+1557474는 그 둘이 ready라 `complete=true`이지만 availability·outlook 본문이 없어 홈에
+렌더되지 않는다. **홈 제외 사유는 승인이 아니라 빈 본문(insufficient)** 이다.
+이 부분 표시 정책은 기존 사양 그대로이며 이번에 바꾸지 않았다.
+
+사용자 목표에 부상 정보가 포함되므로, **"승인 없이 게시 성공"과 "부상 정보 실제 표시"는
+별개**로 본다. 1557474는 후자를 충족하지 못했다.
+
+### 6-8. 정본·후보
+
+| run | watch | injury | candidates |
+|---|---|---|---|
+| `4471fc0a`(1557474) | 1 | **0** | 0 |
+| `2bacdc1f`(1557470) | 1 | 1 | 0 |
+
+- 부상 표 0행은 availability 실패와 일치한다(부상 섹션 자체가 없으므로 저장할 것도 없다).
+- 이번 두 run은 **새 번역 후보를 만들지 않았다**(0행). 기존 후보 12행은 모두
+  `review_status=pending` 그대로이며, 그 PENDING 상태가 게시를 막지 않는 것은 앞선
+  격리 검사 근거(`_displayable`이 후보 상태를 보지 않음)로 확인된다. 새 후보가 없었으므로
+  "이번 실행에서 PENDING 후보가 실제 공개됐다"는 실측은 하지 못했다.
+- 승인 행 7건·최대 approved_at **무변경**.
+
+### 6-9. 화면 확인 상태
+
+- 공개 홈 실화면은 root가 직접 확인했다(1557474 3섹션, 1557470 5섹션 렌더).
+- 관리자 `/admin?tab=preview` 실화면은 **이 워커 세션에서 미확인**이다(로그인 상태를
+  조작하지 않았다). 승인 패널 부재는 `PreviewPanel.test.ts`의 대표검사로만 확인했다.
+
+### 6-10. 판정
+
+**부분 성공.** 승인 없이 수집→자동 생성→정본 저장→홈 게시가 실제로 완료됐고(1557470은
+5섹션 전부, 1557474는 3섹션), 승인 행은 생성·게시에 쓰이지 않았다. 다만 1557474의
+부상·매체 섹션은 **공급자 429로 시도 상한을 소진**해 비었으며, 이는 승인 제거와 무관한
+런타임 실패다. `complete=true`만으로 5섹션 완료를 주장하지 않는다.
+
+### 6-11. 남은 제약 / 미검증
+
+- 429 레이트리밋은 이번 단위에서 재시도·우회하지 않았다(추가 모델 호출 0회). 같은 실행을
+  다시 돌리면 개선될 수 있으나 **재실행은 승인 범위 밖**이다.
+- 관리자 프리뷰 탭 실화면 미확인(위 6-9).
+- 후보가 새로 생기지 않아 "PENDING 후보가 실제 공개되는 장면"은 실측하지 못했다.
+- outlook 사유 문구와 시도 기록의 불일치는 미확정으로 남긴다.
+
+## EDITING STOPPED (AP-LIVE)
+
+이번 단위에서 수정한 파일: `frontend/src/components/management/PreviewApprovalPanel.test.ts`
+(옛 문구 단언 1줄, 커밋 `3e23207`)와 이 보고서. 제품 코드 수정 0건. root 미커밋
+`collection-home-e2e-report.md` 보존(내 커밋에 0줄). 수집 POST 1회·실모델 호출은 위
+attempts 기록 범위이며 추가 호출 0회. 승인 행 생성·삭제 0건, undo 0회, 서버는 38000/38003만
+재기동해 유지 중이다.
