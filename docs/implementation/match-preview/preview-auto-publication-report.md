@@ -89,7 +89,7 @@
 | `pytest tests/unit/test_home_preview_document.py -q` | **19 passed** |
 | `pytest tests/unit/test_preview_api_storage_migration.py -q` | **7 passed** |
 | `pytest tests/unit/test_management_preview_test.py -q` | **27 passed** |
-| `pytest ... 위 4개 + tests/unit/test_bundle_collection_admission.py -q`(합산 재확인) | **97 passed** |
+| `pytest ... 위 4개 파일(88건) + tests/unit/test_bundle_collection_admission.py(9건) -q`(합산 재확인) | **97 passed** = 88 + 9 |
 | `pytest tests/preview/test_player_section_integration.py -q` | **9 passed** |
 | `npx vitest run src/components/management/PreviewPanel.test.ts` | **31 passed** |
 | `npx vitest run PreviewApprovalPanel.test.ts PreviewTestPanel.test.ts` | **26 passed, 2 failed(기준선과 동일)** |
@@ -144,3 +144,73 @@
 보고서 1: 이 문서(`docs/implementation/match-preview/preview-auto-publication-report.md`)
 
 서버 재기동·실수집·실모델 0회. 승인 행 생성·삭제 0건. 계정·권한·마이그레이션 변경 0건.
+
+## 5. 독립검토 R1 수용 보완 (2026-11-19)
+
+독립검토 `/tmp/ap-review.md`가 지적한 R1(승인 버튼을 "번역·선수 연결 검수"로 오표기)을
+**최소 수정**으로 처리했다. 지시대로 번역 관리 UI를 새로 만들거나 다른 페이지로 옮기지 않고,
+활성 프리뷰 탭에서 패널 마운트를 제거하는 쪽을 택했다.
+
+### 5-1. PreviewPanel에서 승인 패널 제거
+
+`frontend/src/components/management/PreviewPanel.vue`
+
+- `<PreviewApprovalPanel>` 마운트 삭제(활성 프리뷰 탭).
+- 그 패널에서만 쓰던 것을 함께 정리: `PreviewApprovalPanel` import,
+  `approvalsFallback`/`approvalRefreshWarning` 상태, 두 곳의 초기화, 승인 후
+  detail·홈 재조회를 묶던 `refreshAfterApproval()` 핸들러, 미사용이 된
+  `ApprovalsSummary` 타입 import.
+- **유지**: 본문 표시(`MatchPreviewBody`), 진단(`preview-diagnostics`), 구성본 패널,
+  저장 결과 조회, 홈 반영 새로 조회(`refreshHomeReflection`과 홈 문서 GET) 경로.
+  `RunInspector`의 `hide-approval`도 그대로다.
+
+### 5-2. 남은 승인 컴포넌트 문구를 사실로 정정
+
+`PreviewApprovalPanel.vue`(다른 곳에서 쓰이더라도 오해가 없도록)
+
+- 헤더: "이 승인은 **섹션 워크플로우 버전과 그 근거 결과 행을 기록**합니다. …
+  **AI 한글 번역 상태나 선수 연결을 변경하지 않습니다**(번역 후보의 검수 상태와 선수
+  식별자는 그대로입니다). 프리뷰 생성과 홈 공개도 이 기록과 무관합니다."
+- 성공 문구: "… 워크플로우 버전 승인이 기록됐습니다. **번역 후보 검수 상태와 선수 연결은
+  변경되지 않았습니다.**"
+- 기존 승인 이력·API는 삭제하지 않았다(엔드포인트·테이블·감사 기록 그대로).
+
+### 5-3. pipeline 설명을 실제 범위로 정정
+
+`app/preview/pipeline.py` — **판정 로직·버전 계산·프롬프트 변경 0**이다.
+
+- `admission_state`: docstring/`note`를 "**legacy 전체 프리뷰 경로**의 섹션 워크플로우 버전
+  승인 현황"으로 고쳤다. 현재 수집 후 자동 생성·bundle 생성·홈 공개는 이 값과 무관하고,
+  **legacy 전체 프리뷰 시작만** 이 판정으로 거부된다는 사실을 명시했다.
+- `bundle_admission_state`: "승인이 없으면 자동 생성을 시작하지 않는다"는 **거짓 설명을
+  삭제**하고, "이 값은 자동 생성을 막지 않는다(수집 후 생성·홈 공개는 승인과 무관)"로
+  정정했다. 반환 값의 의미(섹션별 버전 승인 현황)는 그대로다.
+
+### 5-4. 검사
+
+| 명령 | 결과 |
+|---|---|
+| `npx vitest run src/components/management/PreviewPanel.test.ts` | **31 passed** |
+| `npx vue-tsc -p tsconfig.app.json --noEmit` | **에러 0(exit 0)** |
+| `pytest tests/unit/test_bundle_collection_admission.py tests/unit/test_home_preview_collection.py tests/unit/test_home_preview_document.py -q` | **63 passed** |
+
+대표검사(이번 지적에 직접 연결):
+- `활성 프리뷰 탭에는 섹션 워크플로우 승인 UI가 없고, 저장 본문·홈 비교는 그대로 보인다`
+  — 승인 패널/버튼/컴포넌트 부재 + 본문·홈 비교 존재를 함께 단언한다.
+- `승인 API를 호출하지 않고 저장 본문·구성본·홈 재조회 경로만 쓴다` — 승인 제출 UI가 없고
+  진단·패널은 남아 있음을 확인한다.
+- 기존 `승인 성공 후 detail·홈 반영 …` / `approvable 판정` 두 검사는 승인 UI 전제라
+  위 두 검사로 대체했다(삭제가 아니라 대체).
+
+### 5-5. 변경 파일
+
+`frontend/src/components/management/PreviewPanel.vue`,
+`frontend/src/components/management/PreviewApprovalPanel.vue`,
+`app/preview/pipeline.py`, `frontend/src/components/management/PreviewPanel.test.ts`,
+이 보고서. 그 외 변경 0. root 미커밋 문서는 건드리지 않았다.
+
+## EDITING STOPPED (R1 보완)
+
+승인 컴포넌트 자체의 기준선 실패 1건(`binds single selected section … emit`)은 이번에도
+동일하게 남아 있으며 성공으로 표현하지 않는다. 서버 재기동·실수집·실모델·승인 변경·DB 쓰기
+0회, root 문서·Plans 보존.

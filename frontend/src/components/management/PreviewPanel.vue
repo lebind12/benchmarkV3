@@ -36,7 +36,6 @@ import type { FixtureCandidate } from '@/features/match-preview/fixtures'
 import { previewRunsApi } from '@/features/match-preview/api'
 import { parseInformationBundle } from '@/features/match-preview/informationBundle'
 import type {
-  ApprovalsSummary,
   CompositionView,
   RunSummary,
   SectionRunResponse,
@@ -46,7 +45,6 @@ import InformationBundlePanel from '@/features/match-preview/InformationBundlePa
 import CompositionPanel from '@/features/match-preview/CompositionPanel.vue'
 import SectionRegenerationPanel from '@/features/match-preview/SectionRegenerationPanel.vue'
 import RunInspector from '@/features/match-preview/RunInspector.vue'
-import PreviewApprovalPanel from '@/components/management/PreviewApprovalPanel.vue'
 import PreviewTestPanel from '@/components/management/PreviewTestPanel.vue'
 
 const props = withDefaults(
@@ -100,8 +98,6 @@ const history = ref<RunSummary[]>([])
 const historyLoading = ref(false)
 const historyError = ref<string | null>(null)
 
-const approvalsFallback = ref<ApprovalsSummary | null>(null)
-const approvalRefreshWarning = ref<string | null>(null)
 
 const composition = ref<CompositionView | null>(null)
 const compositionNote = ref<string | null>(null)
@@ -715,8 +711,6 @@ function clearResultState() {
   bundleId.value = null
   bundleError.value = null
   regeneratedRunId.value = null
-  approvalsFallback.value = null
-  approvalRefreshWarning.value = null
   clearHomeReflection()
 }
 
@@ -789,8 +783,6 @@ async function openStoredRun(
   bundleId.value = null
   bundleError.value = null
   regeneratedRunId.value = null
-  approvalsFallback.value = null
-  approvalRefreshWarning.value = null
   clearHomeReflection()
   startedFixture.value = sourceFixture
   openedFixtureId.value = explicitFixture.fixtureId ?? sourceFixture?.fixture_id ?? null
@@ -824,49 +816,6 @@ async function openStoredRun(
     null
   if (resolvedFixtureId !== null) {
     void refreshHomeReflection(resolvedFixtureId, resolvedKickoffAt)
-  }
-}
-
-async function refreshAfterApproval({ runId }: { runId: string }) {
-  const seq = openSequence
-  approvalRefreshWarning.value = null
-  const resolvedFixtureId = openRunFixtureId.value ?? homeReflectionFixtureId.value
-  const resolvedKickoffAt =
-    runData.value?.detail?.fixture?.kickoff_at ??
-    startedFixture.value?.kickoff_at ??
-    openedKickoffAt.value ??
-    homeReflectionKickoffAt.value ??
-    null
-
-  const detailPromise = previewRunsApi.detail(runId)
-  const homePromise =
-    resolvedFixtureId !== null
-      ? refreshHomeReflection(resolvedFixtureId, resolvedKickoffAt)
-      : Promise.resolve()
-
-  const [detailRes] = await Promise.all([detailPromise, homePromise])
-  if (disposed || seq !== openSequence || openRunId.value !== runId) return
-
-  if (detailRes.ok) {
-    if (runData.value && runData.value.run_id === runId) {
-      runData.value = {
-        ...runData.value,
-        detail: detailRes.data,
-        detail_error: null,
-      }
-    }
-    if (detailRes.data.section_approvals && detailRes.data.section_approvals.length > 0) {
-      approvalsFallback.value = null
-      return
-    }
-  }
-
-  const fallbackRes = await previewRunsApi.approvals()
-  if (disposed || seq !== openSequence || openRunId.value !== runId) return
-  if (fallbackRes.ok) {
-    approvalsFallback.value = fallbackRes.data
-  } else if (!detailRes.ok) {
-    approvalRefreshWarning.value = `승인은 기록됐으나 최신 승인 상태를 다시 읽지 못했습니다: ${detailRes.message}`
   }
 }
 
@@ -1277,22 +1226,6 @@ onBeforeUnmount(() => {
       <div class="preview-tab__body" data-testid="preview-body">
         <MatchPreviewBody :key="`${openRunId}:${readVersion}`" :preview="previewView" />
       </div>
-
-      <PreviewApprovalPanel
-        v-if="runData"
-        :open-run-id="openRunId"
-        :run-data="runData"
-        :preview-view="previewView"
-        :composition="composition"
-        :composition-loaded="compositionLoaded"
-        :composition-error="compositionError"
-        :blocked-sections="blockedSections"
-        :can-approve-role="canGenerate"
-        :fixture-id="openRunFixtureId"
-        :approvals-fallback="approvalsFallback"
-        :refresh-warning="approvalRefreshWarning"
-        @approved="refreshAfterApproval"
-      />
 
       <details
         class="preview-tab__diagnostics"

@@ -229,10 +229,14 @@ def _judge(workflows: Sequence[str], session: Session) -> dict[str, Any]:
 
 
 def bundle_admission_state(session: Session) -> dict[str, Any]:
-    """공통 생성 서비스가 실제로 만드는 섹션 집합의 승인 준비 상태.
+    """공통 생성 서비스가 만드는 섹션 집합의 승인 준비 상태(**진단·표시용**).
 
-    수집 자동 생성 경계는 이 판정을 쓴다. `admission_state`(옛 전체 프리뷰 대상)와 달리
-    form/synthesis를 요구하지 않고 odds/ai_forecast를 포함한다. 승인 행은 읽기만 한다.
+    `admission_state`(옛 전체 프리뷰 대상)와 달리 form/synthesis를 요구하지 않고
+    odds/ai_forecast를 포함한다. 승인 행은 읽기만 한다.
+
+    현재 이 판정은 **자동 생성을 막지 않는다.** 수집 후 자동 생성은 승인 게이트를 쓰지
+    않으므로(2026-11-18 확정), 이 값이 `ready=false`여도 생성과 홈 공개는 그대로 진행된다.
+    값의 의미는 "그 섹션들의 워크플로우 버전 승인이 저장돼 있는지"까지다.
     """
     judged = _judge(bundle_workflows(), session)
     return {
@@ -240,19 +244,24 @@ def bundle_admission_state(session: Session) -> dict[str, Any]:
         "scope": "bundle",
         "workflows": list(bundle_workflows()),
         "note": (
-            "공통 생성 서비스가 만드는 정보 원문 묶음 섹션 기준입니다. 승인이 없거나 저장"
-            " 버전이 현재 구성과 다르면 자동 생성을 시작하지 않습니다. 이 판정은 승인 행을"
-            " 만들거나 바꾸지 않습니다."
+            "공통 생성 서비스가 만드는 정보 원문 묶음 섹션의 워크플로우 버전 승인 현황입니다."
+            " 이 값은 자동 생성을 막지 않습니다(수집 후 생성·홈 공개는 승인과 무관)."
+            " 승인 행을 만들거나 바꾸지도 않습니다."
         ),
     }
 
 
 def admission_state(session: Session) -> dict[str, Any]:
-    """승인 현황 요약(진단·표시용). **게시·생성의 허가 판정이 아니다.**
+    """**legacy 전체 프리뷰 경로**의 섹션 워크플로우 버전 승인 현황.
 
-    2026-11-18 확정: 승인/미승인은 AI 한글 번역과 선수 연결의 검수 상태이며 프리뷰 게시
-    허가가 아니다. 그래서 이 값은 "무엇이 검수됐는지"만 알려 주고, 생성·홈 공개는 이
-    값과 무관하게 이루어진다(수집 후 자동 생성에도 이 게이트를 쓰지 않는다).
+    이 값이 뜻하는 것: legacy `start_preview_run`(기본 전체 프리뷰)이 요구하는 섹션
+    워크플로우 **버전 승인이 저장돼 있는지**다. 번역 후보의 검수 상태나 선수 연결 상태를
+    뜻하지 않는다(그 둘은 다른 저장 경로가 소유한다).
+
+    현재 범위와의 관계: 수집 후 자동 생성, bundle 생성, 홈 문서·추천은 이 값을 **쓰지
+    않는다**(2026-11-18 확정: 승인은 게시 허가가 아니다). 다만 legacy 전체 프리뷰 시작은
+    지금도 이 승인을 요구하며, 그 경로에서는 이 판정이 실행을 막는다. 판정 로직·버전
+    계산은 그대로이며 문구만 실제 범위에 맞췄다.
     """
     workflows = required_workflows()
     judged = _judge(workflows, session)
@@ -269,9 +278,11 @@ def admission_state(session: Session) -> dict[str, Any]:
         "current_versions": current,
         "approved_versions": approved_versions,
         "note": (
-            "이 값은 번역·선수 연결의 검수 현황입니다. 프리뷰 생성과 홈 공개는 승인 여부와"
-            " 무관하게 이루어지며, 승인되지 않은 본문도 홈에 표시됩니다. 승인은 게시 허가가"
-            " 아니라 검수 기록입니다."
+            "이 값은 **legacy 전체 프리뷰 경로**의 섹션 워크플로우 버전 승인 현황입니다."
+            " 번역 후보 검수 상태나 선수 연결을 뜻하지 않습니다. 현재 수집 후 자동 생성·"
+            "bundle 생성·홈 공개는 이 값과 무관하며, 승인되지 않은 본문도 홈에 표시됩니다."
+            " 다만 legacy 전체 프리뷰 시작은 지금도 승인을 요구하므로 그 경로에서만"
+            " 이 판정이 실행을 막습니다."
         ),
     }
 

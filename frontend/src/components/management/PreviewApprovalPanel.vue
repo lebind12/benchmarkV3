@@ -443,7 +443,7 @@ async function submitApproval() {
 
   note.value = ''
   const approvedVersion = response.data.workflow_version ?? targetWorkflowVersion
-  approvalSuccess.value = `${item.displayName}(${targetWorkflowId}) ${approvedVersion} 검수 승인이 기록됐습니다. 승인 상태를 다시 확인합니다(홈 게시는 승인과 무관합니다).`
+  approvalSuccess.value = `${item.displayName}(${targetWorkflowId}) ${approvedVersion} 워크플로우 버전 승인이 기록됐습니다. 번역 후보 검수 상태와 선수 연결은 변경되지 않았습니다.`
   emit('approved', { runId: requestRunId, workflowId: targetWorkflowId })
 }
 </script>
@@ -458,10 +458,11 @@ async function submitApproval() {
       <div>
         <h3 id="preview-approval-title">섹션 워크플로우 승인</h3>
         <p class="preview-approval__scope" data-testid="preview-approval-scope-note">
-          승인은 <strong>경기별 승인이 아니라 섹션 워크플로우 버전 단위</strong>이며, AI 한글
-          번역과 선수 연결을 <strong>검수했다는 표시</strong>입니다. 프리뷰 생성과 홈 공개는
-          승인과 무관하게 이루어지므로, 승인하지 않아도 저장된 본문은 홈에 표시됩니다.
-          아래에서 고른 단일 표시 결과 행을 검수 근거로 기록합니다.
+          이 승인은 <strong>섹션 워크플로우 버전과 그 근거 결과 행을 기록</strong>합니다.
+          경기별 승인이 아니라 버전 단위 기록이며, <strong>AI 한글 번역 상태나 선수 연결을
+          변경하지 않습니다</strong>(번역 후보의 검수 상태와 선수 식별자는 그대로입니다).
+          프리뷰 생성과 홈 공개도 이 기록과 무관하게 이루어지므로, 승인하지 않아도 저장된
+          본문은 홈에 표시됩니다.
         </p>
       </div>
     </header>

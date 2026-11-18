@@ -1827,10 +1827,12 @@ describe('프리뷰 탭 — 실행 전환 비움 및 홈 반영 상태', () => {
   })
 })
 
-describe('프리뷰 탭 — 섹션 워크플로우 승인 연동 및 중복 UI 차단', () => {
-  // 이유: 프리뷰 탭에서 바로 승인 시 detail/홈 반영 GET이 함께 갱신되고 RunInspector 승인은 숨겨져야 한다.
-  // 실패 시 사용자 결과: 승인 직후 홈 반영 여부를 알 수 없거나 한 화면에 승인 UI가 두 번 떠 다른 버전을 누를 수 있다.
-  it('승인 성공 후 detail·홈 반영 GET을 함께 갱신하고 중첩 RunInspector 승인은 숨긴다', async () => {
+describe('프리뷰 탭 — 게시는 워크플로우 승인에 의존하지 않는다', () => {
+  // 이유: 승인은 섹션 워크플로우 버전/근거 행 기록이며 번역·연결 검수나 게시 허가가 아니다
+  // (2026-11-18 사용자 확정). 실패 시 사용자 결과: 활성 프리뷰 탭에서 "승인해야 홈에 나간다"고
+  // 오해하거나, 승인 버튼이 번역·선수 연결을 검수한다고 믿게 된다.
+
+  it('활성 프리뷰 탭에는 섹션 워크플로우 승인 UI가 없고, 저장 본문·홈 비교는 그대로 보인다', async () => {
     previewApi.readerPreview.mockResolvedValue(
       ok(
         readerPreview({
@@ -1838,7 +1840,7 @@ describe('프리뷰 탭 — 섹션 워크플로우 승인 연동 및 중복 UI �
             {
               section_id: 'section_players',
               title: '주목 선수',
-              body: '저장된 주목 선수 본문',
+              body: '승인 없이도 표시되는 저장 본문',
               sources: [],
               quality: 'ready',
               partial: false,
@@ -1848,427 +1850,37 @@ describe('프리뷰 탭 — 섹션 워크플로우 승인 연동 및 중복 UI �
         }),
       ),
     )
-    previewApi.sectionResults.mockResolvedValue(
-      ok({
-        run_id: 'run-1557474-a',
-        section_results: [
-          sectionResult({
-            section_result_id: 'sr-players-live',
-            workflow_id: 'section_players',
-            workflow_version: 'wfv-players-2',
-            version: 1,
-            title: '주목 선수',
-            body: '저장된 주목 선수 본문',
-            mode: 'live',
-            approvable: true,
-          }),
-        ],
-      }),
+    homePreviewApi.getHomePreviewDocument = vi.fn().mockResolvedValue(
+      ok({ status: 'available', run_id: 'run-1', complete: true, sections: [] }),
     )
-    previewApi.detail
-      .mockResolvedValueOnce(
-        ok({
-          ...runDetail(),
-          fixture: {
-            fixture_id: 1557474,
-            kickoff_at: '2026-11-21T12:30:00Z',
-            season: 2026,
-            league_id: 39,
-            home_team_id: 13,
-            away_team_id: 4,
-          },
-          section_approvals: [
-            {
-              workflow_id: 'section_players',
-              display_name: '주목 선수',
-              description: '',
-              module_ids: ['bundle_section_players'],
-              implemented: true,
-              unrunnable_reason: null,
-              state: 'none',
-              label: '미승인',
-              detail: null,
-              current_version: 'wfv-players-2',
-              active_approval: null,
-              pinned_approval: null,
-              can_approve: true,
-            },
-          ],
-        }),
-      )
-      .mockResolvedValueOnce(
-        ok({
-          ...runDetail(),
-          fixture: {
-            fixture_id: 1557474,
-            kickoff_at: '2026-11-21T12:30:00Z',
-            season: 2026,
-            league_id: 39,
-            home_team_id: 13,
-            away_team_id: 4,
-          },
-          section_approvals: [
-            {
-              workflow_id: 'section_players',
-              display_name: '주목 선수',
-              description: '',
-              module_ids: ['bundle_section_players'],
-              implemented: true,
-              unrunnable_reason: null,
-              state: 'approved',
-              label: '승인됨',
-              detail: null,
-              current_version: 'wfv-players-2',
-              active_approval: {
-                approval_id: 'apr-1',
-                workflow_id: 'section_players',
-                workflow_version: 'wfv-players-2',
-                constituents: [],
-                evidence: {
-                  run_id: 'run-1557474-a',
-                  section_result_id: 'sr-players-live',
-                  reviewed_at: '2026-11-18T03:20:00Z',
-                },
-                approved_by_actor_id: '1',
-                approved_at: '2026-11-18T03:20:00Z',
-                reviewed_note: '검토 완료',
-                supersedes_approval_id: null,
-              },
-              pinned_approval: null,
-              can_approve: true,
-            },
-          ],
-        }),
-      )
-    previewApi.approveSection.mockResolvedValue(
-      ok({
-        approval_id: 'apr-1',
-        workflow_id: 'section_players',
-        workflow_version: 'wfv-players-2',
-        constituents: [],
-        evidence: {
-          run_id: 'run-1557474-a',
-          section_result_id: 'sr-players-live',
-          reviewed_at: '2026-11-18T03:20:00Z',
-        },
-        approved_by_actor_id: '1',
-        approved_at: '2026-11-18T03:20:00Z',
-        reviewed_note: '검토 완료',
-        supersedes_approval_id: null,
-      }),
-    )
-    homePreviewApi.getHomePreviewDocument
-      .mockResolvedValueOnce({ status: 'none', fixture_id: 1557474, reason: 'no_approved_version', reason_text: null, run_id: null, generated_at: null, data_as_of: null, complete: false, sections: [] })
-      .mockResolvedValueOnce({
-        schema_version: '1.0',
-        status: 'available',
-        fixture_id: 1557474,
-        reason: null,
-        reason_text: null,
-        saved_at: '2026-11-18T03:20:00Z',
-        run_id: 'run-1557474-a',
-        complete: false,
-        fixture: { external_id: 1557474 },
-        headline: '전망',
-        sections: [
-          {
-            section_result_id: 'sr-players-live',
-            run_id: 'run-1557474-a',
-            workflow_id: 'section_players',
-            workflow_version: 'wfv-players-2',
-            version: 1,
-            title: '주목 선수',
-            body: '저장된 주목 선수 본문',
-            sources: [],
-            quality: 'ready',
-            partial: false,
-            created_at: '2026-11-18T03:20:00Z',
-          },
-        ],
-      })
-    homePreviewApi.getHomeRecommendations.mockResolvedValue({ as_of: null, items: [] })
 
     const wrapper = mount(PreviewPanel, mountOptions())
-    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-a')
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1')
     await submitOpenRun(wrapper)
 
-    expect(wrapper.get('[data-testid="preview-home-document-status"]').text()).toContain('no_approved_version')
-    expect(wrapper.get('[data-testid="preview-approval"]').text()).toContain('미승인')
-
-    await wrapper.get('[data-testid="preview-approval-note"]').setValue('검토 완료')
-    await wrapper.get('[data-testid="preview-approval-submit"]').trigger('click')
-    await flushPromises()
-
-    expectCalledOnceWith(previewApi.approveSection, 'section_players', {
-      run_id: 'run-1557474-a',
-      section_result_id: 'sr-players-live',
-      note: '검토 완료',
-    })
-    expect(previewApi.runBundle).not.toHaveBeenCalled()
-    expect(previewApi.detail).toHaveBeenCalledTimes(2)
-    expect(homePreviewApi.getHomePreviewDocument).toHaveBeenCalledTimes(2)
-    expect(wrapper.get('[data-testid="preview-approval-active-version"]').text()).toContain('wfv-players-2')
-    expect(wrapper.get('[data-testid="preview-home-section-diff-section_players"]').text()).toContain('일치')
-
-    // 진단의 RunInspector에는 hideApproval=true가 전달되어 중복 승인 UI를 숨긴다.
-    const diag = wrapper.get('[data-testid="preview-diagnostics"]').element as HTMLDetailsElement
-    diag.open = true
-    await wrapper.get('[data-testid="preview-diagnostics"]').trigger('toggle')
-    await flushPromises()
-    const insp = wrapper.get('[data-testid="preview-inspector"]').element as HTMLDetailsElement
-    insp.open = true
-    await wrapper.get('[data-testid="preview-inspector"]').trigger('toggle')
-    await flushPromises()
-    expect(wrapper.get('[data-testid="inspector-stub"]').attributes('data-hide-approval')).toBe('true')
+    // 승인 UI(패널·버튼·대상 행)가 활성 탭에 없다.
+    expect(wrapper.find('[data-testid="preview-approval"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="preview-approval-submit"]').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'PreviewApprovalPanel' }).exists()).toBe(false)
+    // 본문 확인과 홈 비교 연결은 유지된다.
+    expect(wrapper.get('[data-testid="preview-body"]').text()).toContain('승인 없이도 표시되는 저장 본문')
+    expect(wrapper.find('[data-testid="preview-home-reflection"]').exists()).toBe(true)
   })
 
-  // 이유: 실서버 /section-results 응답에 approvable·mode_label이 빠져도 detail.section_results 및 cross-run 원 실행 detail에서 같은 (run_id, section_result_id)의 서버 판정을 정확히 결합해야 한다.
-  // 실패 시 사용자 결과: 정상 ADMIN이 live/ready 본문을 보고도 승인 버튼이 잠겨 승인할 수 없거나, 원 실행에서 불가 판정한 cross-run 결과를 잘못 승인할 수 있다.
-  it('실서버처럼 raw section-results에 approvable이 없어도 detail.section_results와 cross-run 원 실행 판정으로 정확히 승인 가능 여부를 결정한다', async () => {
-    const rawPlayers = {
-      ...sectionResult({
-        section_result_id: 'sr-live-players',
-        run_id: 'run-1557474-a',
-        workflow_id: 'section_players',
-        workflow_version: 'wfv-players-live',
-        version: 1,
-        title: '주목 선수',
-        body: '실호출 주목 선수 본문',
-        mode: 'live',
-      }),
-      approvable: undefined,
-      mode_label: undefined,
-    } as unknown as SectionResultView
-
-    const rawParentAvail = {
-      ...sectionResult({
-        section_result_id: 'sr-parent-avail',
-        run_id: 'run-parent-1',
-        workflow_id: 'section_availability',
-        workflow_version: 'wfv-avail-parent',
-        version: 1,
-        title: '출전 불가·부상 변수',
-        body: '원 실행 출전 변수 본문',
-        mode: 'live',
-      }),
-      approvable: undefined,
-      mode_label: undefined,
-    } as unknown as SectionResultView
-
-    const rawParentUnconfirmed = {
-      ...sectionResult({
-        section_result_id: 'sr-parent-odds',
-        run_id: 'run-parent-2',
-        workflow_id: 'section_odds',
-        workflow_version: 'wfv-odds-parent',
-        version: 1,
-        title: '배당 흐름',
-        body: '미확인 원 실행 본문',
-        mode: 'live',
-      }),
-      approvable: undefined,
-      mode_label: undefined,
-    } as unknown as SectionResultView
-
+  it('승인 API를 호출하지 않고 저장 본문·구성본·홈 재조회 경로만 쓴다', async () => {
     previewApi.readerPreview.mockResolvedValue(
-      ok(
-        readerPreview({
-          sections: [
-            { section_id: 'section_players', title: '주목 선수', body: '실호출 주목 선수 본문', sources: [], quality: 'ready', partial: false, version: 1 },
-            { section_id: 'section_availability', title: '출전 불가·부상 변수', body: '원 실행 출전 변수 본문', sources: [], quality: 'ready', partial: false, version: 1 },
-            { section_id: 'section_odds', title: '배당 흐름', body: '미확인 원 실행 본문', sources: [], quality: 'ready', partial: false, version: 1 },
-          ],
-        }),
-      ),
+      ok(readerPreview({ sections: [] })),
     )
-
-    previewApi.sectionResults.mockImplementation((rid: string) => {
-      if (rid === 'run-parent-1') {
-        return Promise.resolve(ok({ run_id: 'run-parent-1', section_results: [rawParentAvail] }))
-      }
-      if (rid === 'run-parent-2') {
-        return Promise.resolve(ok({ run_id: 'run-parent-2', section_results: [rawParentUnconfirmed] }))
-      }
-      return Promise.resolve(ok({ run_id: 'run-1557474-a', section_results: [rawPlayers] }))
-    })
-
-    previewApi.detail.mockImplementation((rid: string) => {
-      if (rid === 'run-parent-1') {
-        return Promise.resolve(
-          ok({
-            ...runDetail(),
-            summary: { ...runDetail().summary, run_id: 'run-parent-1' },
-            section_results: [
-              sectionResult({
-                section_result_id: 'sr-parent-avail',
-                run_id: 'run-parent-1',
-                workflow_id: 'section_availability',
-                mode: 'live',
-                mode_label: '실제 생성',
-                approvable: true,
-              }),
-            ],
-          }),
-        )
-      }
-      if (rid === 'run-parent-2') {
-        // 원 실행 detail에는 section_odds 행이 없으므로(같은 workflow_id가 openRun에 있더라도) 승인 불가여야 한다.
-        return Promise.resolve(
-          ok({
-            ...runDetail(),
-            summary: { ...runDetail().summary, run_id: 'run-parent-2' },
-            section_results: [],
-          }),
-        )
-      }
-      return Promise.resolve(
-        ok({
-          ...runDetail(),
-          section_results: [
-            sectionResult({
-              section_result_id: 'sr-live-players',
-              run_id: 'run-1557474-a',
-              workflow_id: 'section_players',
-              mode: 'live',
-              mode_label: '실제 생성',
-              approvable: true,
-            }),
-            // cross-run section_odds와 workflow_id만 같고 result_id/run_id가 다른 행 — 절대 차용하면 안 된다.
-            sectionResult({
-              section_result_id: 'sr-other-odds-in-open-run',
-              run_id: 'run-1557474-a',
-              workflow_id: 'section_odds',
-              mode: 'live',
-              mode_label: '실제 생성',
-              approvable: true,
-            }),
-          ],
-          section_approvals: [
-            {
-              workflow_id: 'section_players',
-              display_name: '주목 선수',
-              description: '',
-              module_ids: ['bundle_section_players'],
-              implemented: true,
-              unrunnable_reason: null,
-              state: 'none',
-              label: '미승인',
-              detail: null,
-              current_version: 'wfv-players-live',
-              active_approval: null,
-              pinned_approval: null,
-              can_approve: true,
-            },
-            {
-              workflow_id: 'section_availability',
-              display_name: '출전 불가·부상 변수',
-              description: '',
-              module_ids: ['bundle_section_availability'],
-              implemented: true,
-              unrunnable_reason: null,
-              state: 'none',
-              label: '미승인',
-              detail: null,
-              current_version: 'wfv-avail-parent',
-              active_approval: null,
-              pinned_approval: null,
-              can_approve: true,
-            },
-            {
-              workflow_id: 'section_odds',
-              display_name: '배당 흐름',
-              description: '',
-              module_ids: ['bundle_section_odds'],
-              implemented: true,
-              unrunnable_reason: null,
-              state: 'none',
-              label: '미승인',
-              detail: null,
-              current_version: 'wfv-odds-parent',
-              active_approval: null,
-              pinned_approval: null,
-              can_approve: true,
-            },
-          ],
-        }),
-      )
-    })
-
-    previewApi.composition.mockResolvedValue(
-      ok({
-        run_id: 'run-1557474-a',
-        available: true,
-        reason: null,
-        composition: {
-          composition_id: 'comp-live-check',
-          fixture_id: 1557474,
-          items: [
-            {
-              section_id: 'section_players',
-              result_id: 'sr-live-players',
-              run_id: 'run-1557474-a',
-              fixture_id: 1557474,
-              version: 1,
-              workflow_version: 'wfv-players-live',
-              quality: 'ready',
-              unavailable: false,
-              unavailable_reason: null,
-              body_chars: 12,
-              mode: 'live',
-              created_at: null,
-            },
-            {
-              section_id: 'section_availability',
-              result_id: 'sr-parent-avail',
-              run_id: 'run-parent-1',
-              fixture_id: 1557474,
-              version: 1,
-              workflow_version: 'wfv-avail-parent',
-              quality: 'ready',
-              unavailable: false,
-              unavailable_reason: null,
-              body_chars: 12,
-              mode: 'live',
-              created_at: null,
-            },
-            {
-              section_id: 'section_odds',
-              result_id: 'sr-parent-odds',
-              run_id: 'run-parent-2',
-              fixture_id: 1557474,
-              version: 1,
-              workflow_version: 'wfv-odds-parent',
-              quality: 'ready',
-              unavailable: false,
-              unavailable_reason: null,
-              body_chars: 12,
-              mode: 'live',
-              created_at: null,
-            },
-          ],
-          refused: [],
-          diagnostics: [],
-          section_result_ids: ['sr-live-players', 'sr-parent-avail', 'sr-parent-odds'],
-        },
-      }),
-    )
+    const approveSpy = vi.fn()
 
     const wrapper = mount(PreviewPanel, mountOptions())
-    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-1557474-a')
+    await wrapper.get('[data-testid="preview-run-id"]').setValue('run-2')
     await submitOpenRun(wrapper)
 
-    // 1) openRunId의 raw section_players + detail.section_results 일치 -> 승인 가능 + mode_label 결합
-    expect(wrapper.get('[data-testid="preview-approval-target-result"]').text()).toContain('실제 생성')
-    expect((wrapper.get('[data-testid="preview-approval-submit"]').element as HTMLButtonElement).disabled).toBe(false)
-
-    // 2) cross-run section_availability + run-parent-1 detail 일치 -> 승인 가능
-    await wrapper.get('[data-testid="preview-approval-item-section_availability"]').trigger('click')
-    expect(wrapper.get('[data-testid="preview-approval-target-run"]').text()).toContain('run-parent-1')
-    expect((wrapper.get('[data-testid="preview-approval-submit"]').element as HTMLButtonElement).disabled).toBe(false)
-
-    // 3) cross-run section_odds의 원 실행 detail(run-parent-2)에 해당 결과 없음 -> openRunId의 같은 workflow_id 판정을 빌려오지 않고 차단
-    await wrapper.get('[data-testid="preview-approval-item-section_odds"]').trigger('click')
-    expect((wrapper.get('[data-testid="preview-approval-submit"]').element as HTMLButtonElement).disabled).toBe(true)
-    expect(wrapper.get('[data-testid="preview-approval-blocked-reason"]').text()).toContain('approvable=true')
+    // 승인 제출 경로가 사라졌으므로 승인 API를 부르는 UI가 없다.
+    expect(approveSpy).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="preview-approval-submit"]').exists()).toBe(false)
+    // 진단·구성본·홈 비교 패널은 남아 있다.
+    expect(wrapper.find('[data-testid="preview-diagnostics"]').exists()).toBe(true)
   })
 })
