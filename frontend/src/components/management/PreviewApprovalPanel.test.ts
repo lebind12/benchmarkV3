@@ -269,7 +269,7 @@ describe('PreviewApprovalPanel', () => {
       },
     })
 
-    expect(wrapper.get('[data-testid="preview-approval-scope-note"]').text()).toContain('워크플로우 버전 단위')
+    expect(wrapper.get('[data-testid="preview-approval-scope-note"]').text()).toContain('섹션 워크플로우 버전과 그 근거 결과 행을 기록')
     await wrapper.get('[data-testid="preview-approval-item-section_availability"]').trigger('click')
     expect(wrapper.get('[data-testid="preview-approval-target-result"]').text()).toContain('sr-avail-1')
 
