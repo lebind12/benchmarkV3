@@ -209,10 +209,13 @@ def test_recommendations_and_document_agree_on_1557474_three_section_partial(mon
     }
 
 
-def test_recommendations_and_document_agree_on_ready_and_unapproved(monkeypatch):
-    """필수 섹션 모두 승인되면 ready, 승인 행이 없으면 unavailable(가리지 않음)이어야 한다.
+def test_recommendations_and_document_agree_with_or_without_approval_rows(monkeypatch):
+    """승인 행의 유무와 무관하게 두 표면이 **같은 선택**을 내야 한다.
 
-    실패 시 사용자 영향: 미승인 본문이 추천 카드에 ready/pending으로 노출된다.
+    검사 이유(실패 시 사용자 영향): 승인은 AI 한글 번역·선수 연결의 검수 상태이며 게시
+    허가가 아니다(사용자 확정 2026-11-18). 승인 표가 비었다는 이유로 홈/추천이 본문을
+    감추면 수집 직후 결과를 볼 수 없고, 두 표면이 서로 다른 상태를 보이면 사용자가 어느
+    쪽을 믿어야 할지 알 수 없다.
     """
     monkeypatch.setattr(home_preview, "eligible_rows", lambda *_a, **_k: [_recommendation_fixture_row()])
     monkeypatch.setattr(home_preview_document.store_module, "load_composition", lambda *_a, **_k: {"available": False})
@@ -238,22 +241,25 @@ def test_recommendations_and_document_agree_on_ready_and_unapproved(monkeypatch)
     assert ready_doc["complete"] is True
     assert ready_rec["items"][0]["preview"]["state"] == "ready"
 
-    unapproved_stored = _StoredStub([_run_obj()], {RUN_ID: full_sections}, [])
-    unapproved_doc = home_preview_document.read_document(unapproved_stored, 1557474, now=BASE)
-    unapproved_rec = home_preview.recommendations(
+    no_approvals_stored = _StoredStub([_run_obj()], {RUN_ID: full_sections}, [])
+    no_approvals_doc = home_preview_document.read_document(no_approvals_stored, 1557474, now=BASE)
+    no_approvals_rec = home_preview.recommendations(
         _public_stub(),
         requested_date=KICKOFF.astimezone(home_preview.KST).date(),
         now=BASE,
-        stored_session=unapproved_stored,
+        stored_session=no_approvals_stored,
     )
-    structure("recommendations", unapproved_rec)
-    assert unapproved_doc["status"] == "none"
-    assert unapproved_doc["reason"] == "no_approved_version"
-    assert unapproved_rec["items"][0]["preview"] == {
-        "state": "unavailable",
-        "served": None,
-        "generated_at": None,
-        "as_of": None,
+    structure("recommendations", no_approvals_rec)
+    # 승인 행이 없어도 두 표면 모두 같은 문서를 게시한다(완전성도 동일하게 판정).
+    assert no_approvals_doc["status"] == "available"
+    assert no_approvals_doc["complete"] is True
+    assert no_approvals_rec["items"][0]["preview"]["state"] == "ready"
+    assert no_approvals_rec["items"][0]["preview"]["served"] == "current"
+    # 두 표면이 같은 run/section을 가리킨다.
+    assert no_approvals_doc["run_id"] == str(RUN_ID)
+    doc_section_ids = {s["section_result_id"] for s in no_approvals_doc["sections"]}
+    assert doc_section_ids == {
+        str(section.id) for section in full_sections
     }
 
 

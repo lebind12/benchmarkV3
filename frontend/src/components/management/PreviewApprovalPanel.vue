@@ -443,7 +443,7 @@ async function submitApproval() {
 
   note.value = ''
   const approvedVersion = response.data.workflow_version ?? targetWorkflowVersion
-  approvalSuccess.value = `${item.displayName}(${targetWorkflowId}) ${approvedVersion} 승인이 기록됐습니다. 승인 상태와 홈 반영을 다시 확인합니다.`
+  approvalSuccess.value = `${item.displayName}(${targetWorkflowId}) ${approvedVersion} 검수 승인이 기록됐습니다. 승인 상태를 다시 확인합니다(홈 게시는 승인과 무관합니다).`
   emit('approved', { runId: requestRunId, workflowId: targetWorkflowId })
 }
 </script>
@@ -458,9 +458,10 @@ async function submitApproval() {
       <div>
         <h3 id="preview-approval-title">섹션 워크플로우 승인</h3>
         <p class="preview-approval__scope" data-testid="preview-approval-scope-note">
-          승인은 <strong>경기별 승인이 아니라 섹션 워크플로우 버전 단위</strong>입니다. 승인하면
-          현재 버전과 구성 모듈·출력 계약이 이후 모든 경기의 기본 프리뷰 생성 및 홈 공개 기준에
-          적용되며, 아래에서 고른 단일 표시 결과 행을 승인 근거로 기록합니다.
+          승인은 <strong>경기별 승인이 아니라 섹션 워크플로우 버전 단위</strong>이며, AI 한글
+          번역과 선수 연결을 <strong>검수했다는 표시</strong>입니다. 프리뷰 생성과 홈 공개는
+          승인과 무관하게 이루어지므로, 승인하지 않아도 저장된 본문은 홈에 표시됩니다.
+          아래에서 고른 단일 표시 결과 행을 검수 근거로 기록합니다.
         </p>
       </div>
     </header>

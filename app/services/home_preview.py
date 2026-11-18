@@ -350,17 +350,8 @@ def recommendations(session, requested_date=None, *, now=None, stored_session=No
             "away": team_ref(a, tr),
         }
 
-    approved = None
-    evidence = None
-    if stored_session is not None and selected:
-        from app.services import home_preview_document
-
-        try:
-            approval_rows = home_preview_document._read_approvals(stored_session)
-        except SQLAlchemyError as exc:
-            raise home_preview_document.PreviewDocumentUnavailable(str(exc)) from exc
-        approved = home_preview_document.approved_versions(approval_rows)
-        evidence = home_preview_document.approved_evidence(approval_rows)
+    # 승인 표는 읽지 않는다. 홈 카드의 게시 여부도 워크플로우 승인에 의존하지 않으며
+    # (사용자 확정 2026-11-18), 승인 조회 장애가 추천 조회 실패로 번지지 않는다.
 
     items = []
     for row in selected:
@@ -375,8 +366,6 @@ def recommendations(session, requested_date=None, *, now=None, stored_session=No
                 kickoff_at=fixture_row.kickoff_at,
                 status_short=fixture_row.status_short,
                 now=now,
-                approved=approved,
-                evidence=evidence,
             )
         else:
             pub = read_preview(session, fixture_row.external_id, now=now)["publication"]

@@ -56,7 +56,9 @@ REQUIRED_READER_SECTIONS = ("section_players", "section_ai_forecast")
 DOCUMENT_REASONS = {
     "no_stored_run": "이 경기의 저장 실행이 없습니다.",
     "no_displayable_section": "표시할 본문이 있는 저장 문서가 없습니다.",
-    "no_approved_version": "승인된 워크플로우 버전의 저장 문서가 없습니다.",
+    # 게시는 워크플로우 승인에 의존하지 않는다. 저장 본문은 있으나 표시 조건
+    # (정본 대조·필수 섹션)을 채우지 못한 경우에만 이 사유를 쓴다.
+    "no_approved_version": "표시 가능한 저장 본문이 없습니다(정본 확인·필수 섹션 조건 미충족).",
     "storage_unavailable": "저장 문서를 읽지 못했습니다.",
 }
 
@@ -145,19 +147,20 @@ def approved_evidence(
 
 def _displayable(
     row: Mapping[str, Any],
-    approved: Mapping[str, frozenset[str]],
-    evidence: frozenset[tuple[str, str, str]] = frozenset(),
+    approved: Mapping[str, frozenset[str]] | None = None,
+    evidence: frozenset[tuple[str, str, str]] | None = None,
 ) -> bool:
     """이 섹션 행을 공개 본문에 넣을 수 있는지.
 
-    본문이 없으면 표시할 것이 없다. 모의 실행은 게시하지 않는다. 공개 근거는 두 갈래다.
+    **워크플로우 승인은 게시 조건이 아니다**(사용자 확정 2026-11-18: 승인/미승인은 AI 한글
+    번역과 선수 연결의 검수 상태이며 프리뷰 게시 허가가 아니다). 그래서 정상 live 결과는
+    승인 행의 유무·버전 일치 여부와 무관하게 표시된다. 승인 행을 만들어 통과시키지도 않는다.
 
-    1. 워크플로우 버전이 활성 승인 버전과 일치한다(기존 경로).
-    2. 활성 승인이 **이 행 자체**를 근거로 가리킨다(워크플로우·실행·섹션 결과가 모두
-       일치). 버전 문자열이 달라도 사용자가 명시 승인한 그 본문이므로 표시한다.
+    남겨야 하는 정상성 보호는 그대로다. 본문이 없으면 표시할 것이 없고, 모의 실행은
+    게시하지 않는다. failed/cancelled 실행은 후보 단계(`_is_eligible_document_run`)에서,
+    정본 불일치(`storage_mismatch`)는 `_decorate_rows`가 본문을 비우는 방식으로 계속 막는다.
 
-    어느 갈래도 아니면 게시하지 않는다. 근거가 다른 행, 다른 실행, 같은 워크플로우의
-    미승인 버전은 이 함수에서 통과하지 못한다.
+    `approved`/`evidence` 인자는 호출부 호환을 위해 남기되 판정에 쓰지 않는다.
     """
     if not _text(row.get("body")):
         return False
@@ -165,29 +168,23 @@ def _displayable(
         return False
     workflow_id = _text(row.get("workflow_id"))
     version = _version_set(row.get("workflow_version"))
-    if workflow_id is None or version is None:
-        return False
-    if version in approved.get(workflow_id, frozenset()):
-        return True
-    result_id = _text(row.get("section_result_id"))
-    run_id = _text(row.get("run_id"))
-    if result_id is None or run_id is None:
-        return False
-    return (workflow_id, run_id, result_id) in evidence
+    return workflow_id is not None and version is not None
 
 
 def _chosen_rows(
     rows: Sequence[Mapping[str, Any]],
     selected_result_ids: Sequence[str],
-    approved: Mapping[str, frozenset[str]],
-    evidence: frozenset[tuple[str, str, str]] = frozenset(),
+    approved: Mapping[str, frozenset[str]] | None = None,
+    evidence: frozenset[tuple[str, str, str]] | None = None,
 ) -> list[Mapping[str, Any]]:
     """워크플로우당 한 행. 구성본 선택이 있으면 그 행, 없으면 최신 버전.
 
-    구성본이 고른 행이 승인되지 않았거나 본문이 없으면 **그 섹션을 빼고** 다음 버전을
-    대신 넣지 않는다. 선택된 버전이 정본이기 때문이다. 그래서 선택이 걸린 워크플로우는
-    공개 불가여도 `claimed`에 남겨 아래 채우기 대상에서 제외한다. 대신 넣으면 관리자가
-    저장한 조합과 홈 본문이 달라진다(수용 기준 DOC-PRESENT 위반).
+    구성본이 고른 행이 표시 불가(빈 본문·모의·워크플로우 누락)면 **그 섹션을 빼고** 다음
+    버전을 대신 넣지 않는다. 선택된 버전이 정본이기 때문이다. 그래서 선택이 걸린
+    워크플로우는 표시 불가여도 `claimed`에 남겨 아래 채우기 대상에서 제외한다. 대신 넣으면
+    관리자가 저장한 조합과 홈 본문이 달라진다(수용 기준 DOC-PRESENT 위반).
+
+    승인 여부는 이 선택에 영향을 주지 않는다(게시는 승인에 의존하지 않는다).
     """
     by_id = {
         str(row.get("section_result_id")): row
@@ -248,14 +245,16 @@ def _saved_at(rows: Sequence[Mapping[str, Any]]) -> datetime | None:
 
 def select_document(
     runs: Sequence[Mapping[str, Any]],
-    approved: Mapping[str, frozenset[str]],
-    evidence: frozenset[tuple[str, str, str]] = frozenset(),
+    approved: Mapping[str, frozenset[str]] | None = None,
+    evidence: frozenset[tuple[str, str, str]] | None = None,
 ) -> dict[str, Any] | None:
     """표시 가능한 저장 문서 중 **저장 시각이 가장 늦은** 하나를 고른다.
 
     `runs`의 각 항목은 `run_id`, `sections`(그 실행의 섹션 행), 선택적으로
     `composition_result_ids`를 갖는다. 표시할 본문이 하나도 없는 실행은 후보에서
     빠지므로, 본문 없는 새 실행이 이전 문서를 밀어내지 않는다.
+
+    승인 인자는 호환용이며 선택에 쓰지 않는다. 게시는 워크플로우 승인에 의존하지 않는다.
     """
     best: dict[str, Any] | None = None
     best_key: tuple[datetime, str] | None = None
@@ -281,6 +280,12 @@ def select_document(
 
 
 def _reason_key(runs: Sequence[Mapping[str, Any]]) -> str:
+    """문서가 없을 때의 사유 키.
+
+    게시가 승인에 의존하지 않으므로 이 키는 더 이상 "승인 없음"을 뜻하지 않는다. 저장
+    본문은 있는데 표시 조건(정본 대조·필수 섹션 등)을 못 채운 경우와, 본문 자체가 없는
+    경우만 구분한다. 키 이름은 기존 응답 호환을 위해 유지한다.
+    """
     if not runs:
         return "no_stored_run"
     for run in runs:
@@ -545,10 +550,11 @@ def _read_runs(session: Session, external_id: int, *, limit: int = 50):
 
 
 def _read_approvals(session: Session) -> list[dict[str, Any]]:
-    """활성 승인 행을 둘 다의 판정 근거로 읽는다.
+    """활성 승인 행을 읽는다(진단·표시용).
 
-    버전 문자열(기존 경로)과 승인이 가리키는 정확한 실행·섹션 결과(증거 경로)를 함께
-    넘긴다. 읽기 전용이며 승인 행을 만들거나 고치지 않는다.
+    **게시 판정에는 쓰지 않는다.** 2026-11-18 확정에 따라 승인은 AI 한글 번역·선수 연결의
+    검수 상태이며 프리뷰 게시 허가가 아니다. 이 함수는 승인 현황을 보여주려는 호출자와
+    기존 계약 호환을 위해 남긴다. 읽기 전용이며 승인 행을 만들거나 고치지 않는다.
     """
     rows = session.scalars(select(PreviewSectionApproval).where(PreviewSectionApproval.active.is_(True)))
     return [
@@ -738,13 +744,14 @@ def _load_selection_context(
     approved: Mapping[str, frozenset[str]] | None = None,
     evidence: frozenset[tuple[str, str, str]] | None = None,
 ):
+    """이 경기의 후보 실행과 선택 문서.
+
+    승인 표는 **읽지 않는다**(게시가 승인에 의존하지 않는다). 인자는 호출부 호환용이며
+    무시된다. 승인 조회가 없으므로 승인 조회 장애가 홈 조회 실패로 번지지 않는다.
+    """
     runs = _read_runs(session, external_id)
     if not runs:
         return [], [], None
-    if approved is None or evidence is None:
-        approval_rows = _read_approvals(session)
-        approved = approved_versions(approval_rows)
-        evidence = approved_evidence(approval_rows)
     cache: dict[str, PreviewSectionResult] = {}
     candidates = []
     for run in runs:

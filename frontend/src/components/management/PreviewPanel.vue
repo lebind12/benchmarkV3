@@ -435,7 +435,7 @@ const homeDocumentReflectionText = computed(() => {
   if (!doc) return '홈 공개 문서를 아직 확인하지 않았습니다.'
   if (doc.status === 'none') {
     const reasonMap: Record<string, string> = {
-      no_approved_version: '승인된 섹션 버전이 없어 홈에 미반영 상태입니다(no_approved_version).',
+      no_approved_version: '표시 가능한 저장 본문이 없어 홈에 미반영 상태입니다(no_approved_version·정본 확인/필수 섹션 조건 미충족).',
       no_stored_run: '저장된 실행이 없어 홈에 미반영 상태입니다(no_stored_run).',
       no_displayable_section: '표시 가능한 섹션 본문이 없어 홈에 미반영 상태입니다(no_displayable_section).',
     }

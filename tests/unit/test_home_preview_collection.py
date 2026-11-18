@@ -473,11 +473,12 @@ def test_default_preview_factory_is_the_same_contract():
     assert collection._default_preview_factory is collection.preview_session_factory
 
 
-def test_approval_not_ready_blocks_generation_before_any_call(monkeypatch):
-    """승인이 없거나 버전이 다르면 생성하지 않고 건너뜀 사유를 남긴다.
+def test_missing_approval_does_not_block_generation(monkeypatch):
+    """승인이 없어도(게이트 not_ready) 수집 후 생성은 정상 호출된다.
 
-    검사 이유(실패 시 사용자 영향): 승인되지 않은 자동 생성이 실제 모델 호출과 preview_dev
-    실행 행을 소비하고, 승인된 정책 실행과 구분되지 않는 기록으로 남는다.
+    검사 이유(실패 시 사용자 영향): 승인은 번역·선수 연결 검수 상태일 뿐 게시 허가가
+    아니므로, 승인 행이 없다는 이유로 자동 생성이 막히면 사용자가 요청한
+    "수집 → 프리뷰 → 홈" 경로가 끊긴다.
     """
     def gate(_factory):
         return {
@@ -499,18 +500,14 @@ def test_approval_not_ready_blocks_generation_before_any_call(monkeypatch):
         admission=gate,
     )
 
-    assert recorder.calls == []
-    assert result["state"] == "skipped"
-    assert result["reason"] == "approval_not_ready"
-    reasons = {row["reason"] for row in result["skipped"]}
-    assert reasons == {"approval_not_ready"}
-    # 사유가 구체적으로 전달된다.
-    assert result["skipped"][0]["missing_approval"] == ["section_ai_forecast"]
-    assert result["skipped"][0]["stale_approval"] == ["section_odds"]
+    assert [call["fixture_id"] for call in recorder.calls] == [101, 102]
+    assert result["state"] == "finished"
+    assert result["reason"] is None
+    assert {row["fixture_id"] for row in result["generated"]} == {101, 102}
 
 
-def test_approval_query_failure_is_a_failure_not_a_pass(monkeypatch):
-    """승인 조회가 실패하면 생성하지 않고 실패 사유를 남긴다(승인을 가정하지 않는다)."""
+def test_approval_query_failure_does_not_block_generation(monkeypatch):
+    """승인 조회 장애(unknown)도 생성 실패로 바꾸지 않는다."""
     def gate(_factory):
         return {"state": "unknown"}
 
@@ -527,9 +524,9 @@ def test_approval_query_failure_is_a_failure_not_a_pass(monkeypatch):
         admission=gate,
     )
 
-    assert recorder.calls == []
-    assert result["state"] == "skipped"
-    assert result["reason"] == "approval_query_failed"
+    assert [call["fixture_id"] for call in recorder.calls] == [101]
+    assert result["state"] == "finished"
+    assert result["reason"] is None
 
 
 def test_non_exception_failed_outcome_is_recorded_as_failed_not_generated(monkeypatch):

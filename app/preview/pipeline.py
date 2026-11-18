@@ -248,7 +248,12 @@ def bundle_admission_state(session: Session) -> dict[str, Any]:
 
 
 def admission_state(session: Session) -> dict[str, Any]:
-    """지금 코드로 기본 전체 프리뷰를 돌릴 수 있는지. 저장된 승인 행만 읽는다."""
+    """승인 현황 요약(진단·표시용). **게시·생성의 허가 판정이 아니다.**
+
+    2026-11-18 확정: 승인/미승인은 AI 한글 번역과 선수 연결의 검수 상태이며 프리뷰 게시
+    허가가 아니다. 그래서 이 값은 "무엇이 검수됐는지"만 알려 주고, 생성·홈 공개는 이
+    값과 무관하게 이루어진다(수집 후 자동 생성에도 이 게이트를 쓰지 않는다).
+    """
     workflows = required_workflows()
     judged = _judge(workflows, session)
     missing = judged["missing_approval"]
@@ -264,9 +269,9 @@ def admission_state(session: Session) -> dict[str, Any]:
         "current_versions": current,
         "approved_versions": approved_versions,
         "note": (
-            "기본 전체 프리뷰는 승인된 섹션 워크플로우 버전으로만 실행합니다. 승인이"
-            " 없거나 승인 뒤 구성이 바뀌었으면 실행하지 않고 관리자 대기로 남깁니다."
-            " 관리자 명시적 시험은 승인 없이 실행할 수 있지만 승인 근거가 아닙니다."
+            "이 값은 번역·선수 연결의 검수 현황입니다. 프리뷰 생성과 홈 공개는 승인 여부와"
+            " 무관하게 이루어지며, 승인되지 않은 본문도 홈에 표시됩니다. 승인은 게시 허가가"
+            " 아니라 검수 기록입니다."
         ),
     }
 

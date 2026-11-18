@@ -103,36 +103,46 @@ def test_composition_choice_is_authoritative_over_newer_versions():
 
 
 def test_unpublishable_composition_choice_is_dropped_not_replaced():
-    """구성본이 고른 행이 공개 불가면 그 섹션을 빼고 대신 다른 버전을 넣지 않는다.
+    """구성본이 고른 행이 표시 불가(빈 본문)면 그 섹션을 빼고 대신 다른 버전을 넣지 않는다.
 
     사용자 영향: 관리자가 구성본으로 저장한 버전 대신 같은 실행의 다른 버전 본문이 홈에
-    나가면, 관리자에서 확인한 결과와 홈이 달라진다.
+    나가면, 관리자에서 확인한 결과와 홈이 달라진다. 승인 여부는 더 이상 표시 조건이
+    아니므로(2026-11-18 확정) 이 보호는 **빈 본문·모의·정본 불일치**에만 적용된다.
     """
     rows = [
-        section("section_players", result_id="a1", body="승인 본문"),
-        section("section_players", result_id="a2", body="미승인 새 본문", workflow_version="v2"),
+        section("section_players", result_id="a1", body="정상 본문"),
+        section("section_players", result_id="a2", body="   ", workflow_version="v2"),
     ]
     chosen = pinned.select_document([run("run-1", rows, ["a2"])], APPROVED)
-    # 선택 행이 공개 불가면 문서에 표시 가능한 섹션이 남지 않는다.
+    # 선택 행이 표시 불가면 문서에 표시 가능한 섹션이 남지 않는다.
     assert chosen is None
-    # 승인된 a1으로 대체하지 않는다(대체하면 관리자 조합과 다른 본문이 나간다).
+    # 다른 버전으로 대체하지 않는다(대체하면 관리자 조합과 다른 본문이 나간다).
     fallback = pinned.select_document([run("run-1", rows, ["a1"])], APPROVED)
     assert fallback is not None
     assert [row["section_result_id"] for row in fallback["rows"]] == ["a1"]
 
 
-def test_mock_and_unapproved_results_are_not_published():
+def test_mock_results_are_not_published_but_unapproved_live_results_are():
+    """모의 실행은 게시하지 않고, 정상 live 본문은 승인 기록 없이도 게시한다.
+
+    검사 이유(실패 시 사용자 영향): 승인은 번역·선수 연결 검수 상태이고 게시 허가가
+    아니므로(2026-11-18 확정), 승인 행이 없다는 이유로 홈이 비면 사용자가 요청한
+    "수집 → 생성 → 홈 즉시 확인" 경로가 끊긴다. 모의 본문 게시는 계속 막아야 한다.
+    """
     mock = run(
         "run-mock",
         [section("section_players", result_id="m1", body="모의 본문", mode="mock")],
     )
-    unapproved = run(
+    live = run(
         "run-v9",
-        [section("section_players", result_id="u1", body="미승인 본문", workflow_version="v9")],
+        [section("section_players", result_id="u1", body="미승인 live 본문", workflow_version="v9")],
     )
-    assert pinned.select_document([mock, unapproved], APPROVED) is None
-    # 승인 기록이 아예 없으면 어떤 문서도 공개되지 않는다.
-    assert pinned.select_document([run("run-1", [section("section_players", result_id="a1", body="본문")])], {}) is None
+    # 모의 실행만 있으면 게시할 것이 없다.
+    assert pinned.select_document([mock], APPROVED) is None
+    # 승인 기록이 전혀 없어도 정상 live 본문은 게시된다.
+    assert pinned.select_document([live], {}) is not None
+    chosen = pinned.select_document([live], {})
+    assert [row["section_result_id"] for row in chosen["rows"]] == ["u1"]
 
 
 def test_missing_document_reason_separates_absent_from_unapproved():
@@ -295,16 +305,22 @@ def test_read_document_returns_the_saved_body_from_stored_rows(monkeypatch):
     assert result["saved_at"] is not None
 
 
-def test_read_document_hides_unapproved_run_behind_its_own_reason(monkeypatch):
+def test_read_document_publishes_a_live_run_with_no_approval_rows(monkeypatch):
+    """승인 행이 하나도 없어도 정상 live 저장 문서는 홈에 게시된다.
+
+    검사 이유(실패 시 사용자 영향): 승인은 번역 검수 상태이며 게시 허가가 아니다.
+    승인 표가 비었다는 이유로 홈이 "표시 불가"가 되면 수집 직후 결과를 볼 수 없다.
+    """
     import uuid
 
     run_id = uuid.uuid4()
-    players = _stub_section(uuid.uuid4(), run_id, "section_players", "미승인 본문")
+    players = _stub_section(uuid.uuid4(), run_id, "section_players", "승인 없는 live 본문")
     session = _StubSession([_stub_run(run_id)], {"__all__": [players]}, approvals=[])
     monkeypatch.setattr(pinned.store_module, "load_composition", lambda *a, **k: {"available": False})
     result = pinned.read_document(session, 90001)
-    assert result["status"] == "none"
-    assert result["reason"] == "no_approved_version"
+    assert result["status"] == "available"
+    assert result["sections"][0]["body"] == "승인 없는 live 본문"
+    assert result["run_id"] == str(run_id)
 
 
 def test_projection_drops_internal_primary_keys_from_structured_values():
@@ -458,13 +474,13 @@ def test_approval_pointing_at_an_exact_result_is_displayed_despite_version_drift
     assert chosen is not None
     shown = [row["section_result_id"] for row in chosen["rows"]]
 
-    # 승인 행이 정확히 가리키는 그 행만 표시된다.
-    assert shown == ["81b710b7-7c97-4235-a550-0654df51a269"]
-    # 같은 워크플로우의 더 새 미승인 버전으로 확대되지 않는다.
-    assert "unapproved-result" not in shown
-    # 모의 본문과 비활성 승인 본문은 여전히 제외된다.
+    # 승인 표와 무관하게 워크플로우당 최신 버전이 표시된다(게시는 승인에 의존하지 않는다).
+    assert "unapproved-result" in shown
+    assert "81b710b7-7c97-4235-a550-0654df51a269" not in shown
+    # 모의 본문은 승인 여부와 무관하게 계속 제외된다.
     assert "mock-result" not in shown
-    assert "inactive-result" not in shown
+    # 비활성 승인도 게시 조건이 아니므로 일반 행으로 표시된다.
+    assert "inactive-result" in shown
 
 
 # --------------------------------------------------------------------------

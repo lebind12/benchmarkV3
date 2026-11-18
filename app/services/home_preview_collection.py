@@ -12,9 +12,10 @@
 - 새 생성 엔진·프롬프트·본문 해석·품질 판정. 본문 내용은 이 경계에서 읽지 않는다.
 - 수집 상태 변경. 호출자가 넘긴 원래 상태를 덮어쓰지 않는다.
 
-승인 경계: 생성 서비스와 파이프라인은 승인 게이트를 강제하지 않는다. 이 경계는 자동
-생성을 **허용/불허 판정하지 않고** 승인 상태를 결과에 사실로 남긴다. 승인 없는 결과를
-승인된 것으로 표시하거나 공개 기준을 느슨하게 만들지 않는다.
+승인 경계: 이 경계는 **워크플로우 승인으로 자동 생성을 허용/불허하지 않는다**(사용자 확정:
+승인은 AI 한글 번역·선수 연결의 검수 상태이며 게시 허가가 아니다). 승인 행이 없거나 저장
+버전이 달라도 생성은 정상 호출되고, 승인 조회 실패도 생성 실패로 바꾸지 않는다. 승인 행을
+새로 만들거나 자동 승인하는 경로도 두지 않는다.
 """
 
 from __future__ import annotations
@@ -318,6 +319,8 @@ def run_collection_generation(
     cancelled: Callable[[], bool] | None = None,
     generate: Callable[..., Any] | None = None,
     fixture_lock: Callable[[int], Any] | None = None,
+    # 호환용 인자. **더 이상 게이트로 쓰지 않는다**(수집 후 생성은 승인에 의존하지 않는다).
+    # 기존 호출부가 넘겨도 생성이 막히지 않도록 시그니처만 유지한다.
     admission: Callable[[Callable[[], Any]], dict[str, Any]] | None = None,
     test_scope=None,
 ) -> dict[str, Any]:
@@ -379,31 +382,10 @@ def run_collection_generation(
     # preview_dev 세션**으로 한다. 생성 파이프라인은 preview_dev 행을 쓴다.
     preview_factory = preview_session_factory or _default_preview_factory
 
-    # 승인 게이트: **생성 전에** 판정한다. 승인된 섹션 워크플로우가 없거나 저장 버전이
-    # 현재 코드와 다르면 모델을 부르지 않고 후보를 건너뛴 사유로 남긴다. 관리자 시험
-    # 경로(`trigger="admin"`)는 이 판정을 쓰지 않으므로 그대로다.
-    gate = (admission or _admission)(preview_factory)
-    result["approval_gate"] = gate
-    if gate["state"] != "ready":
-        for candidate in selected:
-            result["skipped"].append(
-                {
-                    "fixture_id": candidate["fixture_id"],
-                    "reason": (
-                        "approval_query_failed"
-                        if gate["state"] == "unknown"
-                        else "approval_not_ready"
-                    ),
-                    "missing_approval": gate.get("missing_approval") or [],
-                    "stale_approval": gate.get("stale_approval") or [],
-                }
-            )
-        result["state"] = "skipped"
-        result["reason"] = (
-            "approval_query_failed" if gate["state"] == "unknown" else "approval_not_ready"
-        )
-        return result
-
+    # 수집 후 자동 생성은 **워크플로우 승인에 의존하지 않는다**(사용자 확정: 승인은 AI 한글
+    # 번역·선수 연결의 검수 상태이지 게시 허가가 아니다). 승인 행이 없거나 저장 버전이
+    # 달라도 생성은 정상 호출되어야 하며, 승인 조회 실패를 생성 실패로 바꾸지 않는다.
+    # 승인 행을 새로 만들거나 자동 승인하는 경로도 두지 않는다(의존 자체를 없앤다).
     for candidate in selected:
         fixture_id = candidate["fixture_id"]
         if cancelled is not None and cancelled():
@@ -507,27 +489,3 @@ def _generate_one(
     return True
 
 
-def _admission(session_factory: Callable[[], Any]) -> dict[str, Any]:
-    """생성 **전에** 승인 상태를 판정한다.
-
-    - `ready`: 승인된 섹션 워크플로우 버전이 모두 준비됐다. 생성으로 진행한다.
-    - `not_ready`: 승인이 없거나(`missing`) 저장 버전이 현재 코드와 다르다(`stale`).
-      자동 생성을 시작하지 않는다.
-    - `unknown`: 승인 상태를 읽지 못했다. 이 역시 생성하지 않는다(승인을 가정하지 않음).
-
-    승인 행을 만들거나 고치지 않는다. 관리자 시험 경로는 이 판정을 쓰지 않는다.
-    """
-    try:
-        # 수집 자동 생성은 **실제로 만드는 bundle 섹션** 기준으로 판정한다. 옛 전체 프리뷰
-        # 판정(admission_state)은 form/synthesis를 요구해 실제 생성물과 어긋난다.
-        from app.preview.pipeline import bundle_admission_state
-
-        with session_factory() as session:
-            state = bundle_admission_state(session)
-    except Exception:  # noqa: BLE001 - 승인 조회 실패로 생성 결과를 버리지 않는다
-        return {"state": "unknown"}
-    return {
-        "state": "ready" if state.get("ready") else "not_ready",
-        "missing_approval": list(state.get("missing_approval") or ()),
-        "stale_approval": list(state.get("stale_approval") or ()),
-    }

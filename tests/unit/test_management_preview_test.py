@@ -432,10 +432,8 @@ def test_management_run_with_test_scope_reaches_two_fixtures_through_the_real_ho
             return False
 
     monkeypatch.setattr(hpc, "_fixture_lock", lambda _fixture_id: _Lock())
-    # 승인 게이트는 실제 DB를 읽으므로 대역으로 바꾼다(승인 준비 상태 가정).
-    monkeypatch.setattr(
-        hpc, "_admission", lambda _factory: {"state": "ready", "missing_approval": [], "stale_approval": []}
-    )
+    # 수집 후 생성은 더 이상 승인 게이트를 쓰지 않으므로 승인 대역이 필요 없다
+    # (2026-11-18 확정: 승인은 번역 검수 상태이며 게시 허가가 아니다).
 
     payload = _run_payload()
     payload["items"] = [item]
