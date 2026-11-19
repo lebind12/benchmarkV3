@@ -1,0 +1,31 @@
+{
+ "type":"excalidraw","version":2,"source":"https://excalidraw.com","appState":{"viewBackgroundColor":"#ffffff","gridSize":null},"files":{},
+ "elements":[
+ {"id":"title","type":"text","x":40,"y":30,"width":1250,"height":55,"text":"방송 화면 / 여러 자료를 스냅샷으로 조립","fontSize":32,"fontFamily":3,"strokeColor":"#1e40af","lineHeight":1.4},
+ {"id":"subtitle","type":"text","x":40,"y":100,"width":1250,"height":40,"text":"별도 HTML·Vue 진입점 + 방송 조회 API + 데이터 종류별 캐시","fontSize":22,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.4},
+ {"id":"ui","type":"rectangle","x":40,"y":200,"width":300,"height":170,"strokeColor":"#c2410c","backgroundColor":"#fed7aa","fillStyle":"hachure","strokeWidth":2,"roughness":1,"roundness":{"type":3}},
+ {"id":"ui-text","type":"text","x":60,"y":220,"width":270,"height":135,"text":"방송용 웹 화면\nbroadcast.html\nbroadcast-program.html\n경기 ID 전달 · 갱신 요청","fontSize":20,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"api","type":"rectangle","x":480,"y":200,"width":310,"height":170,"strokeColor":"#1e3a5f","backgroundColor":"#dbeafe","fillStyle":"hachure","strokeWidth":2,"roughness":1,"roundness":{"type":3}},
+ {"id":"api-text","type":"text","x":500,"y":220,"width":280,"height":135,"text":"FastAPI / broadcast.py\noverlay\nprogram-snapshot\n방송 전용 인증·ADMIN 검사","fontSize":20,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"service","type":"rectangle","x":480,"y":470,"width":310,"height":170,"strokeColor":"#1e3a5f","backgroundColor":"#dbeafe","fillStyle":"hachure","strokeWidth":2,"roughness":1,"roundness":{"type":3}},
+ {"id":"service-text","type":"text","x":500,"y":490,"width":280,"height":130,"text":"스냅샷 서비스\n경기·이벤트·통계\n라인업·모멘텀 조립\n화면용 응답 생성","fontSize":21,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"db","type":"ellipse","x":40,"y":470,"width":300,"height":170,"strokeColor":"#047857","backgroundColor":"#a7f3d0","fillStyle":"hachure","strokeWidth":2,"roughness":1},
+ {"id":"db-text","type":"text","x":90,"y":495,"width":220,"height":125,"text":"PostgreSQL\n저장 경기·팀 자료\n팀 색상·번역\n모멘텀 상태","fontSize":20,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"cache","type":"rectangle","x":980,"y":200,"width":320,"height":170,"strokeColor":"#1e3a5f","backgroundColor":"#dbeafe","fillStyle":"hachure","strokeWidth":2,"roughness":1,"roundness":{"type":3}},
+ {"id":"cache-text","type":"text","x":1000,"y":220,"width":280,"height":135,"text":"블록별 캐시 / TTL\n핵심·이벤트·통계 10초\n선수 30초\n라인업 300초","fontSize":21,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"external","type":"ellipse","x":980,"y":470,"width":320,"height":170,"strokeColor":"#047857","backgroundColor":"#a7f3d0","fillStyle":"hachure","strokeWidth":2,"roughness":1},
+ {"id":"external-text","type":"text","x":1030,"y":515,"width":230,"height":100,"text":"API-Football\n외부 경기 데이터\n필요한 블록 갱신","fontSize":21,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"request","type":"arrow","x":350,"y":280,"width":120,"height":0,"points":[[0,0],[120,0]],"strokeColor":"#c2410c","strokeWidth":2,"roughness":1,"startArrowhead":"arrow","endArrowhead":"arrow"},
+ {"id":"request-label","type":"text","x":365,"y":220,"width":110,"height":55,"text":"GET 요청\nJSON 응답","fontSize":17,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.4},
+ {"id":"assemble","type":"arrow","x":635,"y":380,"width":0,"height":80,"points":[[0,0],[0,80]],"strokeColor":"#1e3a5f","strokeWidth":2,"roughness":1,"startArrowhead":"arrow","endArrowhead":"arrow"},
+ {"id":"assemble-label","type":"text","x":650,"y":395,"width":215,"height":60,"text":"program-snapshot\n조회·조립 결과","fontSize":17,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.4},
+ {"id":"db-read","type":"arrow","x":470,"y":555,"width":120,"height":0,"points":[[0,0],[-120,0]],"strokeColor":"#047857","strokeWidth":2,"roughness":1,"startArrowhead":"arrow","endArrowhead":"arrow"},
+ {"id":"db-label","type":"text","x":360,"y":485,"width":110,"height":60,"text":"자료 조회\n모멘텀 저장","fontSize":17,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.4},
+ {"id":"cache-read","type":"arrow","x":800,"y":490,"width":170,"height":205,"points":[[0,0],[75,0],[75,-205],[170,-205]],"strokeColor":"#1e3a5f","strokeWidth":2,"roughness":1,"startArrowhead":"arrow","endArrowhead":"arrow"},
+ {"id":"cache-label","type":"text","x":895,"y":390,"width":110,"height":55,"text":"조회·저장","fontSize":18,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.4},
+ {"id":"external-read","type":"arrow","x":800,"y":580,"width":170,"height":0,"points":[[0,0],[170,0]],"strokeColor":"#047857","strokeWidth":2,"roughness":1,"startArrowhead":"arrow","endArrowhead":"arrow"},
+ {"id":"external-label","type":"text","x":810,"y":605,"width":170,"height":60,"text":"캐시 없음·만료 시\n외부 조회","fontSize":17,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.4},
+ {"id":"endpoint","type":"text","x":40,"y":705,"width":1260,"height":45,"text":"GET /api/v1/broadcast/fixtures/{external_id}/program-snapshot","fontSize":21,"fontFamily":3,"strokeColor":"#1e40af","lineHeight":1.4},
+ {"id":"limit","type":"text","x":40,"y":770,"width":1260,"height":120,"text":"프로그램 스냅샷 GET은 broadcast_momentum_state에 상태를 저장할 수 있다.\n화살표는 요청·응답 관계. TTL은 코드 정책이며 실시간 지연 보장이 아니다.\n기준: 제품 017bca2 · 소스 확인 / 운영 인증·OBS·라이브 경기 E2E 미확인\n프론트 ADMIN/STREAMER와 서버 ADMIN 조건 차이·모의 역할 경로는 README 참고.","fontSize":19,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.5}
+ ]
+}

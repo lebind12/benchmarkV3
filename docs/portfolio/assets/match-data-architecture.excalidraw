@@ -1,0 +1,23 @@
+{
+ "type":"excalidraw","version":2,"source":"https://excalidraw.com","appState":{"viewBackgroundColor":"#ffffff","gridSize":null},"files":{},
+ "elements":[
+ {"id":"title","type":"text","x":40,"y":30,"width":1200,"height":55,"text":"경기·선수 조회 / 저장 자료를 화면 응답으로","fontSize":32,"fontFamily":3,"strokeColor":"#1e40af","lineHeight":1.4},
+ {"id":"subtitle","type":"text","x":40,"y":100,"width":1200,"height":40,"text":"조회 경로: Vue 화면 → FastAPI → 서비스 → PostgreSQL","fontSize":22,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.4},
+ {"id":"ui","type":"rectangle","x":40,"y":220,"width":250,"height":180,"strokeColor":"#c2410c","backgroundColor":"#fed7aa","fillStyle":"hachure","strokeWidth":2,"roughness":1,"roundness":{"type":3}},
+ {"id":"ui-text","type":"text","x":60,"y":245,"width":220,"height":135,"text":"Vue 화면\n/fixtures\n/players\n날짜·대회·검색어","fontSize":21,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"api","type":"rectangle","x":360,"y":220,"width":250,"height":180,"strokeColor":"#1e3a5f","backgroundColor":"#dbeafe","fillStyle":"hachure","strokeWidth":2,"roughness":1,"roundness":{"type":3}},
+ {"id":"api-text","type":"text","x":380,"y":245,"width":220,"height":135,"text":"FastAPI 라우터\ngeneral.py\nfixture_detail.py\n목록 / 경기 상세","fontSize":21,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"service","type":"rectangle","x":680,"y":220,"width":250,"height":180,"strokeColor":"#1e3a5f","backgroundColor":"#dbeafe","fillStyle":"hachure","strokeWidth":2,"roughness":1,"roundness":{"type":3}},
+ {"id":"service-text","type":"text","x":700,"y":245,"width":220,"height":135,"text":"조회 서비스\nSQLAlchemy\n조건별 조회\n표시 응답 조립","fontSize":21,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"db","type":"ellipse","x":1000,"y":215,"width":270,"height":190,"strokeColor":"#047857","backgroundColor":"#a7f3d0","fillStyle":"hachure","strokeWidth":2,"roughness":1},
+ {"id":"db-text","type":"text","x":1040,"y":255,"width":195,"height":110,"text":"PostgreSQL\n기존 경기·팀\n선수·기록 자료","fontSize":21,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"request","type":"arrow","x":295,"y":300,"width":60,"height":0,"points":[[0,0],[60,0]],"strokeColor":"#c2410c","strokeWidth":2,"roughness":1,"endArrowhead":"arrow"},
+ {"id":"dispatch","type":"arrow","x":615,"y":300,"width":60,"height":0,"points":[[0,0],[60,0]],"strokeColor":"#1e3a5f","strokeWidth":2,"roughness":1,"endArrowhead":"arrow"},
+ {"id":"query","type":"arrow","x":935,"y":300,"width":60,"height":0,"points":[[0,0],[60,0]],"strokeColor":"#1e3a5f","strokeWidth":2,"roughness":1,"endArrowhead":"arrow"},
+ {"id":"get-label","type":"text","x":300,"y":265,"width":60,"height":30,"text":"GET","fontSize":17,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.4},
+ {"id":"return","type":"arrow","x":1135,"y":415,"width":970,"height":85,"points":[[0,0],[0,70],[-970,70],[-970,0]],"strokeColor":"#047857","strokeWidth":2,"roughness":1,"endArrowhead":"arrow"},
+ {"id":"return-label","type":"text","x":395,"y":440,"width":600,"height":35,"text":"DB 조회 → 서비스 응답 → API JSON → 화면 표시","fontSize":20,"fontFamily":3,"strokeColor":"#047857","lineHeight":1.4},
+ {"id":"evidence","type":"text","x":40,"y":550,"width":1230,"height":75,"text":"GET /api/v1/fixtures      GET /api/v1/players\nGET /api/v1/fixtures/{external_id}  ·  이벤트 / 라인업 / 통계","fontSize":21,"fontFamily":3,"strokeColor":"#1e40af","lineHeight":1.5},
+ {"id":"limit","type":"text","x":40,"y":660,"width":1230,"height":70,"text":"이 조회는 저장 자료를 읽는다. 외부 수집·실시간 갱신은 별도 경로다.\n기준: 제품 017bca2 · 소스 확인 / 전체 화면 E2E를 뜻하지 않음","fontSize":19,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.5}
+ ]
+}

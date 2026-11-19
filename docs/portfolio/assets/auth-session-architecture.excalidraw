@@ -1,0 +1,24 @@
+{
+ "type":"excalidraw","version":2,"source":"https://excalidraw.com","appState":{"viewBackgroundColor":"#ffffff","gridSize":null},"files":{},
+ "elements":[
+ {"id":"title","type":"text","x":40,"y":30,"width":1200,"height":55,"text":"개발 로그인 / 계정 조회와 세션 쓰기를 분리","fontSize":32,"fontFamily":3,"strokeColor":"#1e40af","lineHeight":1.4},
+ {"id":"subtitle","type":"text","x":40,"y":100,"width":1200,"height":40,"text":"아래 흐름은 로컬 개발 프로필 기준 · 운영은 기존 세션 저장 경로 유지","fontSize":21,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.4},
+ {"id":"browser","type":"rectangle","x":40,"y":240,"width":280,"height":170,"strokeColor":"#c2410c","backgroundColor":"#fed7aa","fillStyle":"hachure","strokeWidth":2,"roughness":1,"roundness":{"type":3}},
+ {"id":"browser-text","type":"text","x":60,"y":265,"width":240,"height":125,"text":"Vue 클라이언트\n로그인 / 갱신\naccess token 사용\nrefresh 쿠키 전송","fontSize":21,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"auth","type":"rectangle","x":460,"y":240,"width":300,"height":170,"strokeColor":"#1e3a5f","backgroundColor":"#dbeafe","fillStyle":"hachure","strokeWidth":2,"roughness":1,"roundness":{"type":3}},
+ {"id":"auth-text","type":"text","x":480,"y":265,"width":260,"height":125,"text":"FastAPI / auth.py\nOrigin·로그인값 검사\n계정 활성 상태 확인\n토큰 발급·갱신","fontSize":21,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"account","type":"ellipse","x":980,"y":160,"width":300,"height":150,"strokeColor":"#047857","backgroundColor":"#a7f3d0","fillStyle":"hachure","strokeWidth":2,"roughness":1},
+ {"id":"account-text","type":"text","x":1025,"y":197,"width":210,"height":85,"text":"기존 계정 원장\npublic.app_user\n읽기 전용","fontSize":21,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"devsession","type":"rectangle","x":980,"y":410,"width":300,"height":150,"strokeColor":"#1e3a5f","backgroundColor":"#dbeafe","fillStyle":"hachure","strokeWidth":2,"roughness":1,"roundness":{"type":3}},
+ {"id":"session-text","type":"text","x":1000,"y":435,"width":265,"height":115,"text":"개발 스키마 preview_dev\npreview_admin_sessions\nbenchmark_sessions가 관리\nrefresh 상태 발급·회전·폐기","fontSize":18,"fontFamily":3,"strokeColor":"#374151","lineHeight":1.4},
+ {"id":"login","type":"arrow","x":325,"y":300,"width":130,"height":0,"points":[[0,0],[130,0]],"strokeColor":"#c2410c","strokeWidth":2,"roughness":1,"endArrowhead":"arrow"},
+ {"id":"login-text","type":"text","x":345,"y":225,"width":100,"height":70,"text":"POST\nlogin\nrefresh","fontSize":16,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.4},
+ {"id":"read","type":"arrow","x":765,"y":275,"width":205,"height":40,"points":[[0,0],[100,0],[100,-40],[205,-40]],"strokeColor":"#047857","strokeWidth":2,"roughness":1,"endArrowhead":"arrow"},
+ {"id":"read-label","type":"text","x":785,"y":170,"width":180,"height":50,"text":"계정 확인\n로그인 시각 미갱신","fontSize":18,"fontFamily":3,"strokeColor":"#047857","lineHeight":1.4},
+ {"id":"write","type":"arrow","x":765,"y":375,"width":205,"height":110,"points":[[0,0],[100,0],[100,110],[205,110]],"strokeColor":"#1e3a5f","strokeWidth":2,"roughness":1,"endArrowhead":"arrow"},
+ {"id":"write-label","type":"text","x":785,"y":515,"width":180,"height":35,"text":"세션만 쓰기","fontSize":19,"fontFamily":3,"strokeColor":"#1e40af","lineHeight":1.4},
+ {"id":"response","type":"arrow","x":610,"y":420,"width":430,"height":95,"points":[[0,0],[0,85],[-430,85],[-430,0]],"strokeColor":"#047857","strokeWidth":2,"roughness":1,"endArrowhead":"arrow"},
+ {"id":"response-text","type":"text","x":65,"y":540,"width":650,"height":40,"text":"응답: access token + HttpOnly refresh 쿠키","fontSize":21,"fontFamily":3,"strokeColor":"#047857","lineHeight":1.4},
+ {"id":"limit","type":"text","x":40,"y":615,"width":1240,"height":125,"text":"같은 DB 안에서 계정 읽기와 개발 세션 쓰기를 분리한다.\n/api/v1/auth/login · /refresh · /logout · /me\n각 관리 API의 서버 역할 검사는 별도 수행. 방송 인증은 별도 경로.\n기준: 제품 017bca2 · 소스·기존 로그인 기록 / 전체 보안 검증을 뜻하지 않음","fontSize":19,"fontFamily":3,"strokeColor":"#64748b","lineHeight":1.5}
+ ]
+}
