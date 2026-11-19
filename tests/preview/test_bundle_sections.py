@@ -543,6 +543,19 @@ def _unparseable_response() -> provider.TransportResult:
     )
 
 
+@pytest.fixture(autouse=True)
+def _no_real_sleep(monkeypatch):
+    """429 대기를 실제로 자지 않는다.
+
+    사용자 확정 대기 구간이 60/300/600초로 커져 이 파일의 429 재현 검사가 실제로
+    16분을 자게 된다. 검사는 대기 **정책**을 보는 것이므로 대기 자체는 건너뛴다.
+    대기 값 검증은 test_provider의 sleeper 주입 검사가 담당한다.
+    """
+    monkeypatch.setattr(
+        "app.preview.provider.sleep_seconds", lambda seconds: None
+    )
+
+
 def _run_with_transport(section_id: str, transport, *, budget=None):
     return bundle_sections.build_bundle_section(
         section_id=section_id,
@@ -636,3 +649,50 @@ def test_authentication_error_stops_without_repeating():
     assert len(transport.calls) == 1
     assert draft.unavailable_reason
     assert draft.body == ""
+
+
+def test_outlook_transport_failure_is_not_reported_as_missing_articles():
+    """매체 전망 섹션이 429로 소진되면 사유에 **호출 실패**가 드러난다.
+
+    검사 이유(실패 시 사용자 영향): 2026-11-19 실제 실행에서 R3가 429로 3회 소진됐는데
+    저장 사유는 "수집 기사에서 확인된 외부 매체 전망이 없어"였다. 입력 자료는 3출처
+    7구간·검색 8건 8071자였으므로, 그 문구는 자료 부재로 오해시킨다.
+    """
+    transport = _scripted_transport([_rate_limited() for _ in range(4)])
+    budget = RunBudget.for_generation(("section_outlook",), now=FIXED_NOW)
+    draft = bundle_sections.build_bundle_section(
+        section_id="section_outlook",
+        bundle=_bundle(),
+        transport=transport,
+        context=_context(),
+        budget=budget,
+        now=FIXED_NOW,
+    )
+
+    assert draft.body == ""
+    assert draft.quality.value == "insufficient"
+    reason = draft.unavailable_reason or ""
+    # 호출 실패가 드러나고, '기사 근거 없음'으로 단정하지 않는다.
+    assert "호출이 성공하지 않아" in reason, reason
+    assert "확인된 외부 매체 전망이 없어" not in reason, reason
+    # R1: 소진 사유에 마지막 실패의 실제 상태/분류가 드러나 운영자가 429를 알 수 있다.
+    assert "429" in reason and "rate_limited" in reason, reason
+
+
+def test_outlook_empty_forecasts_from_successful_response_are_distinguished():
+    """정상 응답에 전망 항목이 없으면 '응답에 채택 가능한 항목 없음'으로 구분한다."""
+    transport = _scripted_transport([_json_response({"media_forecasts": []})])
+    budget = RunBudget.for_generation(("section_outlook",), now=FIXED_NOW)
+    draft = bundle_sections.build_bundle_section(
+        section_id="section_outlook",
+        bundle=_bundle(),
+        transport=transport,
+        context=_context(),
+        budget=budget,
+        now=FIXED_NOW,
+    )
+
+    assert draft.body == ""
+    reason = draft.unavailable_reason or ""
+    assert "채택 가능한 외부 매체 전망 항목이 없어" in reason, reason
+    assert "호출이 성공하지 않아" not in reason, reason

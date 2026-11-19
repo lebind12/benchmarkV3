@@ -59,6 +59,12 @@ __all__ = [
     "MODEL_CONCURRENCY",
     "MODEL_REQUEST_BUDGET",
     "MODEL_TIMEOUT_SECONDS",
+    "HTTP_LOCAL_SHARE",
+    "HTTP_OWNER_ARTICLES",
+    "HTTP_OWNER_ODDS",
+    "HTTP_OWNERS",
+    "HTTP_SHARED_SHARE",
+    "HTTP_TOTAL_LIMIT",
     "MODULE_SEND_CAP",
     "NORMAL_MODEL_CALLS",
     "RETRY_BASE_DELAY_SECONDS",
@@ -68,6 +74,9 @@ __all__ = [
     "RunBudget",
     "RESERVATION_RETURNED",
     "bounded_wait_seconds",
+    "rate_limit_wait_seconds",
+    "RATE_LIMIT_MAX_SENDS",
+    "RATE_LIMIT_WAIT_SECONDS",
     "classify_attempt",
     "plan_limits",
 ]
@@ -84,6 +93,18 @@ NORMAL_MODEL_CALLS = 6  # 조사 2 + 작성 3 + 최종 전망 1
 # 가능한 전송 수의 산술적 설명이며 공용 여유를 배분하는 정책이 아니다.
 MODULE_SEND_CAP = 3
 API_REQUEST_BUDGET = 24
+
+# HTTP 로직별 **보호 몫**(사용자 확정 2026-11-19: "기사·배당 각 10회, 공통 30회").
+# 보호 몫은 **다른 로직이 쓸 수 없는** 몫이고, 자기 몫을 넘는 요청은 공유 몫에서 뺀다.
+# 따라서 기사 20회를 써도 배당 10회가 남고, 역순도 같다. 합계는 30을 넘지 않는다.
+# 10은 "사용할 수 있는 몫"이지 성공 10회 보장도, 강제 10회 반복도 아니다.
+HTTP_OWNER_ARTICLES = "articles"
+HTTP_OWNER_ODDS = "odds"
+HTTP_LOCAL_SHARE = 10
+HTTP_SHARED_SHARE = 10
+HTTP_TOTAL_LIMIT = 30
+# 보호 몫이 선언된 실행의 HTTP 소유자 전체. 여기 없으면 공유 몫만 쓴다.
+HTTP_OWNERS: tuple[str, ...] = (HTTP_OWNER_ARTICLES, HTTP_OWNER_ODDS)
 MAX_ATTEMPTS_PER_CALL = 3
 MODEL_CONCURRENCY = 2
 API_CONCURRENCY = 2
@@ -92,6 +113,13 @@ API_TIMEOUT_SECONDS = 30
 RUN_DEADLINE_SECONDS = 1800
 RETRY_BASE_DELAY_SECONDS = 1.0
 RETRY_MAX_DELAY_SECONDS = 60.0
+
+# 429(요청 제한) 전용 대기 구간(사용자 확정 2026-11-19). **고정 세 구간**이며 초 단위
+# 공식이나 60초 상한으로 줄이지 않는다. jitter로도 단축하지 않는다.
+RATE_LIMIT_WAIT_SECONDS: tuple[int, ...] = (60, 300, 600)
+# 429는 최초 포함 최대 **4회 전송**한다(대기 3회를 모두 쓸 수 있게). 다른 오류나
+# 내용 재생성 상한은 이 값으로 늘리지 않는다(모듈 상한 3회는 그대로).
+RATE_LIMIT_MAX_SENDS = 4
 
 # 시작하지 않기로 확정된 정상 호출의 예약을 반환했을 때 남기는 표시. 전체 상한은
 # 늘지 않고, 그 몫만 재시도가 쓸 수 있게 된다.
@@ -177,6 +205,26 @@ def bounded_wait_seconds(
     return min(max_seconds, ceiling * jitter)
 
 
+def rate_limit_wait_seconds(
+    attempt_ordinal: int,
+    *,
+    retry_after_seconds: float | None = None,
+) -> float:
+    """429 재시도 전 대기 시간. **60 / 300 / 600초 고정 구간**이다.
+
+    - jitter를 섞지 않는다. 지정된 구간을 임의로 단축하지 않는다.
+    - 공급자가 더 긴 유효 대기 안내(RetryInfo/Retry-After)를 주면 그것을 **최소 대기**로
+      존중한다(짧은 안내로 구간을 깎지 않는다).
+    - 구간을 모두 쓴 뒤에는 마지막 구간 값을 유지한다(무한 증가 없음).
+    """
+    index = max(0, int(attempt_ordinal))
+    ladder = RATE_LIMIT_WAIT_SECONDS[min(index, len(RATE_LIMIT_WAIT_SECONDS) - 1)]
+    wait = float(ladder)
+    if retry_after_seconds is not None and retry_after_seconds >= 0:
+        wait = max(wait, float(retry_after_seconds))
+    return wait
+
+
 @dataclass(frozen=True)
 class BudgetLimits:
     """한 실행이 쓸 수 있는 상한. 계획 §5 값이 기본이다."""
@@ -255,6 +303,12 @@ class RunBudget:
     started_at: datetime
     model_used: int = 0
     api_used: int = 0
+    # HTTP 소유자별 **실제 차감** 수. 보호 몫 판정과 snapshot의 근거다.
+    http_used_by_owner: dict[str, int] = field(default_factory=dict)
+    # 보호 몫에서 다른 소유자가 대신 쓴 수(=공유 몫 사용분). 반환 시 이 값부터 줄인다.
+    http_shared_used: int = 0
+    # HTTP 보호 몫 정책을 쓰는 실행인지. legacy 실행은 기존 24 단일 상한을 유지한다.
+    http_owner_quotas: bool = False
     attempts_by_call: dict[str, int] = field(default_factory=dict)
     registered_calls: list[str] = field(default_factory=list)
     # 시작하지 않기로 **확정**된 정상 호출. 예약 몫을 반환하되 전체 상한은 늘리지 않는다.
@@ -270,6 +324,12 @@ class RunBudget:
     # (다른 경기·이전 시험이 새 실행을 차단하지 않는다).
     prior_module_usage: dict[str, int] = field(default_factory=dict)
     sent_by_module: dict[str, int] = field(default_factory=dict)
+    # 모듈별 **429로 끝난 전송 수**. 기록·진단용이며 상한 판정의 직접 근거는 아래
+    # `last_was_rate_limited`다(혼합 흐름에서 4번째가 막히지 않게 하기 위함).
+    rate_limited_by_module: dict[str, int] = field(default_factory=dict)
+    # 모듈별 **마지막 실패가 429였는지**. 429 직후의 재시도에만 4번째 전송을 연다.
+    # 직전이 비429(503·타임아웃)나 내용 실패면 4번째를 열지 않는다(상한 일괄 증가 금지).
+    last_was_rate_limited: dict[str, bool] = field(default_factory=dict)
     stopped_reason: str | None = None
     # 전체 실행 기한을 **독립 중단 기준으로 쓸지**. 모듈별 3회가 상한을 소유하는 새
     # 생성 경로에서는 끈다(사용자 확정 2026-11-12). 기한 값 자체는 기록·표시용으로
@@ -312,6 +372,9 @@ class RunBudget:
         budget.prior_module_usage = dict(prior_module_usage or {})
         # 새 생성 실행에서 전역 기한으로 모듈 3회를 잘라내지 않는다.
         budget.deadline_enforced = False
+        # bundle 생성 경로는 **HTTP 로직별 보호 몫**(기사·배당 각 10, 공유 10, 총 30)을
+        # 쓴다(사용자 확정 2026-11-19). legacy `for_run` 경로는 기존 24 단일 상한 그대로다.
+        budget.http_owner_quotas = True
         return budget
 
     @classmethod
@@ -453,8 +516,145 @@ class RunBudget:
         판정에 쓰지 않는다. 그래야 `8`이라는 옛 상한이 모듈별 3회를 잘라내지 않는다.
         """
         if self.module_send_cap is not None and self.module_ids:
-            return self.module_send_cap * len(self.module_ids)
+            # 429 직후 열린 추가 전송 몫을 합계에도 반영한다(모듈 상한만 열고 전체
+            # 상한이 막으면 4번째 전송이 두 번째 병목에 걸린다). 직전이 429가 아니면
+            # 그 모듈의 몫은 열리지 않으므로 다른 오류의 상한은 늘지 않는다.
+            extra = sum(
+                1
+                for logical_call_id in self.module_ids
+                if self.last_failure_was_rate_limited(logical_call_id)
+            )
+            return self.module_send_cap * len(self.module_ids) + extra
         return self.limits.model_requests
+
+    # -- HTTP 소유자별 보호 몫 ---------------------------------------------
+
+    def http_owner_used(self, owner: str | None) -> int:
+        """이 소유자가 실제로 쓴 HTTP 전송 수."""
+        if owner is None:
+            return 0
+        return int(self.http_used_by_owner.get(owner, 0))
+
+    def http_total_used(self) -> int:
+        """모든 소유자의 HTTP 전송 합계(= `api_used`와 같은 값)."""
+        return int(self.api_used)
+
+    def _http_owner_is_known(self, owner: str | None) -> bool:
+        """보호 몫 정책에서 **허용된 소유자**인지 판정한다.
+
+        보호 몫이 켜진 실행에서는 `articles`/`odds`만 유효하다. `None`이나 등록되지 않은
+        이름을 조용히 받아들이면 (1) 소유자 없이 공유 몫을 잠식해 두 로직의 보호 몫을
+        함께 깎고, (2) 오타 하나로 **없는 보호 몫 10**을 새로 받아 실제 로직을 굶긴다
+        (2026-11-19 HB-REVIEW 지적). legacy 실행(`http_owner_quotas=False`)은 종전대로
+        소유자 개념이 없으므로 그대로 허용한다.
+        """
+        if not self.http_owner_quotas:
+            return True
+        return owner in HTTP_OWNERS
+
+    def http_unknown_owner_reason(self, owner: str | None) -> str:
+        """유효하지 않은 소유자로 전송을 시도했을 때의 사유(화면·진단용)."""
+        return (
+            "HTTP 요청 소유자가 지정되지 않았거나 등록되지 않아 전송하지 않았습니다:"
+            f" {owner!r} (허용: {', '.join(HTTP_OWNERS)})"
+        )
+
+    def _http_owner_allowance(self, owner: str | None) -> int:
+        """이 소유자가 **다른 소유자 몫을 건드리지 않고** 쓸 수 있는 남은 수.
+
+        = 자기 보호 몫의 잔여 + 공유 몫의 잔여.
+        """
+        if not self.http_owner_quotas:
+            return max(0, self.limits.api_requests - self.api_used)
+        if not self._http_owner_is_known(owner):
+            # 유효하지 않은 소유자는 몫이 0이다(우회 불가).
+            return 0
+        local_left = max(0, HTTP_LOCAL_SHARE - self.http_owner_used(owner))
+        shared_left = max(0, HTTP_SHARED_SHARE - self._http_shared_used_for(owner))
+        return local_left + shared_left
+
+    def _http_shared_used_for(self, owner: str | None) -> int:
+        """공유 몫 중 이 소유자가 쓴 수(자기 보호 몫을 넘긴 부분)."""
+        if owner is None:
+            return 0
+        return max(0, self.http_owner_used(owner) - HTTP_LOCAL_SHARE)
+
+    def http_remaining(self, owner: str | None = None) -> int:
+        """이 소유가 앞으로 보낼 수 있는 남은 HTTP 전송 수(총 상한도 함께 본다)."""
+        total_left = max(0, self._http_total_limit() - self.api_used)
+        return min(total_left, self._http_owner_allowance(owner))
+
+    def _http_total_limit(self) -> int:
+        return HTTP_TOTAL_LIMIT if self.http_owner_quotas else self.limits.api_requests
+
+    def http_reserve(self, owner: str | None, count: int) -> int:
+        """이 소유자 이름으로 전송 홉을 미리 예약한다(잠금 유지).
+
+        유효하지 않은 소유자는 **0을 돌려준다**(예약 자체가 성립하지 않는다). 차감과
+        예약이 같은 판정을 공유하므로 한 곳에서 닫으면 두 경로가 함께 닫힌다.
+        """
+        with self.lock:
+            if not self._http_owner_is_known(owner):
+                return 0
+            allowed = min(int(count), self.http_remaining(owner))
+            if allowed <= 0:
+                return 0
+            self._http_consume(owner, allowed)
+            return allowed
+
+    def http_charge(self, owner: str | None, *, now: datetime | None = None) -> tuple[bool, str | None]:
+        """전송 **한 홉**을 이 소유자 이름으로 차감한다."""
+        with self.lock:
+            if self.deadline_enforced and self.deadline_passed(now):
+                return False, (
+                    f"전체 실행 기한({self.limits.deadline_seconds}초)이 지나 더 보내지 않습니다."
+                )
+            if not self._http_owner_is_known(owner):
+                return False, self.http_unknown_owner_reason(owner)
+            if self.http_remaining(owner) < 1:
+                return False, self._http_exhausted_reason(owner)
+            self._http_consume(owner, 1)
+            return True, None
+
+    def http_release(self, owner: str | None, count: int) -> int:
+        """이 소유자 이름으로 예약했지만 **보내지 않은** 몫을 돌려준다.
+
+        반환은 그 소유자의 사용량에서만 줄인다. 다른 소유자의 몫을 늘리지 않는다.
+        """
+        if count <= 0:
+            return 0
+        with self.lock:
+            used = self.http_owner_used(owner)
+            taken = min(int(count), used)
+            if taken <= 0:
+                return 0
+            self.http_used_by_owner[owner] = used - taken
+            self.api_used = max(0, self.api_used - taken)
+            return taken
+
+    def _http_consume(self, owner: str | None, count: int) -> None:
+        """사용량 증가를 한 곳에서만 한다(총·소유자·공유 계산이 어긋나지 않게)."""
+        self.api_used += int(count)
+        if owner is None:
+            return
+        self.http_used_by_owner[owner] = self.http_owner_used(owner) + int(count)
+        # 자기 보호 몫을 넘긴 부분의 합이 곧 공유 몫 사용분이다.
+        self.http_shared_used = sum(
+            max(0, self.http_owner_used(each) - HTTP_LOCAL_SHARE) for each in HTTP_OWNERS
+        )
+
+    def _http_exhausted_reason(self, owner: str | None) -> str:
+        if not self.http_owner_quotas or owner is None:
+            return f"API 요청 예산({self.limits.api_requests}회)을 모두 사용했습니다."
+        if self.api_used >= HTTP_TOTAL_LIMIT:
+            return (
+                f"HTTP 총 전송 상한({HTTP_TOTAL_LIMIT}회)에 도달해"
+                f" {owner} 요청을 더 보내지 않습니다."
+            )
+        return (
+            f"{owner}가 쓸 수 있는 HTTP 몫(보호 {HTTP_LOCAL_SHARE}회+공유"
+            f" {HTTP_SHARED_SHARE}회)을 모두 사용했습니다."
+        )
 
     def remaining(self, request_class: str = RequestClass.MODEL.value) -> int:
         if request_class == RequestClass.API.value:
@@ -480,6 +680,28 @@ class RunBudget:
 
     # -- 판정 -------------------------------------------------------------
 
+    def rate_limit_sends(self, logical_call_id: str) -> int:
+        """이 모듈이 **429로 끝난** 전송 수. 429 전용 추가 허용의 근거다."""
+        return int(self.rate_limited_by_module.get(logical_call_id, 0))
+
+    def note_rate_limited(self, logical_call_id: str) -> None:
+        """이번 전송이 429였다고 기록한다. 상한 판정만 바꾸고 다른 정책은 건드리지 않는다."""
+        self.rate_limited_by_module[logical_call_id] = (
+            self.rate_limit_sends(logical_call_id) + 1
+        )
+        self.last_was_rate_limited[logical_call_id] = True
+
+    def note_non_rate_limit_failure(self, logical_call_id: str) -> None:
+        """마지막 실패가 429가 아니었다고 기록한다(503·타임아웃·내용 실패).
+
+        429가 앞서 있었더라도 **직전이 429가 아니면** 4번째 전송을 열지 않는다.
+        """
+        self.last_was_rate_limited[logical_call_id] = False
+
+    def last_failure_was_rate_limited(self, logical_call_id: str) -> bool:
+        """직전 실패가 429였는지. 4번째 전송 허용의 유일한 근거다."""
+        return bool(self.last_was_rate_limited.get(logical_call_id, False))
+
     def can_attempt(
         self,
         logical_call_id: str,
@@ -497,7 +719,15 @@ class RunBudget:
         # 정책을 바꿀 때 한쪽만 고쳐 조용히 다른 상한이 남는다.
         if self.module_send_cap is not None:
             used = self.module_total(logical_call_id)
-            if used >= self.module_send_cap:
+            # 429로 끝난 전송에 한해 대기 세 구간(60/300/600초)을 모두 쓸 수 있도록
+            # 최대 RATE_LIMIT_MAX_SENDS까지 허용한다. 다른 오류·내용 재생성은 기존
+            # 모듈 상한 그대로이며, 이 확장은 429 횟수를 근거로만 열린다.
+            limit = self.module_send_cap
+            # 429 직후에만 4번째를 연다. 중간에 503 등이 끼어도(429→503→429) 마지막이
+            # 429면 열리므로 "최초 포함 4전송"이 혼합 흐름에서도 성립한다.
+            if self.last_failure_was_rate_limited(logical_call_id):
+                limit = max(limit, RATE_LIMIT_MAX_SENDS)
+            if used >= limit:
                 prior = self.module_prior_total(logical_call_id)
                 history = (
                     f". 이전 시험 집합의 {prior}회는 이번 상한에 합산하지 않습니다"
@@ -506,14 +736,21 @@ class RunBudget:
                 )
                 return False, (
                     f"모듈 {logical_call_id}의 이번 생성 전송 상한"
-                    f"({self.module_send_cap}회)에 도달했습니다. 이 모듈은 더 보내지 않습니다"
+                    f"({limit}회)에 도달했습니다. 이 모듈은 더 보내지 않습니다"
                     f"{history}."
                 )
         elif self.attempts_used(logical_call_id) >= self.limits.attempts_per_call:
-            return False, (
-                f"논리 호출 {logical_call_id}의 시도 상한"
-                f"({self.limits.attempts_per_call}회)에 도달했습니다."
-            )
+            # 모듈 상한이 없는 경로에서도 **429로 끝난 전송**에 한해 같은 4회 허용을
+            # 적용한다(같은 정책을 두 상한 체계에 서로 다르게 두지 않는다). 그 밖의
+            # 오류는 기존 attempts_per_call 그대로다.
+            if not (
+                self.last_failure_was_rate_limited(logical_call_id)
+                and self.attempts_used(logical_call_id) < RATE_LIMIT_MAX_SENDS
+            ):
+                return False, (
+                    f"논리 호출 {logical_call_id}의 시도 상한"
+                    f"({self.limits.attempts_per_call}회)에 도달했습니다."
+                )
         if self.deadline_enforced and self.deadline_passed(now):
             return False, (
                 f"전체 실행 기한({self.limits.deadline_seconds}초)이 지나 더 보내지 않습니다."
@@ -663,6 +900,25 @@ class RunBudget:
             "api_requests": self.limits.api_requests,
             "api_used": self.api_used,
             "api_remaining": self.remaining(RequestClass.API.value),
+            # HTTP 로직별 보호 몫 상태. 보호 몫 정책을 쓰지 않는 실행에서는 비운다.
+            "http_owner_quotas": self.http_owner_quotas,
+            "http_total_limit": self._http_total_limit(),
+            "http_shared_used": self.http_shared_used,
+            "http_owners": (
+                {
+                    owner: {
+                        "used": self.http_owner_used(owner),
+                        "local_share": HTTP_LOCAL_SHARE,
+                        "local_left": max(
+                            0, HTTP_LOCAL_SHARE - self.http_owner_used(owner)
+                        ),
+                        "shared_used": self._http_shared_used_for(owner),
+                    }
+                    for owner in HTTP_OWNERS
+                }
+                if self.http_owner_quotas
+                else {}
+            ),
             "attempts_per_call": self.limits.attempts_per_call,
             "deadline_seconds": self.limits.deadline_seconds,
             "deadline_enforced": self.deadline_enforced,

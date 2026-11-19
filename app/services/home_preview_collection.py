@@ -470,14 +470,19 @@ def _generate_one(
     status = getattr(outcome, "status", None)
     run_id = str(getattr(outcome, "run_id", ""))
     if status is not None and status != RunStatus.SUCCEEDED:
-        result["failed"].append(
-            {
-                "fixture_id": fixture_id,
-                "run_id": run_id,
-                "reason": f"generation_status_{getattr(status, 'value', status)}",
-                "detail": getattr(outcome, "unavailable_reason", None),
-            }
-        )
+        entry = {
+            "fixture_id": fixture_id,
+            "run_id": run_id,
+            "reason": f"generation_status_{getattr(status, 'value', status)}",
+            "detail": getattr(outcome, "unavailable_reason", None),
+        }
+        # 공통 수집이 예외로 끝났다면 그 진단을 함께 남긴다. 이 값이 없으면
+        # `detail`의 "필수 섹션 없음"만 남아 첫 예외의 원인을 사후에 알 수 없다
+        # (2026-11-19 실패에서 실제로 확인이 막혔다).
+        collection_failure = getattr(outcome, "collection_failure", None)
+        if collection_failure:
+            entry["collection_failure"] = dict(collection_failure)
+        result["failed"].append(entry)
         return True
     result["generated"].append(
         {

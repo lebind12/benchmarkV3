@@ -844,3 +844,26 @@ def test_hops_are_capped_by_usage_not_by_model_retry_attempts():
     assert client2.sent == 2
     assert budget2.api_used == 2
     assert out2.bundle.sources[0].failure == "budget_exhausted"
+
+
+def test_article_collection_caps_at_its_share_and_leaves_odds_share():
+    """기사 수집은 자기 몫(10+공유10)에서 멈추고 배당 몫 10을 건드리지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 2026-11-19 실제 실행에서 기사 수집이 단일 24회
+    예산을 모두 쓰자 제공자 배당 읽기가 나가지 못해 배당 섹션이 비었다. 이 검사는
+    **실제 collect_with_bodies 경로**가 소유자를 표기해 그 간섭을 막는지 본다.
+    """
+    from app.preview.retry import HTTP_OWNER_ARTICLES, HTTP_OWNER_ODDS, HTTP_LOCAL_SHARE
+
+    urls = [f"https://example.test/a{index}" for index in range(1, 26)]
+    budget = RunBudget.for_generation(("section_odds",), now=FIXED_NOW)
+    assert budget.http_owner_quotas is True
+
+    _collect(_candidates(*urls), http=FakeHttp({}), budget=budget)
+
+    # 25개 후보를 줬지만 기사 몫(10+공유10)에서 멈춘다.
+    assert budget.http_owner_used(HTTP_OWNER_ARTICLES) == HTTP_LOCAL_SHARE * 2
+    # 그리고 배당이 쓸 10회가 그대로 남는다.
+    assert budget.http_remaining(HTTP_OWNER_ODDS) == HTTP_LOCAL_SHARE
+    allowed, reason = budget.http_charge(HTTP_OWNER_ODDS, now=FIXED_NOW)
+    assert allowed is True, reason

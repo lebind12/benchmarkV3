@@ -23,6 +23,10 @@ import pytest
 
 from app.preview.retry import (
     API_REQUEST_BUDGET,
+    HTTP_LOCAL_SHARE,
+    HTTP_OWNER_ARTICLES,
+    HTTP_OWNER_ODDS,
+    HTTP_TOTAL_LIMIT,
     MAX_ATTEMPTS_PER_CALL,
     MODEL_REQUEST_BUDGET,
     NORMAL_MODEL_CALLS,
@@ -394,3 +398,111 @@ def test_generation_policy_does_not_enforce_the_global_deadline():
     late = FIXED_NOW + timedelta(seconds=10_000)
     allowed, reason = budget.can_attempt("section_players", now=late)
     assert allowed, reason
+
+
+# --- HTTP 로직별 보호 몫 (사용자 확정 2026-11-19: 각 10, 공유 10, 총 30) ---------
+
+
+def _http_budget():
+    """bundle 생성 경로와 같은 예산(보호 몫 정책 켜짐)."""
+    return RunBudget.for_generation(("section_odds",), now=FIXED_NOW)
+
+
+def test_articles_exhausting_their_share_leaves_ten_for_odds():
+    """기사 20회를 다 써도 배당이 10회를 쓸 수 있다.
+
+    검사 이유(실패 시 사용자 영향): 이전에는 기사 수집이 단일 24회 예산을 다 먹으면
+    배당 읽기가 아예 나가지 못해 배당 섹션이 비었다(2026-11-19 실제 실행에서 관측).
+    """
+    budget = _http_budget()
+    articles = sum(1 for _ in range(50) if budget.http_charge(HTTP_OWNER_ARTICLES)[0])
+
+    assert articles == HTTP_LOCAL_SHARE * 2  # 보호 10 + 공유 10
+    assert budget.http_remaining(HTTP_OWNER_ODDS) == HTTP_LOCAL_SHARE
+    # 실제로 배당을 10회 보낼 수 있다.
+    odds = sum(1 for _ in range(50) if budget.http_charge(HTTP_OWNER_ODDS)[0])
+    assert odds == HTTP_LOCAL_SHARE
+
+
+def test_reverse_order_reserves_ten_for_articles():
+    """반대 순서(배당 먼저 20회)에서도 기사가 10회를 쓸 수 있다."""
+    budget = _http_budget()
+    odds = sum(1 for _ in range(50) if budget.http_charge(HTTP_OWNER_ODDS)[0])
+
+    assert odds == HTTP_LOCAL_SHARE * 2
+    assert budget.http_remaining(HTTP_OWNER_ARTICLES) == HTTP_LOCAL_SHARE
+    articles = sum(1 for _ in range(50) if budget.http_charge(HTTP_OWNER_ARTICLES)[0])
+    assert articles == HTTP_LOCAL_SHARE
+
+
+def test_thirty_first_http_hop_is_blocked_and_reason_names_the_limit():
+    """두 로직 합계는 30을 넘지 못하고, 31번째는 사유와 함께 거부된다."""
+    budget = _http_budget()
+    for _ in range(20):
+        budget.http_charge(HTTP_OWNER_ARTICLES)
+    for _ in range(10):
+        budget.http_charge(HTTP_OWNER_ODDS)
+    assert budget.api_used == HTTP_TOTAL_LIMIT
+
+    allowed, reason = budget.http_charge(HTTP_OWNER_ARTICLES)
+    assert allowed is False
+    assert "30" in (reason or "")
+
+
+def test_http_release_returns_only_the_owner_share():
+    """보내지 않은 예약은 **그 소유자 몫으로만** 돌아간다(다른 로직 몫을 늘리지 않는다)."""
+    budget = _http_budget()
+    odds_before = budget.http_remaining(HTTP_OWNER_ODDS)
+
+    reserved = budget.http_reserve(HTTP_OWNER_ARTICLES, 12)
+    assert reserved == 12
+    assert budget.http_owner_used(HTTP_OWNER_ARTICLES) == 12
+
+    returned = budget.http_release(HTTP_OWNER_ARTICLES, 2)
+    assert returned == 2
+    assert budget.http_owner_used(HTTP_OWNER_ARTICLES) == 10
+    # 반환은 기사 사용량만 줄인다. 배당이 쓸 수 있는 몫은 예약 전과 같다
+    # (기사 반환이 배당 몫을 **늘리지도** 줄이지도 않는다).
+    assert budget.http_remaining(HTTP_OWNER_ODDS) == odds_before
+
+
+def test_legacy_run_budget_keeps_the_single_api_cap():
+    """legacy `for_run`은 새 보호 몫 정책에 들어가지 않는다(기존 24 단일 상한 유지)."""
+    budget = RunBudget.for_run(now=FIXED_NOW)
+
+    assert budget.http_owner_quotas is False
+    # legacy 경로는 전역 기한이 켜져 있으므로 판정 시각을 고정한다(시계 축은 그대로).
+    used = sum(
+        1 for _ in range(50) if budget.http_charge(HTTP_OWNER_ARTICLES, now=FIXED_NOW)[0]
+    )
+    assert used == budget.limits.api_requests  # 24 (보호 몫 아님)
+
+
+def test_unknown_or_missing_http_owner_is_refused_without_changing_counters():
+    """보호 몫 실행에서 소유자 미지정/미등록 이름은 거부되고 총량도 소유량도 변하지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 분류를 생략한 호출자가 공유 몫을 잠식해 두 로직의
+    보호 몫을 함께 깎고, 오타 하나로 **없는 보호 몫 10**을 받아 실제 로직(배당)을 굶길 수
+    있었다(2026-11-19 HB-REVIEW 지적). 계약은 "분류를 생략해 보호몫을 우회하는 경로를
+    남기지 않는다"를 요구한다.
+    """
+    budget = _http_budget()
+
+    # 소유자 미지정과 미등록 이름 모두 거부된다(차감·예약 두 경로).
+    for bad_owner in (None, "rogue", "Articles", ""):
+        allowed, reason = budget.http_charge(bad_owner, now=FIXED_NOW)
+        assert allowed is False, bad_owner
+        assert "소유자" in (reason or ""), reason
+        assert budget.http_reserve(bad_owner, 5) == 0
+
+    # 거부는 어떤 카운터도 바꾸지 않는다.
+    assert budget.api_used == 0
+    assert budget.http_shared_used == 0
+    assert budget.http_owner_used(HTTP_OWNER_ARTICLES) == 0
+    assert budget.http_owner_used(HTTP_OWNER_ODDS) == 0
+    assert budget.http_remaining(HTTP_OWNER_ARTICLES) == HTTP_LOCAL_SHARE * 2
+    assert budget.http_remaining(HTTP_OWNER_ODDS) == HTTP_LOCAL_SHARE * 2
+
+    # 유효 소유자는 그대로 동작한다(거부가 정상 경로를 막지 않는다).
+    assert budget.http_charge(HTTP_OWNER_ARTICLES, now=FIXED_NOW)[0] is True
+    assert budget.http_reserve(HTTP_OWNER_ODDS, 1) == 1

@@ -1319,3 +1319,203 @@ def test_section_save_exception_kind_survives_in_run_failure_detail(
     # 원문 메시지·자격 증명은 실행 기록에 남기지 않는다.
     assert "postgres" not in (detail or "").lower()
     assert "treat" not in (detail or "")
+
+
+def test_collection_failure_detail_carries_no_sql_rows_or_credentials():
+    """진단은 구조 정보만 남기고 SQL·행 값·자격 증명을 담지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 실제 DB 예외 본문에는 SQL, 바인딩 파라미터, 실패한 행
+    값(선수 실명 등)이 여러 줄로 들어 있다. 진단은 관리자 조회로 그대로 노출되므로
+    자유 문구를 넣으면 개인정보·테이블 구조가 새고, 첫 줄 절단으로는 막을 수 없다
+    (검토 CF-REVIEW 지적 2).
+    """
+    import json
+
+    class _NotNullViolation(Exception):
+        pgcode = "23502"
+
+    exc = _NotNullViolation(
+        'null value in column "candidate_name_ko" violates not-null constraint\n'
+        "DETAIL:  Failing row contains (7f3a, 2199, 김민재, 2026-11-19).\n"
+        "[SQL: INSERT INTO preview_dev.preview_player_name_candidates ...]\n"
+        "[parameters: ('7f3a', 2199, '김민재')]"
+    )
+
+    detail = bundle_pipeline._collection_failure_detail(exc, stage="save")
+    blob = json.dumps(detail, ensure_ascii=False)
+
+    # 누출 금지: 행 값(실명), SQL, 파라미터, DSN 형태.
+    assert "김민재" not in blob
+    assert "INSERT INTO" not in blob
+    assert "parameters:" not in blob
+    assert "Failing row" not in blob
+    # 원문을 reason에 넣지 않고, 고정 설명만 쓴다.
+    assert detail["reason"] == "정보 원문 묶음 검증·저장 중 실패했습니다."
+    # 식별에 필요한 구조 정보는 남는다.
+    assert detail["error_kind"] == "_NotNullViolation"
+    assert detail["sqlstate"] == "23502"
+    assert detail["stage"] == "save"
+    assert detail["cause_kind"] is None  # SQLAlchemy 계열이 아니므로 분류 없음
+
+
+def test_collection_failure_detail_separates_contract_violation_from_write_failure():
+    """저장 안의 계약 검증 실패는 쓰기 실패와 다른 원인으로 구분된다."""
+    from app.preview.information_bundle import BundleBuildError
+
+    detail = bundle_pipeline._collection_failure_detail(
+        BundleBuildError("출처 ID가 중복됩니다: src-1"), stage="save"
+    )
+
+    assert detail["cause_kind"] == "contract_violation"
+    assert "src-1" not in detail["reason"]
+    assert "계약 검증에서 거부" in detail["reason"]
+
+
+def test_collection_failure_detail_records_real_utc_time_not_the_fixed_moment():
+    """발생 시각은 실제 UTC 시각이며 고정 실행 기준시각이 아니다."""
+    from datetime import datetime, timezone
+
+    fixed_moment = datetime(2026, 11, 18, 19, 5, 55, tzinfo=timezone.utc)
+    detail = bundle_pipeline._collection_failure_detail(
+        RuntimeError("x"), stage="collect", at=fixed_moment
+    )
+
+    parsed = datetime.fromisoformat(detail["at"])
+    assert parsed.tzinfo is not None
+    assert parsed.utcoffset() == timezone.utc.utcoffset(None)
+    # 기본값은 실제 현재 시각이다(고정 moment가 아니다).
+    live = bundle_pipeline._collection_failure_detail(RuntimeError("x"), stage="collect")
+    assert datetime.fromisoformat(live["at"]) > datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
+def test_commit_stage_is_reported_when_commit_raises(session_factory):
+    """commit에서 난 예외는 stage=commit으로 남아 수집 실패와 구분된다.
+
+    검사 이유(실패 시 사용자 영향): 하나의 try가 입력복원·수집·저장·commit을 모두
+    감싸므로 단계 표시가 없으면 "네트워크 실패"와 "저장 확정 실패"가 같은 진단으로 보여
+    원인을 좁힐 수 없다(검토 CF-REVIEW 지적 1). 노드가 실제로 그 단계를 표시하는지 본다.
+    """
+    import uuid as _uuid
+    from datetime import datetime, timezone
+
+    from app.preview import bundle_pipeline as bp
+    from app.preview.contracts import (
+        Environment,
+        ExecutionContext,
+        FixtureIdentity,
+        OperationKind,
+        RunMode,
+    )
+    from app.preview.retry import RunBudget
+
+    class _CommitBoom:
+        """commit에서만 예외를 내는 세션 대역(수집·저장은 통과)."""
+
+        def __init__(self):
+            self.committed = False
+            self.rolled_back = False
+
+        def commit(self):
+            raise RuntimeError("commit failed")
+
+        def rollback(self):
+            self.rolled_back = True
+
+        def close(self):
+            pass
+
+    session = _CommitBoom()
+    moment = datetime(2026, 11, 18, 19, 5, 55, tzinfo=timezone.utc)
+    plan = bp._Plan(
+        run_id=_uuid.uuid4(),
+        context=ExecutionContext(
+            run_id=_uuid.uuid4(),
+            operation_kind=OperationKind.PREVIEW,
+            environment=Environment.DEV,
+            mode=RunMode.LIVE,
+            actor_id=0,
+            config_version="test-config",
+        ),
+        mode=RunMode.LIVE,
+        identity=FixtureIdentity(
+            fixture_id=1557474,
+            league_id=1,
+            season=2026,
+            home_team_id=13,
+            away_team_id=4,
+            kickoff_at=moment,
+        ),
+        fixture={"fixture_id": 1557474},
+        actor_id=0,
+        moment=moment,
+        budget=RunBudget.for_generation(("section_players",), now=moment),
+        transport=object(),
+        reader=None,
+        http=object(),
+        target_checker=None,
+        session_factory=lambda: session,
+        home_team="Manchester City",
+        away_team="Fulham",
+        league="Premier League",
+        db_context=None,
+    )
+
+    # 수집과 저장은 성공하도록 최소 대역을 세운다(이 검사의 관심은 commit 단계 표시).
+    original_collect = bp.retrieval.collect_with_bodies
+    original_save = bp.store.save_information_bundle_with_bodies
+    try:
+        bp.retrieval.collect_with_bodies = lambda **kwargs: type(
+            "C", (), {"diagnostics": ()}
+        )()
+        bp.store.save_information_bundle_with_bodies = lambda *a, **k: {"bundle": {"bundle_id": "b"}}
+        result = bp._collection_node(plan)(
+            {"discovery": [], "db_snapshot": None, "diagnostics": [], "completed": []}
+        )
+    finally:
+        bp.retrieval.collect_with_bodies = original_collect
+        bp.store.save_information_bundle_with_bodies = original_save
+
+    assert session.rolled_back is True
+    assert result["bundle"] is None
+    assert result["collection_failure"]["stage"] == "commit"
+    assert "commit" in result["collection_failure"]["reason"]
+
+
+def test_provider_odds_uses_its_own_share_after_articles_are_exhausted():
+    """기사가 자기 몫 20회를 다 써도 제공자 배당 읽기는 예산 때문에 막히지 않는다.
+
+    검사 이유(실패 시 사용자 영향): 이전에는 기사 수집이 단일 예산을 소진하면 배당
+    요청이 나가지 못했다. 배당은 자기 보호 몫으로 판정받아야 한다.
+    """
+    from datetime import datetime, timezone
+
+    from app.preview import bundle_pipeline as bp
+    from app.preview.retry import (
+        HTTP_OWNER_ARTICLES,
+        HTTP_OWNER_ODDS,
+        HTTP_LOCAL_SHARE,
+        RunBudget,
+    )
+
+    moment = datetime(2026, 11, 18, 19, 5, tzinfo=timezone.utc)
+    budget = RunBudget.for_generation(("section_odds",), now=moment)
+    # 기사가 자기 몫을 모두 쓴다.
+    for _ in range(HTTP_LOCAL_SHARE * 2):
+        assert budget.http_charge(HTTP_OWNER_ARTICLES, now=moment)[0] is True
+
+    from app.preview.sources import provider_odds as provider_odds_module
+
+    sent_calls: list[int] = []
+    original = provider_odds_module.read_provider_odds
+    try:
+        provider_odds_module.read_provider_odds = lambda *, fixture_id, collected_at: (
+            sent_calls.append(fixture_id)
+            or provider_odds_module.ProviderOddsResult(sent=1, reason=None)
+        )
+        bp._provider_odds_for({"fixture_id": 1557474}, budget=budget, moment=moment)
+    finally:
+        provider_odds_module.read_provider_odds = original
+
+    # 배당 요청이 실제로 나갔고(막히지 않았고) 자기 몫에서 차감됐다.
+    assert sent_calls == [1557474]
+    assert budget.http_owner_used(HTTP_OWNER_ODDS) == 1

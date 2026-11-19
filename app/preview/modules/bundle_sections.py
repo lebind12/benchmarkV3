@@ -1168,6 +1168,7 @@ def _call_model(
     now: datetime | None,
     content_check: provider.ContentCheck | None = None,
     starting_ordinal: int = 0,
+    sleeper: "Callable[[float], None] | None" = None,
 ) -> _Call:
     logical_call_id = LOGICAL_CALL_IDS[section_id]
     if logical_call_id is None:  # pragma: no cover - 배당은 이 함수를 부르지 않는다
@@ -1188,8 +1189,13 @@ def _call_model(
         module_execution_id=getattr(context, "module_execution_id", None),
         actor_id=getattr(context, "actor_id", None),
         now=lambda: moment,
+        # 예산·기한 판정은 위 `now`(실행 기준시각)를 그대로 쓰고, attempt·장부에 남는
+        # **실제 호출/응답 시각**만 이 시계로 기록한다. 모든 시도가 같은 시각으로
+        # 남던 결함만 고치고 예산 판정의 시간축은 바꾸지 않는다.
+        timestamp_clock=_wall_clock,
         content_check=content_check,
         starting_ordinal=starting_ordinal,
+        sleeper=sleeper,
     )
     return _Call(
         text=result.text if result.ok else None,
@@ -1197,6 +1203,11 @@ def _call_model(
         contents=contents,
         attempts=provider.sent_attempt_count(result, transport.mode),
     )
+
+
+def _wall_clock() -> datetime:
+    """현재 UTC 시각. attempt·장부 기록용(내용 기준시각과 분리)."""
+    return datetime.now(timezone.utc)
 
 
 def _mode_value(transport: provider.ProviderTransport) -> str:
@@ -2528,10 +2539,25 @@ def _outlook_section(
     }
     unavailable_reason = None
     if not body:
-        unavailable_reason = (
-            "수집 기사에서 확인된 외부 매체 전망이 없어 이 선택 섹션의 본문을 만들지"
-            " 않았습니다."
-        )
+        # 사유를 세 갈래로 구분한다. 모델 전송이 실패했는데 '기사 근거 없음'으로 쓰면
+        # 자료 부족으로 오해된다(2026-11-19 관측: R3는 429로 3회 소진, 입력 자료는 3출처
+        # 7구간·검색 8건 8071자였다).
+        call_failed = call.text is None
+        if call_failed:
+            unavailable_reason = (
+                "외부 매체 전망 모델 호출이 성공하지 않아 본문을 만들지 않았습니다"
+                f"({_failure_reason(call, label='외부 매체 전망')})."
+            )
+        elif not selection.passages and not search.rows:
+            unavailable_reason = (
+                "이 경기의 수집 기사 본문과 검색 자료가 모두 없어 외부 매체 전망 요청을"
+                " 보내지 않았습니다."
+            )
+        else:
+            unavailable_reason = (
+                "모델 응답에 채택 가능한 외부 매체 전망 항목이 없어 이 선택 섹션의 본문을"
+                " 만들지 않았습니다."
+            )
     return SectionDraft(
         section_id=section_id,
         module_id=module_id,

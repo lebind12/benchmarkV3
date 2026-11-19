@@ -51,9 +51,11 @@ from app.preview.contracts import (
     RunMode,
 )
 from app.preview.retry import (
+    RATE_LIMIT_MAX_SENDS,
     RetryDecision,
     RunBudget,
     bounded_wait_seconds,
+    rate_limit_wait_seconds,
     classify_attempt,
     sleep_seconds,
 )
@@ -369,14 +371,17 @@ class GoogleGenAIHttpTransport:
             )
         except errors.APIError as exc:
             status = int(getattr(exc, "code", 0) or 0)
-            payload = getattr(exc, "response_json", None)
+            # google-genai의 APIError는 본문을 `details`, HTTP 응답을 `response`에 둔다.
+            # 없는 `response_json`을 읽으면 오류 본문·RetryInfo가 버려진다(2026-11-19 조사).
+            payload = _api_error_payload(exc)
             return TransportResult(
                 http_status=status or None,
                 raw_request=request_body,
                 raw_response=payload,
                 error_class=_api_error_class(status) if status else "provider_error",
-                error_message=str(getattr(exc, "message", "") or exc)[:2000],
-                retry_after_seconds=_retry_after_from_payload(payload),
+                error_message=_api_error_message(exc, payload)[:2000],
+                retry_after_seconds=_retry_after_from_payload(payload)
+                or _retry_after_from_response(getattr(exc, "response", None)),
                 duration_ms=int((time.monotonic() - started) * 1000),
             )
         except (TimeoutError, OSError) as exc:
@@ -399,6 +404,57 @@ class GoogleGenAIHttpTransport:
             usage=_usage_from_genai(response),
             duration_ms=int((time.monotonic() - started) * 1000),
         )
+
+
+def _api_error_payload(exc: Any) -> Any:
+    """SDK 오류에서 **오류 본문**을 꺼낸다. 비밀값은 담지 않는다.
+
+    google-genai 3.0 `errors.APIError`는 본문을 `details`, HTTP 응답을 `response`에
+    저장하며 `response_json` 속성을 만들지 않는다. 둘 중 실제로 있는 값을 쓴다.
+    """
+    details = getattr(exc, "details", None)
+    if isinstance(details, Mapping):
+        return details
+    response = getattr(exc, "response", None)
+    for value in (
+        getattr(response, "json", None),
+        getattr(getattr(exc, "body", None), "json", None),
+    ):
+        if callable(value):
+            try:
+                parsed = value()
+            except Exception:  # noqa: BLE001 - 오류 본문 파싱 실패는 오류 기록을 막지 않는다
+                continue
+            if isinstance(parsed, Mapping):
+                return parsed
+    return None
+
+
+def _api_error_message(exc: Any, payload: Any) -> str:
+    """SDK 오류의 사람이 읽을 메시지. 본문의 message가 있으면 그것을 우선한다."""
+    if isinstance(payload, Mapping):
+        error = payload.get("error")
+        if isinstance(error, Mapping):
+            text = error.get("message")
+            if isinstance(text, str) and text.strip():
+                return text
+    return str(getattr(exc, "message", "") or exc)
+
+
+def _retry_after_from_response(response: Any) -> float | None:
+    """HTTP 응답의 `Retry-After` 헤더. 숫자 초 형식만 해석한다."""
+    if response is None:
+        return None
+    headers = getattr(response, "headers", None)
+    if not isinstance(headers, Mapping):
+        return None
+    for key, value in headers.items():
+        if str(key).lower() == "retry-after":
+            try:
+                return float(str(value).strip())
+            except (TypeError, ValueError):
+                return None
+    return None
 
 
 def _retry_after_from_payload(payload: Any) -> float | None:
@@ -842,6 +898,7 @@ def execute_request(
     module_execution_id: uuid.UUID | None = None,
     content_check: ContentCheck | None = None,
     starting_ordinal: int = 0,
+    timestamp_clock: Callable[[], datetime] | None = None,
 ) -> ExecuteRequestResult:
     """요청 하나를 예산·기한·시도 규칙 안에서 보낸다.
 
@@ -866,6 +923,8 @@ def execute_request(
             "실제 네트워크 전송에는 실행 기록 세션과 사용량 장부가 필요합니다."
             " 장부 없이 보내면 전체 전송 상한(8회)이 사라지므로 요청을 보내지 않습니다."
         )
+    # attempt·장부에 남길 **실제 시각**의 출처. 넘기지 않으면 `now`와 같다(기존 동작).
+    stamps = timestamp_clock or now
     attempt_limit = max_attempts or budget.limits.attempts_per_call
     picks = rng or (lambda: 0.5)
     budget.register_call(spec.logical_call_id)
@@ -899,14 +958,22 @@ def execute_request(
         if not allowed:
             stopped_reason = reason
             break
-        if ordinal >= attempt_limit:
+        # 429로만 연장된 여유는 **직전 실패가 429**인 모듈에 한해 적용한다. 그래야
+        # 혼합 흐름(429→503→429)에서도 4번째가 열리고, 직전이 비429면 3회에서 멈춘다.
+        loop_ceiling = (
+            max(attempt_limit, RATE_LIMIT_MAX_SENDS)
+            if budget.last_failure_was_rate_limited(spec.logical_call_id)
+            else attempt_limit
+        )
+        if ordinal >= loop_ceiling:
             stopped_reason = (
-                f"논리 호출 {spec.logical_call_id}의 시도 상한({attempt_limit}회)에"
+                f"논리 호출 {spec.logical_call_id}의 시도 상한({loop_ceiling}회)에"
                 " 도달했습니다."
             )
             break
 
         budget.charge(spec.logical_call_id, request_class.value, now=moment)
+        attempt_started = stamps()
         timeout_seconds = _attempt_timeout(
             spec, request_class=request_class, budget=budget, moment=moment
         )
@@ -990,8 +1057,8 @@ def execute_request(
                 },
                 response_body=None,
                 usage=None,
-                started_at=moment,
-                finished_at=now(),
+                started_at=stamps(),
+                finished_at=stamps(),
                 actor_id=actor_id,
                 module_execution_id=module_execution_id,
                 secret_values=secret_values,
@@ -1040,7 +1107,7 @@ def execute_request(
             )
             raise
 
-        finished = now()
+        finished = stamps()
         outcome_value = _outcome_of(outcome)
         received_text = extract_text(outcome.raw_response)
         # 내용 수용 검사(잘린 JSON·JSON 파싱 실패). 기술 성공이어도 그 본문으로 결과를
@@ -1097,7 +1164,7 @@ def execute_request(
             request_body=outcome.raw_request,
             response_body=outcome.raw_response,
             usage=outcome.usage,
-            started_at=moment,
+            started_at=attempt_started,
             finished_at=finished,
             actor_id=actor_id,
             module_execution_id=module_execution_id,
@@ -1153,17 +1220,42 @@ def execute_request(
         if decision is RetryDecision.STOP:
             stopped_reason = _stop_reason(outcome)
             break
-        if ordinal + 1 >= attempt_limit:
+        # 429는 사용자 확정 대기 구간(60/300/600초)을 쓰고 최대 4회까지 보낸다.
+        # 그 밖의 오류는 기존 시도 상한을 그대로 유지한다.
+        is_rate_limited = (
+            outcome.http_status == 429
+            or str(outcome.error_class or "") == "rate_limited"
+        )
+        if is_rate_limited:
+            budget.note_rate_limited(spec.logical_call_id)
+        else:
+            # 직전 실패가 429가 아니면 4번째 전송을 열지 않는다(상한 일괄 증가 금지).
+            budget.note_non_rate_limit_failure(spec.logical_call_id)
+        send_ceiling = (
+            max(attempt_limit, RATE_LIMIT_MAX_SENDS) if is_rate_limited else attempt_limit
+        )
+        if ordinal + 1 >= send_ceiling:
+            # R1: 소진 사유에 **마지막 실패의 실제 HTTP 상태/분류**를 남긴다. 그래야
+            # 운영자가 429 소진인지 다른 오류인지 문구만으로 알 수 있다. 원문 본문·
+            # 비밀값은 넣지 않는다(상태 코드와 분류 이름만).
+            status_text = outcome.http_status if outcome.http_status is not None else "unknown"
+            class_text = str(outcome.error_class or "unknown")
             stopped_reason = (
-                f"논리 호출 {spec.logical_call_id}의 시도 상한({attempt_limit}회)에"
-                " 도달했습니다."
+                f"논리 호출 {spec.logical_call_id}의 시도 상한({send_ceiling}회)에"
+                f" 도달했습니다(마지막 실패: HTTP {status_text} {class_text})."
             )
             break
 
-        wait_seconds = bounded_wait_seconds(
-            ordinal,
-            retry_after_seconds=outcome.retry_after_seconds,
-            rng=picks,
+        wait_seconds = (
+            rate_limit_wait_seconds(
+                ordinal, retry_after_seconds=outcome.retry_after_seconds
+            )
+            if is_rate_limited
+            else bounded_wait_seconds(
+                ordinal,
+                retry_after_seconds=outcome.retry_after_seconds,
+                rng=picks,
+            )
         )
         if wait_seconds >= budget.seconds_left(now()):
             stopped_reason = (
@@ -1332,11 +1424,12 @@ def request_model(
     secret_values: Sequence[str] = (),
     module_execution_id: uuid.UUID | None = None,
     actor_id: int | None = None,
-    sleeper: Callable[[float], None] = sleep_seconds,
+    sleeper: Callable[[float], None] | None = None,
     rng: Callable[[], float] | None = None,
     now: Callable[[], datetime] = _now,
     content_check: ContentCheck | None = None,
     starting_ordinal: int = 0,
+    timestamp_clock: Callable[[], datetime] | None = None,
 ) -> ExecuteRequestResult:
     """모델 요청 하나. `execute_request`를 통해서만 나가므로 예산·기록이 같다.
 
@@ -1366,13 +1459,16 @@ def request_model(
         budget=budget,
         session=session,
         actor_id=actor_id,
-        sleeper=sleeper,
+        # 기본 대기는 모듈 속성을 그때 읽는다(검사가 sleep_seconds를 바꿔 실제 대기를
+        # 건너뛸 수 있어야 한다. 정의 시점 바인딩은 monkeypatch를 무시한다).
+        sleeper=sleeper or sleep_seconds,
         rng=rng,
         now=now,
         secret_values=secret_values,
         module_execution_id=module_execution_id,
         content_check=content_check,
         starting_ordinal=starting_ordinal,
+        timestamp_clock=timestamp_clock,
     )
 
 

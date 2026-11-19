@@ -1600,3 +1600,65 @@ def test_evidence_is_written_on_the_top_level_exception_path(monkeypatch):
     assert evidence["partial"] is True
     assert evidence["stored_fixture_ids"] == []
     assert evidence["planned_fixture_ids"] == []
+
+
+def test_collection_failure_diagnostic_survives_the_required_section_message(monkeypatch):
+    """공통 수집 예외 진단이 '필수 섹션 없음' 문구에 덮이지 않고 함께 남는다.
+
+    검사 이유(실패 시 사용자 영향): 2026-11-19 맨시티–풀럼 실행에서 공통 수집이 예외로
+    끝났는데 저장된 기록에는 "필수 섹션 본문을 만들지 못했습니다"만 남아 첫 예외의 종류와
+    단계를 사후에 알 수 없었다. 원인 조사가 데이터 부재로 막히면 같은 실패가 재발해도
+    고칠 수 없다.
+    """
+    class _FailedOutcome:
+        run_id = "run-collection-failed"
+        status = RunStatus.FAILED
+        unavailable_reason = "필수 섹션 본문을 만들지 못했습니다: section_players"
+        # 실제 노드가 만드는 구조(구조 정보만, 자유 문구 없음).
+        collection_failure = {
+            "stage": "save",
+            "error_kind": "IntegrityError",
+            "cause_kind": "integrity",
+            "sqlstate": "23505",
+            "site": "preview/store.py:save_information_bundle:1540",
+            "reason": "정보 원문 묶음 검증·저장 중 실패했습니다. 데이터 무결성 제약에 걸렸습니다.",
+            "at": "2026-11-18T19:06:12.345678+00:00",
+        }
+
+    monkeypatch.setattr(
+        collection,
+        "collect_candidates",
+        lambda session, now, fixture_ids=None, test_scope=None, skipped=None: _candidates([101]),
+    )
+    result = collection.run_collection_generation(
+        session_factory=lambda: _Session(existing_runs=()),
+        preview_session_factory=lambda: _Session(existing_runs=()),
+        collection_status="succeeded",
+        now=NOW,
+        transport=object(),
+        generate=lambda **kwargs: _FailedOutcome(),
+        fixture_lock=_StubLock,
+    )
+
+    failed = result["failed"]
+    assert len(failed) == 1
+    entry = failed[0]
+    # 기존 필수 섹션 문구는 그대로 남는다(덮어쓰지 않는다).
+    assert "필수 섹션 본문을 만들지 못했습니다" in (entry.get("detail") or "")
+    # 그리고 첫 예외 진단이 함께 보존된다(단계·종류·SQLSTATE·실시각).
+    preserved = entry["collection_failure"]
+    assert preserved["stage"] == "save"
+    assert preserved["error_kind"] == "IntegrityError"
+    assert preserved["sqlstate"] == "23505"
+    assert preserved["at"].endswith("+00:00")
+    # 자유 문구(원문 예외)를 담지 않고 고정 설명만 쓴다.
+    assert "unique constraint" not in preserved["reason"]
+
+
+def test_successful_generation_has_no_collection_failure_key(monkeypatch):
+    """정상 생성 결과에는 collection_failure 키를 붙이지 않는다(오해 방지)."""
+    recorder = _Recorder()
+    result = _run(monkeypatch, ids=[101], recorder=recorder)
+
+    assert result["generated"][0]["fixture_id"] == 101
+    assert result["failed"] == []

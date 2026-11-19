@@ -49,7 +49,12 @@ from app.preview.information_bundle import (
     new_bundle_id,
     search_findings_from_groups,
 )
-from app.preview.retry import BudgetExceeded, RunBudget
+from app.preview.retry import (
+    HTTP_OWNER_ARTICLES,
+    HTTP_TOTAL_LIMIT,
+    BudgetExceeded,
+    RunBudget,
+)
 
 __all__ = [
     "ARTICLE_MAX_CHARS_PER_PASSAGE",
@@ -1248,7 +1253,9 @@ def collect_with_bodies(
             continue
 
         # 예산 확인: 최소 1홉이 남아야 보낸다. 상한이면 더 보내지 않는다(자동 재전송 없음).
-        if budget.remaining(RequestClass.API.value) < 1:
+        # 기사 수집은 **자기 보호 몫**으로 센다(사용자 확정 2026-11-19: 기사·배당 각 10,
+        # 공유 10, 총 30). 배당이 기사 소모 때문에 굶지 않게 하는 것이 이 표기의 목적이다.
+        if budget.http_remaining(HTTP_OWNER_ARTICLES) < 1:
             stopped = True
             diagnostics.append(
                 {"reason": "budget_exhausted", "url": canonical, "candidate_id": candidate.candidate_id}
@@ -1262,9 +1269,7 @@ def collect_with_bodies(
 
         def _hop_gate(hop_url: str) -> bool:
             # 홉은 **사용량**으로만 제한한다(모델 논리 재시도 횟수와 분리, 검토 F7).
-            allowed, reason = budget.charge_transport(
-                RequestClass.API.value, now=moment
-            )
+            allowed, reason = budget.http_charge(HTTP_OWNER_ARTICLES, now=moment)
             if not allowed:
                 gate_denied["value"] = True
                 diagnostics.append(
@@ -1286,8 +1291,8 @@ def collect_with_bodies(
             # 게이트를 지원하지 않는 클라이언트는 **전송 전에 상한 전체를 예약**하고, 실제
             # 홉 수를 알게 된 뒤 남은 몫을 반환한다. 예약을 넘는 홉이 보고되면 그 출처는
             # 채택하지 않는다(이미 나간 전송은 되돌릴 수 없으므로 사실대로 남긴다).
-            reserve_now = budget.reserve_transports(
-                1 + MAX_REDIRECT_HOPS, RequestClass.API.value
+            reserve_now = budget.http_reserve(
+                HTTP_OWNER_ARTICLES, 1 + MAX_REDIRECT_HOPS
             )
             if reserve_now < 1:
                 stopped = True
@@ -1310,13 +1315,13 @@ def collect_with_bodies(
             )
         except BudgetExceeded:
             if not supports_gate:
-                budget.release_reserved(reserve_now, RequestClass.API.value)
+                budget.http_release(HTTP_OWNER_ARTICLES, reserve_now)
             stopped = True
             diagnostics.append({"reason": "budget_exhausted", "url": canonical})
             continue
         except Exception:
             if not supports_gate:
-                budget.release_reserved(reserve_now, RequestClass.API.value)
+                budget.http_release(HTTP_OWNER_ARTICLES, reserve_now)
             raise
 
         actual_hops = max(1, int(getattr(fetch, "hop_count", 1) or 1))
@@ -1345,8 +1350,8 @@ def collect_with_bodies(
                 )
                 continue
         else:
-            budget.release_reserved(
-                max(0, reserve_now - actual_hops), RequestClass.API.value
+            budget.http_release(
+                HTTP_OWNER_ARTICLES, max(0, reserve_now - actual_hops)
             )
             used_hops += min(actual_hops, reserve_now)
             extra_hops = max(0, actual_hops - 1)
@@ -1584,8 +1589,10 @@ def collect_with_bodies(
             "used": used_hops,
             "failed": failed_hops,
             "redirects": redirect_hops,
-            "limit": budget.limits.api_requests,
-            "remaining": budget.remaining(RequestClass.API.value),
+            "limit": (
+                HTTP_TOTAL_LIMIT if budget.http_owner_quotas else budget.limits.api_requests
+            ),
+            "remaining": budget.http_remaining(HTTP_OWNER_ARTICLES),
             "counted": "redirect hops, failures and direct fetches",
         },
         budget_snapshot=budget.snapshot(),

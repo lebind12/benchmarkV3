@@ -58,7 +58,13 @@ from app.preview.contracts import (
 from app.preview.modules import bundle_sections
 from app.preview.models import PreviewRun
 from app.preview.registry import get_section_workflow
-from app.preview.retry import BudgetLimits, ConcurrencyLimiter, MODULE_SEND_CAP, RunBudget
+from app.preview.retry import (
+    HTTP_OWNER_ODDS,
+    BudgetLimits,
+    ConcurrencyLimiter,
+    MODULE_SEND_CAP,
+    RunBudget,
+)
 
 __all__ = [
     "BUNDLE_PIPELINE_VERSION",
@@ -143,6 +149,8 @@ class BundlePipelineOutcome:
     budget: Mapping[str, Any] = field(default_factory=dict)
     unavailable_reason: str | None = None
     diagnostics: tuple[str, ...] = ()
+    # 공통 수집 실패 진단(없으면 None). 호출자가 실패 원인을 보존할 수 있게 넘긴다.
+    collection_failure: Mapping[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -580,6 +588,10 @@ class _GraphState(TypedDict, total=False):
     diagnostics: Annotated[list, operator.add]
     completed: Annotated[list, operator.add]
     unavailable_reason: str | None
+    # 공통 수집이 예외로 끝났을 때의 진단(단계·예외 종류·SQLSTATE·발생 위치·실제 시각).
+    # 자유 문구(`str(exc)`)는 담지 않는다. 스키마에 없으면 LangGraph가 값을 버려
+    # 사후 원인 확인이 불가능하다.
+    collection_failure: dict[str, Any] | None
     # 마무리 노드 하나만 쓰는 최종 결론. 상태 스키마에 없으면 LangGraph가 버린다.
     final: dict[str, Any] | None
 
@@ -794,20 +806,17 @@ def _provider_odds_for(
                 " 같은 실행에서 다시 보내지 않습니다."
             ),
         )
-    allowed, reason = budget.can_attempt(
-        provider_odds_module.PROVIDER_ODDS_CALL_ID, RequestClass.API.value
-    )
+    # 배당은 **자기 보호 몫**으로 센다(사용자 확정 2026-11-19: 기사·배당 각 10,
+    # 공유 10, 총 30). 기사 수집이 자기 몫을 다 써도 배당 10회는 남는다.
+    allowed, reason = budget.http_charge(HTTP_OWNER_ODDS)
     if not allowed:
         return provider_odds_module.ProviderOddsResult(
             sent=0,
             reason=(
-                "API 요청 예산이 없어 제공자 배당 읽기를 보내지 않았습니다:"
+                "HTTP 요청 몫이 없어 제공자 배당 읽기를 보내지 않았습니다:"
                 f" {reason or '사유 없음'}"
             ),
         )
-    budget.charge(
-        provider_odds_module.PROVIDER_ODDS_CALL_ID, RequestClass.API.value
-    )
     return provider_odds_module.read_provider_odds(
         fixture_id=int(fixture_id),
         collected_at=moment,
@@ -985,6 +994,10 @@ class _nullcontext:
 def _collection_node(plan: _Plan):
     def run(state: Mapping[str, Any]) -> dict[str, Any]:
         session = _branch_session(plan)
+        # 예외가 나면 **어느 단계까지 진행했는지**를 이 값으로 남긴다. 하나의 `try`가
+        # 입력복원·수집·저장·commit을 모두 감싸므로 표시가 없으면 "수집 실패"와
+        # "commit 실패"가 같은 이름으로 보여 원인을 좁힐 수 없다(검토 CF-REVIEW 지적 1).
+        stage = "input_restore"
         try:
             entries = [dict(item) for item in state.get("discovery") or ()]
             candidates: list[Any] = []
@@ -1009,6 +1022,9 @@ def _collection_node(plan: _Plan):
             team_names = [str(item.get("name")) for item in snapshot_teams if item.get("name")]
             home_name = team_names[0] if len(team_names) > 0 else plan.home_team
             away_name = team_names[1] if len(team_names) > 1 else plan.away_team
+            # 입력 복원(후보/그룹/DbSnapshot/팀이름)이 끝났다. 여기서 예외가 나면
+            # `collect`가 아니라 `input_restore`로 남는다.
+            stage = "collect"
             collection = retrieval.collect_with_bodies(
                 candidates=candidates,
                 fixture=plan.identity,
@@ -1023,6 +1039,9 @@ def _collection_node(plan: _Plan):
                 home_team_names=(home_name,) if home_name else (),
                 away_team_names=(away_name,) if away_name else (),
             )
+            # 수집(URL 정책·HTTP·추출)이 끝났다. 저장/검증 단계로 넘어간다.
+            # 저장 안의 계약 검증 실패와 쓰기 실패는 아래에서 예외 종류로 구분한다.
+            stage = "save"
             saved = store.save_information_bundle_with_bodies(
                 session,
                 run_id=plan.run_id,
@@ -1030,6 +1049,7 @@ def _collection_node(plan: _Plan):
                 actor_id=plan.actor_id,
                 now=plan.moment,
             )
+            stage = "commit"
             session.commit()
             diagnostics = [
                 str(item) for item in collection.diagnostics if isinstance(item, str)
@@ -1046,12 +1066,108 @@ def _collection_node(plan: _Plan):
                 "bundle": None,
                 "diagnostics": [reason],
                 "unavailable_reason": reason,
+                # 이 실행이 **어느 단계에서** 어떤 예외로 멈췄는지 남긴다. 지금까지는
+                # 이 값이 상태에만 있어 사후에 원인을 알 수 없었다(2026-11-19 실패).
+                # 원문 SQL·DSN·토큰은 넣지 않는다(종류·단계·짧은 사유만).
+                "collection_failure": _collection_failure_detail(exc, stage=stage),
                 "completed": ["collection"],
             }
         finally:
             session.close()
 
     return run
+
+
+# 단계 이름 → 사용자가 읽을 고정 설명. 원문 예외 문구를 쓰지 않고 이 표만 쓴다.
+_COLLECTION_STAGE_TEXT: dict[str, str] = {
+    "input_restore": "조사 결과·저장 자료를 입력으로 복원하는 중 실패했습니다.",
+    "collect": "공개 자료 수집(URL 확인·HTTP·본문 추출) 중 실패했습니다.",
+    "save": "정보 원문 묶음 검증·저장 중 실패했습니다.",
+    "commit": "정보 원문 묶음 저장을 확정(commit)하는 중 실패했습니다.",
+}
+
+# DB 드라이버 예외가 알려 주는 **원인 분류**. 값 이름만 남기고 메시지는 쓰지 않는다.
+_CAUSE_KINDS: tuple[tuple[str, str], ...] = (
+    ("IntegrityError", "integrity"),
+    ("OperationalError", "operational"),
+    ("ProgrammingError", "programming"),
+    ("DataError", "data"),
+    ("InterfaceError", "interface"),
+)
+
+# 저장 단계에서 계약 검증 실패를 쓰기 실패와 구분하는 표시(예외 종류 이름).
+_CONTRACT_VIOLATION_KIND = "BundleBuildError"
+
+
+def _collection_failure_detail(
+    exc: BaseException, *, stage: str, at: datetime | None = None
+) -> dict[str, Any]:
+    """공통 수집 예외를 **구조 정보만** 담은 진단으로 만든다.
+
+    자유 문구(`str(exc)`)는 담지 않는다. 실제 DB 예외 본문에는 SQL, 바인딩 파라미터,
+    실패한 행 값(선수 실명 등)이 여러 줄로 들어 있어, redaction이나 첫 줄 절단으로
+    막을 수 없다(검토 CF-REVIEW 지적 2). 그래서 남기는 값은 다음뿐이다.
+
+    - `stage`: 실제 호출 전 경계(입력복원/수집/저장/commit)
+    - `error_kind`: 예외 클래스 이름
+    - `cause_kind`: DB 드라이버 예외면 원인 분류, 아니면 `None`
+    - `sqlstate`: 드라이버가 제공하는 SQLSTATE(`pgcode`)가 있으면 그 값
+    - `site`: 우리 코드의 파일·함수·행 위치(로컬 변수 값·traceback 원문은 넣지 않는다)
+    - `reason`: 위 값으로 만든 **고정 설명** 문장
+    - `at`: 실제 발생 시각(UTC). 예산·자료 기준시각과 무관한 기록용 값이다.
+    """
+    kind = type(exc).__name__
+    cause_kind = next(
+        (
+            label
+            for class_name, label in _CAUSE_KINDS
+            if any(base.__name__ == class_name for base in type(exc).__mro__)
+        ),
+        None,
+    )
+    sqlstate = getattr(exc, "pgcode", None)
+    if not isinstance(sqlstate, str) or not sqlstate.strip():
+        sqlstate = None
+    if kind == _CONTRACT_VIOLATION_KIND:
+        # 저장 안의 계약 검증 실패는 쓰기 실패와 다른 원인이다(예외 종류로 구분).
+        cause_kind = "contract_violation"
+
+    site = _failure_site(exc)
+    description = _COLLECTION_STAGE_TEXT.get(stage, "공통 수집 중 실패했습니다.")
+    if cause_kind == "contract_violation":
+        description += " 저장 전 계약 검증에서 거부되었습니다."
+    elif cause_kind == "integrity":
+        description += " 데이터 무결성 제약에 걸렸습니다."
+    detail: dict[str, Any] = {
+        "stage": stage,
+        "error_kind": kind,
+        "cause_kind": cause_kind,
+        "sqlstate": sqlstate,
+        "site": site,
+        "reason": description,
+        "at": (at or datetime.now(timezone.utc)).isoformat(),
+    }
+    return detail
+
+
+def _failure_site(exc: BaseException) -> str | None:
+    """예외가 발생한 **우리 코드**의 파일:함수:행. 변수 값·traceback 원문은 담지 않는다."""
+    frames = [frame for frame in _walk_traceback(exc)]
+    for filename, function, lineno in reversed(frames):
+        if "preview" not in filename or filename.endswith("site-packages"):
+            continue
+        name = filename.rsplit("/app/", 1)[-1] if "/app/" in filename else filename.rsplit("/", 1)[-1]
+        return f"{name}:{function}:{lineno}"
+    return None
+
+
+def _walk_traceback(exc: BaseException):
+    """traceback 프레임을 (파일, 함수, 행)만으로 훑는다(지역 변수는 읽지 않는다)."""
+    tb = getattr(exc, "__traceback__", None)
+    while tb is not None:
+        code = tb.tb_frame.f_code
+        yield (code.co_filename, code.co_name, tb.tb_lineno)
+        tb = tb.tb_next
 
 
 def _candidate_from_dict(raw: Mapping[str, Any]) -> Any:
@@ -1734,6 +1850,11 @@ def run_bundle_pipeline(
         budget=budget.snapshot(),
         unavailable_reason=final.get("unavailable_reason"),
         diagnostics=tuple(str(item) for item in final_state.get("diagnostics") or ()),
+        collection_failure=(
+            dict(final_state["collection_failure"])
+            if isinstance(final_state.get("collection_failure"), Mapping)
+            else None
+        ),
     )
 
 
